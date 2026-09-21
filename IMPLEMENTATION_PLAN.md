@@ -293,11 +293,11 @@ assumption of correctness.
 
 | Component | Why |
 |---|---|
-| `KeychainTokenStore` | The spike report describes a **non-sandboxed Developer-ID** app; that does not establish a sandboxed credential lifecycle. It is a **candidate implementation**, validated under the chosen model at the feasibility probe |
+| `KeychainTokenStore` | **Removed (D-I).** Credentials are memory-only, sourced fresh from the descriptor on every use; the ephemeral token rotates on daemon restart, so there is nothing durable to persist. No Keychain component ships |
 | `TwoSidedDiffView` | Compile-only skeleton; CodeEditSourceEditor integration was never demonstrated (the actual view uses paired `NSTextView`s). No syntax highlight, intraline, or alignment. Editor decoration/alignment hooks must be validated before the diff architecture is committed |
 | `FeedTableView` (`NSTableView`) | Compile-only, never rendered on a Mac. Needs on-device Instruments validation of frame stability + selection/scroll preservation under revision churn |
 | `Loopback*` transport | POSIX loopback convenience → real URLSession/Network HTTP+SSE |
-| `InterfaceExtractor` | Regex stand-in → real parser; semantics unratified (D-C) |
+| `InterfaceExtractor` | Regex stand-in → **consumer of the daemon interface-projection endpoint** (route (a), D-C); the client renders the projection and reports coverage/version, it does not parse blobs itself |
 
 **Undercredited — preserve as test infrastructure:**
 
@@ -309,12 +309,13 @@ assumption of correctness.
   wrong) protocol assumptions.
 
 **NEW:** real URLSession/Network HTTP+SSE client; runtime contract-version consumer
-(§2.4a); Node differential-oracle harness (§2.4c); real parser integration (SwiftTreeSitter
-or the daemon endpoint, per D-C); signing/notarization pipeline; Keychain under the
-chosen sandbox model; macOS performance/Instruments budgets; accessibility + keyboard
-validation; the `Changed · N | All files` explorer; a native design-token source (the
-browser's canvas `GetVariables()` no longer applies). The whole-UI honesty audit (P10) is
-an audit pass, not a new surface.
+(§2.4a); Node differential-oracle harness (§2.4c); the **daemon interface-projection
+endpoint** consumer (route (a), D-C) covering Swift + TypeScript behind the
+`LanguageProjection` contract; Developer-ID signing/notarization pipeline (unsandboxed,
+D-I); **memory-only credential sourcing** from the descriptor (no Keychain, D-I); macOS
+performance/Instruments budgets; accessibility + keyboard validation; the `Changed · N |
+All files` explorer; a native design-token source (the browser's canvas `GetVariables()` no
+longer applies). The whole-UI honesty audit (P10) is an audit pass, not a new surface.
 
 ### 2.7 De-risking the never-ran-on-a-Mac GUI
 
@@ -340,6 +341,10 @@ commits are manufactured to preserve numbering.
 
 ### P0 — Contract & fixture gate (S5.0) — *ratification + upstream prerequisites*
 
+- **Status:** decisions D-A…D-L **RATIFIED 2026-09-21** (Part 7). Remaining to fully
+  discharge P0: the two upstream slipstream PRs (reader fold-contract version; daemon
+  interface-projection endpoint) open or their interim substitute accepted; shared-corpus
+  owner named. P1 begins only on explicit direction from Brian.
 - **Depends:** Stage T's fold contract + conformance fixtures exist.
 - **Red:** decisions D-A…D-L unresolved; no runtime fold-contract-version identifier on
   the reader; parity oracle undefined.
@@ -473,18 +478,22 @@ commits are manufactured to preserve numbering.
     scroll in sync, selection holds, and rapidly switching changes never shows stale
     content under a new heading.
 
-### P6 — Interface-change list (S5.5) — gated on D-C
+### P6 — Interface-change list (S5.5) — route (a), Swift + TypeScript (D-C ratified)
 
-- **PR6.1 — Interface semantics core *(splits on ratification — do not schedule before
-  D-C)*.**
-  - Depends: shared selection/content contracts (PR3.1, PR5.1); route (a) additionally a
-    daemon endpoint PR. Red: identity/overload/rename/partial-parse/timeout/missing-blob
-    fixtures fail. Green: parses **whole** before/after blobs (clip arrays can omit
-    functions; adjacency ≠ same function); empty result provably distinguished from
-    unsupported/partial/unavailable; extraction coverage + algorithm version surfaced.
+- **PR6.1 — Interface projection consumer (route (a)).**
+  - Depends: shared selection/content contracts (PR3.1, PR5.1); **upstream slipstream PR #2
+    (daemon interface-projection endpoint)**. Red:
+    identity/overload/rename/partial-parse/timeout/missing-blob fixtures fail; a
+    third-language fixture is mishandled. Green: the client **consumes** the daemon
+    projection (the daemon parses whole before/after blobs — the client does not);
+    added/removed/changed symbols render for **Swift and TypeScript**; empty result provably
+    distinguished from unsupported/partial/unavailable; coverage + algorithm version
+    surfaced from the projection; the **`LanguageProjection` seam and the "adding a
+    language" checklist** ship so a third language is additive.
   - QA: `slipstream-watch interface <session> <seq>` prints added/removed/changed symbols
-    with coverage + algorithm version; run it on an unsupported-language and a
-    partial-parse change and a human sees "unsupported"/"partial", not a bare empty list.
+    with coverage + algorithm version for a Swift change and a TypeScript change; run it on
+    an unsupported-language and a partial-parse change and a human sees
+    "unsupported"/"partial", not a bare empty list.
 - **PR6.2 — List rendering.**
   - Depends: PR6.1. Red: an unsupported-language fixture renders as "no changes." Green:
     renders unsupported/partial/unavailable honestly, coverage + algorithm version
@@ -657,9 +666,10 @@ different high-water marks during live capture):
 4. Live SSE supplies no durable-high-water header, so "connected" never establishes
    "caught up"; live-follow parity is asserted only at a finite-replay checkpoint.
 
-The exact canonical form and the same-H export protocol are **D-J for Brian to approve**
-before PR3.4. This is the hardest protocol requirement in the plan and is called out as
-open, not assumed solved.
+The canonical form and same-H export protocol are **RATIFIED (D-J, option A)**: both
+clients apply through a frozen H (from finite replay's `slipstream-durable-seq`), exclude
+later events, and compare normalized state — no upstream API change. This was the hardest
+protocol requirement in the plan; it is now settled and owned by PR3.4.
 
 ---
 
@@ -671,74 +681,122 @@ latency via instrumented telemetry (public event `time` is not a latency proxy �
 `CLIP-LATENCY-PROTOCOL.md`); documented coverage gaps; native UI stopped and the
 independent Stage T client reproduces state through the §5.3 oracle.
 
-### 6.2 Acceptance budgets — set at P0, or P11 cannot grade (D-K)
-Minimum macOS version + hardware; supported languages (bounds the interface list);
-session size; memory ceiling; replay duration; revision-render latency; diff size limits.
+### 6.2 Acceptance budgets — set at P0 (D-K resolved)
+Proposed budgets, ratifiable as a unit; tighten once P4/P5 Instruments runs give real
+numbers. Any surface exceeding its budget on the acceptance corpus is a P11 failure.
+
+| Budget | Value |
+|---|---|
+| Minimum macOS | macOS 14 (Sonoma) or later |
+| Reference hardware | Apple silicon (M1 or later), 16 GB |
+| Supported languages (bounds the interface list) | **Swift, TypeScript** (D-C); others render as "unsupported", never as "no changes" |
+| Session size | ≥ 5,000 committed events replays and follows without degradation |
+| Memory ceiling | ≤ 1.5 GB resident on the reference session |
+| Replay duration | finite replay of the reference session ≤ 30 s to durable H |
+| Revision-render latency | ≤ 100 ms from applied event to visible feed update at p95 |
+| Diff size limits | focused diff renders ≤ 10,000 changed lines; beyond that, collapse + explicit "large diff" state |
+
+On an unsupported contract or semantics version the client **freezes derived rendering and
+shows an explicit incompatibility banner** (D-K) — it never hard-fails and never shows a
+raw view that could imply an un-reproduced attribution.
 
 ### 6.3 Open gaps (proven vs assumed)
 - **GUI has never run on a Mac** — the dominant unknown; probed at P1.2 before surfaces.
 - **Real-daemon HTTP/SSE via URLSession/Network** — spike used POSIX loopback; new at P2.
 - **macOS performance** — unmeasured; Instruments budgets at P4/P5.
-- **Signing / notarization / sandbox** — unproven; dry-run P1.2, real P9.
+- **Signing / notarization** — unproven; **unsandboxed Developer-ID + hardened runtime +
+  notarized** (D-I); dry-run P1.2, real P9.
 - **The reader has no runtime fold-contract-version identifier yet** — the linchpin of
   the versioned-change guard; upstream prerequisite at P0 (D-A), with the unversioned-
   change limit closed only by daemon release discipline.
-- **The same-H parity export protocol is unspecified at the API level** (§5.3) — D-J.
+- **The same-H parity protocol** (§5.3) is **resolved client-side (D-J, option A)** — no
+  API change; both clients truncate to a frozen H and compare normalized state.
 - **Stage T must have passed** and the **Stage 3 real-session gap** must be closed before
   P11 — flagged, not discharged here.
 
 ---
 
-## Part 7 — Decisions for Brian (surface, do not resolve)
+## Part 7 — Decisions for Brian — RATIFIED 2026-09-21
 
-Ratify at the **P0 gate**. Recommendations are noted where analysis points one way; the
-call is Brian's.
+All twelve decisions were ratified by Brian on **2026-09-21**, satisfying the **P0
+ratification gate**. Each entry records the decision as **surfaced** (the tradeoff) and
+**RESOLVED** (the chosen option + any follow-on it creates). Two upstream slipstream PRs
+fall out of D-A and D-C and are listed as explicit P0 prerequisites after the decisions.
 
-- **D-A — Fold-reproduction strategy + runtime contract version.** Recommend native fold
-  at runtime with Node-from-pinned-daemon-source as the CI oracle. Blocking sub-decision:
-  the reader exposes no fold-contract version today — publish one (upstream slipstream
-  PR, tied to history), or accept an interim guard that provides **demonstrable
-  equivalent enforcement**, or **explicitly amend** the S5.0 criterion to record the
-  reduced guarantee. The unversioned-change residual is closed only by daemon release
-  discipline.
-- **D-B — Native "Monaco-diff" bar.** Approve the native equivalent's feature bar
-  (Diff/Plain toggle, collapsed unchanged ranges, etc.).
-- **D-C — Interface-change semantics + ownership.** Decide the semantics (symbol
-  identity, signature normalization, overloads/renames, partial-parser outcomes,
-  supported languages, versioning, parity obligations) **before** choosing route (a)
-  daemon projection endpoint vs (b) client-side whole-blob extraction. The plan does not
-  presume a route. The slipstream `.context/` terminal write-up is gitignored and absent
-  from the clone, so the semantics are genuinely unresolved.
-- **D-D — Reproduction-client substitution.** The cancelled criterion said "Stage 2 TUI";
-  substituting Stage T's rich TUI is an amendment to ratify.
-- **D-E — Carried-over browser deliverables.** Explorer, three-column interaction, sticky
-  non-stacking headings, whole-function stream cards, and a native design-token source.
-  Confirm scope + owning PRs (Part 3 table).
-- **D-F — Client-scoped exception to "TypeScript throughout / replaceable front-end."** A
-  Swift *client* consuming only `/v1/*` is consistent with replaceability; make the
-  exception explicit.
-- **D-G — Cross-platform hedge.** The TCA UI is Apple-locked; `SlipstreamCore` is the
-  migration seam. Accept that risk framing.
-- **D-H — Daemon topology.** Colocated-only, or remote support? The reader binds strictly
-  to `127.0.0.1`, pins `Host`, and bootstraps from local files. Remote support is a
-  contract/deployment change, not a URL preference.
-- **D-I — Distribution + credential lifecycle.** Sandboxed vs unsandboxed;
-  descriptor-access mechanism under that choice; daemon/store selection when several
-  exist; whether ephemeral tokens persist at all; Keychain identity, rotation, deletion,
-  locked/denied behavior. (The P1.2 probe runs against whichever models are in
-  contention and feeds this decision.)
-- **D-J — Parity-oracle definition + same-H export protocol.** Approve the canonical
-  normalized-state comparison and the operational same-H export (§5.3) — the hardest open
-  protocol item.
-- **D-K — Compatibility-failure policy + acceptance budgets.** On an unsupported
-  contract/semantics: stop derived rendering, freeze with an explicit incompatibility
-  state, or allow a restricted raw view — and define supported daemon/client
-  combinations. Plus the §6.2 budgets.
-- **D-L — Stage 3 prerequisite gap.** Q14 needs live real-harness sessions, but Stage 3
-  is In Progress (P4 real-session acceptance + PR, P5 PR to develop remain). Sequence
-  before P11.
+- **D-A — Fold-reproduction strategy + runtime contract version.**
+  **RESOLVED: native fold at runtime, with Node-from-pinned-daemon-source as the CI
+  differential oracle, and a published fold-contract version on the reader** (upstream
+  slipstream PR #1 below). Until that version ships, P0 may proceed only on an interim
+  guard with demonstrable equivalent enforcement, or an explicit §2.4a criterion
+  amendment. The unversioned-change residual is **accepted, not eliminated** — it is
+  closed only by daemon release discipline.
+- **D-B — Native diff bar. RESOLVED: approve** the native equivalent's feature bar
+  (Diff/Plain toggle, collapsed unchanged ranges, etc.); the P5.3 §2.7 feasibility
+  exercise de-risks it before it lands.
+- **D-C — Interface-change semantics + ownership. RESOLVED: route (a) — daemon projection
+  endpoint** (upstream slipstream PR #2 below). **Initial supported languages: Swift and
+  TypeScript**, behind a **modular language-adoption architecture**: each language is a
+  self-contained projection module behind a single `LanguageProjection` contract (symbol
+  identity, signature normalization, overload/rename handling, partial-parse outcome,
+  coverage + algorithm-version reporting). Adding a language is **additive** — a new module
+  plus its conformance fixtures — never a rewrite of the interface pipeline. The daemon
+  owns the projection; the client renders it and reports coverage/version honestly. A
+  documented "adding a language" checklist ships with PR6.1.
+- **D-D — Reproduction-client substitution. RESOLVED: ratify** substituting Stage T's
+  rich TUI for the cancelled "Stage 2 TUI" as the independent reproduction oracle.
+- **D-E — Carried-over browser deliverables. RESOLVED: confirm** scope as mapped in the
+  Part 3 table (explorer, three-column interaction, sticky non-stacking headings,
+  whole-function stream cards, native design-token source).
+- **D-F — Client-scoped exception to "TypeScript throughout / replaceable front-end."**
+  **RESOLVED: make the exception explicit** — a Swift client consuming only `/v1/*`
+  preserves front-end replaceability.
+- **D-G — Cross-platform hedge. RESOLVED: accept** the risk framing; the Apple-locked TCA
+  UI sits above `SlipstreamCore`, which is the platform-agnostic migration seam.
+- **D-H — Daemon topology. RESOLVED: colocated-only.** The reader binds strictly to
+  `127.0.0.1`, pins `Host`, and bootstraps from local files. Remote support is deferred —
+  it is a contract/deployment change, not a URL preference — and sits cleanly under the
+  unsandboxed local-descriptor model (D-I).
+- **D-I — Distribution + credential lifecycle. RESOLVED: unsandboxed + memory-only
+  credentials.** Distribution is **Developer-ID + hardened runtime + notarized** (not
+  sandboxed, not Mac App Store); the descriptor is read directly from
+  `<storeDir>/runtime/*.json`, guarded by `O_NOFOLLOW` + mode `0600` + owner check.
+  Credentials are **held in memory only, sourced fresh from the descriptor on every use —
+  no Keychain persistence**; `KeychainTokenStore` is **removed from the plan**. Rationale:
+  the reader token is ephemeral and rotates on daemon restart, so persisting it risks a
+  stale credential and buys nothing, while memory-only eliminates the entire
+  sandbox/Keychain lifecycle (rotation, locked/denied, deletion). Revisit only if Mac App
+  Store distribution becomes a requirement.
+- **D-J — Parity-oracle definition + same-H export. RESOLVED: option A** — client-side
+  truncation to a frozen H (from finite replay's `slipstream-durable-seq` header); both
+  clients apply through H and exclude later events, then compare **normalized state**
+  (attribution provenance, coverage, gaps, inventory). **No upstream API change.**
+- **D-K — Compatibility-failure policy + acceptance budgets. RESOLVED: freeze with an
+  explicit incompatibility state.** On an unsupported contract/semantics version the client
+  **stops derived rendering and shows an explicit incompatibility banner** naming the
+  mismatch; it never hard-fails, and never shows a raw view that could imply an
+  un-reproduced attribution. Acceptance budgets are set in §6.2.
+- **D-L — Stage 3 prerequisite gap. RESOLVED: ratify the sequencing.** P11 (the Q14 gate)
+  cannot run until slipstream Stage 3's real-harness sessions exist; the plan already
+  orders P11 last, and Stage T acceptance + the Stage 3 gap are tracked as P11
+  prerequisites.
+
+### P0 upstream slipstream prerequisites (created by D-A and D-C)
+
+1. **Reader fold-contract version** (D-A) — the public reader publishes a fold-contract
+   version tied to history, so the client can detect a shape-preserving semantic change and
+   trigger the D-K freeze. Until it ships, P0 proceeds only on the §2.4a interim guard
+   (demonstrable equivalent enforcement) or an explicit criterion amendment. The §2.4a
+   guard depends on this PR.
+2. **Daemon interface-projection endpoint** (D-C) — a `/v1/*` projection endpoint that
+   returns added/removed/changed symbols per the ratified semantics for the supported
+   languages (Swift, TypeScript), with coverage + algorithm version. **PR6.1 depends on
+   this PR.**
+
+Both are tracked on the slipstream `briankeane/vienna` branch and must be open (or their
+interim substitute accepted) before the PRs that consume them land. P2.3 depends on
+neither.
 
 ---
 
-*End of plan. No production code is written in this task. Await ratification of Part 7
-before P1 begins.*
+*End of plan. No production code is written in this task. Part 7 is ratified (2026-09-21);
+the P0 gate is satisfied. P1 begins only on explicit direction from Brian.*
