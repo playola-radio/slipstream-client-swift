@@ -4,11 +4,23 @@ The native macOS **watching** client for Slipstream. This is a plan document, no
 production code. It is meant to be reviewed and ratified before any feature code is
 written.
 
-- **Language/framework:** decided — Swift + vanilla The Composable Architecture
-  (TCA), macOS-first. Won a three-way bake-off (`playola-radio/slipstream-native-bakeoff`,
-  `SYNTHESIS.md`). Not relitigated here; this plan builds on it.
-- **Sources of truth:** the merged Swift/TCA spike (`slipstream-native-bakeoff/swift/`)
-  and the daemon (`briankeane/slipstream`). Captured session data
+- **Language/framework:** decided — Swift, macOS-first, using the **Point-Free
+  "observable-models" architecture** (RATIFIED, Brian 2026-09-22, **D-M**): `@Observable`
+  `@MainActor` model classes with imperative methods, swift-dependencies for DI,
+  swift-sharing for cross-model/persisted state, swift-testing with headless model tests.
+  **No** The Composable Architecture (no `@Reducer`/`Store`/`Effect`/`TestStore`). This
+  reverses the bake-off's original vanilla-TCA choice (`playola-radio/slipstream-native-bakeoff`,
+  `SYNTHESIS.md`); the reversal buys simplicity and human-readability and stops fighting
+  Swift's object model with reducer-functional programming, and matches the two shipping
+  Playola apps (`QuickInterviewEditor`, `playola-radio-ios`). The dependency-boundary
+  design (struct-of-closures `@DependencyClient`s), the fold contract, the honesty
+  contract, the PR graph, and the 4-module split are **unchanged** by the reversal — only
+  the reducer/store layer becomes observable models. Pressure-tested through an
+  architect-consult before this edit (see §2 for what the reversal does and does not
+  change).
+- **Sources of truth:** the Swift spike (`slipstream-native-bakeoff/swift/`) — its Core
+  domain logic and dependency boundaries, **not** its TCA reducer/Store shape — and the
+  daemon (`briankeane/slipstream`). Captured session data
   (`.slipstream/`, `sessions/`, `blobs/`, `*.jsonl`) is never copied into this repo.
 - **Provenance:** synthesized from both repos and pressure-tested through two rounds of
   adversarial architecture review before writing. Where a claim is proven vs assumed,
@@ -69,8 +81,10 @@ worse than one that renders "unknown," because it launders inference into appare
    production quality, each landing with its full honesty/uncertainty/coverage/gap
    states from its first commit.
 3. Real-daemon transport (URLSession/Network), not just the spike's replay harness:
-   descriptor discovery, Keychain credentials, reconnect with credential refresh,
-   `409` explicit-recovery, `410` stop, bounded failure handling.
+   descriptor discovery, **memory-only credential sourcing** (fresh from the descriptor on
+   every use, no persistence — D-I), reconnect with credential refresh, `409`
+   explicit-recovery, `410` stop, bounded failure handling under a single shared recovery
+   owner.
 4. A signed, notarized, hardened-runtime `.app` within a stated bundle-size budget.
 5. Accessibility (VoiceOver tree + labels) and full keyboard navigation.
 6. Pass the Stage 5 / Q14 acceptance bar, including the "delete the front-end and an
@@ -119,32 +133,68 @@ conflated.
 
 ## Part 2 — Architecture
 
-### 2.1 Module split (carried from the spike, unchanged)
+### 2.1 Module split (4 modules — RATIFIED, kept through the framework reversal)
 
 - **`SlipstreamCore`** — platform-agnostic, Linux-clean. Models (`Seq`, `CloudEvent`,
   `JSONValue`, event payloads, clip projection, `ReaderEvent`), the display fold and
-  `SessionModel` feed projection, the `@DependencyClient` boundaries (Reader/Blob/Clip/
-  Fold/Credentials), transport plumbing, interface-change core. The cross-platform hedge
-  and the reproduction seam.
-- **`SlipstreamKit`** — canonical TCA reducers and live implementations, gated
-  `#if os(macOS)`.
-- **`SlipstreamApp`** — SwiftUI shell + AppKit (`NSTableView` feed, the one focused diff
-  renderer), Keychain, the fold runtime.
-- **`slipstream-watch`** — headless CLI + replay-harness, cross-platform. Doubles as a
-  scriptable acceptance/parity driver.
+  `SessionModel` domain projection, the `@DependencyClient` boundaries (Reader/Blob/Clip/
+  Fold/Credentials), the **cross-platform production runtime** (bootstrap, replay, SSE
+  follow, credential sourcing, the shared recovery owner + its policy), interface-change
+  core. The cross-platform hedge and the reproduction seam. Core stays **free of
+  `Observation`/`@Observable`, any `ViewModel` base, and `@Shared`** — those are
+  presentation concerns. `SessionModel` is a plain domain value/projection despite its
+  name.
+  - **Live-runtime placement (Codex correction).** "Live implementations live in Kit" was
+    wrong: the Linux `slipstream-watch` CLI needs the *same* production bootstrap, replay,
+    follow, credential sourcing, and recovery the GUI ships — so their cross-platform
+    implementation and common policy live **here, in Core**, under its existing transport
+    remit. Only genuinely macOS-specific *adapters* (see Kit) sit above them. Sharing the
+    domain/recovery **implementation** (not merely matching enums) between CLI and GUI is
+    what lets P2's CLI QA certify the *same* watcher the app runs.
+- **`SlipstreamKit`** — the **`@Observable` `@MainActor` view models** (imperative methods,
+  `Task` + generation counters, `@Dependency(\.continuousClock)`) plus **macOS-specific
+  adapters** (e.g. a `Network`/URLSession-flavored transport adapter where one is needed),
+  gated `#if os(macOS)`. Models hold Core domain values; that downward dependency does not
+  pull Kit into Core. Reducer action-handling from the spike becomes imperative model
+  methods.
+- **`SlipstreamApp`** — SwiftUI shell + AppKit (`NSTableView` feed with an explicit
+  observation bridge, §2.5; the one focused diff renderer); the fold runtime; the
+  composition root that constructs and injects the session model. **No Keychain** (D-I:
+  memory-only credentials).
+- **`slipstream-watch`** — headless CLI + replay-harness, cross-platform, exercising
+  Core's production runtime directly. Doubles as a scriptable acceptance/parity driver.
 
-Only the TCA UI is Apple-locked. `SlipstreamCore` is where a future port lives, and it
-is the layer the conformance fixtures and the parity oracle bind to.
+The Apple-locked layer is the observable-models UI (Kit view models + App), not Core.
+`SlipstreamCore` is where a future port lives and is the layer the conformance fixtures
+and the parity oracle bind to. **Dependency interfaces keep their struct-of-closures
+shape**; where a live implementation is platform-specific, use interface/implementation
+separation or a composition-root override — Core must **never** `import` Kit to obtain a
+`liveValue`.
 
-### 2.2 Point-Free package set (from the spike's `Package.swift`)
+**Package resolution ≠ target cleanliness.** "No `Observation` imports in Core" is
+necessary architectural discipline, not sufficient build evidence: packages used only by
+macOS targets can still affect package/toolchain resolution. **P1 must build *and test*
+Core + CLI on Linux** with the selected pins (including the Linux HTTP/SSE adapter proven
+in CI), or the reproduction seam is unproven.
 
-swift-composable-architecture 1.26.2, swift-dependencies 1.17.1,
-swift-identified-collections 1.1.1, swift-case-paths 1.10.0, swift-custom-dump 1.7.3
-(plus transitive swift-navigation/perception/sharing/clocks/concurrency-extras/
-collections/syntax). `SlipstreamCore` links only
-Dependencies/DependenciesMacros/IdentifiedCollections/CasePaths/CustomDump to stay
-Linux-clean; TCA proper is gated to macOS. Versions are pinned; revisited only as a
-deliberate PR.
+### 2.2 Point-Free package set (revised for the framework reversal)
+
+**DROP** swift-composable-architecture (no `@Reducer`/`Store`/`Effect`/`TestStore`).
+**KEEP** swift-dependencies 1.17.1, swift-identified-collections 1.1.1, swift-case-paths
+1.10.0 (Core names it), swift-custom-dump 1.7.3. **ADD as direct dependencies**
+swift-sharing (for the few genuinely cross-model/persisted values) and swift-clocks
+(`TestClock` for backoff/timeout tests). The issue-reporting product (historically
+`xctest-dynamic-overlay`) is used for `unimplemented` dependency defaults — its name does
+**not** imply writing XCTest tests; tests are swift-testing.
+
+Precision the abbreviated mapping missed: distinguish **adding a direct dependency** from
+something that was already **transitive** through TCA or Dependencies (swift-sharing,
+swift-clocks, swift-navigation, perception were transitive under TCA and now need explicit
+declaration where used). `SlipstreamCore` links only
+Dependencies/DependenciesMacros/IdentifiedCollections/CasePaths/CustomDump (+ the
+issue-reporting product) to stay Linux-clean; it does **not** link swift-sharing or any
+Observation/`@Observable` machinery — those are Kit/App only. Versions are pinned;
+revisited only as a deliberate PR, and re-resolved on **both** Linux and macOS (§2.1).
 
 ### 2.3 Transport
 
@@ -175,17 +225,54 @@ Contract details that are easy to get wrong:
   schema fetch is a compatibility *check*, not a source of behavior. The build declares
   which schema/contract versions it supports and what it does when it sees one it does
   not (§2.4, D-K).
-- **Recovery must be bounded, with a disclosed terminal state.** Descriptor refresh must
-  not turn persistent corruption, an unsupported schema, or a missing blob into an
-  endless reconnect loop. There is an explicit owner for attempt/time limits and a
-  retry classification; on exhaustion the client reaches a **disclosed terminal /
-  manual-retry state**. SSE corruption can surface merely as a socket close; the client
-  reports "connection ended, reason unknown," never a fabricated capture gap.
-- **Workload bounds are part of the contract.** Virtualizing the feed does not bound
-  retained fold state, queued events, in-flight downloads, or parse work. Cancellation,
-  backpressure, and resource limits are defined at the transport and projection layers,
-  and a durable event is **never** silently dropped to stay under a limit (that is a
-  correctness failure, not a performance tradeoff).
+- **Recovery must be bounded, with a disclosed terminal state — under ONE shared owner.**
+  Descriptor refresh must not turn persistent corruption, an unsupported schema, or a
+  missing blob into an endless reconnect loop. The attempt count, episode deadline, failure
+  classification, and recovery decision live in **one shared recovery owner** (in Core) —
+  Reader, Credentials, and Blob must **not** each run independent retry loops. The policy
+  classifies failures explicitly (see the table below), and on exhaustion the client
+  reaches a **disclosed terminal / manual-retry state**. SSE corruption can surface merely
+  as a socket close; the client reports "connection ended, reason unknown," never a
+  fabricated capture gap. Concrete attempt/deadline defaults and the exhaustion behavior
+  are a named decision (**D-P**, §6.2/Part 7).
+
+  | Failure | Required disposition |
+  |---|---|
+  | Recoverable connection failure | Bounded retry with descriptor reread |
+  | Authentication failure | Bounded credential refresh; coordinate all affected requests |
+  | Event-reader `409` | Explicit recovery choice; **never** silent reset to zero |
+  | Event-reader `410` | Stop that session's reader |
+  | Unsupported semantics | Freeze derived rendering, disclose incompatibility (D-K) |
+  | Malformed known event / invalid sequence progression | Halt trustworthy application |
+  | Missing blob | Disclose *content* unavailability; do **not** reconnect the whole session |
+  | Recovery budget exhausted | Terminal state with reason + manual-retry action |
+
+  **Do not reset the recovery budget merely because TCP connected, auth succeeded, or a
+  heartbeat arrived** — otherwise "connect → hit the same corruption → reconnect" is
+  infinite. Successful recovery is defined by **validated application/catch-up**, not by a
+  live socket. The deadline bounds a *recovery episode*, not the lifetime of a healthy
+  watch. **Failure scope matters**: a missing diff blob terminates *that content request*
+  while healthy event-following continues; conversely stream corruption cannot be shown as
+  one unavailable row while later derived state is still presented as authoritative.
+- **Credential-context identity.** Credential refresh mints a new credential context. Old
+  in-flight requests may complete *after* the daemon publishes a new descriptor; their
+  results must be checked against the **current** session/credential context before they
+  publish anything. Preserve D-I's fresh-descriptor sourcing — do **not** regress it into
+  "cache forever until a 401."
+- **Workload bounds are part of the contract; Observation is not backpressure.**
+  Virtualizing the feed does not bound retained fold state, queued events, in-flight
+  downloads, or parse work — and neither task cancellation nor generation checks bound
+  queued frames, retained history, or obsolete computations. Cancellation, backpressure,
+  ordered event application, bounded acquisition/concurrency, and an explicit
+  resource-limit failure are defined at the transport and projection layers. It is
+  acceptable to **coalesce presentation updates** after applying every durable event; it is
+  **not** acceptable to drop a durable event from a bounded stream buffer (a correctness
+  failure, not a performance tradeoff).
+- **Heavy computation does not run on the main actor.** Observable state *publication*
+  belongs on `@MainActor`, but parsing, large folds, and diff alignment need an explicit
+  off-main execution strategy that meets §6.2 — wrapping CPU work in `Task {}` inside a
+  main-actor model does **not** move it off-main. Such work returns immutable results and
+  is re-checked against the same identity guards before it publishes.
 
 ### 2.4 The fold-reproduction contract (the crux)
 
@@ -216,13 +303,24 @@ accepts an interim guard, that guard must provide **demonstrable equivalent enfo
 or the S5.0 acceptance criterion is explicitly amended to record the reduced guarantee —
 acknowledging an honesty limit does not by itself satisfy the criterion.
 
-**(b) Fail visibly on unsupported semantics.** Advancing the cursor past an unknown
-event is correct *transport* behavior. Claiming the resulting projection is *complete*
-may be false. The client tracks two distinct boundaries — "event consumed" (cursor
-advanced) and "semantics understood" (event type + contract version are ones this build
-folds correctly). When they diverge, the derived view is marked **not-known-current**,
-never shown as authoritative. A future attribution event the client does not understand
-must not leave a stale "possibly agent" badge looking current.
+**(b) Fail visibly on unsupported semantics — consumed ≠ understood ≠ certified.**
+Advancing the cursor past an unknown event is correct *transport* behavior. Claiming the
+resulting projection is *complete* may be false. The client keeps a **committed
+transport-consumption boundary** and, separately, a **certified projection checkpoint**
+`(scope, contract identity, understood-through boundary, matching derived state)`. An
+unknown event may be *consumed* once its disposition — including the loss of semantic
+authority it causes — is recorded; that does **not** certify the derived projection through
+that event. Worked example: events through 40 understood; event 41 has unknown semantics;
+event 42 is a familiar type. Consumption may reach 42, but the last fully-understood
+prefix stays at **40** — recognizing 42 does not repair 41's missing semantics. When the
+two boundaries diverge, the derived view is marked **not-known-current**, never shown as
+authoritative; a future attribution event the client does not understand must not leave a
+stale "possibly agent" badge looking current. Resuming authority requires a *supported*
+interpretation and replay/reconstruction from a valid boundary — not merely a reconnect.
+For malformed known events or sequence violations, **halt** trustworthy application rather
+than treat them as benign unknown types; sequence validation follows the reader contract
+(do not invent a numeric `previous + 1` rule). This certified-checkpoint definition is the
+one §5.3 uses: a **consumed cursor alone can never qualify as a parity checkpoint**.
 
 **(c) A Node differential oracle from pinned daemon source.** The CI conformance oracle
 is **Node executing the daemon's authoritative display exports at a pinned revision** —
@@ -270,6 +368,15 @@ diff renderer, never one per card. The diff renderer's concrete technology
 (CodeEditSourceEditor per pane vs paired `NSTextView`) is **not yet proven** and is gated
 behind a feasibility exercise (§2.7, P5).
 
+**AppKit needs an explicit observation bridge.** Observation drives SwiftUI automatically,
+but `NSTableView` does not. The bridge must make **content changes under unchanged row
+identity** (revision-in-place: an attribution badge flips while the row's `(source,
+change-seq)` identity is stable) cause a visible cell update **without** recreating the
+table, losing selection, or resetting scroll. An identifier-only table diff passes an
+identity test while leaving the old badge onscreen — that is exactly the P4.1 failure the
+bridge exists to prevent. Headless model tests cannot establish this; it is proven with an
+on-device check (P4.1).
+
 ### 2.6 Reuse map — lifted vs reworked vs new (evidence-graded)
 
 The spike is the canonical architecture reference, but **its GUI never ran on a Mac** (CI
@@ -286,7 +393,8 @@ assumption of correctness.
 | `Seq`, `JSONValue`, `CloudEvent`/payloads/`ReaderEvent` | Linux unit tests | Re-run on-device; confirm Unicode/ordering identity against the fold spec |
 | `DisplayFold` (foldAttributions/foldEvidence) | Linux unit tests | Confirm the validity-gated two-pass (§2.4) and add rejection fixtures; supply authoritative coverage/gap specs and confirm whether existing code covers them before rewriting |
 | `SessionModel` feed projection | Linux tests; the report *illustrates* sequence-only row identity | Inspect the actual identity policy; adopt **composite identity** (source + change-seq) so multi-source cannot collide — do not assume the report's illustration is the full policy |
-| `@DependencyClient` boundaries, Feed/App/SessionList reducer skeletons | macOS TestStore, execution unverified | Re-run on-device at P1 |
+| `@DependencyClient` boundaries (Reader/Blob/Clip/Fold/Credentials) | macOS TestStore, execution unverified | **Lift the struct-of-closures interfaces verbatim** (they are framework-agnostic and survive the reversal); re-verify on-device at P1 with headless model tests |
+| Feed/App/SessionList **reducer** skeletons | macOS TestStore, execution unverified | **Do not lift as reducers.** Re-express as `@Observable` `@MainActor` model skeletons (imperative methods + generation counters); the spike's TestStore tests are execution-unverified, so this is **not** a demonstrated-green baseline being preserved |
 | `Fixtures.swift` + `FoldConformanceTests` pattern | Solid | Extend into the shared corpus |
 
 **REWORK:**
@@ -325,11 +433,102 @@ probe** at **P1.2** whose only deliverable is go/no-go evidence and surfaced dec
 own the regression-protected implementations). The probe proves, on a real Mac, that each
 of the following is *achievable* under the model D-I selects: app launch + windowing;
 real URLSession finite-replay and SSE follow against a local daemon; restart-recovery
-credential refresh; descriptor access; Keychain read/write/rotate/delete; and a signing +
-notarization dry-run. It does **not** presuppose sandboxing or persistent tokens — it
-runs against whichever candidate models D-I is weighing and feeds that decision. A narrow
+credential refresh; descriptor access + **memory-only credential sourcing** (no Keychain —
+D-I); and a signing + notarization dry-run. It does **not** presuppose sandboxing or
+persistent tokens — it runs against whichever candidate models D-I is weighing and feeds
+that decision. A narrow
 **diff feasibility exercise** (editor decoration/alignment hooks) runs before P5 expands;
 feed **table churn is measured** when P4 lands.
+
+### 2.8 Ownership, concurrency & honesty-state modeling (replaces the reducer/TestStore layer)
+
+The framework reversal removes reducers and `TestStore`; renaming reducers to models is
+**not** sufficient. `@MainActor` serializes synchronous mutations, but an `await` lets
+other operations change the model — it does **not** make an async method atomic. So the
+observable-models layer is governed by one rule:
+
+> **Every asynchronous operation has one owner, an explicit lifetime, and an identity
+> checked before it publishes any result.** Cancellation releases resources; identity
+> checks prevent obsolete work from changing state.
+
+**Shared session state — one owner (D-N).** One injected `@MainActor @Observable
+SessionWatchModel` per watched-session lifetime owns the one canonical Core session
+snapshot (+ its authority/checkpoint metadata), the watching/recovery lifecycle, and shared
+selection where coordinated surfaces need it. The composition root creates and retains it;
+feed, focused diff, interface list, and explorer all receive the **same instance**. Its
+canonical state is externally read-only; methods are the sole mutation boundary. Surface
+models own only *local* presentation (filters, expanded rows, scroll, generation-bound
+content loading) and derive read-only from the canonical snapshot — they never keep their
+own copy of attribution nor independently fold the event stream (independent folds can
+disagree about applied boundaries, unsupported semantics, revisions, and recovery). Not
+`@Shared(.inMemory)` for the whole session: shared storage does not identify the
+authoritative writer, own stream lifetime, or coordinate recovery — you would still need
+this owner, plus another lifecycle to reset in tests. `swift-sharing` is reserved for
+concrete settings / small cross-model values, never invented persistence to match a
+reference app's package list. Per **D-N**, watching lives for the window that opened it and
+stops on window close — no background-watching feature, no cross-window shared watcher. The
+model's inherited equality/hash uses **object identity**; row identity stays the Core
+composite `(source, change-seq)`; tests compare **state values**, never model identity.
+
+**Separate generation counters per lifetime**, not one global counter (which would cancel
+unrelated work) and not one-per-method (which obscures ownership): **watching**,
+**credential context**, and **selected-content** each get their own.
+
+**SSE follow / reconnect / staleness.** One long-lived watching operation owns follow,
+heartbeat monitoring, and reconnect; reconnect is a **sequential loop**, not recursively
+spawned tasks. Connection state is explicit — `idle → connecting → following → backingOff →
+connecting`, with distinct exits `recoveryRequired`, `stopped`, `terminal(reason)`. On
+session replacement or explicit stop: (1) invalidate the watching generation synchronously;
+(2) cancel its task + underlying stream; (3) publish the new session/connection state; (4)
+reject every later callback from the old generation, including its errors and cleanup — an
+old task's `defer` must not clear the new task handle or reset its connection state. Keep
+three facts separate: **connection health** (socket/heartbeat), **application progress**
+(committed event boundary), **verified catch-up** (applied through a finite-replay H). A
+quiet session is not stale; a fresh socket does not prove catch-up. The staleness timer
+uses `continuousClock`, belongs to the watching generation, and re-checks latest activity
+before declaring interruption (an obsolete timer must not overwrite newer evidence).
+
+**Generation-bound async diff.** Request identity = `session scope + composite change
+identity + before/after snapshot identities + selection generation` (the generation is
+required even when the semantic key repeats: A→B→A must reject the first A). On
+selection/snapshot change: synchronously invalidate the previous generation and publish a
+coherent `loading(newKey)`, *then* cancel old work and begin acquisition/alignment. Every
+async stage follows: capture identity → await → verify not-cancelled **and** identity still
+current → publish one coherent presentation — applied to **failures, fallbacks, progress,
+and cleanup**, not just successful downloads. **Heading and content derive from one
+presentation identity** (separate mutable `heading`/`text` fields invite exactly the
+stale-content-under-new-heading failure P5.3 forbids). Attribution-only revisions refresh
+selected metadata without re-downloading unchanged snapshots; snapshot changes invalidate
+content work; session incompatibility invalidates any work that could publish newly
+authoritative derived content.
+
+**Honesty states MUST be explicit enums/typed fields, never scattered bools.** Mutually
+exclusive alternatives are enums; independent facts are separate typed fields (no single
+mega-enum of every combination; no `isReady`/`isUnknown`/`isComplete`/`hasError` sprinkled
+across a model). These types live in **Core** where they describe daemon facts or
+projection authority; Kit translates them to presentation and individual views must not
+reinterpret them:
+
+| Concern | Minimum explicit representation |
+|---|---|
+| Attribution | Absent published record vs a published record carrying its **actual** classification. A presentation type may call absence "pending"; **never** add `pending` to the daemon's attribution enum |
+| Projection authority | Understood-through a named boundary vs not-known-current/frozen, with the first blocking event/version + reason |
+| Reader connection | connecting / following / recovering / recovery-required / stopped / terminal (+ reasons) — **separate** from projection authority |
+| Evidence coverage | unknown-due-to-absence, or reported coverage keyed by source/harness; `readable` = evidence **access** only |
+| Capture context | published gaps + reasons/scopes, baseline status, observed boundary — **never** synthesized from connection failures |
+| Content sides | absent side vs available (incl. genuinely empty) vs unavailable-with-reason; completeness/truncation explicit for available content |
+| Clip acquisition | HTTP/transport failure vs successful projection; only the successful-projection case carries `ready/fallback/skipped/unavailable` + reason |
+| Interface projection | complete / partial / unsupported / unavailable-error; partial may carry results; coverage + algorithm version accompany results |
+| Inventory | observed inventory + boundary, baseline completeness, exclusions, unavailable entries, unknown scopes, relevant gap status |
+| Grouping | typed grouping hint, separate from attribution and completion claims |
+
+Two rendering rules deserve emphasis: **"pending" is only meaningful where attribution
+absence is meaningful** — once semantics are unsupported, an absent locally-understood
+record cannot prove no attribution was published, so a frozen pending badge must visibly
+belong to the *last-known* state. And **an empty collection cannot carry completeness** —
+zero interface results with *complete supported extraction* means "no detected changes";
+zero after timeout/partial extraction does not; likewise an empty observed inventory does
+not establish an empty filesystem.
 
 ---
 
@@ -341,10 +540,12 @@ commits are manufactured to preserve numbering.
 
 ### P0 — Contract & fixture gate (S5.0) — *ratification + upstream prerequisites*
 
-- **Status:** decisions D-A…D-L **RATIFIED 2026-09-21** (Part 7). Remaining to fully
-  discharge P0: the two upstream slipstream PRs (reader fold-contract version; daemon
-  interface-projection endpoint) open or their interim substitute accepted; shared-corpus
-  owner named. P1 begins only on explicit direction from Brian.
+- **Status:** decisions D-A…D-L **RATIFIED 2026-09-21**; D-M…D-P (framework reversal +
+  watching lifetime/export + recovery defaults) **RATIFIED 2026-09-22** (Part 7). The
+  ratification gate is met, but P0 is **not fully discharged** — still remaining: the two
+  upstream slipstream PRs (reader fold-contract version; daemon interface-projection
+  endpoint) open or their interim substitute accepted; shared-corpus owner named. P1 begins
+  only on explicit direction from Brian.
 - **Depends:** Stage T's fold contract + conformance fixtures exist.
 - **Red:** decisions D-A…D-L unresolved; no runtime fold-contract-version identifier on
   the reader; parity oracle undefined.
@@ -359,13 +560,19 @@ commits are manufactured to preserve numbering.
 
 ### P1 — Skeleton + on-device feasibility (S5.1a)
 
-- **PR1.1 — Package/module skeleton.**
-  - Depends: P0. Red: no package builds; no macOS test target runs. Green: `swift build`
-    + `swift test` green on Linux **and** macOS in CI; the app launches to an empty
-    window in a macOS run; the native design-token source exists; `slipstream-watch
-    --version` runs.
-  - QA: launch the empty app on a Mac (window appears); run the CLI and see it respond.
-    The skeleton is observably alive, both GUI and headless.
+- **PR1.1 — Package/module skeleton + observable-model test harness.**
+  - Depends: P0. Red: no package builds; no macOS test target runs; no headless
+    observable-model test pattern exists. Green: `swift build` + `swift test` green on
+    Linux **and** macOS in CI (package **resolution and test** proven on Linux with the
+    selected pins, §2.1 — not merely "no Observation imports"); a headless
+    observable-model test skeleton exists (construct a model under `withDependencies`, swap
+    a `@DependencyClient`, assert state) and the **task-ownership convention** (one owner /
+    explicit lifetime / identity-checked publish, §2.8) is documented in-repo; the app
+    launches to an empty window in a macOS run; the native design-token source exists;
+    `slipstream-watch --version` runs.
+  - QA: launch the empty app on a Mac (window appears); run the CLI and see it respond;
+    run the headless model test on Linux and macOS. The skeleton is observably alive —
+    GUI, headless, and the test discipline the rest of the plan leans on.
 - **PR1.2 — Throwaway feasibility probe (§2.7).**
   - Depends: PR1.1. Red: none of the §2.7 items demonstrated on a Mac. Green: a
     checked-in run log shows each achievable (or a failure surfaced as a decision).
@@ -390,23 +597,35 @@ commits are manufactured to preserve numbering.
     malformed/partial/heartbeat/`Last-Event-ID` fixtures with no network.
   - QA: `slipstream-watch follow <session>` against a live daemon tails events as they
     arrive, printing each frame and the reconnect cursor; a human sees the stream move.
-- **PR2.3 — Reconnect / recovery integration + production credential store.**
-  - Depends: PR2.1, PR2.2; D-I (credential model). Red: ReplayHarness 409/410/restart
-    fixtures fail; a corrupt-stream fixture loops. Green: 409 explicit-recovery (never
-    silent reset to 0), 410 stop, credential refresh for all in-flight work, **bounded**
-    recovery reaching a disclosed terminal/manual-retry state; malformed-known-event and
-    seq-discontinuity fixtures **halt trustworthy application** rather than apply blindly.
+- **PR2.3 — Reconnect / recovery integration under the shared recovery owner (Core).**
+  - Depends: PR2.1, PR2.2; D-I (credential model); D-P (recovery defaults). Red:
+    ReplayHarness 409/410/restart fixtures fail; a corrupt-stream fixture loops; the budget
+    resets on a bare TCP reconnect. Green: the **single shared recovery owner** (§2.3
+    table) drives 409 explicit-recovery (never silent reset to 0), 410 stop, credential
+    refresh coordinated across all in-flight work, and **bounded** recovery reaching a
+    disclosed terminal/manual-retry state — with the **budget NOT reset** by TCP/auth
+    success or a heartbeat (only by validated catch-up); **credential-context invalidation**
+    rejects an old-context result that lands after a new descriptor; a missing blob
+    terminates only that content request while following continues; malformed-known-event
+    and seq-discontinuity fixtures **halt trustworthy application** rather than apply
+    blindly. Bounded-failure tests use `TestClock` for the deadlines.
   - QA: run `follow`, then **kill and restart the daemon** — the CLI re-reads the new
     descriptor, refreshes creds, and resumes with a disclosed recovery choice on 409 /
-    stop on 410; a human watches it survive the restart (or halt honestly).
+    stop on 410; drive it into repeated identical corruption and watch it **terminate**
+    (not loop) at the disclosed state; a human watches it survive the restart or halt
+    honestly.
 
 ### P3 — Projections & parity (S5.2) — pure components before integrated parity
 
 - **PR3.1 — Shared event types + contract-aware envelope decode.**
   - Depends: P0. Red: envelope + unknown-event + unsupported-version fixtures fail.
-    Green: unknown type advances the cursor **and** records the semantics-understood
-    boundary (§2.4b); unsupported version marks derived state not-known-current; coverage
-    **absence** decodes as unknown (not "unknown"-valued).
+    Green: the **consumed-vs-understood-vs-certified** application contract (§2.4b) is
+    implemented — an unknown type advances the *consumption* boundary while the
+    *certified checkpoint* `(scope, contract id, understood-through, matching state)` stops
+    at the last understood prefix; unsupported version marks derived state
+    not-known-current; the known→unknown→known case stays not-known-current (recognizing a
+    later known event does not repair the skipped semantics); coverage **absence** decodes
+    as unknown (not "unknown"-valued).
   - QA: `slipstream-watch decode <session>` prints each event's type, seq, and its
     consumed-vs-understood status; feed it a session with an unknown type and the human
     sees the not-known-current marking, not a silent skip.
@@ -425,25 +644,38 @@ commits are manufactured to preserve numbering.
   - QA: `slipstream-watch state <session>` prints the projected session model (rows with
     composite identity, revision-in-place applied); a human reads the state a session
     produces.
-- **PR3.4 — Integrated session-state parity.**
+- **PR3.4 — Integrated session-state parity + acceptance export.**
   - Depends: PR2.*, PR3.2, PR3.3; **PR7.1** (inventory semantics, if the compared
     expected state includes inventory). Red: end-to-end expected-state parity over a
-    replayed session fails. Green: passes against the applied-through-seq oracle (§5.3),
-    including attribution/coverage/gaps (and inventory, if in scope).
+    replayed session fails; no normalized-state export artifact exists. Green: passes
+    against the applied-through-seq oracle (§5.3) — using **the same Core production
+    pipeline the GUI feeds** (a perfect fold + a perfect CLI do not prove the app's
+    orchestration feeds it correctly), including attribution/coverage/gaps (and inventory,
+    if in scope); the parity comparison is driven from the **certified checkpoint**, never
+    a bare consumed cursor; and a deliberate **acceptance-export artifact** (normalized
+    state + scope + contract + H, written **outside the repo**) is produced so parity can
+    be compared after the native UI has terminated (D-N — never persists a cursor alone, no
+    automatic session restoration).
   - QA: `slipstream-watch parity <session> --through <H>` applies the real client through
     H and reports match/diverge against the oracle export — the full headless watching
-    pipeline is demonstrably correct before any GUI is built on it.
+    pipeline is demonstrably correct before any GUI is built on it; inspect the export
+    artifact and confirm it carries state + scope + contract + H and no captured raw data.
 
 ### P4 — Live feed (S5.3)
 
 - **PR4.1 — Feed table + selection + connection state.**
-  - Depends: PR3.4. Red: honesty-state + revision-in-place TestStore cases fail; a churn
-    fixture drops a durable row. Green: pass; **Instruments run** shows frame stability +
+  - Depends: PR3.4. Red: **headless model** honesty-state + revision-in-place tests fail
+    (asserting complete value state via `expectNoDifference`, not model identity); a churn
+    fixture drops a durable row; the AppKit bridge leaves a stale badge. Green: model tests
+    pass; the **AppKit observation bridge (§2.5)** is proven on-device — a content change
+    under **unchanged row identity** updates the cell **without** recreating the table,
+    losing selection, or resetting scroll; **Instruments run** shows frame stability +
     selection/scroll preservation under churn; connection state rendered distinct from
     capture; sticky non-stacking headings.
   - QA: on a real Mac, watch a live/replayed session in the feed — rows appear, a
-    revision updates in place without reordering, selection survives churn, and killing
-    the daemon flips the connection indicator (not a capture gap). First visible surface.
+    revision updates its badge **in place** without reordering or losing selection/scroll,
+    selection survives churn, and killing the daemon flips the connection indicator (not a
+    capture gap). First visible surface.
 - **PR4.2 — Task grouping + whole-function stream cards *(splits on ratification)*.**
   - Depends: PR4.1; **PR5.1** (content acquisition + truncation/fallback for the cards).
     Red: a grouping fixture implies authorship or reorders chronology; a card fixture
@@ -470,10 +702,17 @@ commits are manufactured to preserve numbering.
     map as text; a human inspects the alignment on a known pair before any renderer exists.
 - **PR5.3 — Renderer integration *(splits on ratification; needs D-B + §2.7 sign-off)*.**
   - Depends: PR5.1, PR5.2; the §2.7 diff feasibility exercise; D-B (approved native diff
-    bar). Red: a streaming-update fixture shows stale content under a new heading. Green:
-    async results **bound to (session, change, snapshots, selection) generation**;
-    synchronized scroll; selection retained under streaming; the approved bar's features
-    present. (Alignment/intraline correctness is PR5.2's Green, surfaced here.)
+    bar). Red: a streaming-update fixture shows stale content under a new heading; the
+    **race matrix** fails (A completes after B; A→B→A; obsolete failure after current
+    success; snapshots change without selection changing; a fake client that ignores
+    cancellation; one pane finishes before the other; compatibility freezes mid-alignment).
+    Green: request identity = `session + composite change + before/after snapshot ids +
+    **selection generation**` (so A→B→A rejects the first A), with the identity guard
+    applied to **failures/fallbacks/progress/cleanup**, not just successful downloads;
+    **heading and content publish from one presentation identity** (no separate mutable
+    `heading`/`text`); synchronized scroll; selection retained under streaming; the
+    approved bar's features present. (Alignment/intraline correctness is PR5.2's Green,
+    surfaced here.)
   - QA: on a Mac, open a change's focused diff while the session streams — panes align,
     scroll in sync, selection holds, and rapidly switching changes never shows stale
     content under a new heading.
@@ -624,10 +863,41 @@ hint, not authorship/completion; `excluded_conflicts` disclosed, never silently 
 ## Part 5 — Test strategy
 
 ### 5.1 Levels
-- **TestStore** exhaustively over reducers, loud `unimplemented` `testValue`, fixture
-  `previewValue`, Swift Testing wrapping `TestStore`, `TestClock`/`ImmediateClock`,
-  cancellation IDs for follow/reconnect/staleness.
-- **Shared cross-language conformance fixtures** — the correctness anchor, extended to
+
+**Headless observable-model discipline (replaces TestStore).** Dropping `TestStore` loses
+its *automatic exhaustive accounting* — within each exercised scenario it checks every
+state change, effect-delivered action, and unfinished effect. That is real coverage (not a
+proof of all schedules), and §5.1's follow/reconnect/staleness cancellation and P4.1's
+honesty/revision behavior depended on it. It is replaced by an **explicit** discipline, not
+by hope:
+
+- **Construct models under `withDependencies`**, preserving overrides when creating child
+  models or crossing escaping-callback boundaries (dependency propagation across escaping
+  callbacks needs care).
+- **Prefer awaitable model methods** — tests await finite work directly; a session owner
+  may retain a long-lived task, but a button method must not hide a fresh unstructured one.
+- **Request gates + acknowledgements** control when work starts/succeeds/fails/acks
+  cancellation. Neither `sleep` nor repeated `Task.yield()` counts as synchronization.
+- **`TestClock` for temporal behavior** (backoff, timeout boundaries, retry-loop
+  termination). `ImmediateClock` only for bypassing irrelevant delays.
+- **Assert complete relevant value state** at each controlled boundary with
+  `expectNoDifference` / value-based `expectDifference` — comparing two references to the
+  same mutable model, or its identity-based `Hashable`, proves nothing.
+- **Record dependency interactions** — assert requested cursors, request identities, retry
+  counts, cancellation, and the **absence** of forbidden subsequent calls (loud
+  `unimplemented` defaults catch unexpected endpoints; a configured fake still needs
+  call-count assertions to catch unexpected repeats).
+- **Finish every lifetime** — release gates, stop streams, await task completion, assert no
+  active producers/requests remain.
+- **Maintain a transition matrix** over the §2.8 cases (late success, late error, stale
+  cleanup, A→B→A, known→unknown→known).
+- **Same-H parity must exercise the pipeline the GUI actually feeds** — add model-level
+  orchestration tests around the shared Core pipeline; a perfect Core fold + CLI do not
+  prove an independently-written GUI reconnect loop feeds it correctly. Preserve
+  `ReplayHarness` + real-daemon tests.
+
+- **Shared cross-language conformance fixtures** — the correctness anchor (oracle-`#expect`
+  diffing, never TestStore-dependent — it survives the reversal intact), extended to
   cover: the attribution **rejection** cases (§2.4), coverage + gap folds, exact-Seq
   edges (`2^53+1`, `2^128`), scope canonicalization, evidence dedup (min-seq), and
   full-replacement revision-in-place. Owned, with a change-discipline rule (§2.4d).
@@ -641,11 +911,13 @@ hint, not authorship/completion; `excluded_conflicts` disclosed, never silently 
   pending labeling; clips' two-axis status.
 
 ### 5.2 On-device tests (the spike never ran these)
-Feed frame stability + selection/scroll preservation under churn (Instruments, P4.1);
-diff decoration/alignment feasibility (P5.3); Keychain + descriptor + real URLSession/SSE
-+ restart recovery (P1.2 probe, P2.3 production); signing/notarization (P1.2 dry-run, P9
-real). Treat all macOS test *passing* as unproven until a checked-in on-device run shows
-it.
+Feed frame stability + selection/scroll preservation under churn (Instruments, P4.1); the
+**AppKit observation bridge** — content-change-under-unchanged-identity redraw without
+table recreation / selection loss / scroll reset (P4.1); diff decoration/alignment
+feasibility (P5.3); descriptor access + **memory-only credential sourcing** (no Keychain,
+D-I) + real URLSession/SSE + restart recovery (P1.2 probe, P2.3 production);
+signing/notarization (P1.2 dry-run, P9 real). Treat all macOS test *passing* as unproven
+until a checked-in on-device run shows it.
 
 ### 5.3 The parity oracle (applied-through-seq) — operational definition
 The comparison is over an **identical session/source scope and event prefix through a
@@ -657,10 +929,16 @@ different high-water marks during live capture):
 
 1. Select a single H (e.g. the `slipstream-durable-seq: H` observed at one finite-replay
    call, frozen for the run).
-2. Both clients apply **fully through that H** and **exclude every later event**; the
-   cursor advances only after application, and the checkpoint is **preserved when the
-   native UI stops** (persisting a cursor without its matching applied state would skip
-   history on restart — forbidden).
+2. Both clients apply **fully through that H** and **exclude every later event**. The
+   comparison is driven from the **certified checkpoint** (§2.4b: `scope, contract id,
+   understood-through, matching derived state`), never a bare consumed cursor — a consumed
+   cursor that skipped unsupported semantics does **not** qualify, and interrupted
+   application cannot advance the committed cursor. When "native UI stopped" means the
+   process terminated, the checkpoint is **preserved as a deliberate acceptance-export
+   artifact** (D-N: normalized state + scope + contract + H, outside the repo) — an
+   in-memory model or `@Shared(.inMemory)` cannot survive a real quit. Persisting a cursor
+   without its matching applied state (which would skip history on restart) is **forbidden**;
+   replay reconstructs the matching state rather than resuming from a consumption boundary.
 3. Contract identity stays **bound to that replay** across any daemon restart or
    historical version change.
 4. Live SSE supplies no durable-high-water header, so "connected" never establishes
@@ -695,6 +973,15 @@ numbers. Any surface exceeding its budget on the acceptance corpus is a P11 fail
 | Replay duration | finite replay of the reference session ≤ 30 s to durable H |
 | Revision-render latency | ≤ 100 ms from applied event to visible feed update at p95 |
 | Diff size limits | focused diff renders ≤ 10,000 changed lines; beyond that, collapse + explicit "large diff" state |
+| Recovery attempts per episode (**D-P, proposed**) | ≤ 6 reconnect attempts within one recovery episode |
+| Recovery episode deadline (**D-P, proposed**) | ≤ 60 s wall-clock per episode; reset **only** on validated catch-up, never on bare TCP/auth/heartbeat |
+| Recovery backoff (**D-P, proposed**) | exponential 1s → 2s → 4s → 8s (cap 15s), full jitter |
+| Recovery exhaustion (**D-P, proposed**) | disclosed terminal state naming the reason + a manual-retry action that starts exactly one new bounded episode |
+
+**Recovery defaults (D-P)** are *proposed* here for Brian to ratify at review, per his
+2026-09-22 choice to have the plan propose them rather than block; they are user-visible
+(how long the app tries before showing a terminal error) and may be tuned once P2.3/P4
+give real numbers.
 
 On an unsupported contract or semantics version the client **freezes derived rendering and
 shows an explicit incompatibility banner** (D-K) — it never hard-fails and never shows a
@@ -716,12 +1003,14 @@ raw view that could imply an un-reproduced attribution.
 
 ---
 
-## Part 7 — Decisions for Brian — RATIFIED 2026-09-21
+## Part 7 — Decisions for Brian — RATIFIED
 
-All twelve decisions were ratified by Brian on **2026-09-21**, satisfying the **P0
-ratification gate**. Each entry records the decision as **surfaced** (the tradeoff) and
-**RESOLVED** (the chosen option + any follow-on it creates). Two upstream slipstream PRs
-fall out of D-A and D-C and are listed as explicit P0 prerequisites after the decisions.
+The original twelve decisions (D-A…D-L) were ratified by Brian on **2026-09-21**,
+satisfying the **P0 ratification gate**. Four more (**D-M…D-P**) were ratified on
+**2026-09-22** alongside the architecture framework reversal. Each entry records the
+decision as **surfaced** (the tradeoff) and **RESOLVED** (the chosen option + any follow-on
+it creates). Two upstream slipstream PRs fall out of D-A and D-C and are listed as explicit
+P0 prerequisites after the decisions.
 
 - **D-A — Fold-reproduction strategy + runtime contract version.**
   **RESOLVED: native fold at runtime, with Node-from-pinned-daemon-source as the CI
@@ -750,8 +1039,9 @@ fall out of D-A and D-C and are listed as explicit P0 prerequisites after the de
 - **D-F — Client-scoped exception to "TypeScript throughout / replaceable front-end."**
   **RESOLVED: make the exception explicit** — a Swift client consuming only `/v1/*`
   preserves front-end replaceability.
-- **D-G — Cross-platform hedge. RESOLVED: accept** the risk framing; the Apple-locked TCA
-  UI sits above `SlipstreamCore`, which is the platform-agnostic migration seam.
+- **D-G — Cross-platform hedge. RESOLVED: accept** the risk framing; the Apple-locked
+  observable-models UI (Kit view models + App) sits above `SlipstreamCore`, which holds the
+  shared cross-platform production runtime and is the platform-agnostic migration seam.
 - **D-H — Daemon topology. RESOLVED: colocated-only.** The reader binds strictly to
   `127.0.0.1`, pins `Host`, and bootstraps from local files. Remote support is deferred —
   it is a contract/deployment change, not a URL preference — and sits cleanly under the
@@ -779,6 +1069,30 @@ fall out of D-A and D-C and are listed as explicit P0 prerequisites after the de
   cannot run until slipstream Stage 3's real-harness sessions exist; the plan already
   orders P11 last, and Stage T acceptance + the Stage 3 gap are tracked as P11
   prerequisites.
+- **D-M — Architecture framework reversal (2026-09-22). RESOLVED: observable-models, no
+  TCA.** Adopt the Point-Free "observable-models" architecture (`@Observable` `@MainActor`
+  models, swift-dependencies, swift-sharing, swift-testing) matching the shipping Playola
+  apps; drop The Composable Architecture. Keep the 4-module split, the fold contract, the
+  honesty contract, the dependency boundaries, and the PR graph. Motivation: simplicity,
+  human-readability, and not fighting Swift's object model with reducer-functional
+  programming. Pressure-tested via an architect-consult; the observable-models layer is
+  governed by §2.8's ownership rule, and its test discipline (§5.1) explicitly replaces the
+  automatic exhaustive accounting `TestStore` provided.
+- **D-N — Watching lifetime + acceptance export (2026-09-22). RESOLVED: one-per-window +
+  explicit export.** A watch lives for the window that opened it and stops on window close;
+  **no** background-watching feature, no cross-window shared watcher (one injected
+  `SessionWatchModel` owner per watching lifetime, §2.8). "Native UI stopped" for the D-J
+  parity comparison means **process termination**, preserved via a deliberate
+  **acceptance-export artifact** (normalized state + scope + contract + H) written **outside
+  the repo** (never a bare cursor, no automatic session restoration). Respects the
+  no-captured-data-in-repo prohibition.
+- **D-O — (folded into D-N)**; retained as a label so the export decision is findable by
+  either concern. See D-N.
+- **D-P — Bounded-recovery defaults (2026-09-22). RESOLVED: plan proposes, Brian ratifies
+  at review.** The single shared recovery owner (§2.3) uses the **proposed** defaults in
+  §6.2 (≤ 6 attempts / ≤ 60 s episode / exp-backoff+jitter / disclosed terminal +
+  manual-retry). These are user-visible and left as a named decision for Brian to ratify or
+  adjust at plan review; they do not block the architecture rewrite.
 
 ### P0 upstream slipstream prerequisites (created by D-A and D-C)
 
@@ -798,5 +1112,10 @@ neither.
 
 ---
 
-*End of plan. No production code is written in this task. Part 7 is ratified (2026-09-21);
-the P0 gate is satisfied. P1 begins only on explicit direction from Brian.*
+*End of plan. No production code is written in this task. Part 7 is ratified (D-A…D-L
+2026-09-21; D-M…D-P 2026-09-22). The P0 **ratification** gate is satisfied, but P0 is
+**not fully discharged**: it still awaits (a) the two upstream slipstream prerequisites —
+the reader fold-contract version and the daemon interface-projection endpoint — open or
+their interim substitute accepted, and (b) a named owner for the shared conformance corpus.
+The framework reversal does not discharge these. P1 begins only on explicit direction from
+Brian.*
