@@ -1,0 +1,1 @@
+{"change_seq":"13","projection_version":"clip.v3","status":"fallback","fallback_reason":"before-unavailable","clips":[{"before":{"span":null,"method":"unavailable","reason":"baseline-unknown"},"after":{"span":{"byte_start":0,"byte_end":10,"line_start":1,"line_end":1,"truncated":false},"method":"whole-file"}}]}
