@@ -84,11 +84,14 @@ public enum ChangedLines {
       for (offset, unit) in beforeMiddle.enumerated() {
         positions[unit, default: []].append(offset)
       }
+      var nextCandidateIndex: [String: Int] = [:]
       var unmatchedCount = beforeMiddle.count
       for (offset, unit) in afterMiddle.enumerated() {
-        if var candidates = positions[unit], !candidates.isEmpty {
-          let matchedOffset = candidates.removeFirst()
-          positions[unit] = candidates
+        let candidates = positions[unit]
+        let cursor = nextCandidateIndex[unit, default: 0]
+        if let candidates, cursor < candidates.count {
+          let matchedOffset = candidates[cursor]
+          nextCandidateIndex[unit] = cursor + 1
           unmatchedCount -= 1
           if abs(matchedOffset - offset) > maximumDiffedLines {
             marks.insert(prefix + 1 + offset)

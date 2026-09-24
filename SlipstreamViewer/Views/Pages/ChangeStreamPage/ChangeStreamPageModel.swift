@@ -42,6 +42,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
   @ObservationIgnored private(set) var watchTask: Task<Void, Never>?
   @ObservationIgnored private var cardContentOrder: [Seq] = []
+  @ObservationIgnored private var cardLoadGenerations: [Seq: Int] = [:]
+  @ObservationIgnored private var cardLoadCount = 0
   @ObservationIgnored private var visibleCards: Set<Seq> = []
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
@@ -237,9 +239,13 @@ final class ChangeStreamPageModel: ViewModel {
       storeCardContent(.note(note), for: row.id)
       return
     }
-    let generation = feedGeneration
+    let feedGenerationAtStart = feedGeneration
+    cardLoadCount += 1
+    let loadGeneration = cardLoadCount
+    cardLoadGenerations[row.id] = loadGeneration
     guard let content = await CardContentLoader.load(row, sessionID: sessionID, daemon: daemon),
-      generation == feedGeneration
+      feedGenerationAtStart == feedGeneration,
+      loadGeneration == cardLoadGenerations[row.id]
     else { return }
     storeCardContent(content, for: row.id)
     if follow == .following { scrollToLatestRequest += 1 }
@@ -419,6 +425,7 @@ final class ChangeStreamPageModel: ViewModel {
     newestFileID = nil
     cardContents = [:]
     cardContentOrder = []
+    cardLoadGenerations = [:]
     pinnedHeadings = []
     taskCount = 0
     lastAppliedSeq = .zero
@@ -432,7 +439,9 @@ final class ChangeStreamPageModel: ViewModel {
     while cardContentOrder.count > Self.cardContentLimit,
       let index = cardContentOrder.firstIndex(where: { !visibleCards.contains($0) })
     {
-      cardContents[cardContentOrder.remove(at: index)] = nil
+      let evicted = cardContentOrder.remove(at: index)
+      cardContents[evicted] = nil
+      cardLoadGenerations[evicted] = nil
     }
   }
 

@@ -63,6 +63,7 @@ struct CodeLine: Identifiable, Equatable, Sendable {
   var number: String
   var text: String
   var isChanged: Bool
+  var isVerified: Bool = true
 }
 
 struct CodeBlock: Identifiable, Equatable, Sendable {

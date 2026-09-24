@@ -51,10 +51,16 @@ enum CardContentLoader {
       guard let text = text(try await daemon.blob(descriptor, beforeSHA)) else { return .note(binaryNote) }
       before = text
     }
-    return content(response.clips, fallbackReason: response.fallbackReason, before: before, after: after)
+    let isBeforeVerifiable = before != nil || row.before == .absent
+    return content(
+      response.clips, fallbackReason: response.fallbackReason, before: before, after: after,
+      isBeforeVerifiable: isBeforeVerifiable
+    )
   }
 
-  static func content(_ clips: [Clip], fallbackReason: String?, before: String?, after: String) -> CardContent {
+  static func content(
+    _ clips: [Clip], fallbackReason: String?, before: String?, after: String, isBeforeVerifiable: Bool = true
+  ) -> CardContent {
     let shown = clips.filter { $0.after.span != nil }
     guard !shown.isEmpty else {
       if let reason = clips.lazy.compactMap({ $0.after.method == .unavailable ? $0.after.reason : nil }).first {
@@ -68,7 +74,13 @@ enum CardContentLoader {
       return CodeBlock(
         id: index,
         separatorText: index == 0 ? nil : "···",
-        lines: lines.map { CodeLine(id: $0.number, number: String($0.number), text: $0.text.replacingOccurrences(of: "\t", with: "    "), isChanged: $0.isChanged) },
+        lines: lines.map {
+          CodeLine(
+            id: $0.number, number: String($0.number),
+            text: $0.text.replacingOccurrences(of: "\t", with: "    "),
+            isChanged: $0.isChanged, isVerified: isBeforeVerifiable
+          )
+        },
         truncationText: span.truncated ? "… truncated" : nil
       )
     }

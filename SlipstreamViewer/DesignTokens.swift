@@ -152,8 +152,9 @@ enum DesignTokens {
     static let lineHeight: CGFloat = 22
     static let lineGap: CGFloat = 10
     static let lineNumberWidth: CGFloat = 25
-    static func marker(isChanged: Bool) -> Color {
-      isChanged ? Color(hex: 0x4B9CDA) : .clear
+    static func marker(isChanged: Bool, isVerified: Bool = true) -> Color {
+      guard isChanged else { return .clear }
+      return isVerified ? Color(hex: 0x4B9CDA) : Color(hex: 0x4B9CDA).opacity(0.35)
     }
 
     static let markerWidth: CGFloat = 3

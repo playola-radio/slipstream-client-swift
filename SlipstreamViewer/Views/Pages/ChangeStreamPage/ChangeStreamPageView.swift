@@ -336,7 +336,7 @@ private struct CodeBlockView: View {
       }
     }
     ForEach(block.lines) { line in
-      gutter(isChanged: line.isChanged) {
+      gutter(isChanged: line.isChanged, isVerified: line.isVerified) {
         Text(line.number)
           .font(DesignTokens.Fonts.lineNumber)
           .foregroundStyle(DesignTokens.Colors.lineNumber)
@@ -360,12 +360,13 @@ private struct CodeBlockView: View {
 
   private func gutter(
     isChanged: Bool = false,
+    isVerified: Bool = true,
     @ViewBuilder number: () -> some View,
     @ViewBuilder source: () -> some View
   ) -> some View {
     HStack(spacing: DesignTokens.Card.lineGap) {
       Rectangle()
-        .fill(DesignTokens.Card.marker(isChanged: isChanged))
+        .fill(DesignTokens.Card.marker(isChanged: isChanged, isVerified: isVerified))
         .frame(width: DesignTokens.Card.markerWidth)
       number()
         .frame(width: DesignTokens.Card.lineNumberWidth, alignment: .trailing)

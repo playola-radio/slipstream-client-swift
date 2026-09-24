@@ -221,6 +221,17 @@ struct ChangedLinesTests {
     #expect(clip.filter(\.isChanged).count > 0)
   }
 
+  @Test func hugeFileWithManyRepeatedLinesStaysFast() {
+    let repeated = String(repeating: "same line\n", count: 200_000)
+    let before = "old head\n" + repeated + "old tail\n"
+    let after = "new head\n" + repeated + "new tail\n"
+    let clock = ContinuousClock()
+    let start = clock.now
+    let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 200_002)
+    #expect(clock.now - start < .seconds(3))
+    expectNoDifference(clip.filter(\.isChanged).map(\.number), [1, 200_002])
+  }
+
   @Test func combinedMiddleOverThresholdFallsBackEvenWhenEachSideIsUnderIt() {
     // Neither side alone exceeds ChangedLines.maximumDiffedLines (5000), but the
     // combined middle (3000 + 3000 = 6000) does — this must use the cheap fallback,

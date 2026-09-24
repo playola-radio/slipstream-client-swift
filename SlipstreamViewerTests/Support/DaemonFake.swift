@@ -25,15 +25,19 @@ final class DaemonFake: Sendable {
     var clips: [Seq: ClipsResponse] = [:]
     var clipsFailures = 0
     var blobs: [String: Data] = [:]
+    var clipsCallCount = 0
+    var clipsCallGates: [Int: AsyncStream<Void>.Continuation] = [:]
   }
 
   private let state = Mutex(State())
   private let clipsGate: AsyncStream<Void>?
   private let sessionsGate: AsyncStream<Void>?
+  private let gatesEachClipsCall: Bool
 
-  init(clipsGate: AsyncStream<Void>? = nil, sessionsGate: AsyncStream<Void>? = nil) {
+  init(clipsGate: AsyncStream<Void>? = nil, sessionsGate: AsyncStream<Void>? = nil, gatesEachClipsCall: Bool = false) {
     self.clipsGate = clipsGate
     self.sessionsGate = sessionsGate
+    self.gatesEachClipsCall = gatesEachClipsCall
   }
 
   var follows: [FollowRequest] { state.withLock { $0.follows } }
@@ -50,6 +54,14 @@ final class DaemonFake: Sendable {
   func failClips(times: Int) { state.withLock { $0.clipsFailures = times } }
   func setBlob(_ sha: String, _ text: String) { setBlob(sha, data: Data(text.utf8)) }
   func setBlob(_ sha: String, data: Data) { state.withLock { $0.blobs[sha] = data } }
+
+  func waitForClipsCall(_ number: Int) async {
+    while state.withLock({ $0.clipsCallCount }) < number { await Task.yield() }
+  }
+
+  func releaseClipsCall(_ number: Int) {
+    state.withLock { $0.clipsCallGates[number] }?.yield()
+  }
 
   func send(_ items: StreamItem...) {
     guard let connection = state.withLock({ $0.connections.last }) else {
@@ -93,6 +105,16 @@ final class DaemonFake: Sendable {
         return stream
       },
       clips: { [self] _, _, seq in
+        let callGate: AsyncStream<Void>? = state.withLock { state in
+          state.clipsCallCount += 1
+          guard gatesEachClipsCall else { return nil }
+          let (gate, open) = AsyncStream<Void>.makeStream()
+          state.clipsCallGates[state.clipsCallCount] = open
+          return gate
+        }
+        if let callGate {
+          for await _ in callGate { break }
+        }
         if let clipsGate {
           for await _ in clipsGate { break }
         }

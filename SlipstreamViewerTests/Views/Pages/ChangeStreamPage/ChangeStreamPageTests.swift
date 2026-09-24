@@ -500,6 +500,39 @@ struct ChangeStreamPageTests {
     #expect(!model.isCardRetryable(row))
   }
 
+  @Test func anOlderLoadFailingLateDoesNotOverwriteANewerRetrySuccess() async throws {
+    let daemon = DaemonFake(gatesEachClipsCall: true)
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    daemon.setBlob(Fixture.shaB, "x\n")
+    daemon.setBlob(Fixture.shaA, "y\n")
+    daemon.setClips(ClipsResponse(status: .ready, clips: [functionClip(1, 1)]), for: Fixture.seq(1))
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    await Task.megaYield()
+    daemon.send(Fixture.edited(1))
+    await Task.megaYield()
+    let row = try #require(fileRow(model, 1))
+
+    let olderLoad = Task { await model.cardAppeared(row) }
+    await daemon.waitForClipsCall(1)
+    let newerRetry = Task { await model.cardRetryTapped(row) }
+    await daemon.waitForClipsCall(2)
+
+    daemon.failClips(times: 1)
+    daemon.releaseClipsCall(1)
+    await daemon.waitForClipsCall(3)
+    daemon.releaseClipsCall(2)
+    await newerRetry.value
+    daemon.failClips(times: 1)
+    daemon.releaseClipsCall(3)
+    await olderLoad.value
+
+    expectNoDifference(
+      model.content(for: row),
+      .code([CodeBlock(id: 0, separatorText: nil, lines: [CodeLine(id: 1, number: "1", text: "x", isChanged: true)], truncationText: nil)])
+    )
+  }
+
   @Test func truncatedAfterSideIsNotMistakenForARemoval() async {
     fake.setBlob(Fixture.shaA, "a\nb\n")
     fake.setBlob(Fixture.shaB, "a\n")
@@ -535,6 +568,33 @@ struct ChangeStreamPageTests {
     )
   }
 
+  @Test func unavailableBeforeContentIsShownButNotMarkedAsConfirmedChanged() async {
+    fake.setBlob(Fixture.shaB, "x\ny\n")
+    let wholeFile = Clip(
+      after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .wholeFile)
+    )
+    let content = await loadedContent(
+      Fixture.fileChanged(1, "existing.ts", before: Fixture.unavailable("baseline-unknown"), after: Fixture.content(Fixture.shaB)),
+      clips: ClipsResponse(status: .ready, clips: [wholeFile])
+    )
+    expectNoDifference(
+      content,
+      .code(
+        [
+          CodeBlock(
+            id: 0,
+            separatorText: nil,
+            lines: [
+              CodeLine(id: 1, number: "1", text: "x", isChanged: true, isVerified: false),
+              CodeLine(id: 2, number: "2", text: "y", isChanged: true, isVerified: false),
+            ],
+            truncationText: nil
+          )
+        ]
+      )
+    )
+  }
+
   @Test func deletedFileIsANote() async {
     let content = await loadedContent(Fixture.fileChanged(1, "gone.ts", before: Fixture.content(Fixture.shaA), after: Fixture.absent))
     #expect(content == .note("File deleted"))
@@ -561,9 +621,9 @@ struct ChangeStreamPageTests {
             id: 0,
             separatorText: nil,
             lines: [
-              CodeLine(id: 2, number: "2", text: "function f() {", isChanged: true),
-              CodeLine(id: 3, number: "3", text: "  return 2", isChanged: true),
-              CodeLine(id: 4, number: "4", text: "}", isChanged: true),
+              CodeLine(id: 2, number: "2", text: "function f() {", isChanged: true, isVerified: false),
+              CodeLine(id: 3, number: "3", text: "  return 2", isChanged: true, isVerified: false),
+              CodeLine(id: 4, number: "4", text: "}", isChanged: true, isVerified: false),
             ],
             truncationText: nil
           )
