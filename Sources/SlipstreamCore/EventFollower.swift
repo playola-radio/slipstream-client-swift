@@ -116,6 +116,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
           await status(.live)
         }
         if openedAt.duration(to: clock.now) >= policy.episodeBudget { resetBudget() }
+        if case .invalid = item { return .exit(.malformed(seq: nil, type: nil)) }
         guard case .frame(let frame) = item else { continue }
         let event: SlipstreamEvent
         do {

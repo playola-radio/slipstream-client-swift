@@ -489,6 +489,20 @@ struct ChangeStreamPageTests {
     #expect(model.content(for: row) == .note("Binary file — not shown"))
   }
 
+  @Test func aVisibleFailedCardCanRetryWithoutDisappearing() async throws {
+    let model = await connectedModel()
+    fake.failClips(times: 2)
+    fake.setClips(ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: []), for: Fixture.seq(1))
+    await send(Fixture.edited(1))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    #expect(model.content(for: row) == .note("Couldn't load this change"))
+    #expect(model.isCardRetryable(row))
+    await model.cardRetryTapped(row)
+    #expect(model.content(for: row) == .note("Binary file — not shown"))
+    #expect(!model.isCardRetryable(row))
+  }
+
   @Test func truncatedAfterSideIsNotMistakenForARemoval() async {
     fake.setBlob(Fixture.shaA, "a\nb\n")
     fake.setBlob(Fixture.shaB, "a\n")
@@ -535,6 +549,32 @@ struct ChangeStreamPageTests {
       Fixture.fileChanged(1, "busy.ts", before: Fixture.content(Fixture.shaA), after: Fixture.unavailable("unstable"))
     )
     #expect(content == .note("File was changing too fast to capture"))
+  }
+
+  @Test func unavailableBeforeStillFetchesAfter() async {
+    fake.setBlob(Fixture.shaB, "a\nfunction f() {\n  return 2\n}\nz\n")
+    let content = await loadedContent(
+      Fixture.fileChanged(1, "new.ts", before: Fixture.unavailable("baseline-unknown"), after: Fixture.content(Fixture.shaB)),
+      clips: ClipsResponse(status: .ready, clips: [functionClip(2, 4)])
+    )
+    expectNoDifference(
+      content,
+      .code(
+        subtitle: "Full function",
+        blocks: [
+          CodeBlock(
+            id: 0,
+            separatorText: nil,
+            lines: [
+              CodeLine(id: 2, number: "2", text: "function f() {", isChanged: true),
+              CodeLine(id: 3, number: "3", text: "  return 2", isChanged: true),
+              CodeLine(id: 4, number: "4", text: "}", isChanged: true),
+            ],
+            truncationText: nil
+          )
+        ]
+      )
+    )
   }
 
   @Test func oversizeContentIsNotFetched() async {

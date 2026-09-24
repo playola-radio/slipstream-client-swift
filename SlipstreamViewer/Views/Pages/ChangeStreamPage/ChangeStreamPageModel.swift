@@ -30,6 +30,7 @@ final class ChangeStreamPageModel: ViewModel {
   var selectedSession: SessionOption?
   var connection: ConnectionState = .idle
   var sections: IdentifiedArrayOf<FeedSection> = []
+  private(set) var feedGeneration = 0
   var newestFileID: Seq?
   var follow: FollowState = .following
   var scrollToLatestRequest = 0
@@ -43,7 +44,6 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
-  @ObservationIgnored private var feedGeneration = 0
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
 
@@ -133,6 +133,11 @@ final class ChangeStreamPageModel: ViewModel {
     return subtitle
   }
 
+  func isCardRetryable(_ row: FileChangeRow) -> Bool {
+    guard let content = cardContents[row.id] else { return false }
+    return CardContentLoader.isRetryable(content)
+  }
+
   func topGap(for item: FeedItem, in section: FeedSection) -> CGFloat {
     item.id == section.items.first?.id ? DesignTokens.Stream.groupGap : DesignTokens.Stream.itemGap
   }
@@ -190,6 +195,20 @@ final class ChangeStreamPageModel: ViewModel {
       touchCardContent(row.id)
       return
     }
+    await loadCardContent(row)
+  }
+
+  func cardRetryTapped(_ row: FileChangeRow) async {
+    await loadCardContent(row)
+  }
+
+  func cardDisappeared(_ row: FileChangeRow) {
+    visibleCards.remove(row.id)
+  }
+
+  // MARK: - Private Helpers
+
+  private func loadCardContent(_ row: FileChangeRow) async {
     guard let sessionID = selectedSession?.id else { return }
     if let note = CardContentLoader.noteBeforeFetching(row) {
       storeCardContent(.note(note), for: row.id)
@@ -203,12 +222,6 @@ final class ChangeStreamPageModel: ViewModel {
     if follow == .following { scrollToLatestRequest += 1 }
   }
 
-  func cardDisappeared(_ row: FileChangeRow) {
-    visibleCards.remove(row.id)
-  }
-
-  // MARK: - Private Helpers
-
   private func loadSessions() async {
     sessionsGeneration += 1
     let generation = sessionsGeneration
@@ -216,22 +229,22 @@ final class ChangeStreamPageModel: ViewModel {
     do {
       let descriptor = try await daemon.discover()
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
-      let roots = await withTaskGroup(of: (String, String?).self) { group in
-        for summary in summaries {
-          group.addTask { (summary.id, try? await daemon.sessionRoot(descriptor, summary.id)) }
-        }
-        var roots: [String: String] = [:]
-        for await (id, root) in group {
-          roots[id] = root
-        }
-        return roots
-      }
       guard generation == sessionsGeneration else { return }
-      sessions = IdentifiedArray(uniqueElements: summaries.map { SessionOption(id: $0.id, label: roots[$0.id] ?? $0.id) })
+      sessions = IdentifiedArray(uniqueElements: summaries.map { SessionOption(id: $0.id, label: $0.id) })
       sessionsError = nil
       hasLoadedSessions = true
       if selectedSession == nil, sessions.count == 1 {
         sessionSelected(sessions[0].id)
+      }
+      await withTaskGroup(of: (String, String?).self) { group in
+        for summary in summaries {
+          group.addTask { (summary.id, try? await daemon.sessionRoot(descriptor, summary.id)) }
+        }
+        for await (id, root) in group {
+          guard generation == sessionsGeneration, let root else { continue }
+          sessions[id: id]?.label = root
+          if selectedSession?.id == id { selectedSession?.label = root }
+        }
       }
     } catch {
       guard generation == sessionsGeneration else { return }
@@ -340,6 +353,7 @@ final class ChangeStreamPageModel: ViewModel {
       sections.append(
         FeedSection(id: event.seq, heading: TaskHeading(number: String(format: "%02d", taskCount), title: task.title))
       )
+      if follow == .following { scrollToLatestRequest += 1 }
     case .captureGap(let gap):
       append(
         .marker(

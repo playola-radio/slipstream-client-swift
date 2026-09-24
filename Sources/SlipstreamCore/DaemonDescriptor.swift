@@ -71,6 +71,8 @@ public enum DescriptorDiscovery {
     return URL(fileURLWithPath: path)
   }
 
+  static let maximumDescriptorSize = 1 << 16
+
   /// Opens, stats and validates a single runtime descriptor candidate.
   /// Any failure at any step means the candidate is skipped, not fatal.
   private static func validCandidate(at path: String, currentUID: uid_t) -> (DaemonDescriptor, Date)? {
@@ -83,6 +85,7 @@ public enum DescriptorDiscovery {
     guard (st.st_mode & S_IFMT) == S_IFREG else { return nil }
     guard (st.st_mode & 0o077) == 0 else { return nil }
     guard st.st_uid == currentUID else { return nil }
+    guard st.st_size <= maximumDescriptorSize else { return nil }
 
     let size = Int(st.st_size)
     var data = Data(count: size)

@@ -70,6 +70,9 @@ struct ChangeStreamPageView: View {
       .onChange(of: model.scrollToLatestRequest) {
         proxy.scrollTo(bottomID, anchor: .bottom)
       }
+      .onAppear {
+        proxy.scrollTo(bottomID, anchor: .bottom)
+      }
     }
   }
 
@@ -81,9 +84,11 @@ struct ChangeStreamPageView: View {
         row: row,
         subtitle: model.subtitle(for: row),
         content: model.content(for: row),
-        emphasis: model.emphasis(for: row)
+        emphasis: model.emphasis(for: row),
+        isRetryable: model.isCardRetryable(row),
+        retryTapped: { Task { await model.cardRetryTapped(row) } }
       )
-      .task(id: row.id) { await model.cardAppeared(row) }
+      .task(id: FeedCardTaskID(feedGeneration: model.feedGeneration, rowID: row.id)) { await model.cardAppeared(row) }
       .onDisappear { model.cardDisappeared(row) }
     case .marker(let marker):
       Text(marker.text)
@@ -185,6 +190,8 @@ private struct FileCardView: View {
   let subtitle: String?
   let content: CardContent
   let emphasis: CardEmphasis
+  let isRetryable: Bool
+  let retryTapped: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -234,10 +241,18 @@ private struct FileCardView: View {
     case .loading:
       ProgressView().controlSize(.small).frame(height: DesignTokens.Card.lineHeight)
     case .note(let text):
-      Text(text)
-        .font(DesignTokens.Fonts.liveStatus)
-        .foregroundStyle(DesignTokens.Colors.paneSubtitle)
-        .frame(minHeight: DesignTokens.Card.lineHeight)
+      HStack(spacing: DesignTokens.Card.headerGap) {
+        Text(text)
+          .font(DesignTokens.Fonts.liveStatus)
+          .foregroundStyle(DesignTokens.Colors.paneSubtitle)
+        if isRetryable {
+          Button("Retry", action: retryTapped)
+            .buttonStyle(.plain)
+            .font(DesignTokens.Fonts.jumpToLatest)
+            .foregroundStyle(DesignTokens.Colors.jumpToLatest)
+        }
+      }
+      .frame(minHeight: DesignTokens.Card.lineHeight)
     case .code(_, let blocks):
       VStack(alignment: .leading, spacing: 0) {
         ForEach(blocks) { block in

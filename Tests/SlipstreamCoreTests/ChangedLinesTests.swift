@@ -212,4 +212,12 @@ struct ChangedLinesTests {
     let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 6002)
     expectNoDifference(clip.filter(\.isChanged).map(\.number), [1, 6002])
   }
+
+  @Test func hugeReorderedBlockIsNotReportedAsUnchanged() {
+    let lines = (0..<6000).map { "line \($0)\n" }
+    let before = "head\n" + lines.joined() + "tail\n"
+    let after = "head\n" + lines.reversed().joined() + "tail\n"
+    let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 6002)
+    #expect(clip.filter(\.isChanged).count > 0)
+  }
 }

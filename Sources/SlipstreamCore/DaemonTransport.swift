@@ -21,6 +21,7 @@ public struct SessionSummary: Equatable, Sendable, Decodable, Identifiable {
 public enum StreamItem: Equatable, Sendable {
   case frame(SSEEvent)
   case heartbeat
+  case invalid
 }
 
 public enum DaemonHTTPError: Error, Equatable, Sendable {
@@ -85,11 +86,13 @@ public final class DaemonTransport: Sendable {
           var chunk: [UInt8] = []
           for try await byte in bytes {
             chunk.append(byte)
-            guard byte == UInt8(ascii: "\n") || byte == UInt8(ascii: "\r") else { continue }
+            let isTerminator = byte == UInt8(ascii: "\n") || byte == UInt8(ascii: "\r")
+            guard isTerminator || chunk.count > SSEParser.maximumLineLength else { continue }
             for item in parser.consume(chunk) {
               switch item {
               case .event(let event): continuation.yield(.frame(event))
               case .comment: continuation.yield(.heartbeat)
+              case .malformedLine: continuation.yield(.invalid)
               }
             }
             chunk.removeAll(keepingCapacity: true)

@@ -11,6 +11,7 @@ public struct SSEEvent: Equatable, Sendable {
 public enum SSEItem: Equatable, Sendable {
   case event(SSEEvent)
   case comment
+  case malformedLine
 }
 
 public struct SSEParser: Sendable {
@@ -22,6 +23,7 @@ public struct SSEParser: Sendable {
   private static let bom: [UInt8] = [0xEF, 0xBB, 0xBF]
   private static let cr: UInt8 = 0x0D
   private static let lf: UInt8 = 0x0A
+  static let maximumLineLength = 1 << 20
 
   private var bomState: BOMState = .checking([])
   private var lineBuffer: [UInt8] = []
@@ -73,11 +75,25 @@ public struct SSEParser: Sendable {
       dispatchLine(into: &items)
     } else {
       lineBuffer.append(byte)
+      if lineBuffer.count > Self.maximumLineLength {
+        lineBuffer.removeAll(keepingCapacity: true)
+        currentId = nil
+        dataLines = []
+        sawData = false
+        items.append(.malformedLine)
+      }
     }
   }
 
   private mutating func dispatchLine(into items: inout [SSEItem]) {
-    let line = String(decoding: lineBuffer, as: UTF8.self)
+    guard let line = String(bytes: lineBuffer, encoding: .utf8) else {
+      lineBuffer.removeAll(keepingCapacity: true)
+      currentId = nil
+      dataLines = []
+      sawData = false
+      items.append(.malformedLine)
+      return
+    }
     lineBuffer.removeAll(keepingCapacity: true)
 
     if line.isEmpty {

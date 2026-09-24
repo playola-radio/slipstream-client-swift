@@ -8,7 +8,7 @@ enum CardContentLoader {
     switch (row.before, row.after) {
     case (_, .absent):
       return "File deleted"
-    case (.unavailable(let reason), _), (_, .unavailable(let reason)):
+    case (_, .unavailable(let reason)):
       return PlainWords.snapshotReason(reason)
     case (.content(_, let size), _) where size > maximumContentSize:
       return "Too large to show"

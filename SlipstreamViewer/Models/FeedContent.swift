@@ -30,6 +30,11 @@ struct FeedMarker: Identifiable, Equatable, Sendable {
   var text: String
 }
 
+struct FeedCardTaskID: Equatable, Sendable {
+  var feedGeneration: Int
+  var rowID: Seq
+}
+
 enum FeedItem: Identifiable, Equatable, Sendable {
   case file(FileChangeRow)
   case marker(FeedMarker)
