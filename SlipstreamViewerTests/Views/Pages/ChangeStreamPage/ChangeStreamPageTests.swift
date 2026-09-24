@@ -363,6 +363,36 @@ struct ChangeStreamPageTests {
     )
   }
 
+  @Test func overlappingClipsShowTheirLinesOnce() async {
+    fake.setBlob(Fixture.shaB, "function f() {\n  return 1\n}\n")
+    let rangeClip = Clip(
+      before: ClipSide(span: nil, method: .absent),
+      after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .changedRange)
+    )
+    let content = await loadedContent(
+      Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
+      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .ready, clips: [rangeClip, functionClip(1, 3)])
+    )
+    expectNoDifference(
+      content,
+      .code(
+        subtitle: "Full function",
+        blocks: [
+          CodeBlock(
+            id: 0,
+            separatorText: nil,
+            lines: [
+              CodeLine(id: 1, number: "1", text: "function f() {", isChanged: true),
+              CodeLine(id: 2, number: "2", text: "  return 1", isChanged: true),
+              CodeLine(id: 3, number: "3", text: "}", isChanged: true),
+            ],
+            truncationText: nil
+          )
+        ]
+      )
+    )
+  }
+
   @Test func newFileMarksEveryLine() async {
     fake.setBlob(Fixture.shaB, "x\ny\n")
     let wholeFile = Clip(

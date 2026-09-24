@@ -45,7 +45,7 @@ enum CardContentLoader {
   }
 
   static func content(_ clips: [Clip], before: String?, after: String) -> CardContent {
-    let shown = clips.compactMap { clip in clip.after.span.map { (clip.after.method, $0) } }
+    let shown = merged(clips.compactMap { clip in clip.after.span.map { (clip.after.method, $0) } })
     guard !shown.isEmpty else {
       if let reason = clips.lazy.compactMap({ $0.after.method == .unavailable ? $0.after.reason : nil }).first {
         return .note(PlainWords.clipReason(reason))
@@ -71,6 +71,23 @@ enum CardContentLoader {
   }
 
   private static let binaryNote = "Binary file — not shown"
+
+  private static func merged(_ spans: [(ClipSide.Method, ClipSpan)]) -> [(ClipSide.Method, ClipSpan)] {
+    var result: [(ClipSide.Method, ClipSpan)] = []
+    for (method, span) in spans.sorted(by: { $0.1.lineStart < $1.1.lineStart }) {
+      guard let (lastMethod, last) = result.last, span.lineStart <= last.lineEnd else {
+        result.append((method, span))
+        continue
+      }
+      let lineEnd = max(last.lineEnd, span.lineEnd)
+      let truncated = (last.lineEnd == lineEnd && last.truncated) || (span.lineEnd == lineEnd && span.truncated)
+      result[result.count - 1] = (
+        lastMethod == .function || method == .function ? .function : lastMethod,
+        ClipSpan(lineStart: last.lineStart, lineEnd: lineEnd, truncated: truncated)
+      )
+    }
+    return result
+  }
 
   private static func subtitle(_ method: ClipSide.Method) -> String {
     switch method {
