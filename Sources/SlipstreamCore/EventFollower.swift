@@ -80,8 +80,9 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
         return .disconnected
       }
       await status(.reconnecting(attempt: attempt))
+      let remaining = policy.episodeBudget - episode.duration(to: now)
       do {
-        try await clock.sleep(for: delay(forAttempt: attempt))
+        try await clock.sleep(for: min(delay(forAttempt: attempt), remaining))
       } catch {
         return .cancelled
       }
@@ -106,14 +107,15 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
     } catch {
       return .retry
     }
+    let openedAt = clock.now
     var sawActivity = false
     do {
       for try await item in withIdleTimeout(open(descriptor, cursor), firstItemTimeout: firstItemTimeout) {
         if !sawActivity {
           sawActivity = true
-          resetBudget()
           await status(.live)
         }
+        if openedAt.duration(to: clock.now) >= policy.episodeBudget { resetBudget() }
         guard case .frame(let frame) = item else { continue }
         let event: SlipstreamEvent
         do {
@@ -130,6 +132,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
         }
         guard await apply(event) else { return .exit(.cancelled) }
         cursor = event.seq
+        resetBudget()
       }
       return .retry
     } catch DaemonHTTPError.status(let code, let durableSeq) {

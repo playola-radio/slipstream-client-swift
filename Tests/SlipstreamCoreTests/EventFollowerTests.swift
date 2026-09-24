@@ -130,13 +130,49 @@ struct EventFollowerTests {
     #expect(harness.opens.isEmpty)
   }
 
-  @Test func budgetResetsOnlyAfterAReconnectDeliversSomething() async {
-    let flaky = Array(repeating: FollowerHarness.Connection([.heartbeat], .fail(URLError(.networkConnectionLost))), count: 10)
+  @Test func budgetResetsAfterAReconnectAppliesAnEvent() async {
+    let flaky = (1...10).map { FollowerHarness.Connection([frame($0)], .fail(URLError(.networkConnectionLost))) }
     let harness = FollowerHarness(flaky)
     let exit = await harness.drive()
     #expect(exit == .sessionRemoved)
     #expect(!harness.statuses.contains(.reconnecting(attempt: 2)))
-    #expect(harness.statuses.filter { $0 == .live }.count == 10)
+    #expect(harness.applied.count == 10)
+  }
+
+  @Test func heartbeatsAloneNeverResetTheBudget() async {
+    let flaky = Array(repeating: FollowerHarness.Connection([.heartbeat], .fail(URLError(.networkConnectionLost))), count: 20)
+    let harness = FollowerHarness(flaky)
+    let exit = await harness.drive()
+    #expect(exit == .disconnected)
+    #expect(harness.opens.count == 7)
+  }
+
+  @Test func aLongHealthyConnectionStartsAFreshBudget() async {
+    let clock = TestClock()
+    let harness = FollowerHarness([.init([], .fail(URLError(.networkConnectionLost))), .init([], .hang)])
+    let task = Task { await harness.run(clock: clock) }
+    await clock.advance(by: .milliseconds(500))
+    await clock.advance(by: .seconds(30))
+    harness.send(.heartbeat)
+    await clock.advance(by: .seconds(30))
+    harness.send(.heartbeat)
+    await clock.advance(by: .seconds(1))
+    harness.fail(URLError(.networkConnectionLost))
+    await clock.advance(by: .seconds(1))
+    #expect(await task.value == .sessionRemoved)
+    expectNoDifference(harness.statuses, [.connecting, .reconnecting(attempt: 1), .live, .reconnecting(attempt: 1)])
+  }
+
+  @Test func backoffNeverSleepsPastTheTimeBudget() async {
+    var policy = FollowPolicy()
+    policy.baseDelay = .seconds(40)
+    policy.maxDelay = .seconds(60)
+    let clock = TestClock()
+    let harness = FollowerHarness(Array(repeating: .init([], .fail(URLError(.cannotConnectToHost))), count: 20))
+    let task = Task { await harness.run(clock: clock, policy: policy) }
+    await clock.advance(by: .seconds(60))
+    task.cancel()
+    #expect(await task.value == .disconnected)
   }
 
   @Test func silenceForTheIdleTimeoutReconnects() async {
@@ -218,6 +254,10 @@ final class FollowerHarness: Sendable {
 
   func send(_ item: StreamItem) {
     _ = state.withLock { $0.live }?.yield(item)
+  }
+
+  func fail(_ error: any Error) {
+    state.withLock { $0.live }?.finish(throwing: error)
   }
 
   func run<C: Clock<Duration>>(after start: Seq = .zero, clock: C, policy: FollowPolicy = FollowPolicy()) async -> FollowerExit {
