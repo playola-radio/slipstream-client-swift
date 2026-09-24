@@ -45,15 +45,14 @@ enum CardContentLoader {
   }
 
   static func content(_ clips: [Clip], before: String?, after: String) -> CardContent {
-    let shown = merged(clips.compactMap { clip in clip.after.span.map { (clip.after.method, $0) } })
+    let shown = clips.filter { $0.after.span != nil }
     guard !shown.isEmpty else {
       if let reason = clips.lazy.compactMap({ $0.after.method == .unavailable ? $0.after.reason : nil }).first {
         return .note(PlainWords.clipReason(reason))
       }
       return .note("Only lines removed — nothing to show")
     }
-    let blocks = shown.enumerated().map { index, entry in
-      let span = entry.1
+    let blocks = merged(shown.compactMap(\.after.span)).enumerated().map { index, span in
       let lines = ChangedLines.clipLines(before: before, after: after, lineStart: span.lineStart, lineEnd: span.lineEnd)
       return CodeBlock(
         id: index,
@@ -63,8 +62,8 @@ enum CardContentLoader {
       )
     }
     var subtitles: [String] = []
-    for (method, _) in shown {
-      let subtitle = subtitle(method)
+    for clip in shown {
+      let subtitle = subtitle(clip.after.method)
       if !subtitles.contains(subtitle) { subtitles.append(subtitle) }
     }
     return .code(subtitle: subtitles.joined(separator: " · "), blocks: blocks)
@@ -72,19 +71,16 @@ enum CardContentLoader {
 
   private static let binaryNote = "Binary file — not shown"
 
-  private static func merged(_ spans: [(ClipSide.Method, ClipSpan)]) -> [(ClipSide.Method, ClipSpan)] {
-    var result: [(ClipSide.Method, ClipSpan)] = []
-    for (method, span) in spans.sorted(by: { $0.1.lineStart < $1.1.lineStart }) {
-      guard let (lastMethod, last) = result.last, span.lineStart <= last.lineEnd else {
-        result.append((method, span))
+  private static func merged(_ spans: [ClipSpan]) -> [ClipSpan] {
+    var result: [ClipSpan] = []
+    for span in spans.sorted(by: { $0.lineStart < $1.lineStart }) {
+      guard let last = result.last, span.lineStart <= last.lineEnd else {
+        result.append(span)
         continue
       }
       let lineEnd = max(last.lineEnd, span.lineEnd)
       let truncated = (last.lineEnd == lineEnd && last.truncated) || (span.lineEnd == lineEnd && span.truncated)
-      result[result.count - 1] = (
-        lastMethod == .function || method == .function ? .function : lastMethod,
-        ClipSpan(lineStart: last.lineStart, lineEnd: lineEnd, truncated: truncated)
-      )
+      result[result.count - 1] = ClipSpan(lineStart: last.lineStart, lineEnd: lineEnd, truncated: truncated)
     }
     return result
   }

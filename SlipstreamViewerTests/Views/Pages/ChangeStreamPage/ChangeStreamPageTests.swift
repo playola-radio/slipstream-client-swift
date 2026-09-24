@@ -376,7 +376,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       content,
       .code(
-        subtitle: "Full function",
+        subtitle: "Changed lines · Full function",
         blocks: [
           CodeBlock(
             id: 0,
