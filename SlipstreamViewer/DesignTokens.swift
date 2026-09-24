@@ -70,6 +70,7 @@ enum DesignTokens {
   }
 
   enum FeedPane {
+    static let width: CGFloat = 680
     static let fill = Color(hex: 0x191F27)
     static let stroke = Color(hex: 0x405562)
     static let headerHeight: CGFloat = 52
@@ -85,10 +86,13 @@ enum DesignTokens {
     static let gap: CGFloat = 6
   }
 
-  enum HiddenFeed {
+  enum FileViewer {
     static let fill = Color(hex: 0x11171D)
     static let padding: CGFloat = 12
+    static let gap: CGFloat = 8
     static let toolbarHeight: CGFloat = 34
+    static let paneFill = Color(hex: 0x151B22)
+    static let paneStroke = Color(hex: 0x34414D)
   }
 
   enum Stream {

@@ -7,14 +7,13 @@ struct ChangeStreamPageView: View {
   private let bottomID = "feed-bottom"
 
   var body: some View {
-    Group {
-      if model.isFeedHidden {
-        hiddenFeed
-      } else {
-        feedPane
+    HStack(spacing: 0) {
+      if !model.isFeedHidden {
+        feedPane.frame(width: DesignTokens.FeedPane.width)
       }
+      fileViewer
     }
-    .frame(minWidth: 520, minHeight: 480)
+    .frame(minWidth: 1000, minHeight: 480)
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
     .task { await model.viewAppeared() }
@@ -40,18 +39,27 @@ struct ChangeStreamPageView: View {
     }
   }
 
-  private var hiddenFeed: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      Button(model.showFeedText) { model.showFeedTapped() }
-        .buttonStyle(.plain)
-        .font(DesignTokens.Fonts.restoreFeed)
-        .foregroundStyle(DesignTokens.Colors.restoreFeed)
-        .frame(height: DesignTokens.HiddenFeed.toolbarHeight)
-      Spacer()
+  private var fileViewer: some View {
+    VStack(alignment: .leading, spacing: DesignTokens.FileViewer.gap) {
+      HStack {
+        if model.isFeedHidden {
+          Button(model.showFeedText) { model.showFeedTapped() }
+            .buttonStyle(.plain)
+            .font(DesignTokens.Fonts.restoreFeed)
+            .foregroundStyle(DesignTokens.Colors.restoreFeed)
+        }
+      }
+      .frame(height: DesignTokens.FileViewer.toolbarHeight)
+      Text(model.fileViewerPlaceholderText)
+        .font(DesignTokens.Fonts.liveStatus)
+        .foregroundStyle(DesignTokens.Colors.paneSubtitle)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.FileViewer.paneFill)
+        .border(DesignTokens.FileViewer.paneStroke)
     }
-    .padding(DesignTokens.HiddenFeed.padding)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .background(DesignTokens.HiddenFeed.fill)
+    .padding(DesignTokens.FileViewer.padding)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(DesignTokens.FileViewer.fill)
   }
 
   private var header: some View {

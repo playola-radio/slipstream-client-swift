@@ -57,6 +57,7 @@ final class ChangeStreamPageModel: ViewModel {
   let jumpToLatestText = "Jump to latest ↓"
   let hideFeedText = "Hide feed"
   let showFeedText = "◧  Activity"
+  let fileViewerPlaceholderText = "Open a change to see its file here"
 
   var retryButtonText: String {
     historyRolledBack ? "Reload from start" : "Retry"
