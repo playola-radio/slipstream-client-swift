@@ -377,8 +377,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       content,
       .code(
-        subtitle: "Full function",
-        blocks: [
+        [
           CodeBlock(
             id: 0,
             separatorText: nil,
@@ -407,8 +406,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       content,
       .code(
-        subtitle: "Full function · Changed lines",
-        blocks: [
+        [
           CodeBlock(id: 0, separatorText: nil, lines: [CodeLine(id: 1, number: "1", text: "ONE", isChanged: true)], truncationText: nil),
           CodeBlock(id: 1, separatorText: "···", lines: [CodeLine(id: 4, number: "4", text: "FOUR", isChanged: true)], truncationText: "… truncated"),
         ]
@@ -428,8 +426,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       content,
       .code(
-        subtitle: "Changed lines · Full function",
-        blocks: [
+        [
           CodeBlock(
             id: 0,
             separatorText: nil,
@@ -451,7 +448,7 @@ struct ChangeStreamPageTests {
       Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
       clips: ClipsResponse(status: .ready, clips: [functionClip(1, 4), functionClip(2, 3, truncated: true)])
     )
-    guard case .code(_, let blocks) = content else {
+    guard case .code(let blocks) = content else {
       Issue.record("Expected code, got \(content)")
       return
     }
@@ -526,8 +523,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       content,
       .code(
-        subtitle: "Whole file",
-        blocks: [
+        [
           CodeBlock(
             id: 0,
             separatorText: nil,
@@ -560,8 +556,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       content,
       .code(
-        subtitle: "Full function",
-        blocks: [
+        [
           CodeBlock(
             id: 0,
             separatorText: nil,
@@ -730,5 +725,34 @@ struct ChangeStreamPageTests {
     await send(Fixture.edited(1), Fixture.edited(2))
     #expect(model.emphasis(for: try #require(fileRow(model, 1))) == .other)
     #expect(model.emphasis(for: try #require(fileRow(model, 2))) == .newest)
+  }
+
+  @Test func onlyTheNewestCardIsMarkedOpen() async throws {
+    let model = await connectedModel()
+    await send(Fixture.edited(1), Fixture.edited(2))
+    #expect(model.openIndicatorText(for: try #require(fileRow(model, 1))) == nil)
+    #expect(model.openIndicatorText(for: try #require(fileRow(model, 2))) == "OPEN →")
+  }
+
+  @Test func showingAHiddenFeedReturnsToTheLatestChange() async {
+    let model = await connectedModel()
+    model.hideFeedTapped()
+    #expect(model.isFeedHidden)
+    model.scrollPhaseChanged(.interacting)
+    model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
+    model.showFeedTapped()
+    #expect(!model.isFeedHidden)
+    #expect(model.follow == .following)
+  }
+
+  @Test func aTaskHeadingIsPinnedOnlyWhileItSitsAtTheTop() async throws {
+    let model = await connectedModel()
+    await send(Fixture.taskStarted(1, "Convert isActive"), Fixture.edited(2))
+    let section = try #require(model.sections.first)
+    #expect(!model.isHeadingPinned(section))
+    model.headingMoved(section, minY: 0)
+    #expect(model.isHeadingPinned(section))
+    model.headingMoved(section, minY: 48)
+    #expect(!model.isHeadingPinned(section))
   }
 }

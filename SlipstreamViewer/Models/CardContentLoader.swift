@@ -72,12 +72,7 @@ enum CardContentLoader {
         truncationText: span.truncated ? "… truncated" : nil
       )
     }
-    var subtitles: [String] = []
-    for clip in shown {
-      let subtitle = subtitle(clip.after.method)
-      if !subtitles.contains(subtitle) { subtitles.append(subtitle) }
-    }
-    return .code(subtitle: subtitles.joined(separator: " · "), blocks: blocks)
+    return .code(blocks)
   }
 
   private static let binaryNote = "Binary file — not shown"
@@ -95,14 +90,6 @@ enum CardContentLoader {
       result[result.count - 1] = ClipSpan(lineStart: last.lineStart, lineEnd: lineEnd, truncated: truncated)
     }
     return result
-  }
-
-  private static func subtitle(_ method: ClipSide.Method) -> String {
-    switch method {
-    case .function: "Full function"
-    case .changedRange: "Changed lines"
-    case .wholeFile, .absent, .unavailable: "Whole file"
-    }
   }
 
   private static func text(_ data: Data) -> String? {

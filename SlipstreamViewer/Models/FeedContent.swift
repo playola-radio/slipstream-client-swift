@@ -75,7 +75,7 @@ struct CodeBlock: Identifiable, Equatable, Sendable {
 enum CardContent: Equatable, Sendable {
   case loading
   case note(String)
-  case code(subtitle: String, blocks: [CodeBlock])
+  case code([CodeBlock])
 }
 
 enum PlainWords {

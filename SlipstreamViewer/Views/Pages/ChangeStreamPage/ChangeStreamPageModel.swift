@@ -36,6 +36,8 @@ final class ChangeStreamPageModel: ViewModel {
   var scrollToLatestRequest = 0
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
+  private(set) var isFeedHidden = false
+  private(set) var pinnedHeadings: Set<Seq> = []
 
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
   @ObservationIgnored private(set) var watchTask: Task<Void, Never>?
@@ -53,6 +55,8 @@ final class ChangeStreamPageModel: ViewModel {
   let paneSubtitle = "Full functions"
   let refreshButtonText = "Refresh"
   let jumpToLatestText = "Jump to latest ↓"
+  let hideFeedText = "Hide feed"
+  let showFeedText = "◧ Activity"
 
   var retryButtonText: String {
     historyRolledBack ? "Reload from start" : "Retry"
@@ -128,18 +132,17 @@ final class ChangeStreamPageModel: ViewModel {
     cardContents[row.id] ?? .loading
   }
 
-  func subtitle(for row: FileChangeRow) -> String? {
-    guard case .code(let subtitle, _) = content(for: row) else { return nil }
-    return subtitle
+  func openIndicatorText(for row: FileChangeRow) -> String? {
+    row.id == newestFileID ? "OPEN →" : nil
+  }
+
+  func isHeadingPinned(_ section: FeedSection) -> Bool {
+    pinnedHeadings.contains(section.id)
   }
 
   func isCardRetryable(_ row: FileChangeRow) -> Bool {
     guard let content = cardContents[row.id] else { return false }
     return CardContentLoader.isRetryable(content)
-  }
-
-  func topGap(for item: FeedItem, in section: FeedSection) -> CGFloat {
-    item.id == section.items.first?.id ? DesignTokens.Stream.groupGap : DesignTokens.Stream.itemGap
   }
 
   // MARK: - User Actions
@@ -172,6 +175,25 @@ final class ChangeStreamPageModel: ViewModel {
     guard selectedSession != nil else { return }
     if historyRolledBack { resetFeed() }
     startWatching()
+  }
+
+  func hideFeedTapped() {
+    isFeedHidden = true
+  }
+
+  func showFeedTapped() {
+    isFeedHidden = false
+    follow.jumpToLatest()
+  }
+
+  func headingMoved(_ section: FeedSection, minY: Double) {
+    let isPinned = minY <= 0
+    guard isPinned != pinnedHeadings.contains(section.id) else { return }
+    if isPinned {
+      pinnedHeadings.insert(section.id)
+    } else {
+      pinnedHeadings.remove(section.id)
+    }
   }
 
   func jumpToLatestTapped() {
@@ -396,6 +418,7 @@ final class ChangeStreamPageModel: ViewModel {
     newestFileID = nil
     cardContents = [:]
     cardContentOrder = []
+    pinnedHeadings = []
     taskCount = 0
     lastAppliedSeq = .zero
     follow = .following

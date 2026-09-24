@@ -7,6 +7,21 @@ struct ChangeStreamPageView: View {
   private let bottomID = "feed-bottom"
 
   var body: some View {
+    Group {
+      if model.isFeedHidden {
+        hiddenFeed
+      } else {
+        feedPane
+      }
+    }
+    .frame(minWidth: 520, minHeight: 480)
+    .preferredColorScheme(.dark)
+    .toolbar { toolbar }
+    .task { await model.viewAppeared() }
+    .onDisappear { model.viewDisappeared() }
+  }
+
+  private var feedPane: some View {
     VStack(spacing: 0) {
       header
       if let emptyStateText = model.emptyStateText {
@@ -20,10 +35,23 @@ struct ChangeStreamPageView: View {
       footer
     }
     .background(DesignTokens.FeedPane.fill)
-    .frame(minWidth: 520, minHeight: 480)
-    .toolbar { toolbar }
-    .task { await model.viewAppeared() }
-    .onDisappear { model.viewDisappeared() }
+    .overlay(alignment: .trailing) {
+      Rectangle().fill(DesignTokens.FeedPane.stroke).frame(width: 1)
+    }
+  }
+
+  private var hiddenFeed: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      Button(model.showFeedText) { model.showFeedTapped() }
+        .buttonStyle(.plain)
+        .font(DesignTokens.Fonts.restoreFeed)
+        .foregroundStyle(DesignTokens.Colors.restoreFeed)
+        .frame(height: DesignTokens.HiddenFeed.toolbarHeight)
+      Spacer()
+    }
+    .padding(DesignTokens.HiddenFeed.padding)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    .background(DesignTokens.HiddenFeed.fill)
   }
 
   private var header: some View {
@@ -36,6 +64,22 @@ struct ChangeStreamPageView: View {
         .font(DesignTokens.Fonts.paneSubtitle)
         .foregroundStyle(DesignTokens.Colors.paneSubtitle)
       Spacer()
+      Button { model.hideFeedTapped() } label: {
+        HStack(spacing: DesignTokens.HideFeedButton.gap) {
+          IconView(icon: DesignTokens.Icons.hideFeed)
+          Text(model.hideFeedText)
+            .font(DesignTokens.Fonts.hideFeed)
+            .foregroundStyle(DesignTokens.Colors.hideFeed)
+        }
+        .padding(.vertical, DesignTokens.HideFeedButton.verticalPadding)
+        .padding(.horizontal, DesignTokens.HideFeedButton.horizontalPadding)
+        .overlay {
+          RoundedRectangle(cornerRadius: DesignTokens.HideFeedButton.radius)
+            .strokeBorder(DesignTokens.HideFeedButton.stroke)
+        }
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
     }
     .padding(.horizontal, DesignTokens.FeedPane.horizontalPadding)
     .frame(height: DesignTokens.FeedPane.headerHeight)
@@ -49,12 +93,17 @@ struct ChangeStreamPageView: View {
             Section {
               ForEach(section.items) { item in
                 itemView(item)
-                  .padding(.top, model.topGap(for: item, in: section))
+                  .padding(.top, DesignTokens.Stream.itemGap)
               }
               Color.clear.frame(height: DesignTokens.Stream.groupGap)
             } header: {
               if let heading = section.heading {
-                TaskHeadingView(heading: heading)
+                TaskHeadingView(heading: heading, isPinned: model.isHeadingPinned(section))
+                  .onGeometryChange(for: Double.self) { geometry in
+                    geometry.frame(in: .scrollView).minY
+                  } action: { minY in
+                    model.headingMoved(section, minY: minY)
+                  }
               }
             }
           }
@@ -82,7 +131,7 @@ struct ChangeStreamPageView: View {
     case .file(let row):
       FileCardView(
         row: row,
-        subtitle: model.subtitle(for: row),
+        openIndicatorText: model.openIndicatorText(for: row),
         content: model.content(for: row),
         emphasis: model.emphasis(for: row),
         isRetryable: model.isCardRetryable(row),
@@ -152,17 +201,19 @@ private struct IconView: View {
   let icon: DesignTokens.Icons.Icon
 
   var body: some View {
-    Image(systemName: icon.systemName)
-      .font(.system(size: icon.size))
+    Image(icon.assetName)
+      .resizable()
+      .frame(width: icon.size, height: icon.size)
       .foregroundStyle(icon.color)
   }
 }
 
 private struct TaskHeadingView: View {
   let heading: TaskHeading
+  let isPinned: Bool
 
   var body: some View {
-    HStack(spacing: 16) {
+    HStack(spacing: DesignTokens.TaskHeading.gap) {
       Text(heading.number)
         .font(DesignTokens.Fonts.taskBadge)
         .foregroundStyle(DesignTokens.Colors.taskBadge)
@@ -174,7 +225,7 @@ private struct TaskHeadingView: View {
         .foregroundStyle(DesignTokens.Colors.taskTitle)
         .lineLimit(1)
       Spacer()
-      IconView(icon: DesignTokens.Icons.pinPinned)
+      IconView(icon: DesignTokens.Icons.pin(isPinned: isPinned))
     }
     .padding(.vertical, DesignTokens.TaskHeading.verticalPadding)
     .padding(.horizontal, DesignTokens.TaskHeading.horizontalPadding)
@@ -187,7 +238,7 @@ private struct TaskHeadingView: View {
 
 private struct FileCardView: View {
   let row: FileChangeRow
-  let subtitle: String?
+  let openIndicatorText: String?
   let content: CardContent
   let emphasis: CardEmphasis
   let isRetryable: Bool
@@ -220,15 +271,15 @@ private struct FileCardView: View {
         .foregroundStyle(DesignTokens.Colors.filePath(emphasis))
         .lineLimit(1)
         .truncationMode(.head)
-      if let subtitle {
-        Text(subtitle)
-          .font(DesignTokens.Fonts.eventTime)
-          .foregroundStyle(DesignTokens.Colors.paneSubtitle)
-      }
       Spacer()
       Text(row.time)
         .font(DesignTokens.Fonts.eventTime)
         .foregroundStyle(DesignTokens.Colors.eventTime)
+      if let openIndicatorText {
+        Text(openIndicatorText)
+          .font(DesignTokens.Fonts.openIndicator)
+          .foregroundStyle(DesignTokens.Colors.openIndicator)
+      }
     }
     .padding(.vertical, DesignTokens.Card.headerVerticalPadding)
     .padding(.horizontal, DesignTokens.Card.headerHorizontalPadding)
@@ -253,7 +304,7 @@ private struct FileCardView: View {
         }
       }
       .frame(minHeight: DesignTokens.Card.lineHeight)
-    case .code(_, let blocks):
+    case .code(let blocks):
       VStack(alignment: .leading, spacing: 0) {
         ForEach(blocks) { block in
           CodeBlockView(block: block)
@@ -268,35 +319,50 @@ private struct CodeBlockView: View {
 
   var body: some View {
     if let separatorText = block.separatorText {
-      gutterText(separatorText)
+      gutter {
+        Text(separatorText)
+          .font(DesignTokens.Fonts.lineNumber)
+          .foregroundStyle(DesignTokens.Colors.lineNumber)
+      } source: {
+        EmptyView()
+      }
     }
     ForEach(block.lines) { line in
-      HStack(spacing: 0) {
-        Rectangle()
-          .fill(DesignTokens.Card.marker(isChanged: line.isChanged))
-          .frame(width: DesignTokens.Card.markerWidth)
+      gutter(isChanged: line.isChanged) {
         Text(line.number)
           .font(DesignTokens.Fonts.lineNumber)
           .foregroundStyle(DesignTokens.Colors.lineNumber)
-          .frame(width: DesignTokens.Card.lineNumberWidth, alignment: .trailing)
-          .padding(.trailing, DesignTokens.Card.lineGap)
+      } source: {
         Text(line.text)
           .font(DesignTokens.Fonts.sourceLine)
           .foregroundStyle(DesignTokens.Colors.sourceLine)
           .lineLimit(1)
       }
-      .frame(height: DesignTokens.Card.lineHeight)
     }
     if let truncationText = block.truncationText {
-      gutterText(truncationText)
+      gutter {
+        EmptyView()
+      } source: {
+        Text(truncationText)
+          .font(DesignTokens.Fonts.lineNumber)
+          .foregroundStyle(DesignTokens.Colors.lineNumber)
+      }
     }
   }
 
-  private func gutterText(_ text: String) -> some View {
-    Text(text)
-      .font(DesignTokens.Fonts.lineNumber)
-      .foregroundStyle(DesignTokens.Colors.lineNumber)
-      .padding(.leading, DesignTokens.Card.markerWidth + DesignTokens.Card.lineNumberWidth + DesignTokens.Card.lineGap)
-      .frame(height: DesignTokens.Card.lineHeight)
+  private func gutter(
+    isChanged: Bool = false,
+    @ViewBuilder number: () -> some View,
+    @ViewBuilder source: () -> some View
+  ) -> some View {
+    HStack(spacing: DesignTokens.Card.lineGap) {
+      Rectangle()
+        .fill(DesignTokens.Card.marker(isChanged: isChanged))
+        .frame(width: DesignTokens.Card.markerWidth)
+      number()
+        .frame(width: DesignTokens.Card.lineNumberWidth, alignment: .trailing)
+      source()
+    }
+    .frame(height: DesignTokens.Card.lineHeight)
   }
 }
