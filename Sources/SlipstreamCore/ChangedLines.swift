@@ -80,8 +80,15 @@ public enum ChangedLines {
     var marks = Set<Int>()
     var anchors = Set<Int>()
     if beforeMiddle.count > maximumDiffedLines || afterMiddle.count > maximumDiffedLines {
-      marks.formUnion((prefix + 1)..<(prefix + 1 + afterMiddle.count))
-      if !beforeMiddle.isEmpty { anchors.insert(prefix + 1) }
+      var unmatched = Dictionary(beforeMiddle.map { ($0, 1) }, uniquingKeysWith: +)
+      for (offset, unit) in afterMiddle.enumerated() {
+        if let count = unmatched[unit], count > 0 {
+          unmatched[unit] = count - 1
+        } else {
+          marks.insert(prefix + 1 + offset)
+        }
+      }
+      if unmatched.values.contains(where: { $0 > 0 }) { anchors.insert(prefix + 1) }
     } else {
       let diff = afterMiddle.difference(from: beforeMiddle)
       var inserted = Set<Int>()

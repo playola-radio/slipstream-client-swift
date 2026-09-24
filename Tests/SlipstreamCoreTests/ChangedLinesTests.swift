@@ -204,4 +204,12 @@ struct ChangedLinesTests {
     let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 6002)
     expectNoDifference(clip.filter { !$0.isChanged }.map(\.number), [1, 6002])
   }
+
+  @Test func hugeFileWithEditsAtBothEndsMarksOnlyTheEditedLines() {
+    let middle = (0..<6000).map { "same \($0)\n" }.joined()
+    let before = "old head\n" + middle + "old tail\n"
+    let after = "new head\n" + middle + "new tail\n"
+    let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 6002)
+    expectNoDifference(clip.filter(\.isChanged).map(\.number), [1, 6002])
+  }
 }

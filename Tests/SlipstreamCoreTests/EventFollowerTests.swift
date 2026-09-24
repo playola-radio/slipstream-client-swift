@@ -112,6 +112,17 @@ struct EventFollowerTests {
     expectNoDifference(harness.statuses, [.connecting, .reconnecting(attempt: 1), .reconnecting(attempt: 2)])
   }
 
+  @Test func silentReconnectsStillDisconnectWithinTheTimeBudget() async {
+    let clock = TestClock()
+    let harness = FollowerHarness([.init([], .close)] + Array(repeating: .init([], .hang), count: 5))
+    let task = Task { await harness.run(clock: clock) }
+    await clock.advance(by: .seconds(59))
+    expectNoDifference(harness.statuses, [.connecting, .reconnecting(attempt: 1), .reconnecting(attempt: 2)])
+    await clock.advance(by: .seconds(1))
+    task.cancel()
+    #expect(await task.value == .disconnected)
+  }
+
   @Test func discoveryFailureCountsAgainstTheBudget() async {
     let harness = FollowerHarness([], tokens: [])
     let exit = await harness.drive()

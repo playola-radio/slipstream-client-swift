@@ -60,7 +60,13 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
     var episodeStart: C.Instant?
     await status(.connecting)
     while true {
-      let outcome = await connectOnce(cursor: &cursor, status: status, apply: apply) {
+      var firstItemTimeout = policy.idleTimeout
+      if let episodeStart {
+        let remaining = policy.episodeBudget - episodeStart.duration(to: clock.now)
+        guard remaining > .zero else { return .disconnected }
+        firstItemTimeout = min(firstItemTimeout, remaining)
+      }
+      let outcome = await connectOnce(cursor: &cursor, firstItemTimeout: firstItemTimeout, status: status, apply: apply) {
         attempt = 0
         episodeStart = nil
       }
@@ -89,6 +95,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
 
   private func connectOnce(
     cursor: inout Seq,
+    firstItemTimeout: Duration,
     status: @Sendable (FollowerStatus) async -> Void,
     apply: @Sendable (SlipstreamEvent) async -> Bool,
     resetBudget: () -> Void
@@ -101,7 +108,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
     }
     var sawActivity = false
     do {
-      for try await item in withIdleTimeout(open(descriptor, cursor)) {
+      for try await item in withIdleTimeout(open(descriptor, cursor), firstItemTimeout: firstItemTimeout) {
         if !sawActivity {
           sawActivity = true
           resetBudget()
@@ -145,24 +152,25 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
   }
 
   private func withIdleTimeout(
-    _ upstream: AsyncThrowingStream<StreamItem, any Error>
+    _ upstream: AsyncThrowingStream<StreamItem, any Error>,
+    firstItemTimeout: Duration
   ) -> AsyncThrowingStream<StreamItem, any Error> {
     let clock = clock
-    let timeout = policy.idleTimeout
+    let idleTimeout = policy.idleTimeout
     return AsyncThrowingStream { continuation in
-      @Sendable func arm() -> Task<Void, Never> {
+      @Sendable func arm(_ timeout: Duration) -> Task<Void, Never> {
         Task {
           guard (try? await clock.sleep(for: timeout)) != nil else { return }
           continuation.finish(throwing: IdleTimeout())
         }
       }
       let reader = Task {
-        var watchdog = arm()
+        var watchdog = arm(firstItemTimeout)
         do {
           for try await item in upstream {
             watchdog.cancel()
             continuation.yield(item)
-            watchdog = arm()
+            watchdog = arm(idleTimeout)
           }
           continuation.finish()
         } catch {
