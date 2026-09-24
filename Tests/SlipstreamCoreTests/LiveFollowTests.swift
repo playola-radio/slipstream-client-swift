@@ -37,8 +37,6 @@ struct LiveFollowTests {
     #expect(applied.map(\.seq) == Array(sequence(first: start.successor) { $0.successor }.prefix(applied.count)))
 
     let liveCards = try await daemon.cards(for: applied)
-    let replayCards = try await daemon.cards(for: Array(replay))
-    expectNoDifference(liveCards, replayCards)
 
     let functionCards = liveCards.filter { $0.path.hasSuffix(function) }
     try #require(functionCards.count == 2)

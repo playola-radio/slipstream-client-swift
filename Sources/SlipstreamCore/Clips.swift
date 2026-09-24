@@ -39,11 +39,9 @@ public struct ClipSide: Equatable, Sendable, Decodable {
 }
 
 public struct Clip: Equatable, Sendable, Decodable {
-  public var before: ClipSide
   public var after: ClipSide
 
-  public init(before: ClipSide, after: ClipSide) {
-    self.before = before
+  public init(after: ClipSide) {
     self.after = after
   }
 }
@@ -53,20 +51,17 @@ public struct ClipsResponse: Equatable, Sendable, Decodable {
     case ready, fallback, skipped, unavailable
   }
 
-  public var changeSeq: Seq
   public var status: Status
   public var fallbackReason: String?
   public var clips: [Clip]
 
-  public init(changeSeq: Seq, status: Status, fallbackReason: String? = nil, clips: [Clip]) {
-    self.changeSeq = changeSeq
+  public init(status: Status, fallbackReason: String? = nil, clips: [Clip]) {
     self.status = status
     self.fallbackReason = fallbackReason
     self.clips = clips
   }
 
   private enum CodingKeys: String, CodingKey {
-    case changeSeq = "change_seq"
     case status
     case fallbackReason = "fallback_reason"
     case clips

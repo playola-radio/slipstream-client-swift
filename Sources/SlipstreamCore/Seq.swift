@@ -41,7 +41,7 @@ public struct Seq: Hashable, Sendable, Comparable, CustomStringConvertible {
   }
 }
 
-extension Seq: Codable {
+extension Seq: Decodable {
   public init(from decoder: any Decoder) throws {
     let container = try decoder.singleValueContainer()
     let string = try container.decode(String.self)
@@ -50,10 +50,5 @@ extension Seq: Codable {
         in: container, debugDescription: "Not a canonical decimal seq: \(string)")
     }
     self = seq
-  }
-
-  public func encode(to encoder: any Encoder) throws {
-    var container = encoder.singleValueContainer()
-    try container.encode(decimal)
   }
 }

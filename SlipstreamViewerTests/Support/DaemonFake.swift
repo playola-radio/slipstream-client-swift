@@ -23,15 +23,17 @@ final class DaemonFake: Sendable {
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
-    var clipsError: (any Error)?
+    var clipsFailures = 0
     var blobs: [String: Data] = [:]
   }
 
   private let state = Mutex(State())
   private let clipsGate: AsyncStream<Void>?
+  private let sessionsGate: AsyncStream<Void>?
 
-  init(clipsGate: AsyncStream<Void>? = nil) {
+  init(clipsGate: AsyncStream<Void>? = nil, sessionsGate: AsyncStream<Void>? = nil) {
     self.clipsGate = clipsGate
+    self.sessionsGate = sessionsGate
   }
 
   var follows: [FollowRequest] { state.withLock { $0.follows } }
@@ -44,8 +46,8 @@ final class DaemonFake: Sendable {
       $0.roots = roots
     }
   }
-  func setClips(_ response: ClipsResponse) { state.withLock { $0.clips[response.changeSeq] = response } }
-  func setClipsError(_ error: any Error) { state.withLock { $0.clipsError = error } }
+  func setClips(_ response: ClipsResponse, for seq: Seq) { state.withLock { $0.clips[seq] = response } }
+  func failClips(times: Int) { state.withLock { $0.clipsFailures = times } }
   func setBlob(_ sha: String, _ text: String) { setBlob(sha, data: Data(text.utf8)) }
   func setBlob(_ sha: String, data: Data) { state.withLock { $0.blobs[sha] = data } }
 
@@ -75,7 +77,12 @@ final class DaemonFake: Sendable {
           return DaemonDescriptor(baseURL: URL(string: "http://127.0.0.1:4100")!, token: token)
         }
       },
-      sessions: { [self] _ in state.withLock { $0.sessions } },
+      sessions: { [self] _ in
+        if let sessionsGate {
+          for await _ in sessionsGate { break }
+        }
+        return state.withLock { $0.sessions }
+      },
       sessionRoot: { [self] _, id in state.withLock { $0.roots[id] } },
       follow: { [self] descriptor, sessionID, cursor in
         let (stream, continuation) = AsyncThrowingStream<StreamItem, any Error>.makeStream()
@@ -90,7 +97,10 @@ final class DaemonFake: Sendable {
           for await _ in clipsGate { break }
         }
         return try state.withLock { state in
-          if let error = state.clipsError { throw error }
+          if state.clipsFailures > 0 {
+            state.clipsFailures -= 1
+            throw URLError(.networkConnectionLost)
+          }
           guard let response = state.clips[seq] else { throw DaemonHTTPError.status(404, durableSeq: nil) }
           return response
         }
@@ -126,7 +136,7 @@ enum Fixture {
       "data": data,
     ]
     let json = try! JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys])
-    return .frame(SSEEvent(id: String(value), event: nil, data: String(decoding: json, as: UTF8.self)))
+    return .frame(SSEEvent(id: String(value), data: String(decoding: json, as: UTF8.self)))
   }
 
   static func taskStarted(_ value: Int, _ title: String) -> StreamItem {

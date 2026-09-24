@@ -1,18 +1,16 @@
 public struct SSEEvent: Equatable, Sendable {
   public var id: String?
-  public var event: String?
   public var data: String
 
-  public init(id: String?, event: String?, data: String) {
+  public init(id: String?, data: String) {
     self.id = id
-    self.event = event
     self.data = data
   }
 }
 
 public enum SSEItem: Equatable, Sendable {
   case event(SSEEvent)
-  case comment(String)
+  case comment
 }
 
 public struct SSEParser: Sendable {
@@ -30,7 +28,6 @@ public struct SSEParser: Sendable {
   private var pendingCR = false
 
   private var currentId: String?
-  private var currentEvent: String?
   private var dataLines: [String] = []
   private var sawData = false
 
@@ -85,21 +82,16 @@ public struct SSEParser: Sendable {
 
     if line.isEmpty {
       if sawData {
-        items.append(.event(SSEEvent(id: currentId, event: currentEvent, data: dataLines.joined(separator: "\n"))))
+        items.append(.event(SSEEvent(id: currentId, data: dataLines.joined(separator: "\n"))))
       }
       currentId = nil
-      currentEvent = nil
       dataLines = []
       sawData = false
       return
     }
 
     if line.hasPrefix(":") {
-      var comment = line.dropFirst()
-      if comment.hasPrefix(" ") {
-        comment = comment.dropFirst()
-      }
-      items.append(.comment(String(comment)))
+      items.append(.comment)
       return
     }
 
@@ -120,8 +112,6 @@ public struct SSEParser: Sendable {
     case "data":
       dataLines.append(String(value))
       sawData = true
-    case "event":
-      currentEvent = String(value)
     case "id":
       if !value.unicodeScalars.contains(where: { $0.value == 0 }) {
         currentId = String(value)

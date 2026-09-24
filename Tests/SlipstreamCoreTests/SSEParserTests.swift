@@ -6,31 +6,31 @@ struct SSEParserTests {
   @Test func daemonShapedFrame() {
     var parser = SSEParser()
     let items = parser.consume(Array("id: 7\nevent: slipstream\ndata: {\"a\":1}\n\n".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: "7", event: "slipstream", data: "{\"a\":1}"))])
+    expectNoDifference(items, [.event(SSEEvent(id: "7", data: "{\"a\":1}"))])
   }
 
   @Test func heartbeatComment() {
     var parser = SSEParser()
     let items = parser.consume(Array(": heartbeat\n\n".utf8))
-    expectNoDifference(items, [.comment("heartbeat")])
+    expectNoDifference(items, [.comment])
   }
 
   @Test func multiLineData() {
     var parser = SSEParser()
     let items = parser.consume(Array("data: line1\ndata: line2\n\n".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: nil, event: nil, data: "line1\nline2"))])
+    expectNoDifference(items, [.event(SSEEvent(id: nil, data: "line1\nline2"))])
   }
 
   @Test func crlfFraming() {
     var parser = SSEParser()
     let items = parser.consume(Array("data: hello\r\n\r\n".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: nil, event: nil, data: "hello"))])
+    expectNoDifference(items, [.event(SSEEvent(id: nil, data: "hello"))])
   }
 
   @Test func loneCRFraming() {
     var parser = SSEParser()
     let items = parser.consume(Array("data: hello\r\r".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: nil, event: nil, data: "hello"))])
+    expectNoDifference(items, [.event(SSEEvent(id: nil, data: "hello"))])
   }
 
   @Test func crlfSplitAcrossChunks() {
@@ -38,7 +38,7 @@ struct SSEParserTests {
     let first = parser.consume(Array("data: hello\r".utf8))
     #expect(first.isEmpty)
     let second = parser.consume(Array("\n\r\n".utf8))
-    expectNoDifference(second, [.event(SSEEvent(id: nil, event: nil, data: "hello"))])
+    expectNoDifference(second, [.event(SSEEvent(id: nil, data: "hello"))])
   }
 
   @Test func byteAtATimeMultiFrameWithUnicode() {
@@ -51,9 +51,9 @@ struct SSEParserTests {
     expectNoDifference(
       items,
       [
-        .event(SSEEvent(id: "1", event: "a", data: "café")),
-        .comment("heartbeat"),
-        .event(SSEEvent(id: nil, event: nil, data: "arrow →")),
+        .event(SSEEvent(id: "1", data: "café")),
+        .comment,
+        .event(SSEEvent(id: nil, data: "arrow →")),
       ])
   }
 
@@ -61,13 +61,13 @@ struct SSEParserTests {
     var parser = SSEParser()
     let bom: [UInt8] = [0xEF, 0xBB, 0xBF]
     let items = parser.consume(bom + Array("data: hi\n\n".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: nil, event: nil, data: "hi"))])
+    expectNoDifference(items, [.event(SSEEvent(id: nil, data: "hi"))])
   }
 
   @Test func fieldWithoutSpaceAfterColon() {
     var parser = SSEParser()
     let items = parser.consume(Array("data:no-space\n\n".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: nil, event: nil, data: "no-space"))])
+    expectNoDifference(items, [.event(SSEEvent(id: nil, data: "no-space"))])
   }
 
   @Test func blockWithoutDataDispatchesNothing() {
@@ -79,7 +79,7 @@ struct SSEParserTests {
   @Test func idContainingNulIsIgnored() {
     var parser = SSEParser()
     let items = parser.consume(Array("id: 7\nid: 8\u{0000}\ndata: x\n\n".utf8))
-    expectNoDifference(items, [.event(SSEEvent(id: "7", event: nil, data: "x"))])
+    expectNoDifference(items, [.event(SSEEvent(id: "7", data: "x"))])
   }
 
   @Test func unterminatedTrailingBlockNotEmitted() {

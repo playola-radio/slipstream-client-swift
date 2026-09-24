@@ -21,11 +21,9 @@ public struct FileChange: Equatable, Sendable {
 }
 
 public struct TaskStarted: Equatable, Sendable {
-  public var taskID: String
   public var title: String
 
-  public init(taskID: String, title: String) {
-    self.taskID = taskID
+  public init(title: String) {
     self.title = title
   }
 }
@@ -119,7 +117,7 @@ extension SlipstreamEvent {
       )
     case "slipstream.task.started.v1":
       let task = try decoder.decode(Envelope<TaskStartedData>.self, from: data).data
-      return .taskStarted(TaskStarted(taskID: task.task_id, title: task.title))
+      return .taskStarted(TaskStarted(title: task.title))
     case "slipstream.capture.gap.v1":
       let gap = try decoder.decode(Envelope<CaptureGapData>.self, from: data).data
       return .captureGap(CaptureGap(reason: gap.reason, scope: try gap.scope.scope))

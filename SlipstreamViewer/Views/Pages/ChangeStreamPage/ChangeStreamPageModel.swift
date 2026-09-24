@@ -38,10 +38,13 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
   @ObservationIgnored private(set) var watchTask: Task<Void, Never>?
   @ObservationIgnored private var cardContentOrder: [Seq] = []
+  @ObservationIgnored private var visibleCards: Set<Seq> = []
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
+  @ObservationIgnored private var feedGeneration = 0
   @ObservationIgnored private var isUserScrolling = false
+  @ObservationIgnored private var lastVisibleMaxY: Double?
 
   // MARK: - Display Text
 
@@ -126,6 +129,10 @@ final class ChangeStreamPageModel: ViewModel {
     return subtitle
   }
 
+  func topGap(for item: FeedItem, in section: FeedSection) -> CGFloat {
+    item.id == section.items.first?.id ? DesignTokens.Stream.groupGap : DesignTokens.Stream.itemGap
+  }
+
   // MARK: - User Actions
 
   func viewAppeared() async {
@@ -142,6 +149,7 @@ final class ChangeStreamPageModel: ViewModel {
   func sessionSelected(_ id: String) {
     guard let session = sessions[id: id], session.id != selectedSession?.id else { return }
     selectedSession = session
+    feedGeneration += 1
     sections = []
     newestFileID = nil
     cardContents = [:]
@@ -155,6 +163,7 @@ final class ChangeStreamPageModel: ViewModel {
   func viewDisappeared() {
     watchTask?.cancel()
     watchGeneration += 1
+    sessionsGeneration += 1
   }
 
   func retryTapped() {
@@ -172,11 +181,13 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func scrollGeometryChanged(contentHeight: Double, visibleMaxY: Double) {
-    guard isUserScrolling else { return }
+    defer { lastVisibleMaxY = visibleMaxY }
+    guard isUserScrolling, visibleMaxY != lastVisibleMaxY else { return }
     follow.userScrolled(distanceFromBottom: contentHeight - visibleMaxY)
   }
 
   func cardAppeared(_ row: FileChangeRow) async {
+    visibleCards.insert(row.id)
     if cardContents[row.id] != nil {
       touchCardContent(row.id)
       return
@@ -186,12 +197,16 @@ final class ChangeStreamPageModel: ViewModel {
       storeCardContent(.note(note), for: row.id)
       return
     }
-    let generation = watchGeneration
+    let generation = feedGeneration
     guard let content = await CardContentLoader.load(row, sessionID: sessionID, daemon: daemon),
-      generation == watchGeneration
+      generation == feedGeneration
     else { return }
     storeCardContent(content, for: row.id)
     if follow == .following { scrollToLatestRequest += 1 }
+  }
+
+  func cardDisappeared(_ row: FileChangeRow) {
+    visibleCards.remove(row.id)
   }
 
   // MARK: - Private Helpers
@@ -365,8 +380,10 @@ final class ChangeStreamPageModel: ViewModel {
   private func storeCardContent(_ content: CardContent, for id: Seq) {
     cardContents[id] = content
     touchCardContent(id)
-    while cardContentOrder.count > Self.cardContentLimit {
-      cardContents[cardContentOrder.removeFirst()] = nil
+    while cardContentOrder.count > Self.cardContentLimit,
+      let index = cardContentOrder.firstIndex(where: { !visibleCards.contains($0) })
+    {
+      cardContents[cardContentOrder.remove(at: index)] = nil
     }
   }
 

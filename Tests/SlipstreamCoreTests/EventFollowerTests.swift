@@ -48,7 +48,7 @@ struct EventFollowerTests {
 
   @Test func malformedKnownTypeHalts() async {
     let broken = StreamItem.frame(
-      SSEEvent(id: "2", event: nil, data: #"{"id":"2","seq":"2","type":"slipstream.session.resumed.v1","data":{}}"#)
+      SSEEvent(id: "2", data: #"{"id":"2","seq":"2","type":"slipstream.session.resumed.v1","data":{}}"#)
     )
     let harness = FollowerHarness([.init([frame(1), broken], .close)])
     let exit = await harness.drive()
@@ -57,7 +57,7 @@ struct EventFollowerTests {
   }
 
   @Test func sseIDDisagreeingWithSeqHalts() async {
-    let mismatched = StreamItem.frame(SSEEvent(id: "9", event: nil, data: eventJSON(1)))
+    let mismatched = StreamItem.frame(SSEEvent(id: "9", data: eventJSON(1)))
     let harness = FollowerHarness([.init([mismatched], .close)])
     let exit = await harness.drive()
     #expect(exit == .malformed(seq: "9", type: "slipstream.session.resumed.v1"))
@@ -271,7 +271,7 @@ func eventJSON(_ value: Int) -> String {
 }
 
 func frame(_ value: Int) -> StreamItem {
-  .frame(SSEEvent(id: String(value), event: nil, data: eventJSON(value)))
+  .frame(SSEEvent(id: String(value), data: eventJSON(value)))
 }
 
 struct MainSerialExecutorTrait: TestTrait, SuiteTrait, TestScoping {

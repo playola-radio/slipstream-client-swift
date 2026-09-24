@@ -21,27 +21,33 @@ enum CardContentLoader {
 
   @concurrent
   static func load(_ row: FileChangeRow, sessionID: String, daemon: DaemonClient) async -> CardContent? {
-    do {
-      let descriptor = try await daemon.discover()
-      let response = try await daemon.clips(descriptor, sessionID, row.id)
-      if response.status == .skipped || response.status == .unavailable {
-        return .note(PlainWords.clipReason(response.fallbackReason ?? "unavailable"))
+    for _ in 0..<2 {
+      do {
+        return try await fetch(row, sessionID: sessionID, daemon: daemon)
+      } catch {
+        if Task.isCancelled { return nil }
+        if case DaemonHTTPError.status(404, _) = error { return .note("Content no longer available") }
       }
-      guard case .content(let afterSHA, _) = row.after else { return .note("File deleted") }
-      guard let after = text(try await daemon.blob(descriptor, afterSHA)) else {
-        return .note(binaryNote)
-      }
-      var before: String?
-      if case .content(let beforeSHA, _) = row.before {
-        guard let text = text(try await daemon.blob(descriptor, beforeSHA)) else { return .note(binaryNote) }
-        before = text
-      }
-      return content(response.clips, before: before, after: after)
-    } catch {
-      if Task.isCancelled { return nil }
-      if case DaemonHTTPError.status(404, _) = error { return .note("Content no longer available") }
-      return .note("Couldn't load this change")
     }
+    return .note("Couldn't load this change")
+  }
+
+  private static func fetch(_ row: FileChangeRow, sessionID: String, daemon: DaemonClient) async throws -> CardContent {
+    let descriptor = try await daemon.discover()
+    let response = try await daemon.clips(descriptor, sessionID, row.id)
+    if response.status == .skipped || response.status == .unavailable {
+      return .note(PlainWords.clipReason(response.fallbackReason ?? "unavailable"))
+    }
+    guard case .content(let afterSHA, _) = row.after else { return .note("File deleted") }
+    guard let after = text(try await daemon.blob(descriptor, afterSHA)) else {
+      return .note(binaryNote)
+    }
+    var before: String?
+    if case .content(let beforeSHA, _) = row.before {
+      guard let text = text(try await daemon.blob(descriptor, beforeSHA)) else { return .note(binaryNote) }
+      before = text
+    }
+    return content(response.clips, before: before, after: after)
   }
 
   static func content(_ clips: [Clip], before: String?, after: String) -> CardContent {
@@ -79,7 +85,7 @@ enum CardContentLoader {
         continue
       }
       let lineEnd = max(last.lineEnd, span.lineEnd)
-      let truncated = (last.lineEnd == lineEnd && last.truncated) || (span.lineEnd == lineEnd && span.truncated)
+      let truncated = last.truncated || span.truncated
       result[result.count - 1] = ClipSpan(lineStart: last.lineStart, lineEnd: lineEnd, truncated: truncated)
     }
     return result

@@ -73,6 +73,20 @@ struct ChangeStreamPageTests {
     #expect(model.emptyStateText == "Choose a capture session to watch its changes")
   }
 
+  @Test func closingTheWindowDuringSessionDiscoveryStartsNothing() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    let model = makeModel(daemon: daemon)
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    model.viewDisappeared()
+    open.yield()
+    await appeared.value
+    #expect(model.selectedSession == nil)
+    #expect(daemon.follows.isEmpty)
+  }
+
   @Test func singleSessionIsSelectedAutomatically() async {
     let model = await connectedModel()
     #expect(model.sessionPickerTitle == "/tmp/project")
@@ -288,7 +302,7 @@ struct ChangeStreamPageTests {
       SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
       SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
     ])
-    daemon.setClips(ClipsResponse(changeSeq: Fixture.seq(1), status: .skipped, fallbackReason: "no-change", clips: []))
+    daemon.setClips(ClipsResponse(status: .skipped, fallbackReason: "no-change", clips: []), for: Fixture.seq(1))
     let model = makeModel(daemon: daemon)
     await model.viewAppeared()
     model.sessionSelected(Fixture.session)
@@ -304,11 +318,30 @@ struct ChangeStreamPageTests {
     #expect(model.cardContents.isEmpty)
   }
 
+  @Test func retryKeepsAPendingCardLoad() async throws {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(clipsGate: gate)
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    daemon.setClips(ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: []), for: Fixture.seq(1))
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    await Task.megaYield()
+    daemon.send(Fixture.edited(1))
+    await Task.megaYield()
+    let row = try #require(fileRow(model, 1))
+    let load = Task { await model.cardAppeared(row) }
+    await Task.megaYield()
+    model.retryTapped()
+    open.yield()
+    await load.value
+    #expect(model.content(for: row) == .note("Binary file — not shown"))
+  }
+
   // MARK: - Cards
 
   func loadedContent(_ change: StreamItem, clips: ClipsResponse? = nil) async -> CardContent {
     let model = await connectedModel()
-    if let clips { fake.setClips(clips) }
+    if let clips { fake.setClips(clips, for: Fixture.seq(1)) }
     await send(change)
     guard let row = fileRow(model, 1) else {
       Issue.record("No row")
@@ -320,7 +353,6 @@ struct ChangeStreamPageTests {
 
   func functionClip(_ start: Int, _ end: Int, truncated: Bool = false) -> Clip {
     Clip(
-      before: ClipSide(span: ClipSpan(lineStart: start, lineEnd: end, truncated: false), method: .function),
       after: ClipSide(span: ClipSpan(lineStart: start, lineEnd: end, truncated: truncated), method: .function)
     )
   }
@@ -330,7 +362,7 @@ struct ChangeStreamPageTests {
     fake.setBlob(Fixture.shaB, "a\nfunction f() {\n  return 2\n}\nz\n")
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .ready, clips: [functionClip(2, 4)])
+      clips: ClipsResponse(status: .ready, clips: [functionClip(2, 4)])
     )
     expectNoDifference(
       content,
@@ -356,12 +388,11 @@ struct ChangeStreamPageTests {
     fake.setBlob(Fixture.shaA, "one\ntwo\nthree\nfour\n")
     fake.setBlob(Fixture.shaB, "ONE\ntwo\nthree\nFOUR\n")
     let rangeClip = Clip(
-      before: ClipSide(span: ClipSpan(lineStart: 4, lineEnd: 4, truncated: false), method: .changedRange),
       after: ClipSide(span: ClipSpan(lineStart: 4, lineEnd: 4, truncated: true), method: .changedRange)
     )
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .fallback, fallbackReason: "no-enclosing-function", clips: [functionClip(1, 1), rangeClip])
+      clips: ClipsResponse(status: .fallback, fallbackReason: "no-enclosing-function", clips: [functionClip(1, 1), rangeClip])
     )
     expectNoDifference(
       content,
@@ -378,12 +409,11 @@ struct ChangeStreamPageTests {
   @Test func overlappingClipsShowTheirLinesOnce() async {
     fake.setBlob(Fixture.shaB, "function f() {\n  return 1\n}\n")
     let rangeClip = Clip(
-      before: ClipSide(span: nil, method: .absent),
       after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .changedRange)
     )
     let content = await loadedContent(
       Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .ready, clips: [rangeClip, functionClip(1, 3)])
+      clips: ClipsResponse(status: .ready, clips: [rangeClip, functionClip(1, 3)])
     )
     expectNoDifference(
       content,
@@ -405,15 +435,45 @@ struct ChangeStreamPageTests {
     )
   }
 
+  @Test func nestedTruncatedClipKeepsItsTruncationNote() async {
+    fake.setBlob(Fixture.shaB, "a\nb\nc\nd\n")
+    let content = await loadedContent(
+      Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
+      clips: ClipsResponse(status: .ready, clips: [functionClip(1, 4), functionClip(2, 3, truncated: true)])
+    )
+    guard case .code(_, let blocks) = content else {
+      Issue.record("Expected code, got \(content)")
+      return
+    }
+    expectNoDifference(blocks.map(\.truncationText), ["… truncated"])
+  }
+
+  @Test func aFailedCardLoadIsRetriedOnce() async {
+    fake.failClips(times: 1)
+    let content = await loadedContent(
+      Fixture.edited(1),
+      clips: ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: [])
+    )
+    #expect(content == .note("Binary file — not shown"))
+  }
+
+  @Test func aCardLoadThatFailsTwiceIsExplained() async {
+    fake.failClips(times: 2)
+    let content = await loadedContent(
+      Fixture.edited(1),
+      clips: ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: [])
+    )
+    #expect(content == .note("Couldn't load this change"))
+  }
+
   @Test func newFileMarksEveryLine() async {
     fake.setBlob(Fixture.shaB, "x\ny\n")
     let wholeFile = Clip(
-      before: ClipSide(span: nil, method: .absent),
       after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .wholeFile)
     )
     let content = await loadedContent(
       Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .ready, clips: [wholeFile])
+      clips: ClipsResponse(status: .ready, clips: [wholeFile])
     )
     expectNoDifference(
       content,
@@ -453,7 +513,7 @@ struct ChangeStreamPageTests {
   @Test func missingBlobIsExplained() async {
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .ready, clips: [functionClip(1, 1)])
+      clips: ClipsResponse(status: .ready, clips: [functionClip(1, 1)])
     )
     #expect(content == .note("Content no longer available"))
   }
@@ -463,7 +523,7 @@ struct ChangeStreamPageTests {
     fake.setBlob(Fixture.shaB, data: Data([0x61, 0x00, 0x62]))
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .ready, clips: [functionClip(1, 1)])
+      clips: ClipsResponse(status: .ready, clips: [functionClip(1, 1)])
     )
     #expect(content == .note("Binary file — not shown"))
   }
@@ -471,7 +531,7 @@ struct ChangeStreamPageTests {
   @Test func skippedClipShowsItsReason() async {
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .skipped, fallbackReason: "not-utf8", clips: [])
+      clips: ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: [])
     )
     #expect(content == .note("Binary file — not shown"))
   }
@@ -479,7 +539,7 @@ struct ChangeStreamPageTests {
   @Test func unavailableClipShowsItsReason() async {
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .unavailable, fallbackReason: "clip-too-large", clips: [])
+      clips: ClipsResponse(status: .unavailable, fallbackReason: "clip-too-large", clips: [])
     )
     #expect(content == .note("Change is too large to show"))
   }
@@ -488,12 +548,11 @@ struct ChangeStreamPageTests {
     fake.setBlob(Fixture.shaA, "a\nb\n")
     fake.setBlob(Fixture.shaB, "a\n")
     let removal = Clip(
-      before: ClipSide(span: ClipSpan(lineStart: 2, lineEnd: 2, truncated: false), method: .changedRange),
       after: ClipSide(span: nil, method: .changedRange)
     )
     let content = await loadedContent(
       Fixture.edited(1),
-      clips: ClipsResponse(changeSeq: Fixture.seq(1), status: .fallback, fallbackReason: "unsupported-language", clips: [removal])
+      clips: ClipsResponse(status: .fallback, fallbackReason: "unsupported-language", clips: [removal])
     )
     #expect(content == .note("Only lines removed — nothing to show"))
   }
@@ -502,10 +561,26 @@ struct ChangeStreamPageTests {
     let model = await connectedModel()
     for value in 1...(ChangeStreamPageModel.cardContentLimit + 1) {
       await send(Fixture.fileChanged(value, "f\(value).ts", before: Fixture.content(Fixture.shaA), after: Fixture.absent))
-      await model.cardAppeared(try #require(fileRow(model, value)))
+      let row = try #require(fileRow(model, value))
+      await model.cardAppeared(row)
+      model.cardDisappeared(row)
     }
     #expect(model.cardContents.count == ChangeStreamPageModel.cardContentLimit)
     #expect(model.cardContents[Fixture.seq(1)] == nil)
+  }
+
+  @Test func cardsOnScreenAreNeverEvicted() async throws {
+    let model = await connectedModel()
+    await send(Fixture.fileChanged(1, "f1.ts", before: Fixture.content(Fixture.shaA), after: Fixture.absent))
+    await model.cardAppeared(try #require(fileRow(model, 1)))
+    for value in 2...(ChangeStreamPageModel.cardContentLimit + 1) {
+      await send(Fixture.fileChanged(value, "f\(value).ts", before: Fixture.content(Fixture.shaA), after: Fixture.absent))
+      let row = try #require(fileRow(model, value))
+      await model.cardAppeared(row)
+      model.cardDisappeared(row)
+    }
+    #expect(model.cardContents[Fixture.seq(1)] == .note("File deleted"))
+    #expect(model.cardContents[Fixture.seq(2)] == nil)
   }
 
   // MARK: - Follow
@@ -555,6 +630,14 @@ struct ChangeStreamPageTests {
     model.scrollPhaseChanged(.idle)
     model.scrollGeometryChanged(contentHeight: 5000, visibleMaxY: 5000)
     #expect(model.follow == .paused(newCount: 0))
+  }
+
+  @Test func contentGrowingDuringAGestureKeepsFollowing() async {
+    let model = await connectedModel()
+    model.scrollGeometryChanged(contentHeight: 1000, visibleMaxY: 1000)
+    model.scrollPhaseChanged(.interacting)
+    model.scrollGeometryChanged(contentHeight: 1600, visibleMaxY: 1000)
+    #expect(model.follow == .following)
   }
 
   @Test func appendsRequestAScrollOnlyWhileFollowing() async {

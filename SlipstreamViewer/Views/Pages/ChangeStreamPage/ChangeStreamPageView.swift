@@ -47,12 +47,11 @@ struct ChangeStreamPageView: View {
         LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
           ForEach(model.sections) { section in
             Section {
-              VStack(alignment: .leading, spacing: DesignTokens.Stream.itemGap) {
-                ForEach(section.items) { item in
-                  itemView(item)
-                }
+              ForEach(section.items) { item in
+                itemView(item)
+                  .padding(.top, model.topGap(for: item, in: section))
               }
-              .padding(.vertical, DesignTokens.Stream.groupGap)
+              Color.clear.frame(height: DesignTokens.Stream.groupGap)
             } header: {
               if let heading = section.heading {
                 TaskHeadingView(heading: heading)
@@ -85,6 +84,7 @@ struct ChangeStreamPageView: View {
         emphasis: model.emphasis(for: row)
       )
       .task(id: row.id) { await model.cardAppeared(row) }
+      .onDisappear { model.cardDisappeared(row) }
     case .marker(let marker):
       Text(marker.text)
         .font(DesignTokens.Fonts.eventTime)
@@ -258,7 +258,7 @@ private struct CodeBlockView: View {
     ForEach(block.lines) { line in
       HStack(spacing: 0) {
         Rectangle()
-          .fill(line.isChanged ? DesignTokens.Card.marker : .clear)
+          .fill(DesignTokens.Card.marker(isChanged: line.isChanged))
           .frame(width: DesignTokens.Card.markerWidth)
         Text(line.number)
           .font(DesignTokens.Fonts.lineNumber)

@@ -63,7 +63,7 @@ struct EventDecodingTests {
   @Test func taskStarted() throws {
     expectNoDifference(
       try SlipstreamEvent.decode(fixture("task-started")).payload,
-      .taskStarted(TaskStarted(taskID: "t-2", title: "Convert isActive from a boolean to an enum"))
+      .taskStarted(TaskStarted(title: "Convert isActive from a boolean to an enum"))
     )
   }
 
@@ -134,15 +134,12 @@ struct ClipsDecodingTests {
     expectNoDifference(
       try JSONDecoder().decode(ClipsResponse.self, from: fixture("clips-ready")),
       ClipsResponse(
-        changeSeq: Seq("12")!,
         status: .ready,
         clips: [
           Clip(
-            before: ClipSide(span: ClipSpan(lineStart: 6, lineEnd: 8, truncated: false), method: .function),
             after: ClipSide(span: ClipSpan(lineStart: 6, lineEnd: 10, truncated: false), method: .function)
           ),
           Clip(
-            before: ClipSide(span: nil, method: .changedRange),
             after: ClipSide(span: ClipSpan(lineStart: 16, lineEnd: 16, truncated: true), method: .changedRange)
           ),
         ]
@@ -153,7 +150,7 @@ struct ClipsDecodingTests {
   @Test func skippedCarriesFallbackReason() throws {
     expectNoDifference(
       try JSONDecoder().decode(ClipsResponse.self, from: fixture("clips-skipped")),
-      ClipsResponse(changeSeq: Seq("14")!, status: .skipped, fallbackReason: "not-utf8", clips: [])
+      ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: [])
     )
   }
 
@@ -162,7 +159,6 @@ struct ClipsDecodingTests {
       try JSONDecoder().decode(ClipsResponse.self, from: fixture("clips-unavailable-side")).clips,
       [
         Clip(
-          before: ClipSide(span: nil, method: .unavailable, reason: "baseline-unknown"),
           after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 1, truncated: false), method: .wholeFile)
         )
       ]
