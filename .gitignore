@@ -33,3 +33,8 @@ DerivedData/
 # Local Swift package build artifacts
 LocalPackages/**/.build/
 .gstack/
+.build/
+.swiftpm/
+*.xcodeproj/
+SlipstreamViewer/Info.plist
+.build-*/

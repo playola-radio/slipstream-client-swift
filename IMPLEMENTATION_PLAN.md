@@ -1,5 +1,27 @@
 # Implementation Plan — `slipstream-client-swift`
 
+## Addendum 2026-09-24 — Feature 1 slice 1 (live change feed)
+
+**Status: proposed amendments pending owner ratification.** The ratified text below is
+unchanged; where this slice departs from it, the departure is listed here, one line each.
+
+- **Sequencing:** this slice does not wait on the P0 gate (the interface-projection endpoint,
+  which is paused) or on Stage T acceptance.
+- **D-G:** two production targets (the `SlipstreamCore` library + the `SlipstreamViewer`
+  app). Linux, the `slipstream-watch` CLI and a separate Kit target are deferred.
+- **§2.5:** the feed is a SwiftUI `LazyVStack` (pinned section headers) instead of an
+  `NSTableView`; the minimum macOS moves from 14 to 15.
+- **D-A / D-J / D-K:** no attribution fold in this slice; the freeze applies only to the
+  event semantics this client consumes. Task headings are chronological dividers, not
+  attribution.
+- **P1.2 / P3:** the P1.2 feasibility probe and P3 fold parity are deferred; acceptance for
+  this slice is its tests plus the live check against a disposable daemon.
+- **Follow pause:** pausing is viewport-only; the event stream keeps running.
+- **D-E:** this slice builds the stream column only; the explorer and editor columns are
+  deferred.
+
+---
+
 The native macOS **watching** client for Slipstream. This is a plan document, not
 production code. It is meant to be reviewed and ratified before any feature code is
 written.
