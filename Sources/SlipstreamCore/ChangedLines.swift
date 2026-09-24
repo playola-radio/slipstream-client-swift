@@ -64,6 +64,28 @@ public enum ChangedLines {
 
   static let maximumDiffedLines = 5000
 
+  private static func longestIncreasingRun(_ values: [Int]) -> Set<Int> {
+    var tails: [Int] = []
+    var previous = [Int](repeating: -1, count: values.count)
+    for (index, value) in values.enumerated() {
+      var low = 0
+      var high = tails.count
+      while low < high {
+        let mid = (low + high) / 2
+        if values[tails[mid]] < value { low = mid + 1 } else { high = mid }
+      }
+      if low > 0 { previous[index] = tails[low - 1] }
+      if low == tails.count { tails.append(index) } else { tails[low] = index }
+    }
+    var run = Set<Int>()
+    var index = tails.last ?? -1
+    while index >= 0 {
+      run.insert(index)
+      index = previous[index]
+    }
+    return run
+  }
+
   private static func changedLineNumbers(before: String, after: String, lineEnd: Int) -> Set<Int> {
     let beforeUnits = diffUnits(for: before)
     let afterUnits = diffUnits(for: after)
@@ -85,22 +107,22 @@ public enum ChangedLines {
         positions[unit, default: []].append(offset)
       }
       var nextCandidateIndex: [String: Int] = [:]
-      var unmatchedCount = beforeMiddle.count
+      var matches: [(after: Int, before: Int)] = []
       for (offset, unit) in afterMiddle.enumerated() {
         let candidates = positions[unit]
         let cursor = nextCandidateIndex[unit, default: 0]
         if let candidates, cursor < candidates.count {
-          let matchedOffset = candidates[cursor]
+          matches.append((after: offset, before: candidates[cursor]))
           nextCandidateIndex[unit] = cursor + 1
-          unmatchedCount -= 1
-          if abs(matchedOffset - offset) > maximumDiffedLines {
-            marks.insert(prefix + 1 + offset)
-          }
         } else {
           marks.insert(prefix + 1 + offset)
         }
       }
-      if unmatchedCount > 0 { anchors.insert(prefix + 1) }
+      let inOrder = longestIncreasingRun(matches.map(\.before))
+      for (index, match) in matches.enumerated() where !inOrder.contains(index) {
+        marks.insert(prefix + 1 + match.after)
+      }
+      if matches.count < beforeMiddle.count { anchors.insert(prefix + 1) }
     } else {
       let diff = afterMiddle.difference(from: beforeMiddle)
       var inserted = Set<Int>()

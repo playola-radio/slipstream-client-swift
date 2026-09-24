@@ -221,6 +221,14 @@ struct ChangedLinesTests {
     #expect(clip.filter(\.isChanged).count > 0)
   }
 
+  @Test func lineMovedAShortDistanceInTheFallbackIsMarked() {
+    let lines = (0..<3000).map { "line \($0)\n" }
+    let before = "head\n" + lines.joined() + "tail\n"
+    let after = "head\n" + lines.last! + lines.dropLast().joined() + "tail\n"
+    let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 3002)
+    expectNoDifference(clip.filter(\.isChanged).map(\.number), [2])
+  }
+
   @Test func hugeFileWithManyRepeatedLinesStaysFast() {
     let repeated = String(repeating: "same line\n", count: 200_000)
     let before = "old head\n" + repeated + "old tail\n"
