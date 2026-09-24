@@ -79,7 +79,7 @@ public enum ChangedLines {
 
     var marks = Set<Int>()
     var anchors = Set<Int>()
-    if beforeMiddle.count > maximumDiffedLines || afterMiddle.count > maximumDiffedLines {
+    if beforeMiddle.count + afterMiddle.count > maximumDiffedLines {
       var positions: [String: [Int]] = [:]
       for (offset, unit) in beforeMiddle.enumerated() {
         positions[unit, default: []].append(offset)

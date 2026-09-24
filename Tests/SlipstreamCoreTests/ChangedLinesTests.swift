@@ -220,4 +220,14 @@ struct ChangedLinesTests {
     let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 6002)
     #expect(clip.filter(\.isChanged).count > 0)
   }
+
+  @Test func combinedMiddleOverThresholdFallsBackEvenWhenEachSideIsUnderIt() {
+    // Neither side alone exceeds ChangedLines.maximumDiffedLines (5000), but the
+    // combined middle (3000 + 3000 = 6000) does — this must use the cheap fallback,
+    // not the exact diff, or a 5000-vs-5000 all-different clip becomes very costly.
+    let before = "head\n" + (0..<3000).map { "old \($0)\n" }.joined() + "tail\n"
+    let after = "head\n" + (0..<3000).map { "new \($0)\n" }.joined() + "tail\n"
+    let clip = ChangedLines.clipLines(before: before, after: after, lineStart: 1, lineEnd: 3002)
+    expectNoDifference(clip.filter { !$0.isChanged }.map(\.number), [1, 3002])
+  }
 }

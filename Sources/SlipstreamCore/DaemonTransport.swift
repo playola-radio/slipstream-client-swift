@@ -54,13 +54,14 @@ public final class DaemonTransport: Sendable {
   public func firstEvent(_ descriptor: DaemonDescriptor, sessionID: String) async throws -> SlipstreamEvent? {
     let request = makeRequest(descriptor, path: "/v1/sessions/\(sessionID)/events", query: [URLQueryItem(name: "after", value: "0")])
     let (bytes, response) = try await session.bytes(for: request)
+    defer { bytes.task.cancel() }
     try Self.check(response)
     var line: [UInt8] = []
     for try await byte in bytes {
       if byte == UInt8(ascii: "\n") { break }
       line.append(byte)
+      if line.count > SSEParser.maximumLineLength { throw DaemonHTTPError.invalidResponse }
     }
-    bytes.task.cancel()
     guard !line.isEmpty else { return nil }
     return try SlipstreamEvent.decode(Data(line))
   }
