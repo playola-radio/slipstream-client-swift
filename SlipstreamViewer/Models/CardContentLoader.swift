@@ -29,7 +29,11 @@ enum CardContentLoader {
         if case DaemonHTTPError.status(404, _) = error { return .note("Content no longer available") }
       }
     }
-    return .note("Couldn't load this change")
+    return .note(failedNote)
+  }
+
+  static func isRetryable(_ content: CardContent) -> Bool {
+    content == .note(failedNote) || content == .note(PlainWords.clipReason("timeout"))
   }
 
   private static func fetch(_ row: FileChangeRow, sessionID: String, daemon: DaemonClient) async throws -> CardContent {
@@ -47,15 +51,16 @@ enum CardContentLoader {
       guard let text = text(try await daemon.blob(descriptor, beforeSHA)) else { return .note(binaryNote) }
       before = text
     }
-    return content(response.clips, before: before, after: after)
+    return content(response.clips, fallbackReason: response.fallbackReason, before: before, after: after)
   }
 
-  static func content(_ clips: [Clip], before: String?, after: String) -> CardContent {
+  static func content(_ clips: [Clip], fallbackReason: String?, before: String?, after: String) -> CardContent {
     let shown = clips.filter { $0.after.span != nil }
     guard !shown.isEmpty else {
       if let reason = clips.lazy.compactMap({ $0.after.method == .unavailable ? $0.after.reason : nil }).first {
         return .note(PlainWords.clipReason(reason))
       }
+      if fallbackReason == "truncated-after" { return .note(PlainWords.clipReason("truncated-after")) }
       return .note("Only lines removed — nothing to show")
     }
     let blocks = merged(shown.compactMap(\.after.span)).enumerated().map { index, span in
@@ -76,6 +81,7 @@ enum CardContentLoader {
   }
 
   private static let binaryNote = "Binary file — not shown"
+  private static let failedNote = "Couldn't load this change"
 
   private static func merged(_ spans: [ClipSpan]) -> [ClipSpan] {
     var result: [ClipSpan] = []

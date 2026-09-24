@@ -33,6 +33,7 @@ final class ChangeStreamPageModel: ViewModel {
   var newestFileID: Seq?
   var follow: FollowState = .following
   var scrollToLatestRequest = 0
+  private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
 
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
@@ -51,8 +52,11 @@ final class ChangeStreamPageModel: ViewModel {
   let paneTitle = "Change stream"
   let paneSubtitle = "Full functions"
   let refreshButtonText = "Refresh"
-  let retryButtonText = "Retry"
   let jumpToLatestText = "Jump to latest ↓"
+
+  var retryButtonText: String {
+    historyRolledBack ? "Reload from start" : "Retry"
+  }
 
   var sessionPickerTitle: String {
     selectedSession?.label ?? "Choose a session"
@@ -149,14 +153,7 @@ final class ChangeStreamPageModel: ViewModel {
   func sessionSelected(_ id: String) {
     guard let session = sessions[id: id], session.id != selectedSession?.id else { return }
     selectedSession = session
-    feedGeneration += 1
-    sections = []
-    newestFileID = nil
-    cardContents = [:]
-    cardContentOrder = []
-    taskCount = 0
-    lastAppliedSeq = .zero
-    follow = .following
+    resetFeed()
     startWatching()
   }
 
@@ -168,6 +165,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func retryTapped() {
     guard selectedSession != nil else { return }
+    if historyRolledBack { resetFeed() }
     startWatching()
   }
 
@@ -188,7 +186,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func cardAppeared(_ row: FileChangeRow) async {
     visibleCards.insert(row.id)
-    if cardContents[row.id] != nil {
+    if let cached = cardContents[row.id], !CardContentLoader.isRetryable(cached) {
       touchCardContent(row.id)
       return
     }
@@ -308,6 +306,7 @@ final class ChangeStreamPageModel: ViewModel {
     case .cursorAhead(let durableSeq):
       let daemonPosition = durableSeq.map { "#\($0)" } ?? "an earlier change"
       connection = .halted("Daemon history ends at \(daemonPosition) but this feed is at #\(lastAppliedSeq)")
+      historyRolledBack = true
     case .sessionNotFound:
       connection = .halted("Session not found")
     case .cursorRejected:
@@ -375,6 +374,18 @@ final class ChangeStreamPageModel: ViewModel {
     formatter.timeZone = timeZone
     formatter.dateFormat = "HH:mm:ss"
     return formatter.string(from: Date(timeIntervalSince1970: Double(milliseconds) / 1000))
+  }
+
+  private func resetFeed() {
+    feedGeneration += 1
+    sections = []
+    newestFileID = nil
+    cardContents = [:]
+    cardContentOrder = []
+    taskCount = 0
+    lastAppliedSeq = .zero
+    follow = .following
+    historyRolledBack = false
   }
 
   private func storeCardContent(_ content: CardContent, for id: Seq) {

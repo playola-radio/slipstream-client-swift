@@ -196,16 +196,26 @@ struct ChangeStreamPageTests {
     #expect(model.statusText == "Connected")
   }
 
-  @Test func cursorAheadOfDaemonIsAnExplicitErrorAndNeverResets() async {
+  @Test func cursorAheadOfDaemonIsAnExplicitErrorAndNeverResetsSilently() async {
     let model = await connectedModel()
     await send(Fixture.edited(1), Fixture.edited(2))
     fake.close(throwing: DaemonHTTPError.status(409, durableSeq: Fixture.seq(1)))
     await Task.megaYield()
     #expect(model.statusText == "Daemon history ends at #1 but this feed is at #2")
+    #expect(model.retryButtonText == "Reload from start")
+    #expect(model.sections[0].items.count == 2)
+  }
+
+  @Test func reloadingFromStartAfterTheDaemonFellBehindReplaysTheSession() async {
+    let model = await connectedModel()
+    await send(Fixture.edited(1), Fixture.edited(2))
+    fake.close(throwing: DaemonHTTPError.status(409, durableSeq: Fixture.seq(1)))
+    await Task.megaYield()
     model.retryTapped()
     await Task.megaYield()
-    #expect(fake.follows.last?.cursor == Fixture.seq(2))
-    #expect(model.sections[0].items.count == 2)
+    #expect(fake.follows.last?.cursor == .zero)
+    #expect(model.sections.isEmpty)
+    #expect(model.retryButtonText == "Retry")
   }
 
   @Test func removedSessionStops() async {
@@ -464,6 +474,30 @@ struct ChangeStreamPageTests {
       clips: ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: [])
     )
     #expect(content == .note("Couldn't load this change"))
+  }
+
+  @Test func aFailedCardLoadIsRetriedWhenTheCardReappears() async throws {
+    let model = await connectedModel()
+    fake.failClips(times: 2)
+    fake.setClips(ClipsResponse(status: .skipped, fallbackReason: "not-utf8", clips: []), for: Fixture.seq(1))
+    await send(Fixture.edited(1))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    #expect(model.content(for: row) == .note("Couldn't load this change"))
+    model.cardDisappeared(row)
+    await model.cardAppeared(row)
+    #expect(model.content(for: row) == .note("Binary file — not shown"))
+  }
+
+  @Test func truncatedAfterSideIsNotMistakenForARemoval() async {
+    fake.setBlob(Fixture.shaA, "a\nb\n")
+    fake.setBlob(Fixture.shaB, "a\n")
+    let truncated = Clip(after: ClipSide(span: nil, method: .function))
+    let content = await loadedContent(
+      Fixture.edited(1),
+      clips: ClipsResponse(status: .fallback, fallbackReason: "truncated-after", clips: [truncated])
+    )
+    #expect(content == .note("Change is too large to show"))
   }
 
   @Test func newFileMarksEveryLine() async {

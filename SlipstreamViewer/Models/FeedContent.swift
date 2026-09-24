@@ -91,8 +91,8 @@ enum PlainWords {
     case "oversize": "Too large to show"
     case "no-content": "No content on either side"
     case "no-change": "Content is unchanged"
-    case "clip-too-large": "Change is too large to show"
-    case "timeout", "overloaded": "Took too long to prepare — reopen the session to try again"
+    case "clip-too-large", "truncated-after": "Change is too large to show"
+    case "timeout", "overloaded": "Took too long to prepare"
     case "invalid-hex", "open-failed", "read-failed", "before-missing": "Content no longer available"
     case "internal-error", "worker-error": "Couldn't prepare this change"
     default: snapshotReason(reason)
