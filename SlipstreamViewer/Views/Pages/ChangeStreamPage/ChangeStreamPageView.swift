@@ -100,6 +100,13 @@ struct ChangeStreamPageView: View {
       Text(model.footerText)
         .font(DesignTokens.Fonts.liveStatus)
         .foregroundStyle(model.footerColor)
+        .lineLimit(1)
+      if model.isRetryVisible {
+        Button(model.retryButtonText) { model.retryTapped() }
+          .buttonStyle(.plain)
+          .font(DesignTokens.Fonts.jumpToLatest)
+          .foregroundStyle(DesignTokens.Colors.jumpToLatest)
+      }
       Spacer()
       Button(model.jumpToLatestText) { model.jumpToLatestTapped() }
         .buttonStyle(.plain)
@@ -126,15 +133,6 @@ struct ChangeStreamPageView: View {
     ToolbarItem {
       Button(model.refreshButtonText, systemImage: "arrow.clockwise") {
         Task { await model.refreshTapped() }
-      }
-    }
-    ToolbarItem {
-      HStack(spacing: 6) {
-        Circle().fill(model.statusColor).frame(width: 8, height: 8)
-        Text(model.statusText).lineLimit(1)
-        if model.isRetryVisible {
-          Button(model.retryButtonText) { model.retryTapped() }
-        }
       }
     }
   }

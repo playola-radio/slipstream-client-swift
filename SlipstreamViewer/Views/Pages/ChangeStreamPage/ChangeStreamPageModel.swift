@@ -68,7 +68,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var footerText: String {
-    switch follow {
+    guard connection == .live else { return statusText }
+    return switch follow {
     case .following: "Live · New changes appear below"
     case .paused(0): "Paused · No new changes"
     case .paused(1): "1 new change"
@@ -108,7 +109,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var footerColor: Color {
-    follow == .following ? DesignTokens.Colors.liveStatus : DesignTokens.Colors.jumpToLatest
+    guard connection == .live else { return statusColor }
+    return follow == .following ? DesignTokens.Colors.liveStatus : DesignTokens.Colors.jumpToLatest
   }
 
   func emphasis(for row: FileChangeRow) -> CardEmphasis {

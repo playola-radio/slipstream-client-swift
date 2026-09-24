@@ -238,6 +238,18 @@ struct ChangeStreamPageTests {
     #expect(fake.follows.last?.cursor == Fixture.seq(1))
   }
 
+  @Test func footerShowsConnectionTroubleInsteadOfLive() async {
+    let model = await connectedModel()
+    await send(Fixture.edited(1))
+    fake.close()
+    await Task.megaYield()
+    #expect(model.footerText == "Reconnecting (attempt 1)")
+    #expect(model.footerColor == DesignTokens.Status.warning)
+    await clock.advance(by: .milliseconds(500))
+    await send(Fixture.edited(1), Fixture.edited(2))
+    #expect(model.footerText == "Live · New changes appear below")
+  }
+
   @Test func silentConnectionIsTreatedAsDead() async {
     let model = await connectedModel()
     await send(.heartbeat)
