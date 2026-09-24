@@ -36,3 +36,5 @@ LocalPackages/**/.build/
 .build/
 .swiftpm/
 *.xcodeproj/
+SlipstreamViewer/Info.plist
+.build-*/
