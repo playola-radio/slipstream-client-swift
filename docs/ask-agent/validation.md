@@ -90,13 +90,26 @@ The combined fixes add explicit uncertain-dismissal confirmation, queue feedback
 visible-source connector handling and accurate errors, and remove redundant state
 and validation. Five additional model regressions pass. See
 [review-disposition.md](review-disposition.md) for every audit disposition.
-Final review of the committed fix wave is pending.
+Final review of fix commit `744989f` returned **PASS for a draft PR**, with no
+blocking correctness defects. Claude traced the shipped D1 request, response,
+retry, framing and store contracts end to end. The report is preserved locally
+in `.context/reviews/final-correctness.txt`.
+
+A fresh AppKit check of the fix wave used injected daemon/question clients and
+rendered `.context/qa/review-selection.png` and `review-queued.png`. The connector
+meets the selected lines and the full queue notice fits the normal window. This
+UI check is separate from the earlier real D1 queue verification.
 
 ## Required before merge
 
 - D2 must merge first. Trace its actual attach readiness/errors and dispatch event
   through the client; then verify real Codex terminal and Conductor delivery and
   cumulative daemon QA. At the last check, daemon `origin/develop` was still D1.
+- Resolve or accept the final review's minor findings: clear/qualify an older queue
+  notice before another question, and explicitly acknowledge success when the
+  composer still belongs to a previously selected capture. During desktop QA,
+  check overlay disappearance/reappearance while retaining a composer and a send
+  failure arriving while discard confirmation is open (competing native alerts).
 - Review the noted typography difference and repeat the native UI interaction check
   with ordinary mouse/keyboard input on an authorized desktop.
 - Brian owns merging and release. Claude terminal/Conductor routing is a separately
