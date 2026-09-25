@@ -31,6 +31,72 @@ enum DesignTokens {
     return Font(nsFont)
   }
 
+  enum Ask {
+    static let width: CGFloat = 640
+    static let fill = Color(hex: 0x202B35)
+    static let stroke = Color(hex: 0x83C7F0)
+    static let strokeWidth: CGFloat = 1.5
+    static let radius: CGFloat = 10
+    static let topPadding: CGFloat = 16
+    static let padding: CGFloat = 24
+    static let gap: CGFloat = 12
+    static let smallGap: CGFloat = 8
+    static let controlGap: CGFloat = 10
+    static let actionGap: CGFloat = 18
+    static let shadow = Color.black.opacity(0.4)
+    static let shadowY: CGFloat = 12
+    static let shadowBlur: CGFloat = 30
+    static let titleColor = Color(hex: 0xC0D0DD)
+    static let titleFont = variableFont(family: geistFamily, size: 13, weight: 550)
+    static let closeColor = Color(hex: 0xB4C4D0)
+    static let iconSize: CGFloat = 16
+    static let editorHeight: CGFloat = 180
+    static let editorFill = Color(hex: 0x111D26)
+    static let editorText = Color(hex: 0xEDF4FA)
+    static let editorPadding: CGFloat = 18
+    static let editorFontSize: CGFloat = 20
+    static let editorLineHeight: CGFloat = 30
+    static let controlRadius: CGFloat = 5
+    static let contextColor = Color(hex: 0xA4D5F1)
+    static let contextFont = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let bodyFont = variableFont(family: geistFamily, size: 13, weight: 400)
+    static let cancelColor = Color(hex: 0xC4D4DF)
+    static let sendFill = Color(hex: 0xB2DAEE)
+    static let sendText = Color(hex: 0x132735)
+    static let sendFont = variableFont(family: geistFamily, size: 13, weight: 600)
+    static let sendVerticalPadding: CGFloat = 11
+    static let sendHorizontalPadding: CGFloat = 17
+    static let divider = Color(hex: 0x3B505F)
+    static let savedTopPadding: CGFloat = 20
+    static let savedLabel = Color(hex: 0xA4B8C7)
+    static let savedFont = variableFont(family: geistFamily, size: 12, weight: 550)
+    static let dropdownFill = Color(hex: 0x15212B)
+    static let dropdownStroke = Color(hex: 0x779CB5)
+    static let dropdownIcon = Color(hex: 0xACBFCC)
+    static let controlVerticalPadding: CGFloat = 12
+    static let controlHorizontalPadding: CGFloat = 14
+    static let appendFill = Color(hex: 0x344D5E)
+    static let appendText = Color(hex: 0xE6F2FA)
+    static let appendFont = variableFont(family: geistFamily, size: 13, weight: 550)
+    static let menuFill = Color(hex: 0x18232D)
+    static let menuStroke = Color(hex: 0x455C6D)
+    static let menuPadding: CGFloat = 5
+    static let menuSelected = Color(hex: 0x2C4354)
+    static let menuText = Color(hex: 0xE2EDF5)
+    static let menuItemRadius: CGFloat = 3
+    static let menuVerticalPadding: CGFloat = 11
+    static let menuHorizontalPadding: CGFloat = 12
+    static let menuDivider = Color(hex: 0x354957)
+    static let selectionFill = Color(hex: 0x315D7A)
+    static let selectionStroke = Color(hex: 0xA4D5F1)
+    static let selectionLeftWidth: CGFloat = 3
+    static let selectionEdgeWidth: CGFloat = 2
+    static let connectorWidth: CGFloat = 2
+    static let connectorDot: CGFloat = 8
+    static let connectorLength: CGFloat = 36
+    static let viewportInset: CGFloat = 16
+  }
+
   enum Fonts {
     static let paneTitle: Font = variableFont(family: geistFamily, size: 16, weight: 400)
     static let paneSubtitle: Font = variableFont(family: geistFamily, size: 10, weight: 400)

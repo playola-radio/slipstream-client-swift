@@ -52,3 +52,19 @@ xcodebuild -scheme SlipstreamViewer -destination 'platform=macOS' test   # page 
 
 The live integration test in `SlipstreamCoreTests` runs only when `SLIPSTREAM_STORE` points
 at a running daemon's store (see `LiveFollowTests.swift`); it is skipped otherwise.
+
+## Ask about selected code
+
+Drag across contiguous source rows in one loaded change block to open the question
+composer. Write a question or append a saved question, then choose **Ask agent**.
+The app uses the selected store's owner-only control socket and the original
+capture/snapshot identity. It closes only after a matching durable queue
+acknowledgment. Errors keep the draft; unchanged retries reuse the same request ID.
+
+Personal custom questions are stored in app preferences. Selecting a saved option
+never appends or sends it. **Add a question…** saves a separate preset inline.
+Escape, Close and Cancel dismiss the composer.
+
+This is queue submission, not answer display or proof of agent delivery. Shared
+`start` + explicit `attach` mode is required; standalone `serve` cannot accept
+questions. See [S1 validation and remaining integration gates](docs/ask-agent/validation.md).

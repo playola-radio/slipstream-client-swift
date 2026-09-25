@@ -14,10 +14,48 @@ struct ChangeStreamPageView: View {
       fileViewer
     }
     .frame(minWidth: 1000, minHeight: 480)
+    .coordinateSpace(name: "question-workspace")
+    .onGeometryChange(for: CGSize.self) { $0.size } action: { model.viewportChanged($0) }
+    .overlay(alignment: .topLeading) {
+      ZStack(alignment: .topLeading) { questionOverlay }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
     .task { await model.viewAppeared() }
     .onDisappear { model.viewDisappeared() }
+  }
+
+  @ViewBuilder
+  private var questionOverlay: some View {
+    if let composer = model.askAgent {
+      if model.showsSelectionConnector {
+        Path { path in
+          path.move(to: model.questionPlacement.selectionAnchor)
+          path.addLine(to: model.questionPlacement.modalAnchor)
+        }
+        .stroke(DesignTokens.Ask.contextColor, lineWidth: DesignTokens.Ask.connectorWidth)
+        .allowsHitTesting(false)
+        Circle().fill(DesignTokens.Ask.contextColor)
+          .frame(width: DesignTokens.Ask.connectorDot, height: DesignTokens.Ask.connectorDot)
+          .position(model.questionPlacement.selectionAnchor)
+          .allowsHitTesting(false)
+      }
+      ScrollView {
+        AskAgentPageView(model: composer, dismiss: { model.questionDismissed() },
+          submit: { Task { await model.askQuestionTapped(composer) } })
+          .id(composer)
+          .frame(width: model.composerWidth)
+          .fixedSize(horizontal: false, vertical: true)
+          .onGeometryChange(for: CGSize.self) { $0.size } action: { model.composerMeasured($0) }
+      }
+      .scrollIndicators(.hidden)
+      .frame(width: model.questionPlacement.modal.width, height: model.questionPlacement.modal.height)
+      .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Ask.radius))
+      .shadow(color: DesignTokens.Ask.shadow, radius: DesignTokens.Ask.shadowBlur,
+        y: DesignTokens.Ask.shadowY)
+      .offset(x: model.questionPlacement.modal.minX, y: model.questionPlacement.modal.minY)
+    }
   }
 
   private var feedPane: some View {
@@ -139,6 +177,7 @@ struct ChangeStreamPageView: View {
     case .file(let row):
       FileCardView(
         row: row,
+        model: model,
         openIndicatorText: model.openIndicatorText(for: row),
         content: model.content(for: row),
         emphasis: model.emphasis(for: row),
@@ -246,6 +285,7 @@ private struct TaskHeadingView: View {
 
 private struct FileCardView: View {
   let row: FileChangeRow
+  let model: ChangeStreamPageModel
   let openIndicatorText: String?
   let content: CardContent
   let emphasis: CardEmphasis
@@ -315,7 +355,7 @@ private struct FileCardView: View {
     case .code(let blocks):
       VStack(alignment: .leading, spacing: 0) {
         ForEach(blocks) { block in
-          CodeBlockView(block: block)
+          CodeBlockView(block: block, row: row, model: model)
         }
       }
     }
@@ -324,6 +364,9 @@ private struct FileCardView: View {
 
 private struct CodeBlockView: View {
   let block: CodeBlock
+  let row: FileChangeRow
+  let model: ChangeStreamPageModel
+  @State private var sourceFrame = CGRect.zero
 
   var body: some View {
     if let separatorText = block.separatorText {
@@ -335,17 +378,43 @@ private struct CodeBlockView: View {
         EmptyView()
       }
     }
-    ForEach(block.lines) { line in
-      gutter(isChanged: line.isChanged, isVerified: line.isVerified) {
-        Text(line.number)
-          .font(DesignTokens.Fonts.lineNumber)
-          .foregroundStyle(DesignTokens.Colors.lineNumber)
-      } source: {
-        Text(line.text)
-          .font(DesignTokens.Fonts.sourceLine)
-          .foregroundStyle(DesignTokens.Colors.sourceLine)
-          .lineLimit(1)
+    VStack(alignment: .leading, spacing: 0) {
+      ForEach(block.lines) { line in
+        gutter(isChanged: line.isChanged, isVerified: line.isVerified) {
+          Text(line.number)
+            .font(DesignTokens.Fonts.lineNumber)
+            .foregroundStyle(DesignTokens.Colors.lineNumber)
+        } source: {
+          Text(line.text)
+            .font(DesignTokens.Fonts.sourceLine)
+            .foregroundStyle(DesignTokens.Colors.sourceLine)
+            .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
+    }
+    .background(alignment: .topLeading) {
+      if let rect = model.highlightRect(row: row, block: block, width: sourceFrame.width) {
+        Rectangle().fill(DesignTokens.Ask.selectionFill)
+          .overlay {
+            Rectangle().strokeBorder(DesignTokens.Ask.selectionStroke, lineWidth: DesignTokens.Ask.selectionEdgeWidth)
+          }
+          .overlay(alignment: .leading) {
+            Rectangle().fill(DesignTokens.Ask.selectionStroke).frame(width: DesignTokens.Ask.selectionLeftWidth)
+          }
+          .frame(width: rect.width, height: rect.height)
+          .offset(y: rect.minY)
+      }
+    }
+    .contentShape(Rectangle())
+    .overlay {
+      SourceDragAdapter(dragged: { startY, endY in
+        model.sourceDragged(row: row, block: block, startY: startY, endY: endY, frame: sourceFrame)
+      }, ended: { model.sourceDragEnded() })
+    }
+    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("question-workspace")) } action: { frame in
+      sourceFrame = frame
+      model.sourceBlockMoved(row: row, block: block, frame: frame)
     }
     if let truncationText = block.truncationText {
       gutter {

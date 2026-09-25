@@ -24,6 +24,12 @@ final class ChangeStreamPageModel: ViewModel {
 
   static let cardContentLimit = 64
 
+  var askAgent: AskAgentPageModel?
+  private(set) var sourceSelection: SourceSelection?
+  private(set) var selectionFrame = CGRect.zero
+  private(set) var viewport = CGRect.zero
+  private(set) var composerSize = CGSize(width: DesignTokens.Ask.width, height: 396)
+
   var sessions: IdentifiedArrayOf<SessionOption> = []
   var hasLoadedSessions = false
   var sessionsError: String?
@@ -101,6 +107,64 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   // MARK: - View Helpers
+
+  var questionPlacement: QuestionPlacement {
+    QuestionPlacement(selection: selectionFrame, viewport: viewport, size: composerSize)
+  }
+
+  var composerWidth: CGFloat { max(0, min(DesignTokens.Ask.width, viewport.width - 2 * DesignTokens.Ask.viewportInset)) }
+  var showsSelectionConnector: Bool {
+    sourceSelection?.sessionID == selectedSession?.id && !isFeedHidden && selectionFrame.intersects(viewport)
+  }
+
+  func selectedLines(row: FileChangeRow, block: CodeBlock) -> ClosedRange<Int>? {
+    guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
+      selection.rowID == row.id, selection.blockID == block.id else { return nil }
+    return selection.context.lineStart...selection.context.lineEnd
+  }
+
+  func highlightRect(row: FileChangeRow, block: CodeBlock, width: CGFloat) -> CGRect? {
+    guard selectedLines(row: row, block: block) != nil, let selection = sourceSelection else { return nil }
+    return selection.rect(in: CGRect(x: 0, y: 0, width: width, height: 0))
+  }
+
+  func viewportChanged(_ size: CGSize) { viewport = CGRect(origin: .zero, size: size) }
+  func composerMeasured(_ size: CGSize) { composerSize = size }
+
+  func sourceDragged(row: FileChangeRow, block: CodeBlock, startY: CGFloat, endY: CGFloat, frame: CGRect) {
+    guard askAgent == nil, let sessionID = selectedSession?.id,
+      case .code(let loadedBlocks) = content(for: row), loadedBlocks.contains(block),
+      sections.contains(where: { $0.items[id: row.id] == .file(row) })
+    else { return }
+    sourceSelection = SourceSelection.make(sessionID: sessionID, row: row, block: block, startY: startY, endY: endY)
+    selectionFrame = sourceSelection?.rect(in: frame) ?? .zero
+  }
+
+  func sourceDragEnded() {
+    guard askAgent == nil, let selection = sourceSelection else { return }
+    askAgent = withDependencies(from: self) {
+      AskAgentPageModel(sessionID: selection.sessionID, context: selection.context)
+    }
+  }
+
+  func sourceBlockMoved(row: FileChangeRow, block: CodeBlock, frame: CGRect) {
+    guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
+      selection.rowID == row.id, selection.blockID == block.id else { return }
+    selectionFrame = selection.rect(in: frame)
+  }
+
+  func questionDismissed() {
+    askAgent?.dismissed()
+    askAgent = nil
+    sourceSelection = nil
+  }
+
+  func askQuestionTapped(_ composer: AskAgentPageModel) async {
+    guard askAgent === composer else { return }
+    let queued = await composer.askTapped()
+    guard askAgent === composer, queued else { return }
+    questionDismissed()
+  }
 
   var isSessionPickerDisabled: Bool {
     sessions.isEmpty

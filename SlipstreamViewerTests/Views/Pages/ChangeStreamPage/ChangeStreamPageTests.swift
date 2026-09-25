@@ -816,3 +816,78 @@ struct ChangeStreamPageTests {
     #expect(!model.isHeadingPinned(section))
   }
 }
+
+extension ChangeStreamPageTests {
+  @Test func selectedDraftSurvivesCacheEvictionAndSessionSwitchWithoutRetargeting() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "\u{FEFF}one\r\n\ttwo\r\n\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    model.sourceDragged(row: row, block: blocks[0], startY: 23, endY: 60, frame: CGRect(x: 20, y: 100, width: 600, height: 88))
+    model.sourceDragEnded()
+    let composer = try #require(model.askAgent)
+    composer.draftChanged("Why?")
+    expectNoDifference(composer.context.lineStart, 2)
+    expectNoDifference(composer.context.lineEnd, 3)
+    expectNoDifference(model.highlightRect(row: row, block: blocks[0], width: 600), CGRect(x: 0, y: 22, width: 600, height: 44))
+    model.cardDisappeared(row)
+    for value in 2...66 {
+      await send(Fixture.fileChanged(value, "other.ts", before: Fixture.content(Fixture.shaA), after: Fixture.absent))
+      let next = try #require(fileRow(model, value))
+      await model.cardAppeared(next)
+      model.cardDisappeared(next)
+    }
+    #expect(model.cardContents[row.id] == nil)
+    #expect(model.askAgent === composer)
+    model.sessions.append(SessionOption(id: Fixture.otherSession, label: "Other"))
+    model.sessionSelected(Fixture.otherSession)
+    #expect(model.askAgent === composer)
+    expectNoDifference(composer.sessionID, Fixture.session)
+    expectNoDifference(composer.draft, "Why?")
+    expectNoDifference(composer.context.snapshotSHA256, Fixture.shaB)
+    #expect(!model.showsSelectionConnector)
+  }
+
+  @Test func questionEventsAdvanceReplayWithoutAddingRows() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.frame(1, type: "slipstream.question.queued.v1", data: [:]),
+      Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: [:]))
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(2))
+    #expect(model.sections.isEmpty)
+  }
+
+  @Test func failedQuestionDoesNotChangeCaptureHealthAndOldCompletionCannotCloseNewComposer() async throws {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let model = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        for await _ in gate { break }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: { makeModel() }
+    await model.viewAppeared()
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let context = AskAgentPageTests.context
+    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context) }
+    model.askAgent = original
+    original.draftChanged("Why?")
+    let send = Task { await model.askQuestionTapped(original) }
+    await Task.megaYield()
+    let health = model.connection
+    model.questionDismissed()
+    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context)
+    newer.draftChanged("A different question")
+    model.askAgent = newer
+    resume.yield()
+    await send.value
+    #expect(model.askAgent === newer)
+    expectNoDifference(newer.draft, "A different question")
+    expectNoDifference(model.connection, health)
+  }
+}
