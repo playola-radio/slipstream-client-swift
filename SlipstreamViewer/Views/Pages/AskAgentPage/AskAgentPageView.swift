@@ -63,7 +63,6 @@ struct AskAgentPageView: View {
       Text(model.errorMessage)
     }
     .task { await model.viewAppeared() }
-    .onDisappear { model.dismissed() }
   }
 
   private var savedQuestions: some View {

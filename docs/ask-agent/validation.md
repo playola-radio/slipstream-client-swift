@@ -44,7 +44,7 @@ follower still advances replay state. No speculative dispatch payload is decoded
   and UTF-8, caps, malformed replies, response deadline, cancellation, unavailable
   socket, socket permissions, exact acknowledgment matching, and existing core suites.
 - `xcodegen generate`, then `xcodebuild test -scheme SlipstreamViewer
-  -destination 'platform=macOS' -derivedDataPath .context/DerivedData`: 73 app tests passed, including existing feed tests. Build uses warnings as errors.
+  -destination 'platform=macOS' -derivedDataPath .context/DerivedData`: 77 app tests passed, including existing feed tests. Build uses warnings as errors.
 - Model coverage includes presets/append/inline Add, persistence failures and load
   ordering, retry identity, duplicate activation, late callbacks, frozen context
   through eviction/session switches, rowless sequence advancement, reverse drag,
@@ -100,17 +100,48 @@ rendered `.context/qa/review-selection.png` and `review-queued.png`. The connect
 meets the selected lines and the full queue notice fits the normal window. This
 UI check is separate from the earlier real D1 queue verification.
 
-## Required before merge
+## D2 integration
 
-- D2 must merge first. Trace its actual attach readiness/errors and dispatch event
-  through the client; then verify real Codex terminal and Conductor delivery and
-  cumulative daemon QA. At the last check, daemon `origin/develop` was still D1.
-- Resolve or accept the final review's minor findings: clear/qualify an older queue
-  notice before another question, and explicitly acknowledge success when the
-  composer still belongs to a previously selected capture. During desktop QA,
-  check overlay disappearance/reappearance while retaining a composer and a send
-  failure arriving while discard confirmation is open (competing native alerts).
-- Review the noted typography difference and repeat the native UI interaction check
-  with ordinary mouse/keyboard input on an authorized desktop.
-- Brian owns merging and release. Claude terminal/Conductor routing is a separately
-  blocked follow-up. Four-path delivery and an ask-and-answer UI are not complete.
+- D2 (daemon PR #35) merged as `5f823988eb39af8ef368a4c58c51d5bcdd75bef1`. All eight
+  daemon acceptance modules, including queueing and delivery, passed against that
+  merge commit with Node 24.11.0.
+- The final client↔daemon trace found no wire mismatches: request fields,
+  acknowledgment identity, error envelopes, retries and the dispatch event agree.
+  `IDENTITY_UNRESOLVED` belongs to attach/claim, which the viewer never performs.
+  Queue acceptance does not prove an attachment is delivery-ready, so the viewer
+  keeps saying "delivery not confirmed".
+- Delivery evidence for supported Codex configurations: D2's ordinary-trust Terminal
+  and Conductor acceptance records, plus a question sent from this app that the
+  intended Codex agent received in Conductor. A separate app→Terminal run was not
+  performed.
+
+## Final UI fixes
+
+Each case has a model regression test. A temporary AppKit harness (not committed)
+hosted the real `ChangeStreamPageView` in an `NSWindow` for the native checks.
+
+- **Retained composer after the window/overlay disappears.** The composer view's
+  `onDisappear` permanently deactivated its model, so a retained draft came back
+  unsendable (reproduced natively: `canSubmit=false`). Only the explicit discard now
+  deactivates it; natively the composer reappears sendable with its draft.
+- **Send fails while the discard confirmation is open.** AppKit queues the error
+  behind the confirmation. *Keep question* then shows the error with the draft and
+  retry ID intact; *Discard draft* closes the composer with no stray alert. Closing
+  the confirmation programmatically was tried and rejected: it silently dropped the
+  error alert.
+- **Stale queue notice.** Opening a new composer clears the earlier notice.
+- **Success after switching captures.** The footer names the original capture:
+  "Question queued for <capture> (delivery not confirmed)".
+- Closing the window entirely still discards the draft; there is no persistent
+  draft restoration.
+
+## Remaining before merge
+
+- Typography: AppKit text looks heavier than the Pen exports. Fix it or explicitly
+  accept the current appearance.
+
+## Deferred
+
+- Claude delivery (terminal and Conductor), the answer-display UI, the full file
+  viewer, and the separately reported intermittent feed-card bug.
+- Brian owns merging and release.

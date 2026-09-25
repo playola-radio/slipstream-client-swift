@@ -1,6 +1,6 @@
 # Queue contract for the ask/send slice
 
-Status: D1 queue shipped in daemon PRs #33/#34 at 1434899; its real implementation and repository docs are authoritative for existing behavior. Codex D2 identity requirements now follow the reported routing proof; Claude remains unverified. Based on prior Claude architecture consultation, source-verified corrections in decisions.md and the worker report in routing-status.md.
+Status: D1 queue shipped in daemon PRs #33/#34 at 1434899; its real implementation and repository docs are authoritative for existing behavior. Codex D2 delivery shipped in daemon PR #35 (merge 5f82398) with Terminal and Conductor acceptance; Claude remains unverified. Based on prior Claude architecture consultation, source-verified corrections in decisions.md and the worker report in routing-status.md.
 
 ## Boundary
 
@@ -101,7 +101,7 @@ Codex identity contract (reported runtime proof in routing-status.md):
 - Bind the selected root transcript explicitly at attach time, alongside harness session ID and canonical worktree. Never infer the root from the first callback. Existing capture-only attaches may remain supported, but cannot claim questions without explicit root identity.
 - A Codex PostToolUse may claim only when observed session ID, canonical worktree and transcript match that bound root, and BOTH `agent_id` and `agent_type` properties are absent. Present-null, empty, malformed, partial or unsupported identity fails closed. A child with matching session/cwd still receives nothing.
 - Validate before claim reservation and recheck ownership after asynchronous identity resolution. Bind eligibility to that attachment's root identity; do not rebind an existing queue to another transcript. D2 must document concrete attach/claim fields and any durable identity representation in the same PR, using these exact semantics rather than an undefined evidence object.
-- Codex terminal and Conductor must each pass live acceptance with the supported runtime and ordinary trust. The supplied new report proves the Conductor case; do not inflate it into additional terminal evidence.
+- Codex terminal and Conductor must each pass live acceptance with the supported runtime and ordinary trust. D2's acceptance records cover both.
 - Claude claims remain disabled. SessionStart socket contact does not prove PostToolUse routing; Claude's agent-field rules must come from its fresh post-reset root/child test.
 
 Session-ID-only or cwd-only routing is prohibited, and declaring subagents “unsupported” cannot excuse delivering to one. Product hooks inject the question/context only; answer artifacts belong to QA, not a production reply channel. D1 remains queue-only and does not add speculative root-binding fields; D2 owns the attach extension and its contract/schema compatibility tests.

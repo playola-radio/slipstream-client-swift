@@ -158,6 +158,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sourceDragEnded() {
     guard askAgent == nil, let selection = sourceSelection else { return }
+    queuedQuestionNotice = nil
     askAgent = withDependencies(from: self) {
       AskAgentPageModel(sessionID: selection.sessionID, context: selection.context)
     }
@@ -199,6 +200,9 @@ final class ChangeStreamPageModel: ViewModel {
     guard askAgent === composer, queued else { return }
     if composer.sessionID == selectedSession?.id {
       queuedQuestionNotice = "Question queued (delivery not confirmed)"
+    } else {
+      let capture = sessions[id: composer.sessionID]?.label ?? "another capture"
+      queuedQuestionNotice = "Question queued for \(capture) (delivery not confirmed)"
     }
     questionDismissed()
   }
