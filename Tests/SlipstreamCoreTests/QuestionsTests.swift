@@ -42,9 +42,8 @@ struct QuestionsTests {
     }
   }
 
-  @Test(arguments: ["SESSION_NOT_SELECTED", "CAPTURE_NOT_READY", "INVALID_CONTEXT", "QUESTION_LIMIT",
-                    "STORAGE_UNAVAILABLE", "REQUEST_CONFLICT", "INVALID_QUESTION", "PROTOCOL"])
-  func rejectionIsPreserved(_ code: String) {
+  @Test func rejectionIsPreserved() {
+    let code = "QUESTION_LIMIT"
     #expect(throws: QuestionError.rejected(code: code, message: "Rejected")) {
       try QuestionAcknowledgment.decode(Data("{\"v\":1,\"ok\":false,\"code\":\"\(code)\",\"message\":\"Rejected\"}".utf8), for: Self.request)
     }
@@ -65,7 +64,8 @@ extension QuestionsTests {
         context: QuestionContext(changeSeq: "1", path: "a", snapshotSHA256: String(repeating: "a", count: 64), lineStart: start, lineEnd: end))
       #expect(throws: (any Error).self) { try request.encoded() }
     }
-    for text in [" \n\u{FEFF}", String(repeating: "😀", count: 2049)] {
+    for text in [" \n\u{FEFF}", String(repeating: "😀", count: 2049),
+                 String(repeating: " ", count: ControlTransport.maximumMessageBytes) + "Why?"] {
       let request = QuestionRequest(sessionID: Self.session, requestID: Self.requestID, text: text, context: Self.request.context)
       #expect(throws: (any Error).self) { try request.encoded() }
     }

@@ -44,7 +44,7 @@ follower still advances replay state. No speculative dispatch payload is decoded
   and UTF-8, caps, malformed replies, response deadline, cancellation, unavailable
   socket, socket permissions, exact acknowledgment matching, and existing core suites.
 - `xcodegen generate`, then `xcodebuild test -scheme SlipstreamViewer
-  -destination 'platform=macOS' -derivedDataPath .context/DerivedData`: 68 app tests passed, including existing feed tests. Build uses warnings as errors.
+  -destination 'platform=macOS' -derivedDataPath .context/DerivedData`: 73 app tests passed, including existing feed tests. Build uses warnings as errors.
 - Model coverage includes presets/append/inline Add, persistence failures and load
   ordering, retry identity, duplicate activation, late callbacks, frozen context
   through eviction/session switches, rowless sequence advancement, reverse drag,
@@ -82,14 +82,21 @@ viewer; this slice implements the approved stream-selection entry point only.
 No disappearance of a feed card was observed during these checks; the separately
 reported intermittent bug is not claimed fixed.
 
+## Cross-model review
+
+Claude Opus completed a retrospective architecture consultation, correctness review
+(PASS for a draft), then separate concurrent challenge and Excess Audit passes.
+The combined fixes add explicit uncertain-dismissal confirmation, queue feedback,
+visible-source connector handling and accurate errors, and remove redundant state
+and validation. Five additional model regressions pass. See
+[review-disposition.md](review-disposition.md) for every audit disposition.
+Final review of the committed fix wave is pending.
+
 ## Required before merge
 
 - D2 must merge first. Trace its actual attach readiness/errors and dispatch event
   through the client; then verify real Codex terminal and Conductor delivery and
   cumulative daemon QA. At the last check, daemon `origin/develop` was still D1.
-- Claude architecture consultation, correctness review, challenge and Excess Audit
-  remain outstanding: the owner explicitly directed implementation/local validation
-  while Claude was unavailable. No cross-model review is claimed.
 - Review the noted typography difference and repeat the native UI interaction check
   with ordinary mouse/keyboard input on an authorized desktop.
 - Brian owns merging and release. Claude terminal/Conductor routing is a separately

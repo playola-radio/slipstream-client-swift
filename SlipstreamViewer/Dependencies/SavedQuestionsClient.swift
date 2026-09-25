@@ -16,9 +16,6 @@ extension SavedQuestionsClient: DependencyKey {
       save: { questions in
         let data = try JSONEncoder().encode(questions)
         UserDefaults.standard.set(data, forKey: "personalSavedQuestions")
-        guard UserDefaults.standard.data(forKey: "personalSavedQuestions") == data else {
-          throw CocoaError(.fileWriteUnknown)
-        }
       }
     )
   }

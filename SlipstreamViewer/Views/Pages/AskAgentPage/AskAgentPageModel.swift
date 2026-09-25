@@ -40,7 +40,7 @@ final class AskAgentPageModel: ViewModel {
   private(set) var errorMessage = ""
   @ObservationIgnored private var request: QuestionRequest?
   @ObservationIgnored private var generation = 0
-  @ObservationIgnored private var isActive = true
+  private var isActive: Bool { generation == 0 }
   @ObservationIgnored private var hasLoadedPresets = false
 
   // MARK: - Display Text
@@ -53,7 +53,7 @@ final class AskAgentPageModel: ViewModel {
   let appendText = "Append to question"
   let addText = "Add a question…"
   let saveText = "Save"
-  let errorTitle = "Question not confirmed"
+  private(set) var errorTitle = "Question not confirmed"
   let errorDismissText = "OK"
 
   var contextText: String { "\(context.path) · Lines \(context.lineStart)–\(context.lineEnd)" }
@@ -88,7 +88,7 @@ final class AskAgentPageModel: ViewModel {
     } catch {
       guard isActive, operation == generation else { return }
       hasLoadedPresets = false
-      showError("Your saved questions couldn't be loaded. Try reopening the composer.")
+      showError("Your saved questions couldn't be loaded. The defaults are available, but adding questions is disabled to preserve your saved data.", title: "Saved questions unavailable")
     }
   }
 
@@ -147,7 +147,7 @@ final class AskAgentPageModel: ViewModel {
     } catch {
       guard isActive, operation == generation else { return }
       isSavingPreset = false
-      showError("This saved question couldn't be saved. Your question and previous selection are unchanged.")
+      showError("This saved question couldn't be saved. Your question and previous selection are unchanged.", title: "Saved question not saved")
     }
   }
 
@@ -160,10 +160,7 @@ final class AskAgentPageModel: ViewModel {
     let operation = generation
     isSubmitting = true
     do {
-      let acknowledgment = try await questionClient.send(intent)
-      guard acknowledgment.sessionID == intent.sessionID, acknowledgment.requestID == intent.requestID else {
-        throw QuestionError.outcomeUnknown
-      }
+      _ = try await questionClient.send(intent)
       guard isActive, generation == operation else { return false }
       isSubmitting = false
       return true
@@ -172,7 +169,7 @@ final class AskAgentPageModel: ViewModel {
       isSubmitting = false
       switch error {
       case QuestionError.unavailable:
-        showError("The question service isn't available. Your draft is kept; try again when the daemon is running." + uncertaintyText)
+        showError("The question service isn't available. Attach the agent session through the shared daemon, then retry." + uncertaintyText)
       case QuestionError.rejected(let code, _):
         if code == "STORAGE_UNAVAILABLE" { hasUncertainSubmission = true }
         showError(Self.failureText(code) + uncertaintyText)
@@ -185,7 +182,6 @@ final class AskAgentPageModel: ViewModel {
   }
 
   func dismissed() {
-    isActive = false
     generation += 1
   }
 
@@ -197,7 +193,8 @@ final class AskAgentPageModel: ViewModel {
       : " Your draft is kept."
   }
 
-  private func showError(_ message: String) {
+  private func showError(_ message: String, title: String = "Question not confirmed") {
+    errorTitle = title
     errorMessage = message
     isErrorPresented = true
   }
@@ -206,13 +203,12 @@ final class AskAgentPageModel: ViewModel {
     switch code {
     case "SESSION_NOT_SELECTED": "This capture is no longer attached to the agent. The question stays bound to its original capture."
     case "CAPTURE_NOT_READY": "The capture isn't ready to accept questions. Try again shortly."
-    case "INVALID_CONTEXT": "This source selection couldn't be verified. Select up to 200 lines from an available snapshot."
+    case "INVALID_CONTEXT": "This source selection couldn't be verified. Select up to 200 lines totaling at most 16 KiB from an available snapshot."
     case "INVALID_QUESTION": "Use a nonempty question of at most 8192 UTF-8 bytes."
     case "QUESTION_LIMIT": "The question queue is full. Try again later."
     case "STORAGE_UNAVAILABLE": "The daemon couldn't confirm storage of this question."
     case "REQUEST_CONFLICT": "This request ID already belongs to a different question."
-    case "DAEMON_UNAVAILABLE": "The question service isn't available."
-    default: "The daemon couldn't accept this question (\(code))."
+    default: "This question couldn't be accepted (\(code))."
     }
   }
 }

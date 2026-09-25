@@ -4,13 +4,11 @@ import Synchronization
 
 public struct ControlTransport: Sendable {
   public static let maximumMessageBytes = 1 << 20
-  public let store: URL
-  public var connectTimeout: Duration
-  public var responseTimeout: Duration
+  private let store: URL
+  private let responseTimeout: Duration
 
-  public init(store: URL, connectTimeout: Duration = .seconds(2), responseTimeout: Duration = .seconds(15)) {
+  public init(store: URL, responseTimeout: Duration = .seconds(15)) {
     self.store = store
-    self.connectTimeout = connectTimeout
     self.responseTimeout = responseTimeout
   }
 
@@ -56,7 +54,7 @@ public struct ControlTransport: Sendable {
     address.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
     withUnsafeMutableBytes(of: &address.sun_path) { $0.copyBytes(from: pathBytes) }
     let clock = ContinuousClock()
-    var deadline = clock.now.advanced(by: connectTimeout)
+    var deadline = clock.now.advanced(by: .seconds(2))
     let connected = withUnsafePointer(to: &address) { pointer in
       pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
         Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))

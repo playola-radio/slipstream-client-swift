@@ -20,6 +20,12 @@ struct ChangeStreamPageView: View {
       ZStack(alignment: .topLeading) { questionOverlay }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
+    .alert(model.questionDismissTitle, isPresented: $model.isQuestionDismissConfirmationPresented) {
+      Button(model.questionDiscardText, role: .destructive) { model.questionDismissed() }
+      Button(model.questionKeepText, role: .cancel) {}
+    } message: {
+      Text(model.questionDismissMessage)
+    }
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
     .task { await model.viewAppeared() }
@@ -42,7 +48,7 @@ struct ChangeStreamPageView: View {
           .allowsHitTesting(false)
       }
       ScrollView {
-        AskAgentPageView(model: composer, dismiss: { model.questionDismissed() },
+        AskAgentPageView(model: composer, dismiss: { model.questionDismissTapped() },
           submit: { Task { await model.askQuestionTapped(composer) } })
           .id(composer)
           .frame(width: model.composerWidth)
@@ -156,6 +162,9 @@ struct ChangeStreamPageView: View {
           Color.clear.frame(height: 1).id(bottomID)
         }
       }
+      .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("question-workspace")) } action: {
+        model.feedViewportChanged($0)
+      }
       .onScrollPhaseChange { _, phase in model.scrollPhaseChanged(phase) }
       .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
         ScrollMetrics(contentHeight: geometry.contentSize.height, visibleMaxY: geometry.visibleRect.maxY)
@@ -201,7 +210,8 @@ struct ChangeStreamPageView: View {
       Text(model.footerText)
         .font(DesignTokens.Fonts.liveStatus)
         .foregroundStyle(model.footerColor)
-        .lineLimit(1)
+        .lineLimit(2)
+        .fixedSize(horizontal: false, vertical: true)
       if model.isRetryVisible {
         Button(model.retryButtonText) { model.retryTapped() }
           .buttonStyle(.plain)
@@ -366,7 +376,7 @@ private struct CodeBlockView: View {
   let block: CodeBlock
   let row: FileChangeRow
   let model: ChangeStreamPageModel
-  @State private var sourceFrame = CGRect.zero
+  @State private var sourceGeometry = SourceGeometry()
 
   var body: some View {
     if let separatorText = block.separatorText {
@@ -394,28 +404,31 @@ private struct CodeBlockView: View {
       }
     }
     .background(alignment: .topLeading) {
-      if let rect = model.highlightRect(row: row, block: block, width: sourceFrame.width) {
-        Rectangle().fill(DesignTokens.Ask.selectionFill)
-          .overlay {
-            Rectangle().strokeBorder(DesignTokens.Ask.selectionStroke, lineWidth: DesignTokens.Ask.selectionEdgeWidth)
-          }
-          .overlay(alignment: .leading) {
-            Rectangle().fill(DesignTokens.Ask.selectionStroke).frame(width: DesignTokens.Ask.selectionLeftWidth)
-          }
-          .frame(width: rect.width, height: rect.height)
-          .offset(y: rect.minY)
+      GeometryReader { geometry in
+        if let rect = model.highlightRect(row: row, block: block, width: geometry.size.width) {
+          Rectangle().fill(DesignTokens.Ask.selectionFill)
+            .overlay {
+              Rectangle().strokeBorder(DesignTokens.Ask.selectionStroke, lineWidth: DesignTokens.Ask.selectionEdgeWidth)
+            }
+            .overlay(alignment: .leading) {
+              Rectangle().fill(DesignTokens.Ask.selectionStroke).frame(width: DesignTokens.Ask.selectionLeftWidth)
+            }
+            .frame(width: rect.width, height: rect.height)
+            .offset(y: rect.minY)
+        }
       }
     }
     .contentShape(Rectangle())
     .overlay {
       SourceDragAdapter(dragged: { startY, endY in
-        model.sourceDragged(row: row, block: block, startY: startY, endY: endY, frame: sourceFrame)
+        model.sourceDragged(row: row, block: block, startY: startY, endY: endY, frame: sourceGeometry.frame)
       }, ended: { model.sourceDragEnded() })
     }
     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("question-workspace")) } action: { frame in
-      sourceFrame = frame
+      sourceGeometry.frame = frame
       model.sourceBlockMoved(row: row, block: block, frame: frame)
     }
+    .onDisappear { model.sourceBlockDisappeared(row: row, block: block) }
     if let truncationText = block.truncationText {
       gutter {
         EmptyView()
@@ -443,4 +456,9 @@ private struct CodeBlockView: View {
     }
     .frame(height: DesignTokens.Card.lineHeight)
   }
+}
+
+@MainActor
+private final class SourceGeometry {
+  var frame = CGRect.zero
 }

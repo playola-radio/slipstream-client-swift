@@ -162,3 +162,16 @@ extension AskAgentPageTests {
     expectNoDifference(model.customQuestions, ["Already saved"])
   }
 }
+
+extension AskAgentPageTests {
+  @Test func preferenceFailureHasItsOwnTitleAndDoesNotPromiseReopeningWillRepairData() async {
+    let model = withDependencies {
+      $0.savedQuestions.load = { throw CocoaError(.fileReadCorruptFile) }
+    } operation: { AskAgentPageModel(sessionID: Self.session, context: Self.context) }
+    await model.viewAppeared()
+    expectNoDifference(model.errorTitle, "Saved questions unavailable")
+    #expect(!model.errorMessage.contains("reopening"))
+    #expect(!model.presetsLoaded)
+    expectNoDifference(model.options, AskAgentPageModel.defaults)
+  }
+}
