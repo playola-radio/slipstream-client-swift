@@ -856,8 +856,9 @@ extension ChangeStreamPageTests {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
     await send(Fixture.frame(1, type: "slipstream.question.queued.v1", data: [:]),
-      Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: [:]))
-    expectNoDifference(model.lastAppliedSeq, Fixture.seq(2))
+      Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: [:]),
+      Fixture.frame(3, type: "slipstream.question.answered.v1", data: [:]))
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(3))
     #expect(model.sections.isEmpty)
   }
 
