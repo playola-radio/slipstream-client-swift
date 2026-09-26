@@ -52,6 +52,10 @@ final class QuestionThreadPageModel: ViewModel {
     return "\(file):\(lines) · \(messages) \(messages == 1 ? "message" : "messages")"
   }
 
+  func answerText(_ answer: QuestionAnswer) -> String {
+    answer.text.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
   func agentText(_ answer: QuestionAnswer) -> String {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")

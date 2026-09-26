@@ -221,7 +221,6 @@ enum Fixture {
     text: String = "Why did this change?",
     changeSeq: Int = 1,
     path: String = "src/user.ts",
-    lines: ClosedRange<Int> = 7...9,
     replyTo parentID: String? = nil
   ) -> StreamItem {
     var data: [String: Any] = [
@@ -230,18 +229,16 @@ enum Fixture {
       "queued_at_ms": observedAtMs,
       "context": [
         "change_seq": String(changeSeq), "path": path, "snapshot_sha256": shaB,
-        "line_start": lines.lowerBound, "line_end": lines.upperBound, "selected_text": "a",
+        "line_start": 7, "line_end": 9, "selected_text": "a",
       ],
     ]
     if let parentID { data["reply_to_question_id"] = parentID }
     return frame(value, type: "slipstream.question.queued.v1", data: data)
   }
 
-  static func questionAnswered(_ value: Int, id: String, text: String = "Because.", answeredAtMs: Int64 = observedAtMs)
-    -> StreamItem
-  {
+  static func questionAnswered(_ value: Int, id: String, text: String = "Because.") -> StreamItem {
     frame(value, type: "slipstream.question.answered.v1", data: [
-      "question_id": id, "attempt_seq": String(value - 1), "text": text, "answered_at_ms": answeredAtMs,
+      "question_id": id, "attempt_seq": String(value - 1), "text": text, "answered_at_ms": observedAtMs,
     ])
   }
 }

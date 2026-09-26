@@ -59,6 +59,11 @@ struct QuestionThreadPageTests {
     expectNoDifference(makeModel([Self.answered], timeZone: "America/Chicago").agentText(answer), "AGENT · 05:42")
   }
 
+  @Test func answerTextStartsAtItsFirstVisibleLine() {
+    let answer = QuestionAnswer(seq: Fixture.seq(3), text: "\n\n  Actual answer\n", answeredAtMs: Fixture.observedAtMs)
+    expectNoDifference(makeModel([Self.answered]).answerText(answer), "Actual answer")
+  }
+
   @Test func followUpIsDisabledWhileTheLatestTurnWaits() {
     let model = makeModel([Self.answered, Self.waiting])
     #expect(model.isFollowUpDisabled)

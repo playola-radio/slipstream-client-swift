@@ -1087,8 +1087,8 @@ extension ChangeStreamPageTests {
     model.questionBars(for: try #require(fileRow(model, rowID)))
   }
 
-  func bar(_ model: ChangeStreamPageModel, _ questionID: String, row rowID: Int = 1) throws -> QuestionBar {
-    try #require(try bars(model, rowID).first { $0.id == questionID })
+  func bar(_ model: ChangeStreamPageModel, _ questionID: String) throws -> QuestionBar {
+    try #require(try bars(model, 1).first { $0.id == questionID })
   }
 
   func open(_ model: ChangeStreamPageModel, _ questionID: String) throws -> QuestionThreadPageModel {

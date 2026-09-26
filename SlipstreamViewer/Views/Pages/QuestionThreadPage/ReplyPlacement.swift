@@ -1,6 +1,6 @@
 import CoreGraphics
 
-struct ReplyPlacement: Equatable {
+struct ReplyPlacement {
   let popover: CGRect
   let barAnchor: CGPoint
   let popoverAnchor: CGPoint

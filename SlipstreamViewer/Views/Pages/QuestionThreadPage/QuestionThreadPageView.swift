@@ -27,7 +27,7 @@ struct QuestionThreadPageView: View {
             Text(model.agentText(answer))
               .font(DesignTokens.Reply.agentFont)
               .foregroundStyle(DesignTokens.Reply.agentColor)
-            Text(answer.text)
+            Text(model.answerText(answer))
               .font(DesignTokens.Reply.answerFont)
               .foregroundStyle(DesignTokens.Reply.answerColor)
               .lineSpacing(DesignTokens.Reply.answerLineSpacing)
