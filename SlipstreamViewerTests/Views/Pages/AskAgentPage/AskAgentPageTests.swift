@@ -12,12 +12,12 @@ struct AskAgentPageTests {
   static let context = QuestionContext(changeSeq: "12", path: "user.ts", snapshotSHA256: String(repeating: "a", count: 64), lineStart: 7, lineEnd: 9)
   static let session = "11111111-1111-4111-8111-111111111111"
 
-  func model(save: @escaping @Sendable ([String]) async throws -> Void = { _ in }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
+  func model(add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
     withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = send
       $0.savedQuestions.load = { [] }
-      $0.savedQuestions.save = save
+      $0.savedQuestions.add = add
     } operation: {
       AskAgentPageModel(sessionID: Self.session, context: Self.context)
     }
@@ -42,7 +42,10 @@ struct AskAgentPageTests {
 
   @Test func inlineSavePersistsCustomOnlyAndCancelRestoresSelection() async {
     let saved = LockIsolated<[String]>([])
-    let model = model(save: { saved.setValue($0) })
+    let model = model(add: { text in
+      saved.withValue { $0.append(text) }
+      return saved.value
+    })
     await model.viewAppeared()
     model.draftChanged("Keep draft")
     model.addQuestionTapped()
@@ -60,7 +63,7 @@ struct AskAgentPageTests {
   }
 
   @Test func failedPersistenceDoesNotPretendToSave() async {
-    let model = model(save: { _ in throw QuestionError.unavailable })
+    let model = model(add: { _ in throw QuestionError.unavailable })
     await model.viewAppeared()
     model.addQuestionTapped()
     model.newPreset = "Custom?"
@@ -149,7 +152,7 @@ extension AskAgentPageTests {
         for await _ in gate { break }
         return ["Already saved"]
       }
-      $0.savedQuestions.save = { _ in }
+      $0.savedQuestions.add = { [$0] }
     } operation: { AskAgentPageModel(sessionID: Self.session, context: Self.context) }
     let load = Task { await model.viewAppeared() }
     await Task.megaYield()
@@ -160,6 +163,25 @@ extension AskAgentPageTests {
     model.addQuestionTapped()
     #expect(model.isAddingPreset)
     expectNoDifference(model.customQuestions, ["Already saved"])
+  }
+}
+
+extension AskAgentPageTests {
+  @Test func savingAPresetMergesWithAnotherWindowsConcurrentSaveInsteadOfOverwritingIt() async {
+    let store = LockIsolated<[String]>(["From window A"])
+    let model = withDependencies {
+      $0.savedQuestions.load = { store.value }
+      $0.savedQuestions.add = { text in
+        store.withValue { $0.append(text) }
+        return store.value
+      }
+    } operation: { AskAgentPageModel(sessionID: Self.session, context: Self.context) }
+    await model.viewAppeared()
+    model.addQuestionTapped()
+    model.newPreset = "From window B"
+    await model.savePresetTapped()
+    expectNoDifference(store.value, ["From window A", "From window B"])
+    expectNoDifference(model.customQuestions, ["From window A", "From window B"])
   }
 }
 

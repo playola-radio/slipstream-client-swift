@@ -80,10 +80,7 @@ final class AskAgentPageModel: ViewModel {
     do {
       let saved = try await savedQuestions.load()
       guard isActive, operation == generation else { return }
-      customQuestions = saved.reduce(into: []) { options, text in
-        guard !QuestionRequest.trim(text).isEmpty, !Self.defaults.contains(text), !options.contains(text) else { return }
-        options.append(text)
-      }
+      customQuestions = Self.sanitize(saved)
       presetsLoaded = true
     } catch {
       guard isActive, operation == generation else { return }
@@ -132,13 +129,12 @@ final class AskAgentPageModel: ViewModel {
   func savePresetTapped() async {
     guard isActive, canSavePreset else { return }
     let text = QuestionRequest.trim(newPreset)
-    let updated = options.contains(text) ? customQuestions : customQuestions + [text]
     let operation = generation
     isSavingPreset = true
     do {
-      try await savedQuestions.save(updated)
+      let updated = try await savedQuestions.add(text)
       guard isActive, operation == generation else { return }
-      customQuestions = updated
+      customQuestions = Self.sanitize(updated)
       selectedPreset = text
       isAddingPreset = false
       isMenuOpen = false
@@ -197,6 +193,13 @@ final class AskAgentPageModel: ViewModel {
     errorTitle = title
     errorMessage = message
     isErrorPresented = true
+  }
+
+  private static func sanitize(_ questions: [String]) -> [String] {
+    questions.reduce(into: []) { options, text in
+      guard !QuestionRequest.trim(text).isEmpty, !Self.defaults.contains(text), !options.contains(text) else { return }
+      options.append(text)
+    }
   }
 
   private static func failureText(_ code: String) -> String {
