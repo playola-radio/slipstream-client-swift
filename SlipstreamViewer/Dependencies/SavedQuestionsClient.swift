@@ -6,21 +6,30 @@ struct SavedQuestionsClient: Sendable {
   var add: @Sendable (String) async throws -> [String]
 }
 
+private actor SavedQuestionsStore {
+  static let shared = SavedQuestionsStore()
+
+  private static let key = "personalSavedQuestions"
+
+  func load() throws -> [String] {
+    guard let data = UserDefaults.standard.data(forKey: Self.key) else { return [] }
+    return try JSONDecoder().decode([String].self, from: data)
+  }
+
+  func add(_ text: String) throws -> [String] {
+    var questions = try load()
+    if !questions.contains(text) { questions.append(text) }
+    let data = try JSONEncoder().encode(questions)
+    UserDefaults.standard.set(data, forKey: Self.key)
+    return questions
+  }
+}
+
 extension SavedQuestionsClient: DependencyKey {
   static var liveValue: Self {
-    let load: @Sendable () throws -> [String] = {
-      guard let data = UserDefaults.standard.data(forKey: "personalSavedQuestions") else { return [] }
-      return try JSONDecoder().decode([String].self, from: data)
-    }
-    return Self(
-      load: { try load() },
-      add: { text in
-        var questions = try load()
-        if !questions.contains(text) { questions.append(text) }
-        let data = try JSONEncoder().encode(questions)
-        UserDefaults.standard.set(data, forKey: "personalSavedQuestions")
-        return questions
-      }
+    Self(
+      load: { try await SavedQuestionsStore.shared.load() },
+      add: { text in try await SavedQuestionsStore.shared.add(text) }
     )
   }
 
