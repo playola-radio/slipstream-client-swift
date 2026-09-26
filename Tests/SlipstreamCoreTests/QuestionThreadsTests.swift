@@ -6,6 +6,7 @@ import Testing
 
 enum QuestionFixture {
   static let sha = "6e330444347838f751a500d7adb0cbe7243dcb534d6cf3cce2dbc336bc4ba1fb"
+  static let boundaryAnswerText = String(repeating: "é", count: 8192)
   static let source = QuestionSource(
     context: QuestionContext(changeSeq: "4", path: "user.ts", snapshotSHA256: sha, lineStart: 1, lineEnd: 3),
     selectedText: "export function greet(name: string) {\n  return `hi ${name}`;\n}"
@@ -65,11 +66,15 @@ struct QuestionEventDecodingTests {
         .questionDispatchAttempted(QuestionDispatchAttempted(questionID: "<question_id_2>", queuedSeq: Seq("6")!)),
         .questionAnswered(
           QuestionAnswered(
-            questionID: "<question_id_2>", attemptSeq: Seq("9")!, text: "<16384 bytes of é>",
+            questionID: "<question_id_2>", attemptSeq: Seq("9")!, text: QuestionFixture.boundaryAnswerText,
             answeredAtMs: 1_790_428_131_649)
         ),
       ]
     )
+  }
+
+  @Test func boundaryAnswerFixtureIsExactlyTheByteLimit() {
+    #expect(QuestionFixture.boundaryAnswerText.utf8.count == 16384)
   }
 
   @Test func followUpCarriesReplyTarget() throws {
@@ -126,7 +131,7 @@ struct QuestionThreadsTests {
           turns: [
             QuestionTurn(
               questionID: "<question_id_2>", text: "Is name ever undefined here?", queuedAtMs: 1_790_428_130_467,
-              answer: QuestionAnswer(seq: Seq("10")!, text: "<16384 bytes of é>", answeredAtMs: 1_790_428_131_649))
+              answer: QuestionAnswer(seq: Seq("10")!, text: QuestionFixture.boundaryAnswerText, answeredAtMs: 1_790_428_131_649))
           ]
         ),
       ]
