@@ -97,6 +97,80 @@ enum DesignTokens {
     static let viewportInset: CGFloat = 16
   }
 
+  enum ReplyBar {
+    static let height: CGFloat = 42
+    static let radius: CGFloat = 4
+    static let gap: CGFloat = 10
+    static let horizontalPadding: CGFloat = 12
+    static let strokeWidth: CGFloat = 1
+    static let leadingStrokeWidth: CGFloat = 3
+    static let iconSize: CGFloat = 15
+    static let chevronSize: CGFloat = 14
+    static let chevronColor = Color(hex: 0xC6E7FF)
+    static let previewFont = variableFont(family: geistFamily, size: 12, weight: 550)
+    static let previewColor = Color(hex: 0xF0F7FC)
+    static let statusFont = variableFont(family: geistFamily, size: 11, weight: 550)
+
+    static func fill(isOpen: Bool) -> Color {
+      isOpen ? Color(hex: 0x345E7B) : Color(hex: 0x294C68)
+    }
+
+    static func stroke(isOpen: Bool) -> Color {
+      isOpen ? Color(hex: 0xB2DFFF) : Color(hex: 0x76AED5)
+    }
+
+    static func chevron(isOpen: Bool) -> String {
+      isOpen ? "ChevronRight" : "ChevronDown"
+    }
+
+    static func accent(_ status: QuestionBarStatus) -> Color {
+      status == .waiting ? Color(hex: 0xD8BE89) : Color(hex: 0xC6E7FF)
+    }
+  }
+
+  enum Reply {
+    static let width: CGFloat = 420
+    static let fill = Color(hex: 0x202B35)
+    static let radius: CGFloat = 6
+    static let stroke = Color(hex: 0x83C7F0)
+    static let strokeWidth: CGFloat = 1
+    static let shadow = Color.black.opacity(0.4)
+    static let shadowY: CGFloat = 8
+    static let shadowBlur: CGFloat = 22
+    static let gap: CGFloat = 14
+    static let padding: CGFloat = 16
+    static let titleFont = variableFont(family: geistFamily, size: 12, weight: 550)
+    static let titleColor = Color(hex: 0xC0D0DD)
+    static let closeColor = Color(hex: 0xA4B8C7)
+    static let iconSize: CGFloat = 15
+    static let questionFont = variableFont(family: geistFamily, size: 14, weight: 550)
+    static let questionColor = Color(hex: 0xEEF5FA)
+    static let questionLineSpacing: CGFloat = 14 * 0.4
+    static let answerGap: CGFloat = 8
+    static let agentFont = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+    static let agentColor = Color(hex: 0xA4D5F1)
+    static let waitingColor = Color(hex: 0xD8BE89)
+    static let answerFont = variableFont(family: geistFamily, size: 13, weight: 400)
+    static let answerColor = Color(hex: 0xDDE7EF)
+    static let answerLineSpacing: CGFloat = 13 * 0.55
+    static let inputHeight: CGFloat = 68
+    static let inputFill = Color(hex: 0x111D26)
+    static let inputRadius: CGFloat = 4
+    static let inputStroke = Color(hex: 0x59798F)
+    static let inputPadding: CGFloat = 12
+    static let draftFont = variableFont(family: geistFamily, size: 13, weight: 400)
+    static let draftColor = Color(hex: 0xE0EAF2)
+    static let draftLineSpacing: CGFloat = 13 * 0.4
+    static let actionGap: CGFloat = 12
+    static let sourceFont = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+    static let sourceColor = Color(hex: 0x91A8B9)
+    static let connectorColor = Color(hex: 0xA4D5F1)
+    static let connectorDot: CGFloat = 6
+    static let connectorWidth: CGFloat = 2
+    static let connectorLength: CGFloat = 44
+    static let viewportInset: CGFloat = 16
+  }
+
   enum Fonts {
     static let paneTitle: Font = variableFont(family: geistFamily, size: 16, weight: 400)
     static let paneSubtitle: Font = variableFont(family: geistFamily, size: 10, weight: 400)
@@ -111,6 +185,12 @@ enum DesignTokens {
     static let hideFeed: Font = variableFont(family: geistFamily, size: 10, weight: 400)
     static let openIndicator: Font = variableFont(family: geistMonoFamily, size: 9, weight: 400)
     static let restoreFeed: Font = variableFont(family: geistFamily, size: 11, weight: 400)
+
+    static func paneSubtitle(isQuestionSummary: Bool) -> Font {
+      isQuestionSummary ? questionSummary : paneSubtitle
+    }
+
+    private static let questionSummary: Font = variableFont(family: geistFamily, size: 11, weight: 400)
   }
 
   enum Colors {
@@ -126,6 +206,10 @@ enum DesignTokens {
     static let hideFeed = Color(hex: 0x9EBACB)
     static let openIndicator = Color(hex: 0x78AAD0)
     static let restoreFeed = Color(hex: 0xBFCBD9)
+
+    static func paneSubtitle(isQuestionSummary: Bool) -> Color {
+      isQuestionSummary ? Color(hex: 0xA4D5F1) : paneSubtitle
+    }
 
     static func filePath(_ emphasis: CardEmphasis) -> Color {
       switch emphasis {

@@ -3,6 +3,7 @@ import Foundation
 import SlipstreamCore
 
 struct DaemonClient: Sendable {
+  var storeID: String
   var discover: @Sendable () async throws -> DaemonDescriptor
   var sessions: @Sendable (DaemonDescriptor) async throws -> [SessionSummary]
   var sessionRoot: @Sendable (DaemonDescriptor, String) async throws -> String?
@@ -19,6 +20,7 @@ extension DaemonClient: DependencyKey {
       home: FileManager.default.homeDirectoryForCurrentUser
     )
     return DaemonClient(
+      storeID: store.standardizedFileURL.path,
       discover: { try DescriptorDiscovery.discover(store: store) },
       sessions: { try await transport.sessions($0) },
       sessionRoot: { descriptor, sessionID in
@@ -34,6 +36,7 @@ extension DaemonClient: DependencyKey {
 
   static var testValue: DaemonClient {
     DaemonClient(
+      storeID: "test-store",
       discover: unimplemented("DaemonClient.discover"),
       sessions: unimplemented("DaemonClient.sessions", placeholder: []),
       sessionRoot: unimplemented("DaemonClient.sessionRoot", placeholder: nil),
