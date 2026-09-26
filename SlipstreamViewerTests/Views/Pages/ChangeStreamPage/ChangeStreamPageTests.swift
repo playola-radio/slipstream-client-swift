@@ -1160,6 +1160,22 @@ extension ChangeStreamPageTests {
     #expect(try bar(model, "q1").status == .answered)
   }
 
+  @Test func anEarlierUnansweredFollowUpKeepsTheThreadWaiting() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionAnswered(3, id: "q1"),
+      Fixture.questionQueued(4, id: "q2", text: "First follow-up", replyTo: "q1"),
+      Fixture.questionQueued(5, id: "q3", text: "Second follow-up", replyTo: "q1"),
+      Fixture.questionAnswered(6, id: "q3"))
+    let reply = try open(model, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.answerDisplayed(Fixture.seq(6))
+    #expect(try bar(model, "q1").status == .waiting)
+  }
+
   @Test func collapsedReplyCannotMarkAnswersRead() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }

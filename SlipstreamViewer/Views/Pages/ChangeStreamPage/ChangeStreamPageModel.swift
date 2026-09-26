@@ -620,7 +620,7 @@ final class ChangeStreamPageModel: ViewModel {
       return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
     }
     if hasUnread { return .newReply }
-    return thread.turns.last?.answer == nil ? .waiting : .answered
+    return thread.turns.contains { $0.answer == nil } ? .waiting : .answered
   }
 
   private func resetFeed() {

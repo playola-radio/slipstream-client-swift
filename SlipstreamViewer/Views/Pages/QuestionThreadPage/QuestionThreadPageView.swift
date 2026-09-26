@@ -33,8 +33,10 @@ struct QuestionThreadPageView: View {
               .lineSpacing(DesignTokens.Reply.answerLineSpacing)
               .fixedSize(horizontal: false, vertical: true)
               .textSelection(.enabled)
-              .onScrollVisibilityChange(threshold: 0.01) { isVisible in
-                if isVisible { model.answerDisplayed(answer.seq) }
+              .background(alignment: .top) {
+                Color.clear.frame(height: 1).onScrollVisibilityChange(threshold: 0.01) { isVisible in
+                  if isVisible { model.answerDisplayed(answer.seq) }
+                }
               }
           }
         } else {
