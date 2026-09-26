@@ -816,3 +816,256 @@ struct ChangeStreamPageTests {
     #expect(!model.isHeadingPinned(section))
   }
 }
+
+extension ChangeStreamPageTests {
+  @Test func selectedDraftSurvivesCacheEvictionAndSessionSwitchWithoutRetargeting() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "\u{FEFF}one\r\n\ttwo\r\n\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    model.sourceDragged(row: row, block: blocks[0], startY: 23, endY: 60, frame: CGRect(x: 20, y: 100, width: 600, height: 88))
+    model.sourceDragEnded()
+    let composer = try #require(model.askAgent)
+    composer.draftChanged("Why?")
+    expectNoDifference(composer.context.lineStart, 2)
+    expectNoDifference(composer.context.lineEnd, 3)
+    expectNoDifference(model.highlightRect(row: row, block: blocks[0], width: 600), CGRect(x: 0, y: 22, width: 600, height: 44))
+    model.cardDisappeared(row)
+    for value in 2...66 {
+      await send(Fixture.fileChanged(value, "other.ts", before: Fixture.content(Fixture.shaA), after: Fixture.absent))
+      let next = try #require(fileRow(model, value))
+      await model.cardAppeared(next)
+      model.cardDisappeared(next)
+    }
+    #expect(model.cardContents[row.id] == nil)
+    #expect(model.askAgent === composer)
+    model.sessions.append(SessionOption(id: Fixture.otherSession, label: "Other"))
+    model.sessionSelected(Fixture.otherSession)
+    #expect(model.askAgent === composer)
+    expectNoDifference(composer.sessionID, Fixture.session)
+    expectNoDifference(composer.draft, "Why?")
+    expectNoDifference(composer.context.snapshotSHA256, Fixture.shaB)
+    #expect(!model.showsSelectionConnector)
+  }
+
+  @Test func questionEventsAdvanceReplayWithoutAddingRows() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.frame(1, type: "slipstream.question.queued.v1", data: [:]),
+      Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: [:]))
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(2))
+    #expect(model.sections.isEmpty)
+  }
+
+  @Test func failedQuestionDoesNotChangeCaptureHealthAndOldCompletionCannotCloseNewComposer() async throws {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let model = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        for await _ in gate { break }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: { makeModel() }
+    await model.viewAppeared()
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let context = AskAgentPageTests.context
+    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context) }
+    model.askAgent = original
+    original.draftChanged("Why?")
+    let send = Task { await model.askQuestionTapped(original) }
+    await Task.megaYield()
+    let health = model.connection
+    model.questionDismissed()
+    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context)
+    newer.draftChanged("A different question")
+    model.askAgent = newer
+    resume.yield()
+    await send.value
+    #expect(model.askAgent === newer)
+    expectNoDifference(newer.draft, "A different question")
+    expectNoDifference(model.connection, health)
+  }
+}
+
+extension ChangeStreamPageTests {
+  @Test func uncertainSubmissionRequiresExplicitDiscardConfirmation() async {
+    let model = makeModel()
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { _ in throw QuestionError.outcomeUnknown }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    model.questionDismissTapped()
+    #expect(model.isQuestionDismissConfirmationPresented)
+    #expect(model.askAgent === composer)
+    expectNoDifference(composer.draft, "Why?")
+    model.questionDismissed()
+    #expect(model.askAgent == nil)
+    #expect(!model.isQuestionDismissConfirmationPresented)
+  }
+
+  @Test func inFlightDismissalKeepsIntentUntilExplicitlyConfirmed() async {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let model = makeModel()
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        for await _ in gate { break }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    let send = Task { await model.askQuestionTapped(composer) }
+    await Task.megaYield()
+    model.questionDismissTapped()
+    #expect(model.isQuestionDismissConfirmationPresented)
+    #expect(model.askAgent === composer)
+    resume.yield()
+    await send.value
+    #expect(model.askAgent == nil)
+    #expect(!model.isQuestionDismissConfirmationPresented)
+  }
+
+  @Test func queueConfirmationPreservesCaptureHealth() async {
+    let model = makeModel()
+    model.selectedSession = SessionOption(id: Fixture.session, label: "Current")
+    model.connection = .live
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    expectNoDifference(model.connection, .live)
+    expectNoDifference(model.footerText, "Live · New changes appear below · Question queued (delivery not confirmed)")
+  }
+
+  @Test func retainedComposerStaysSendableAfterWindowDisappearsAndReappears() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = withDependencies(from: model) {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    model.viewDisappeared()
+    await model.viewAppeared()
+    await Task.megaYield()
+    #expect(model.askAgent === composer)
+    #expect(composer.canSubmit)
+    await model.askQuestionTapped(composer)
+    #expect(model.askAgent == nil)
+  }
+
+  @Test func sendFailureDuringDiscardConfirmationQueuesErrorBehindItAndKeepsRetryIdentity() async {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let requests = LockIsolated<[String]>([])
+    let model = makeModel()
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        requests.withValue { $0.append(request.requestID) }
+        for await _ in gate { break }
+        throw QuestionError.outcomeUnknown
+      }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    let send = Task { await model.askQuestionTapped(composer) }
+    await Task.megaYield()
+    model.questionDismissTapped()
+    #expect(model.isQuestionDismissConfirmationPresented)
+    resume.yield()
+    await send.value
+    #expect(model.isQuestionDismissConfirmationPresented)
+    #expect(composer.isErrorPresented)
+    #expect(model.askAgent === composer)
+    expectNoDifference(composer.draft, "Why?")
+    model.isQuestionDismissConfirmationPresented = false
+    composer.isErrorPresented = false
+    let retry = Task { await model.askQuestionTapped(composer) }
+    await Task.megaYield()
+    resume.yield()
+    await retry.value
+    expectNoDifference(requests.value.count, 2)
+    expectNoDifference(Set(requests.value).count, 1)
+  }
+
+  @Test func startingAnotherQuestionClearsTheEarlierQueueNotice() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(
+      span: ClipSpan(lineStart: 1, lineEnd: 3, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing code"); return }
+    let composer = withDependencies(from: model) {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    #expect(model.footerText.hasSuffix("Question queued (delivery not confirmed)"))
+    model.sourceDragged(row: row, block: blocks[0], startY: 0, endY: 60,
+      frame: CGRect(x: 30, y: 30, width: 620, height: 66))
+    model.sourceDragEnded()
+    #expect(model.askAgent != nil)
+    #expect(!model.footerText.contains("Question queued"))
+  }
+
+  @Test func successAfterSwitchingCapturesNamesTheOriginalCapture() async {
+    let model = makeModel()
+    model.sessions = [
+      SessionOption(id: Fixture.session, label: "project"),
+      SessionOption(id: Fixture.otherSession, label: "other"),
+    ]
+    model.selectedSession = model.sessions[id: Fixture.otherSession]
+    model.connection = .live
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    #expect(model.askAgent == nil)
+    expectNoDifference(model.footerText,
+      "Live · New changes appear below · Question queued for project (delivery not confirmed)")
+  }
+
+  @Test func selectionConnectorUsesVisibleSourceAndHidesWhenBlockDisappears() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(
+      span: ClipSpan(lineStart: 1, lineEnd: 3, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing code"); return }
+    model.viewportChanged(CGSize(width: 1100, height: 800))
+    model.feedViewportChanged(CGRect(x: 0, y: 52, width: 680, height: 710))
+    model.sourceDragged(row: row, block: blocks[0], startY: 0, endY: 60,
+      frame: CGRect(x: 30, y: 30, width: 620, height: 66))
+    #expect(model.showsSelectionConnector)
+    #expect(model.questionPlacement.selectionAnchor.y >= 52)
+    model.sourceBlockDisappeared(row: row, block: blocks[0])
+    #expect(!model.showsSelectionConnector)
+    #expect(model.sourceSelection != nil)
+    model.sourceBlockMoved(row: row, block: blocks[0], frame: CGRect(x: 30, y: -100, width: 620, height: 66))
+    #expect(!model.showsSelectionConnector)
+  }
+}

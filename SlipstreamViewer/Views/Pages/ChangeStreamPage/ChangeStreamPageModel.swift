@@ -24,6 +24,16 @@ final class ChangeStreamPageModel: ViewModel {
 
   static let cardContentLimit = 64
 
+  var askAgent: AskAgentPageModel?
+  var isQuestionDismissConfirmationPresented = false
+  private(set) var queuedQuestionNotice: String?
+  private(set) var feedViewport = CGRect.zero
+  private(set) var isSourceBlockVisible = false
+  private(set) var sourceSelection: SourceSelection?
+  private(set) var selectionFrame = CGRect.zero
+  private(set) var viewport = CGRect.zero
+  private(set) var composerSize = CGSize(width: DesignTokens.Ask.width, height: 396)
+
   var sessions: IdentifiedArrayOf<SessionOption> = []
   var hasLoadedSessions = false
   var sessionsError: String?
@@ -52,6 +62,11 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var lastVisibleMaxY: Double?
 
   // MARK: - Display Text
+
+  let questionDismissTitle = "Discard this question?"
+  let questionDismissMessage = "This submission may already be queued. Closing does not withdraw it and discards the draft and its retry ID. Sending it again could queue a duplicate."
+  let questionDiscardText = "Discard draft"
+  let questionKeepText = "Keep question"
 
   let paneTitle = "Change stream"
   let paneSubtitle = "Full functions"
@@ -82,13 +97,18 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var footerText: String {
-    guard connection == .live else { return statusText }
-    return switch follow {
-    case .following: "Live · New changes appear below"
-    case .paused(0): "Paused · No new changes"
-    case .paused(1): "1 new change"
-    case .paused(let count): "\(count) new changes"
+    let captureText: String
+    if connection == .live {
+      captureText = switch follow {
+      case .following: "Live · New changes appear below"
+      case .paused(0): "Paused · No new changes"
+      case .paused(1): "1 new change"
+      case .paused(let count): "\(count) new changes"
+      }
+    } else {
+      captureText = statusText
     }
+    return captureText + (queuedQuestionNotice.map { " · " + $0 } ?? "")
   }
 
   var emptyStateText: String? {
@@ -101,6 +121,91 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   // MARK: - View Helpers
+
+  var questionPlacement: QuestionPlacement {
+    let visibleSelection = selectionFrame.intersection(feedViewport)
+    return QuestionPlacement(selection: visibleSelection.isEmpty ? selectionFrame : visibleSelection,
+      viewport: viewport, size: composerSize)
+  }
+
+  var composerWidth: CGFloat { max(0, min(DesignTokens.Ask.width, viewport.width - 2 * DesignTokens.Ask.viewportInset)) }
+  var showsSelectionConnector: Bool {
+    sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && !isFeedHidden
+      && !selectionFrame.intersection(feedViewport).isEmpty
+  }
+
+  func highlightRect(row: FileChangeRow, block: CodeBlock, width: CGFloat) -> CGRect? {
+    guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
+      selection.rowID == row.id, selection.blockID == block.id else { return nil }
+    return selection.rect(in: CGRect(x: 0, y: 0, width: width, height: 0))
+  }
+
+  func feedViewportChanged(_ frame: CGRect) { feedViewport = frame }
+  func viewportChanged(_ size: CGSize) { viewport = CGRect(origin: .zero, size: size) }
+  func composerMeasured(_ size: CGSize) { composerSize = size }
+
+  func sourceDragged(row: FileChangeRow, block: CodeBlock, startY: CGFloat, endY: CGFloat, frame: CGRect) {
+    guard askAgent == nil, let sessionID = selectedSession?.id,
+      case .code(let loadedBlocks) = content(for: row), loadedBlocks.contains(block),
+      sections.contains(where: { $0.items[id: row.id] == .file(row) })
+    else { return }
+    let selection = SourceSelection.make(sessionID: sessionID, row: row, block: block, startY: startY, endY: endY)
+    if sourceSelection != selection { sourceSelection = selection }
+    isSourceBlockVisible = true
+    let rect = selection?.rect(in: frame) ?? .zero
+    if selectionFrame != rect { selectionFrame = rect }
+  }
+
+  func sourceDragEnded() {
+    guard askAgent == nil, let selection = sourceSelection else { return }
+    queuedQuestionNotice = nil
+    askAgent = withDependencies(from: self) {
+      AskAgentPageModel(sessionID: selection.sessionID, context: selection.context)
+    }
+  }
+
+  func sourceBlockMoved(row: FileChangeRow, block: CodeBlock, frame: CGRect) {
+    guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
+      selection.rowID == row.id, selection.blockID == block.id else { return }
+    isSourceBlockVisible = true
+    let rect = selection.rect(in: frame)
+    if selectionFrame != rect { selectionFrame = rect }
+  }
+
+  func sourceBlockDisappeared(row: FileChangeRow, block: CodeBlock) {
+    guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
+      selection.rowID == row.id, selection.blockID == block.id else { return }
+    isSourceBlockVisible = false
+  }
+
+  func questionDismissTapped() {
+    guard let composer = askAgent else { return }
+    if composer.isSubmitting || composer.hasUncertainSubmission {
+      isQuestionDismissConfirmationPresented = true
+    } else {
+      questionDismissed()
+    }
+  }
+
+  func questionDismissed() {
+    isQuestionDismissConfirmationPresented = false
+    askAgent?.dismissed()
+    askAgent = nil
+    sourceSelection = nil
+  }
+
+  func askQuestionTapped(_ composer: AskAgentPageModel) async {
+    guard askAgent === composer else { return }
+    let queued = await composer.askTapped()
+    guard askAgent === composer, queued else { return }
+    if composer.sessionID == selectedSession?.id {
+      queuedQuestionNotice = "Question queued (delivery not confirmed)"
+    } else {
+      let capture = sessions[id: composer.sessionID]?.label ?? "another capture"
+      queuedQuestionNotice = "Question queued for \(capture) (delivery not confirmed)"
+    }
+    questionDismissed()
+  }
 
   var isSessionPickerDisabled: Bool {
     sessions.isEmpty
@@ -420,6 +525,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func resetFeed() {
+    queuedQuestionNotice = nil
+    isSourceBlockVisible = false
     feedGeneration += 1
     sections = []
     newestFileID = nil
