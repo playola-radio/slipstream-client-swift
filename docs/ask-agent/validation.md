@@ -135,10 +135,11 @@ hosted the real `ChangeStreamPageView` in an `NSWindow` for the native checks.
 - Closing the window entirely still discards the draft; there is no persistent
   draft restoration.
 
-## Remaining before merge
+## Typography
 
-- Typography: AppKit text looks heavier than the Pen exports. Fix it or explicitly
-  accept the current appearance.
+AppKit text looks heavier than the Pen exports. Brian accepted the current
+appearance: font sizes will become user-adjustable later, so exact matching to the
+exports is not a goal.
 
 ## Deferred
 
