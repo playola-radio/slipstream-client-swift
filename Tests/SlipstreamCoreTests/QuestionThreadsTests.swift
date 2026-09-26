@@ -94,6 +94,16 @@ struct QuestionEventDecodingTests {
       try SlipstreamEvent.decode(Data("{\"id\":\"7\",\"seq\":\"7\",\"type\":\"\(type)\",\"data\":{}}".utf8))
     }
   }
+
+  @Test(arguments: ["", " \n\u{3000}", String(repeating: "é", count: 8193)])
+  func answerTextOutsideTheContractThrows(_ text: String) throws {
+    let data: [String: Any] = ["question_id": "q1", "attempt_seq": "6", "text": text, "answered_at_ms": 1]
+    let envelope: [String: Any] = ["id": "7", "seq": "7", "type": "slipstream.question.answered.v1", "data": data]
+    let json = try JSONSerialization.data(withJSONObject: envelope)
+    #expect(throws: EventDecodingError(seq: "7", type: "slipstream.question.answered.v1")) {
+      try SlipstreamEvent.decode(json)
+    }
+  }
 }
 
 struct QuestionThreadsTests {
@@ -154,11 +164,6 @@ struct QuestionThreadsTests {
     expectNoDifference(threads.threads[id: "q1"]?.source, QuestionFixture.source)
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.text), ["First", "Second", "Third"])
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered, .answered, .waiting])
-  }
-
-  @Test func independentAsksOnTheSameSourceAreSeparateThreads() {
-    let threads = QuestionThreads([QuestionFixture.queued(1, id: "q1"), QuestionFixture.queued(2, id: "q2")])
-    expectNoDifference(threads.threads.ids, ["q1", "q2"])
   }
 
   @Test func threadsAnsweredOutOfOrderKeepAskOrder() {

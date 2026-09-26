@@ -193,6 +193,9 @@ extension SlipstreamEvent {
       return .questionDispatchAttempted(QuestionDispatchAttempted(questionID: attempt.question_id, queuedSeq: attempt.queued_seq))
     case "slipstream.question.answered.v1":
       let answer = try decoder.decode(Envelope<QuestionAnsweredData>.self, from: data).data
+      guard !QuestionRequest.trim(answer.text).isEmpty, answer.text.utf8.count <= 16384 else {
+        throw EventDecodingError(seq: nil, type: nil)
+      }
       return .questionAnswered(
         QuestionAnswered(
           questionID: answer.question_id,
