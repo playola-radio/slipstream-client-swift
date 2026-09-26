@@ -5,19 +5,28 @@ import Testing
 
 @Suite(.serialized)
 struct SavedQuestionsClientTests {
-  private static let key = "personalSavedQuestions"
+  @Test func manyConcurrentAddsFromDistinctWindowsAllPersist() async throws {
+    let suiteName = "SavedQuestionsClientTests.\(UUID().uuidString)"
+    defer { UserDefaults().removePersistentDomain(forName: suiteName) }
 
-  @Test func concurrentAddsFromTwoWindowsBothPersistInsteadOfOverwritingEachOther() async throws {
-    UserDefaults.standard.removeObject(forKey: Self.key)
-    defer { UserDefaults.standard.removeObject(forKey: Self.key) }
+    let store = SavedQuestionsStore(userDefaults: UserDefaults(suiteName: suiteName)!)
+    let client = SavedQuestionsClient(
+      load: { try await store.load() },
+      add: { text in try await store.add(text) }
+    )
 
-    let client = SavedQuestionsClient.liveValue
-    async let first = client.add("From window A")
-    async let second = client.add("From window B")
-    _ = try await (first, second)
+    let questionCount = 20
+    let questions = (0..<questionCount).map { "Question \($0)" }
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+      for question in questions {
+        group.addTask { _ = try await client.add(question) }
+      }
+      try await group.waitForAll()
+    }
 
     let persisted = try await client.load()
-    expectNoDifference(Set(persisted), ["From window A", "From window B"])
-    #expect(persisted.count == 2)
+    expectNoDifference(Set(persisted), Set(questions))
+    #expect(persisted.count == questionCount)
   }
 }

@@ -6,13 +6,19 @@ struct SavedQuestionsClient: Sendable {
   var add: @Sendable (String) async throws -> [String]
 }
 
-private actor SavedQuestionsStore {
-  static let shared = SavedQuestionsStore()
+actor SavedQuestionsStore {
+  static let shared = SavedQuestionsStore(userDefaults: .standard)
 
   private static let key = "personalSavedQuestions"
 
+  private let userDefaults: UserDefaults
+
+  init(userDefaults: UserDefaults) {
+    self.userDefaults = userDefaults
+  }
+
   func load() throws -> [String] {
-    guard let data = UserDefaults.standard.data(forKey: Self.key) else { return [] }
+    guard let data = userDefaults.data(forKey: Self.key) else { return [] }
     return try JSONDecoder().decode([String].self, from: data)
   }
 
@@ -20,7 +26,7 @@ private actor SavedQuestionsStore {
     var questions = try load()
     if !questions.contains(text) { questions.append(text) }
     let data = try JSONEncoder().encode(questions)
-    UserDefaults.standard.set(data, forKey: Self.key)
+    userDefaults.set(data, forKey: Self.key)
     return questions
   }
 }
