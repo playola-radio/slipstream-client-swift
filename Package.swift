@@ -10,9 +10,13 @@ let package = Package(
   dependencies: [
     .package(url: "https://github.com/pointfreeco/swift-clocks", exact: "1.1.1"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", exact: "1.7.3"),
+    .package(url: "https://github.com/pointfreeco/swift-identified-collections", exact: "1.1.1"),
   ],
   targets: [
-    .target(name: "SlipstreamCore"),
+    .target(
+      name: "SlipstreamCore",
+      dependencies: [.product(name: "IdentifiedCollections", package: "swift-identified-collections")]
+    ),
     .testTarget(
       name: "SlipstreamCoreTests",
       dependencies: [

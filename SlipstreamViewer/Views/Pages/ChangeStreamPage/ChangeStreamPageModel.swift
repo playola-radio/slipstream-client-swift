@@ -501,7 +501,7 @@ final class ChangeStreamPageModel: ViewModel {
       append(.marker(FeedMarker(id: event.seq, text: "Session resumed after the daemon restarted")))
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
-    case .sessionStarted, .recordedWithoutRow:
+    case .sessionStarted, .questionQueued, .questionDispatchAttempted, .questionAnswered, .recordedWithoutRow:
       break
     }
     lastAppliedSeq = event.seq

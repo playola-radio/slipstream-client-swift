@@ -35,9 +35,11 @@ as potentially committed, matching the daemon CLI. Capture-connection state is
 never repurposed for composer failures. A native accessible alert presents the
 failure while retaining the draft and context.
 
-The three question event names (`queued.v1`, `dispatch_attempted.v1`,
-`answered.v1`) decode as `recordedWithoutRow`; the existing event follower still
-advances replay state. No speculative dispatch payload is decoded.
+The three question events (`queued.v1`, `dispatch_attempted.v1`, `answered.v1`)
+decode as typed payloads against the merged daemon schemas and add no feed row; the
+existing event follower still advances replay state. Like any other known event, a
+malformed one stops the feed. `QuestionThreads` folds them into one thread per root
+question (answer-client S1).
 
 ## Local evidence
 

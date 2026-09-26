@@ -855,9 +855,17 @@ extension ChangeStreamPageTests {
   @Test func questionEventsAdvanceReplayWithoutAddingRows() async {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
-    await send(Fixture.frame(1, type: "slipstream.question.queued.v1", data: [:]),
-      Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: [:]),
-      Fixture.frame(3, type: "slipstream.question.answered.v1", data: [:]))
+    let context: [String: Any] = [
+      "change_seq": "1", "path": "a.ts", "snapshot_sha256": Fixture.shaB, "line_start": 1, "line_end": 1, "selected_text": "a",
+    ]
+    await send(
+      Fixture.frame(1, type: "slipstream.question.queued.v1", data: [
+        "question_id": "q1", "text": "Why?", "context": context, "queued_at_ms": 1,
+      ]),
+      Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: ["question_id": "q1", "queued_seq": "1"]),
+      Fixture.frame(3, type: "slipstream.question.answered.v1", data: [
+        "question_id": "q1", "attempt_seq": "2", "text": "Because.", "answered_at_ms": 3,
+      ]))
     expectNoDifference(model.lastAppliedSeq, Fixture.seq(3))
     #expect(model.sections.isEmpty)
   }

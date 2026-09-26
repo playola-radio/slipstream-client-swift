@@ -48,17 +48,6 @@ struct QuestionsTests {
       try QuestionAcknowledgment.decode(Data("{\"v\":1,\"ok\":false,\"code\":\"\(code)\",\"message\":\"Rejected\"}".utf8), for: Self.request)
     }
   }
-
-  @Test(arguments: [
-    "slipstream.question.queued.v1",
-    "slipstream.question.dispatch_attempted.v1",
-    "slipstream.question.answered.v1",
-  ])
-  func questionEventsAreRowlessWithoutInventingPayload(_ type: String) throws {
-    let event = try SlipstreamEvent.decode(Data("{\"id\":\"7\",\"seq\":\"7\",\"type\":\"\(type)\",\"data\":{}}".utf8))
-    expectNoDifference(event.payload, .recordedWithoutRow)
-    expectNoDifference(event.seq, Seq("7"))
-  }
 }
 
 extension QuestionsTests {
