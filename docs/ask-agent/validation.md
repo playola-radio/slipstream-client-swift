@@ -35,8 +35,9 @@ as potentially committed, matching the daemon CLI. Capture-connection state is
 never repurposed for composer failures. A native accessible alert presents the
 failure while retaining the draft and context.
 
-The two question event names decode as `recordedWithoutRow`; the existing event
-follower still advances replay state. No speculative dispatch payload is decoded.
+The three question event names (`queued.v1`, `dispatch_attempted.v1`,
+`answered.v1`) decode as `recordedWithoutRow`; the existing event follower still
+advances replay state. No speculative dispatch payload is decoded.
 
 ## Local evidence
 
