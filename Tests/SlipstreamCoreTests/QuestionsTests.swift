@@ -49,7 +49,11 @@ struct QuestionsTests {
     }
   }
 
-  @Test(arguments: ["slipstream.question.queued.v1", "slipstream.question.dispatch_attempted.v1"])
+  @Test(arguments: [
+    "slipstream.question.queued.v1",
+    "slipstream.question.dispatch_attempted.v1",
+    "slipstream.question.answered.v1",
+  ])
   func questionEventsAreRowlessWithoutInventingPayload(_ type: String) throws {
     let event = try SlipstreamEvent.decode(Data("{\"id\":\"7\",\"seq\":\"7\",\"type\":\"\(type)\",\"data\":{}}".utf8))
     expectNoDifference(event.payload, .recordedWithoutRow)

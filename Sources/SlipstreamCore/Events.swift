@@ -80,6 +80,7 @@ extension SlipstreamEvent {
   static let rowlessTypes: Set<String> = [
     "slipstream.question.queued.v1",
     "slipstream.question.dispatch_attempted.v1",
+    "slipstream.question.answered.v1",
     "slipstream.file.baselined.v1",
     "slipstream.capture.baseline.completed.v1",
     "slipstream.harness.evidence.v1",
