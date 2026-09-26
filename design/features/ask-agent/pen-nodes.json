@@ -1,6 +1,6 @@
 {
-  "exportedAt": "2026-09-25T14:05:53.178Z",
-  "penFile": "../../../ai-flow.pen",
+  "exportedAt": "2026-09-26T03:59:05.289Z",
+  "penFile": "design/slipstream.pen",
   "variables": {
     "brand-ink": {
       "type": "color",
@@ -5647,6 +5647,2241 @@
           }
         ]
       }
+    },
+    {
+      "id": "v51ziQ",
+      "name": "Q8 · Compact question bars in the code feed",
+      "png": "exports/q8-compact-question-bars-in-the-code-feed--v51ziQ.png",
+      "node": {
+        "type": "frame",
+        "id": "v51ziQ",
+        "x": 9420,
+        "y": 20190,
+        "name": "Q8 · Compact question bars in the code feed",
+        "clip": true,
+        "width": 1900,
+        "height": 1640,
+        "fill": "#15191F",
+        "layout": "vertical",
+        "children": [
+          {
+            "type": "frame",
+            "id": "A6O2CN",
+            "name": "Application header",
+            "width": "fill_container",
+            "height": 64,
+            "fill": "#191E25",
+            "stroke": "#303740",
+            "strokeWidth": {
+              "bottom": 1
+            },
+            "gap": 18,
+            "padding": [
+              0,
+              24
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "AZ2zB",
+                "name": "Wordmark",
+                "fill": "#F0F4F8",
+                "content": "differ",
+                "fontFamily": "Geist",
+                "fontSize": 24,
+                "fontWeight": "650",
+                "letterSpacing": -1
+              },
+              {
+                "type": "text",
+                "id": "HHqvZ",
+                "name": "Separator",
+                "fill": "#46515E",
+                "content": "/",
+                "fontFamily": "Geist",
+                "fontSize": 22,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "icon",
+                "id": "n0VIj",
+                "name": "Project",
+                "width": 16,
+                "height": 16,
+                "icon": "folder-git-2",
+                "library": "lucide",
+                "fill": "#84919F"
+              },
+              {
+                "type": "text",
+                "id": "uyPhb",
+                "name": "Repository",
+                "fill": "#CED7E1",
+                "content": "acme / storefront",
+                "fontFamily": "Geist",
+                "fontSize": 14,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "icon",
+                "id": "l1E9h",
+                "name": "Choose repository",
+                "width": 16,
+                "height": 16,
+                "icon": "chevron-down",
+                "library": "lucide",
+                "fill": "#84919F"
+              },
+              {
+                "type": "frame",
+                "id": "J1cYaT",
+                "name": "Branch",
+                "fill": "#242C35",
+                "cornerRadius": 4,
+                "gap": 7,
+                "padding": [
+                  6,
+                  10
+                ],
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "icon",
+                    "id": "jio3s",
+                    "name": "Branch icon",
+                    "width": 14,
+                    "height": 14,
+                    "icon": "git-branch",
+                    "library": "lucide",
+                    "fill": "#A9B9C8"
+                  },
+                  {
+                    "type": "text",
+                    "id": "eAn2m",
+                    "name": "Branch name",
+                    "fill": "#A9B9C8",
+                    "content": "feat/activity-status",
+                    "fontFamily": "Geist Mono",
+                    "fontSize": 12,
+                    "fontWeight": "normal"
+                  }
+                ]
+              },
+              {
+                "type": "frame",
+                "id": "smnsv",
+                "name": "Header spacer",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "icon",
+                "id": "W3cNM",
+                "name": "Live signal",
+                "width": 17,
+                "height": 17,
+                "icon": "radio",
+                "library": "lucide",
+                "fill": "#7CE0BA"
+              },
+              {
+                "type": "text",
+                "id": "sXPYJ",
+                "name": "Connection status",
+                "fill": "#7CE0BA",
+                "content": "Agent connected",
+                "fontFamily": "Geist",
+                "fontSize": 13,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "icon",
+                "id": "C671kj",
+                "name": "Settings",
+                "width": 16,
+                "height": 16,
+                "icon": "settings-2",
+                "library": "lucide",
+                "fill": "#84919F"
+              },
+              {
+                "type": "frame",
+                "id": "BAslj",
+                "name": "User avatar",
+                "width": 30,
+                "height": 30,
+                "fill": "#344456",
+                "cornerRadius": 15,
+                "justifyContent": "center",
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "X9KYC",
+                    "name": "User initials",
+                    "fill": "#E0EAF4",
+                    "content": "BK",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "600"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "trDFQ",
+            "name": "Story context",
+            "width": "fill_container",
+            "height": 62,
+            "fill": "#1B222A",
+            "stroke": "#34414E",
+            "strokeWidth": {
+              "bottom": 1
+            },
+            "gap": 14,
+            "padding": [
+              0,
+              22
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "aabvw",
+                "name": "Story ID",
+                "fill": "#86A0B4",
+                "content": "ST-128",
+                "fontFamily": "Geist Mono",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "text",
+                "id": "cZzTj",
+                "name": "Story title",
+                "fill": "#E0EBF3",
+                "content": "Introduce account activity states",
+                "fontFamily": "Geist",
+                "fontSize": 18,
+                "fontWeight": "550"
+              },
+              {
+                "type": "icon",
+                "id": "p7NEa",
+                "name": "Switch story",
+                "width": 13,
+                "height": 13,
+                "icon": "chevron-down",
+                "library": "lucide",
+                "fill": "#8DA5B8"
+              },
+              {
+                "type": "frame",
+                "id": "fPQIa",
+                "name": "Story gap",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "text",
+                "id": "Ph1FS",
+                "name": "Task progress",
+                "fill": "#8EACBB",
+                "content": "1 of 2 tasks complete",
+                "fontFamily": "Geist",
+                "fontSize": 11,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "text",
+                "id": "bdL14",
+                "name": "Story changed count",
+                "fill": "#A7BFCE",
+                "content": "3 files changed",
+                "fontFamily": "Geist",
+                "fontSize": 11,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "text",
+                "id": "xX6ex",
+                "name": "Story delta",
+                "fill": "#93C1AB",
+                "content": "+42  −11",
+                "fontFamily": "Geist Mono",
+                "fontSize": 11,
+                "fontWeight": "normal"
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "mvvzy",
+            "name": "Task feed and editor",
+            "width": "fill_container",
+            "height": "fill_container",
+            "children": [
+              {
+                "type": "frame",
+                "id": "ANmtC",
+                "name": "Hideable task activity feed",
+                "metadata": {
+                  "type": "interaction",
+                  "behavior": "Hide with Hide feed; restore with Activity in the right editor toolbar. Feed scrolls independently in the implemented app."
+                },
+                "width": 680,
+                "height": "fill_container",
+                "fill": "#191F27",
+                "stroke": "#405562",
+                "strokeWidth": {
+                  "right": 1
+                },
+                "layout": "vertical",
+                "children": [
+                  {
+                    "type": "frame",
+                    "id": "Ivn6n",
+                    "name": "Feed header",
+                    "width": "fill_container",
+                    "height": 52,
+                    "gap": 10,
+                    "padding": [
+                      0,
+                      20
+                    ],
+                    "alignItems": "center",
+                    "children": [
+                      {
+                        "type": "icon",
+                        "id": "uQiLi",
+                        "name": "Activity icon",
+                        "width": 15,
+                        "height": 15,
+                        "icon": "list-tree",
+                        "library": "lucide",
+                        "fill": "#96B7CA"
+                      },
+                      {
+                        "type": "text",
+                        "id": "H2xCv",
+                        "name": "Feed title",
+                        "fill": "#D9E7EF",
+                        "content": "Change stream",
+                        "fontFamily": "Geist",
+                        "fontSize": 16,
+                        "fontWeight": "550"
+                      },
+                      {
+                        "type": "text",
+                        "id": "yFQXn",
+                        "name": "Feed order",
+                        "fill": "#A4D5F1",
+                        "content": "3 questions · 1 new reply",
+                        "fontFamily": "Geist",
+                        "fontSize": 11,
+                        "fontWeight": "normal"
+                      },
+                      {
+                        "type": "frame",
+                        "id": "LlOzU",
+                        "name": "Feed header gap",
+                        "width": "fill_container",
+                        "height": 1
+                      },
+                      {
+                        "type": "frame",
+                        "id": "qaYGF",
+                        "name": "Hide activity feed",
+                        "cornerRadius": 4,
+                        "stroke": "#3E5260",
+                        "strokeWidth": 1,
+                        "gap": 6,
+                        "padding": [
+                          6,
+                          8
+                        ],
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "icon",
+                            "id": "bbGP7",
+                            "name": "Hide feed icon",
+                            "width": 14,
+                            "height": 14,
+                            "icon": "panel-left-close",
+                            "library": "lucide",
+                            "fill": "#9EBACB"
+                          },
+                          {
+                            "type": "text",
+                            "id": "XSpON",
+                            "name": "Hide feed label",
+                            "fill": "#9EBACB",
+                            "content": "Hide feed",
+                            "fontFamily": "Geist",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "frame",
+                    "id": "Em1Ag",
+                    "name": "Chronological task stream",
+                    "width": "fill_container",
+                    "height": "fill_container",
+                    "layout": "vertical",
+                    "gap": 28,
+                    "padding": [
+                      0,
+                      0,
+                      16,
+                      0
+                    ],
+                    "children": [
+                      {
+                        "type": "frame",
+                        "id": "dlEIC",
+                        "name": "Task 1 chronological group",
+                        "width": "fill_container",
+                        "layout": "vertical",
+                        "gap": 24,
+                        "children": [
+                          {
+                            "type": "frame",
+                            "id": "wqHUG",
+                            "name": "Task 1 sticky heading",
+                            "metadata": {
+                              "type": "interaction",
+                              "behavior": "Shown pinned at the top of the feed. Keeps full task name visible."
+                            },
+                            "width": "fill_container",
+                            "fill": "#24313B",
+                            "stroke": "#526B7B",
+                            "strokeWidth": {
+                              "bottom": 1
+                            },
+                            "layout": "vertical",
+                            "gap": 8,
+                            "padding": [
+                              12,
+                              20
+                            ],
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "I1zXC",
+                                "name": "Task identity row",
+                                "width": "fill_container",
+                                "gap": 12,
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "frame",
+                            "id": "cRyEq",
+                            "name": "src/types/user.ts change event",
+                            "metadata": {
+                              "type": "interaction",
+                              "gesture": "double-click code",
+                              "action": "Open or focus src/types/user.ts in full-file editor; reveal clicked lines."
+                            },
+                            "width": "fill_container",
+                            "layout": "vertical",
+                            "padding": [
+                              0,
+                              20
+                            ],
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "QGKaV",
+                                "name": "src/types/user.ts file clip card",
+                                "clip": true,
+                                "width": "fill_container",
+                                "fill": "#1C2630",
+                                "cornerRadius": 8,
+                                "stroke": "#5B859F",
+                                "strokeWidth": 1,
+                                "layout": "vertical",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "h7aVHU",
+                                "name": "Question bar · Answered",
+                                "metadata": {
+                                  "type": "interaction",
+                                  "behavior": "A persistent one-line question preview below its source code. Clicking opens a compact anchored reply popover. New reply remains unread until its text is displayed. Collapse keeps the bar and any unsent draft."
+                                },
+                                "width": "fill_container",
+                                "height": 42,
+                                "fill": "#345E7B",
+                                "cornerRadius": 4,
+                                "stroke": "#B2DFFF",
+                                "strokeWidth": {
+                                  "top": 1,
+                                  "right": 1,
+                                  "bottom": 1,
+                                  "left": 3
+                                },
+                                "gap": 10,
+                                "padding": [
+                                  0,
+                                  12
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "frame",
+                            "id": "yS3F1",
+                            "name": "src/api/create-user.ts change event",
+                            "metadata": {
+                              "type": "interaction",
+                              "gesture": "double-click code",
+                              "action": "Open or focus src/api/create-user.ts in full-file editor; reveal clicked lines."
+                            },
+                            "width": "fill_container",
+                            "layout": "vertical",
+                            "padding": [
+                              0,
+                              20
+                            ],
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "GZjHP",
+                                "name": "src/api/create-user.ts file clip card",
+                                "clip": true,
+                                "width": "fill_container",
+                                "fill": "#1C2630",
+                                "cornerRadius": 8,
+                                "stroke": "#3F5363",
+                                "strokeWidth": 1,
+                                "layout": "vertical",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "ztWo7",
+                                "name": "Question bar · New reply",
+                                "metadata": {
+                                  "type": "interaction",
+                                  "behavior": "A persistent one-line question preview below its source code. Clicking opens a compact anchored reply popover. New reply remains unread until its text is displayed. Collapse keeps the bar and any unsent draft."
+                                },
+                                "width": "fill_container",
+                                "height": 42,
+                                "fill": "#294C68",
+                                "cornerRadius": 4,
+                                "stroke": "#76AED5",
+                                "strokeWidth": {
+                                  "top": 1,
+                                  "right": 1,
+                                  "bottom": 1,
+                                  "left": 3
+                                },
+                                "gap": 10,
+                                "padding": [
+                                  0,
+                                  12
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "nD0A0",
+                        "name": "Task 2 chronological group",
+                        "width": "fill_container",
+                        "layout": "vertical",
+                        "gap": 24,
+                        "children": [
+                          {
+                            "type": "frame",
+                            "id": "kBegr",
+                            "name": "Task 2 sticky heading",
+                            "metadata": {
+                              "type": "interaction",
+                              "behavior": "Shown inline in chronology. Replaces Task 1 at the feed's sticky boundary."
+                            },
+                            "width": "fill_container",
+                            "fill": "#24313B",
+                            "stroke": "#526B7B",
+                            "strokeWidth": {
+                              "bottom": 1
+                            },
+                            "layout": "vertical",
+                            "gap": 8,
+                            "padding": [
+                              12,
+                              20
+                            ],
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "r8Vj8",
+                                "name": "Task identity row",
+                                "width": "fill_container",
+                                "gap": 12,
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "frame",
+                            "id": "yc324",
+                            "name": "src/auth/access.ts change event",
+                            "metadata": {
+                              "type": "interaction",
+                              "gesture": "double-click code",
+                              "action": "Open or focus src/auth/access.ts in full-file editor; reveal clicked lines."
+                            },
+                            "width": "fill_container",
+                            "layout": "vertical",
+                            "padding": [
+                              0,
+                              20
+                            ],
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "a3QF72",
+                                "name": "src/auth/access.ts file clip card",
+                                "clip": true,
+                                "width": "fill_container",
+                                "fill": "#1C2630",
+                                "cornerRadius": 8,
+                                "stroke": "#3F5363",
+                                "strokeWidth": 1,
+                                "layout": "vertical",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "e7lbMs",
+                                "name": "Question bar · Waiting",
+                                "metadata": {
+                                  "type": "interaction",
+                                  "behavior": "A persistent one-line question preview below its source code. Clicking opens a compact anchored reply popover. New reply remains unread until its text is displayed. Collapse keeps the bar and any unsent draft."
+                                },
+                                "width": "fill_container",
+                                "height": 42,
+                                "fill": "#294C68",
+                                "cornerRadius": 4,
+                                "stroke": "#76AED5",
+                                "strokeWidth": {
+                                  "top": 1,
+                                  "right": 1,
+                                  "bottom": 1,
+                                  "left": 3
+                                },
+                                "gap": 10,
+                                "padding": [
+                                  0,
+                                  12
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "d7e4f3",
+                        "name": "End of current activity",
+                        "width": "fill_container",
+                        "stroke": "#314351",
+                        "strokeWidth": {
+                          "top": 1
+                        },
+                        "gap": 8,
+                        "padding": [
+                          10,
+                          20
+                        ],
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "icon",
+                            "id": "ARGmJ",
+                            "name": "Live pulse",
+                            "width": 13,
+                            "height": 13,
+                            "icon": "activity",
+                            "library": "lucide",
+                            "fill": "#83BDA4"
+                          },
+                          {
+                            "type": "text",
+                            "id": "mXgoE",
+                            "name": "Live status",
+                            "fill": "#789F91",
+                            "content": "Live · New changes appear below",
+                            "fontFamily": "Geist",
+                            "fontSize": 11,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "frame",
+                            "id": "tLZHf",
+                            "name": "Live footer gap",
+                            "width": "fill_container",
+                            "height": 1
+                          },
+                          {
+                            "type": "text",
+                            "id": "owLky",
+                            "name": "Jump latest",
+                            "fill": "#82AAC5",
+                            "content": "Jump to latest ↓",
+                            "fontFamily": "Geist",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "frame",
+                "id": "tnjdt",
+                "name": "Full file editor",
+                "metadata": {
+                  "type": "interaction",
+                  "behavior": "Double-clicking a feed snippet opens its full file in a new tab, or focuses the existing tab, and reveals the clicked lines. Diff toggle switches between full current file and current-left/previous-right diff."
+                },
+                "width": "fill_container",
+                "height": "fill_container",
+                "fill": "#11171D",
+                "layout": "vertical",
+                "gap": 8,
+                "padding": 12,
+                "children": [
+                  {
+                    "type": "frame",
+                    "id": "y10C4",
+                    "name": "Review desk toolbar",
+                    "width": "fill_container",
+                    "height": 34,
+                    "gap": 12,
+                    "alignItems": "center",
+                    "children": [
+                      {
+                        "type": "text",
+                        "id": "FatNE",
+                        "name": "Restore feed control",
+                        "fill": "#BFCBD9",
+                        "content": "◧  Activity",
+                        "fontFamily": "Geist",
+                        "fontSize": 11,
+                        "fontWeight": "normal"
+                      },
+                      {
+                        "type": "text",
+                        "id": "m4BfQe",
+                        "name": "Desk label",
+                        "fill": "#B7CBD9",
+                        "content": "Select lines in the stream or diff to ask a question",
+                        "fontFamily": "Geist",
+                        "fontSize": 12,
+                        "fontWeight": "normal"
+                      },
+                      {
+                        "type": "frame",
+                        "id": "D7al2m",
+                        "name": "Toolbar spacer",
+                        "width": "fill_container",
+                        "height": 1
+                      },
+                      {
+                        "type": "text",
+                        "id": "KnB3x",
+                        "name": "Layout selected",
+                        "fill": "#8DD0AD",
+                        "content": "Stacked",
+                        "fontFamily": "Geist",
+                        "fontSize": 11,
+                        "fontWeight": "normal"
+                      },
+                      {
+                        "type": "text",
+                        "id": "xO1uA",
+                        "name": "Vertical split control",
+                        "fill": "#BFCBD9",
+                        "content": "Split vertically",
+                        "fontFamily": "Geist",
+                        "fontSize": 11,
+                        "fontWeight": "normal"
+                      },
+                      {
+                        "type": "text",
+                        "id": "i1aJwv",
+                        "name": "Horizontal split control",
+                        "fill": "#BFCBD9",
+                        "content": "Split horizontally",
+                        "fontFamily": "Geist",
+                        "fontSize": 11,
+                        "fontWeight": "normal"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "frame",
+                    "id": "Y1M8J",
+                    "name": "user.ts independent diff pane",
+                    "metadata": {
+                      "type": "interaction",
+                      "behavior": "Double-click a feed snippet to open or focus its file tab in the active pane. Diff is independently toggleable. Unchanged code sections can be expanded."
+                    },
+                    "width": "fill_container",
+                    "height": "fill_container",
+                    "fill": "#151B22",
+                    "stroke": "#526B7B",
+                    "strokeWidth": 1,
+                    "layout": "vertical",
+                    "children": [
+                      {
+                        "type": "frame",
+                        "id": "v6JkTY",
+                        "name": "user.ts tabs and controls",
+                        "width": "fill_container",
+                        "height": 38,
+                        "fill": "#222C36",
+                        "gap": 14,
+                        "padding": [
+                          0,
+                          14
+                        ],
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "text",
+                            "id": "dMBRD",
+                            "name": "Active file tab",
+                            "fill": "#E0E9F0",
+                            "content": "user.ts  ×",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 12,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "text",
+                            "id": "H5SstY",
+                            "name": "Background file tab",
+                            "fill": "#7D91A1",
+                            "content": "create-user.ts",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 11,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "frame",
+                            "id": "pg8jK",
+                            "name": "Pane tab spacer",
+                            "width": "fill_container",
+                            "height": 1
+                          },
+                          {
+                            "type": "frame",
+                            "id": "iE8s2",
+                            "name": "Diff / Plain view toggle",
+                            "metadata": {
+                              "type": "interaction",
+                              "behavior": "Independent view mode for this pane. Diff shows current code on the left and marked-up previous code on the right. Plain shows the full current file in one editor without diff colors or deletion markup. Preserve active file, scroll position and selection when switching."
+                            },
+                            "fill": "#151D25",
+                            "cornerRadius": 5,
+                            "stroke": "#405262",
+                            "strokeWidth": 1,
+                            "gap": 2,
+                            "padding": 3,
+                            "alignItems": "center",
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "WJ6zG",
+                                "name": "Diff view · selected",
+                                "fill": "#355749",
+                                "cornerRadius": 3,
+                                "padding": [
+                                  4,
+                                  12
+                                ],
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "uuFRX",
+                                "name": "Plain view",
+                                "fill": "#151D25",
+                                "cornerRadius": 3,
+                                "padding": [
+                                  4,
+                                  12
+                                ],
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "id": "rONDw",
+                            "name": "Expand pane",
+                            "fill": "#BFCBD9",
+                            "content": "↗",
+                            "fontFamily": "Geist",
+                            "fontSize": 16,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "text",
+                            "id": "P8cYlS",
+                            "name": "Close pane",
+                            "fill": "#BFCBD9",
+                            "content": "×",
+                            "fontFamily": "Geist",
+                            "fontSize": 15,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "JtCn9",
+                        "name": "File location and origin",
+                        "width": "fill_container",
+                        "height": 30,
+                        "gap": 12,
+                        "padding": [
+                          0,
+                          14
+                        ],
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "text",
+                            "id": "sx5x1",
+                            "name": "Full file path",
+                            "fill": "#91A8B9",
+                            "content": "src / types / user.ts",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "frame",
+                            "id": "h2ECqL",
+                            "name": "Breadcrumb spacer",
+                            "width": "fill_container",
+                            "height": 1
+                          },
+                          {
+                            "type": "text",
+                            "id": "pjId9",
+                            "name": "Source task",
+                            "fill": "#8DAA9D",
+                            "content": "TASK 01 · Define the enum",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 9,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "rym6a",
+                        "name": "Current and previous comparison",
+                        "width": "fill_container",
+                        "height": "fill_container",
+                        "fill": "#35424E",
+                        "gap": 1,
+                        "children": [
+                          {
+                            "type": "frame",
+                            "id": "A0uFQU",
+                            "name": "Current file",
+                            "width": "fill_container",
+                            "height": "fill_container",
+                            "fill": "#151B22",
+                            "layout": "vertical",
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "HodZx",
+                                "name": "Version header",
+                                "width": "fill_container",
+                                "height": 26,
+                                "fill": "#203129",
+                                "padding": [
+                                  0,
+                                  14
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "m2VRFK",
+                                "name": "Line 1",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "zqAY9",
+                                "name": "Line 6",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "e7O0de",
+                                "name": "Line 7",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#315D7A",
+                                "stroke": "#A4D5F1",
+                                "strokeWidth": {
+                                  "top": 2,
+                                  "right": 2,
+                                  "left": 3
+                                },
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "J6IWaA",
+                                "name": "Line 8",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#315D7A",
+                                "stroke": "#A4D5F1",
+                                "strokeWidth": {
+                                  "right": 2,
+                                  "left": 3
+                                },
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "pkV00",
+                                "name": "Line 9",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#315D7A",
+                                "stroke": "#A4D5F1",
+                                "strokeWidth": {
+                                  "right": 2,
+                                  "bottom": 2,
+                                  "left": 3
+                                },
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "EWDPD",
+                                "name": "Line 10",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "eiX7c",
+                                "name": "Line 11",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "IibFJ",
+                                "name": "Line 12",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "i0e6UE",
+                                "name": "Line 13",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "fjcul",
+                                "name": "Line 14",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "rQewP",
+                                "name": "Line 15",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "k4XOP",
+                                "name": "Line 16",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "T0mS8",
+                                "name": "Line 17",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "frame",
+                            "id": "RoGU3",
+                            "name": "Previous file",
+                            "width": "fill_container",
+                            "height": "fill_container",
+                            "fill": "#151B22",
+                            "layout": "vertical",
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "jXk2q",
+                                "name": "Version header",
+                                "width": "fill_container",
+                                "height": 26,
+                                "fill": "#2B242D",
+                                "padding": [
+                                  0,
+                                  14
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "udnK3",
+                                "name": "Line 1",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "g7qGh",
+                                "name": "Line 6",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "volp2",
+                                "name": "Line 7",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "eAnUm",
+                                "name": "Line 8",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "Jnpaq",
+                                "name": "Line 9",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "uEZRR",
+                                "name": "Line 10",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "hMNdC",
+                                "name": "Line 11",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "xQL8O",
+                                "name": "Line 12",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "vpohw",
+                                "name": "Line 13",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "SiNqr",
+                                "name": "Line 14",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "etNPd",
+                                "name": "Line 15",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "FrKXq",
+                                "name": "Line 16",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "IWHem",
+                                "name": "Line 17",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "uZivB",
+                        "name": "Pane status",
+                        "width": "fill_container",
+                        "height": 24,
+                        "stroke": "#303D48",
+                        "strokeWidth": {
+                          "top": 1
+                        },
+                        "padding": [
+                          0,
+                          14
+                        ],
+                        "justifyContent": "space_between",
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "text",
+                            "id": "mjiYe",
+                            "name": "Expand unchanged lines",
+                            "fill": "#8BA9BC",
+                            "content": "Expand unchanged lines",
+                            "fontFamily": "Geist",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "text",
+                            "id": "qtehQ",
+                            "name": "File language",
+                            "fill": "#8194A4",
+                            "content": "TypeScript · UTF-8",
+                            "fontFamily": "Geist",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "frame",
+                    "id": "RmtsK",
+                    "name": "access.ts independent diff pane",
+                    "metadata": {
+                      "type": "interaction",
+                      "behavior": "Double-click a feed snippet to open or focus its file tab in the active pane. Diff is independently toggleable. Unchanged code sections can be expanded."
+                    },
+                    "width": "fill_container",
+                    "height": "fill_container",
+                    "fill": "#151B22",
+                    "stroke": "#34414D",
+                    "strokeWidth": 1,
+                    "layout": "vertical",
+                    "children": [
+                      {
+                        "type": "frame",
+                        "id": "CSiUI",
+                        "name": "access.ts tabs and controls",
+                        "width": "fill_container",
+                        "height": 38,
+                        "fill": "#222C36",
+                        "gap": 14,
+                        "padding": [
+                          0,
+                          14
+                        ],
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "text",
+                            "id": "jzPyl",
+                            "name": "Active file tab",
+                            "fill": "#E0E9F0",
+                            "content": "access.ts  ×",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 12,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "frame",
+                            "id": "PABe9",
+                            "name": "Pane tab spacer",
+                            "width": "fill_container",
+                            "height": 1
+                          },
+                          {
+                            "type": "frame",
+                            "id": "BhSBD",
+                            "name": "Diff / Plain view toggle",
+                            "metadata": {
+                              "type": "interaction",
+                              "behavior": "Independent view mode for this pane. Diff shows current code on the left and marked-up previous code on the right. Plain shows the full current file in one editor without diff colors or deletion markup. Preserve active file, scroll position and selection when switching."
+                            },
+                            "fill": "#151D25",
+                            "cornerRadius": 5,
+                            "stroke": "#405262",
+                            "strokeWidth": 1,
+                            "gap": 2,
+                            "padding": 3,
+                            "alignItems": "center",
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "IfOjY",
+                                "name": "Diff view · selected",
+                                "fill": "#355749",
+                                "cornerRadius": 3,
+                                "padding": [
+                                  4,
+                                  12
+                                ],
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "ahY79",
+                                "name": "Plain view",
+                                "fill": "#151D25",
+                                "cornerRadius": 3,
+                                "padding": [
+                                  4,
+                                  12
+                                ],
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "text",
+                            "id": "PvtlZ",
+                            "name": "Expand pane",
+                            "fill": "#BFCBD9",
+                            "content": "↗",
+                            "fontFamily": "Geist",
+                            "fontSize": 16,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "text",
+                            "id": "C5ubb",
+                            "name": "Close pane",
+                            "fill": "#BFCBD9",
+                            "content": "×",
+                            "fontFamily": "Geist",
+                            "fontSize": 15,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "V3ATtR",
+                        "name": "File location and origin",
+                        "width": "fill_container",
+                        "height": 30,
+                        "gap": 12,
+                        "padding": [
+                          0,
+                          14
+                        ],
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "text",
+                            "id": "D5IMe",
+                            "name": "Full file path",
+                            "fill": "#91A8B9",
+                            "content": "src / auth / access.ts",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "frame",
+                            "id": "sLMKH",
+                            "name": "Breadcrumb spacer",
+                            "width": "fill_container",
+                            "height": 1
+                          },
+                          {
+                            "type": "text",
+                            "id": "mrFRm",
+                            "name": "Source task",
+                            "fill": "#8DAA9D",
+                            "content": "TASK 02 · Update consumers",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 9,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "vElPW",
+                        "name": "Current and previous comparison",
+                        "width": "fill_container",
+                        "height": "fill_container",
+                        "fill": "#35424E",
+                        "gap": 1,
+                        "children": [
+                          {
+                            "type": "frame",
+                            "id": "HkRFX",
+                            "name": "Current file",
+                            "width": "fill_container",
+                            "height": "fill_container",
+                            "fill": "#151B22",
+                            "layout": "vertical",
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "LNmq5",
+                                "name": "Version header",
+                                "width": "fill_container",
+                                "height": 26,
+                                "fill": "#203129",
+                                "padding": [
+                                  0,
+                                  14
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "juRaj",
+                                "name": "Line 1",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "y2eo0F",
+                                "name": "Line 12",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "N4yAA",
+                                "name": "Line 13",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "alJ1z",
+                                "name": "Line 14",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "Nnj9p",
+                                "name": "Line 15",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "eHppn",
+                                "name": "Line 16",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "b93mEV",
+                                "name": "Line 17",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "qFiXH",
+                                "name": "Line 18",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#1C342E",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "X51fmL",
+                                "name": "Line 19",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          },
+                          {
+                            "type": "frame",
+                            "id": "f1Myq",
+                            "name": "Previous file",
+                            "width": "fill_container",
+                            "height": "fill_container",
+                            "fill": "#151B22",
+                            "layout": "vertical",
+                            "children": [
+                              {
+                                "type": "frame",
+                                "id": "a6qvrf",
+                                "name": "Version header",
+                                "width": "fill_container",
+                                "height": 26,
+                                "fill": "#2B242D",
+                                "padding": [
+                                  0,
+                                  14
+                                ],
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "ZQg3Y",
+                                "name": "Line 1",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "hGAeZ",
+                                "name": "Line 12",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "QEFME",
+                                "name": "Line 13",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "HA3jx",
+                                "name": "Line 14",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "SB9aX",
+                                "name": "Line 15",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "Fj6p9",
+                                "name": "Line 16",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "UIL7F",
+                                "name": "Line 17",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "lPsyi",
+                                "name": "Line 18",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#33252D",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              },
+                              {
+                                "type": "frame",
+                                "id": "zMYRW",
+                                "name": "Line 19",
+                                "width": "fill_container",
+                                "height": 21,
+                                "fill": "#151B22",
+                                "gap": 8,
+                                "alignItems": "center",
+                                "children": "..."
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "frame",
+                        "id": "IMHUn",
+                        "name": "Pane status",
+                        "width": "fill_container",
+                        "height": 24,
+                        "stroke": "#303D48",
+                        "strokeWidth": {
+                          "top": 1
+                        },
+                        "padding": [
+                          0,
+                          14
+                        ],
+                        "justifyContent": "space_between",
+                        "alignItems": "center",
+                        "children": [
+                          {
+                            "type": "text",
+                            "id": "M43Jk8",
+                            "name": "Expand unchanged lines",
+                            "fill": "#8BA9BC",
+                            "content": "Expand unchanged lines",
+                            "fontFamily": "Geist",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          },
+                          {
+                            "type": "text",
+                            "id": "ln70H",
+                            "name": "File language",
+                            "fill": "#8194A4",
+                            "content": "TypeScript · UTF-8",
+                            "fontFamily": "Geist",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "XjIZh",
+            "name": "Task transport navigator",
+            "width": "fill_container",
+            "height": 70,
+            "fill": "#202B33",
+            "stroke": "#3B505D",
+            "strokeWidth": {
+              "top": 1
+            },
+            "gap": 24,
+            "padding": [
+              0,
+              22
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "ktqKy",
+                "name": "Chronology label",
+                "fill": "#91A5B5",
+                "content": "SESSION\n10:42 — now",
+                "fontFamily": "Geist Mono",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "frame",
+                "id": "N1wg7",
+                "name": "01  Define ActivityState",
+                "width": "fill_container",
+                "stroke": "#8DD0AD",
+                "strokeWidth": {
+                  "top": 2
+                },
+                "layout": "vertical",
+                "gap": 5,
+                "padding": [
+                  9,
+                  0,
+                  0,
+                  0
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "JepTP",
+                    "name": "Task stop title",
+                    "fill": "#8DD0AD",
+                    "content": "01  Define ActivityState",
+                    "fontFamily": "Geist",
+                    "fontSize": 12,
+                    "fontWeight": "normal"
+                  },
+                  {
+                    "type": "text",
+                    "id": "PcmQW",
+                    "name": "Task stop detail",
+                    "fill": "#8FA5B5",
+                    "content": "Complete · 2 files",
+                    "fontFamily": "Geist",
+                    "fontSize": 10,
+                    "fontWeight": "normal"
+                  }
+                ]
+              },
+              {
+                "type": "frame",
+                "id": "HdmnC",
+                "name": "02  Update consumers",
+                "width": "fill_container",
+                "stroke": "#A9CBE3",
+                "strokeWidth": {
+                  "top": 2
+                },
+                "layout": "vertical",
+                "gap": 5,
+                "padding": [
+                  9,
+                  0,
+                  0,
+                  0
+                ],
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "SiUDZ",
+                    "name": "Task stop title",
+                    "fill": "#A9CBE3",
+                    "content": "02  Update consumers",
+                    "fontFamily": "Geist",
+                    "fontSize": 12,
+                    "fontWeight": "normal"
+                  },
+                  {
+                    "type": "text",
+                    "id": "n2cRDY",
+                    "name": "Task stop detail",
+                    "fill": "#8FA5B5",
+                    "content": "In progress · 1 file",
+                    "fontFamily": "Geist",
+                    "fontSize": 10,
+                    "fontWeight": "normal"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "h9jBf",
+                "name": "Follow live toggle",
+                "fill": "#8DD0AD",
+                "content": "●  Following live",
+                "fontFamily": "Geist",
+                "fontSize": 11,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "text",
+                "id": "BXC48",
+                "name": "Pause following",
+                "fill": "#D4E0E8",
+                "content": "Pause",
+                "fontFamily": "Geist",
+                "fontSize": 11,
+                "fontWeight": "normal"
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "P6kd6r",
+            "name": "Live connection status",
+            "width": "fill_container",
+            "height": 28,
+            "fill": "#202932",
+            "gap": 8,
+            "padding": [
+              0,
+              18
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "icon",
+                "id": "H9RCNj",
+                "name": "Watching icon",
+                "width": 12,
+                "height": 12,
+                "icon": "activity",
+                "library": "lucide",
+                "fill": "#8DCFAE"
+              },
+              {
+                "type": "text",
+                "id": "tH33X",
+                "name": "Watching label",
+                "fill": "#9AB4C5",
+                "content": "Watching working tree",
+                "fontFamily": "Geist",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "text",
+                "id": "t9ZW9",
+                "name": "Event chronology",
+                "fill": "#7694A8",
+                "content": "·  Changes grouped by task",
+                "fontFamily": "Geist",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "frame",
+                "id": "p0Ww9w",
+                "name": "Bottom status gap",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "text",
+                "id": "bvBi3",
+                "name": "Live task status",
+                "fill": "#9BC7B4",
+                "content": "Task 2 in progress · Latest update just now",
+                "fontFamily": "Geist",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "C7u0yd",
+            "layoutPosition": "absolute",
+            "x": 660,
+            "y": 494,
+            "name": "Question bar to reply connector",
+            "width": 44,
+            "height": 6,
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "ellipse",
+                "id": "HB07i",
+                "name": "Question anchor dot",
+                "fill": "#A4D5F1",
+                "width": 6,
+                "height": 6
+              },
+              {
+                "type": "rectangle",
+                "id": "LCgcb",
+                "name": "Reply connector line",
+                "fill": "#A4D5F1",
+                "width": "fill_container",
+                "height": 2
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "jZmm3",
+            "layoutPosition": "absolute",
+            "x": 704,
+            "y": 473,
+            "name": "Compact reply popover",
+            "width": 420,
+            "fill": "#202B35",
+            "cornerRadius": 6,
+            "stroke": "#83C7F0",
+            "strokeWidth": 1,
+            "effect": {
+              "type": "shadow",
+              "shadowType": "outer",
+              "color": "#00000066",
+              "offset": {
+                "x": 0,
+                "y": 8
+              },
+              "blur": 22
+            },
+            "layout": "vertical",
+            "gap": 14,
+            "padding": 16,
+            "children": [
+              {
+                "type": "frame",
+                "id": "B5RZU",
+                "name": "Reply header and close",
+                "width": "fill_container",
+                "gap": 10,
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "T0NFIE",
+                    "name": "Reply header",
+                    "fill": "#C0D0DD",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "Talk to the agent",
+                    "fontFamily": "Geist",
+                    "fontSize": 12,
+                    "fontWeight": "550"
+                  },
+                  {
+                    "type": "icon",
+                    "id": "ZS18b",
+                    "name": "Open full conversation",
+                    "width": 15,
+                    "height": 15,
+                    "icon": "external-link",
+                    "library": "lucide",
+                    "fill": "#A4B8C7"
+                  },
+                  {
+                    "type": "icon",
+                    "id": "LFUiQ",
+                    "name": "Close reply popover",
+                    "width": 15,
+                    "height": 15,
+                    "icon": "x",
+                    "library": "lucide",
+                    "fill": "#A4B8C7"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "koRqT",
+                "name": "Question being answered",
+                "fill": "#EEF5FA",
+                "textGrowth": "fixed-width",
+                "width": "fill_container",
+                "content": "How does this affect existing accounts?",
+                "lineHeight": 1.4,
+                "fontFamily": "Geist",
+                "fontSize": 14,
+                "fontWeight": "550"
+              },
+              {
+                "type": "frame",
+                "id": "P0b9i",
+                "name": "Agent reply",
+                "width": "fill_container",
+                "layout": "vertical",
+                "gap": 8,
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pT6xA",
+                    "name": "Reply author and time",
+                    "fill": "#A4D5F1",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "AGENT · 10:45",
+                    "fontFamily": "Geist Mono",
+                    "fontSize": 10,
+                    "fontWeight": "normal"
+                  },
+                  {
+                    "type": "text",
+                    "id": "OOc5c",
+                    "name": "Answer text",
+                    "fill": "#DDE7EF",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "The enum alone does not change stored accounts. Existing values still need an explicit mapping, and the access checks must use that same mapping.",
+                    "lineHeight": 1.55,
+                    "fontFamily": "Geist",
+                    "fontSize": 13,
+                    "fontWeight": "normal"
+                  }
+                ]
+              },
+              {
+                "type": "frame",
+                "id": "tYp6q",
+                "name": "Follow-up input",
+                "width": "fill_container",
+                "height": 68,
+                "fill": "#111D26",
+                "cornerRadius": 4,
+                "stroke": "#59798F",
+                "strokeWidth": 1,
+                "padding": 12,
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "YcgUj",
+                    "name": "Follow-up draft",
+                    "fill": "#E0EAF2",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "Could this suspend an existing account?",
+                    "lineHeight": 1.4,
+                    "fontFamily": "Geist",
+                    "fontSize": 13,
+                    "fontWeight": "normal"
+                  }
+                ]
+              },
+              {
+                "type": "frame",
+                "id": "yOj8d",
+                "name": "Reply actions",
+                "width": "fill_container",
+                "gap": 12,
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "JWsit",
+                    "name": "Original source link",
+                    "fill": "#91A8B9",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "user.ts:7–9 · 2 messages",
+                    "fontFamily": "Geist Mono",
+                    "fontSize": 10,
+                    "fontWeight": "normal"
+                  },
+                  {
+                    "type": "frame",
+                    "id": "NYWY0",
+                    "name": "Send follow-up",
+                    "fill": "#B2DAEE",
+                    "cornerRadius": 4,
+                    "padding": [
+                      9,
+                      13
+                    ],
+                    "children": [
+                      {
+                        "type": "text",
+                        "id": "SOd39",
+                        "name": "Send reply label",
+                        "fill": "#132735",
+                        "content": "Send reply",
+                        "fontFamily": "Geist",
+                        "fontSize": 12,
+                        "fontWeight": "550"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "exportedAt": "2026-09-26T03:59:05.289Z"
     }
   ]
 }
