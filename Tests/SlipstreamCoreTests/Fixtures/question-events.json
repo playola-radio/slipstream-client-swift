@@ -1,0 +1,130 @@
+[
+  {
+    "specversion": "1.0",
+    "id": "5",
+    "source": "urn:slipstream:session:<capture_session_id>",
+    "type": "slipstream.question.queued.v1",
+    "datacontenttype": "application/json",
+    "seq": "5",
+    "time": "2026-09-26T13:08:50.312Z",
+    "subject": "question/<question_id_1>",
+    "data": {
+      "question_id": "<question_id_1>",
+      "request_id": "fef3ee16-062c-4b24-8b0c-fd03f663a420",
+      "target": {
+        "harness": "claude-code",
+        "harness_session_id": "<harness_session_id>",
+        "worktree": "/private<worktree>"
+      },
+      "text": "Why does greet use a template literal?",
+      "context": {
+        "change_seq": "4",
+        "path": "user.ts",
+        "snapshot_sha256": "6e330444347838f751a500d7adb0cbe7243dcb534d6cf3cce2dbc336bc4ba1fb",
+        "line_start": 1,
+        "line_end": 3,
+        "selected_text": "export function greet(name: string) {\n  return `hi ${name}`;\n}"
+      },
+      "queued_at_ms": 1790428130312,
+      "expires_at_ms": 1790429930312,
+      "session_id": "<capture_session_id>"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "6",
+    "source": "urn:slipstream:session:<capture_session_id>",
+    "type": "slipstream.question.queued.v1",
+    "datacontenttype": "application/json",
+    "seq": "6",
+    "time": "2026-09-26T13:08:50.467Z",
+    "subject": "question/<question_id_2>",
+    "data": {
+      "question_id": "<question_id_2>",
+      "request_id": "d0d8add5-27ab-43bc-85a1-68a80267a795",
+      "target": {
+        "harness": "claude-code",
+        "harness_session_id": "<harness_session_id>",
+        "worktree": "/private<worktree>"
+      },
+      "text": "Is name ever undefined here?",
+      "context": {
+        "change_seq": "4",
+        "path": "user.ts",
+        "snapshot_sha256": "6e330444347838f751a500d7adb0cbe7243dcb534d6cf3cce2dbc336bc4ba1fb",
+        "line_start": 1,
+        "line_end": 3,
+        "selected_text": "export function greet(name: string) {\n  return `hi ${name}`;\n}"
+      },
+      "queued_at_ms": 1790428130467,
+      "expires_at_ms": 1790429930467,
+      "session_id": "<capture_session_id>"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "7",
+    "source": "urn:slipstream:session:<capture_session_id>",
+    "type": "slipstream.question.dispatch_attempted.v1",
+    "datacontenttype": "application/json",
+    "seq": "7",
+    "time": "2026-09-26T13:08:50.684Z",
+    "subject": "question/<question_id_1>",
+    "data": {
+      "question_id": "<question_id_1>",
+      "queued_seq": "5",
+      "attempted_at_ms": 1790428130684,
+      "session_id": "<capture_session_id>"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "8",
+    "source": "urn:slipstream:session:<capture_session_id>",
+    "type": "slipstream.question.answered.v1",
+    "datacontenttype": "application/json",
+    "seq": "8",
+    "time": "2026-09-26T13:08:50.772Z",
+    "subject": "question/<question_id_1>",
+    "data": {
+      "question_id": "<question_id_1>",
+      "attempt_seq": "7",
+      "text": "It interpolates name into the greeting; a template literal is the idiomatic way.",
+      "answered_at_ms": 1790428130772,
+      "session_id": "<capture_session_id>"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "9",
+    "source": "urn:slipstream:session:<capture_session_id>",
+    "type": "slipstream.question.dispatch_attempted.v1",
+    "datacontenttype": "application/json",
+    "seq": "9",
+    "time": "2026-09-26T13:08:51.561Z",
+    "subject": "question/<question_id_2>",
+    "data": {
+      "question_id": "<question_id_2>",
+      "queued_seq": "6",
+      "attempted_at_ms": 1790428131561,
+      "session_id": "<capture_session_id>"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "10",
+    "source": "urn:slipstream:session:<capture_session_id>",
+    "type": "slipstream.question.answered.v1",
+    "datacontenttype": "application/json",
+    "seq": "10",
+    "time": "2026-09-26T13:08:51.649Z",
+    "subject": "question/<question_id_2>",
+    "data": {
+      "question_id": "<question_id_2>",
+      "attempt_seq": "9",
+      "text": "<16384 bytes of é>",
+      "answered_at_ms": 1790428131649,
+      "session_id": "<capture_session_id>"
+    }
+  }
+]

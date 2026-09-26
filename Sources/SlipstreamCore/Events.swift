@@ -44,12 +44,65 @@ public struct CaptureGap: Equatable, Sendable {
   }
 }
 
+public struct QuestionSource: Equatable, Sendable {
+  public let context: QuestionContext
+  public let selectedText: String
+
+  public init(context: QuestionContext, selectedText: String) {
+    self.context = context
+    self.selectedText = selectedText
+  }
+}
+
+public struct QuestionQueued: Equatable, Sendable {
+  public var questionID: String
+  public var text: String
+  public var source: QuestionSource
+  public var queuedAtMs: Int64
+  public var replyToQuestionID: String?
+
+  public init(questionID: String, text: String, source: QuestionSource, queuedAtMs: Int64, replyToQuestionID: String?) {
+    self.questionID = questionID
+    self.text = text
+    self.source = source
+    self.queuedAtMs = queuedAtMs
+    self.replyToQuestionID = replyToQuestionID
+  }
+}
+
+public struct QuestionDispatchAttempted: Equatable, Sendable {
+  public var questionID: String
+  public var queuedSeq: Seq
+
+  public init(questionID: String, queuedSeq: Seq) {
+    self.questionID = questionID
+    self.queuedSeq = queuedSeq
+  }
+}
+
+public struct QuestionAnswered: Equatable, Sendable {
+  public var questionID: String
+  public var attemptSeq: Seq
+  public var text: String
+  public var answeredAtMs: Int64
+
+  public init(questionID: String, attemptSeq: Seq, text: String, answeredAtMs: Int64) {
+    self.questionID = questionID
+    self.attemptSeq = attemptSeq
+    self.text = text
+    self.answeredAtMs = answeredAtMs
+  }
+}
+
 public enum EventPayload: Equatable, Sendable {
   case sessionStarted(root: String)
   case fileChanged(FileChange)
   case taskStarted(TaskStarted)
   case captureGap(CaptureGap)
   case sessionResumed
+  case questionQueued(QuestionQueued)
+  case questionDispatchAttempted(QuestionDispatchAttempted)
+  case questionAnswered(QuestionAnswered)
   case recordedWithoutRow
   case unsupported(type: String)
 }
@@ -78,9 +131,6 @@ public struct EventDecodingError: Error, Equatable, Sendable {
 
 extension SlipstreamEvent {
   static let rowlessTypes: Set<String> = [
-    "slipstream.question.queued.v1",
-    "slipstream.question.dispatch_attempted.v1",
-    "slipstream.question.answered.v1",
     "slipstream.file.baselined.v1",
     "slipstream.capture.baseline.completed.v1",
     "slipstream.harness.evidence.v1",
@@ -127,6 +177,30 @@ extension SlipstreamEvent {
     case "slipstream.session.resumed.v1":
       _ = try decoder.decode(Envelope<SessionResumedData>.self, from: data)
       return .sessionResumed
+    case "slipstream.question.queued.v1":
+      let queued = try decoder.decode(Envelope<QuestionQueuedData>.self, from: data).data
+      return .questionQueued(
+        QuestionQueued(
+          questionID: queued.question_id,
+          text: queued.text,
+          source: queued.context.source,
+          queuedAtMs: queued.queued_at_ms,
+          replyToQuestionID: queued.reply_to_question_id
+        )
+      )
+    case "slipstream.question.dispatch_attempted.v1":
+      let attempt = try decoder.decode(Envelope<QuestionDispatchAttemptedData>.self, from: data).data
+      return .questionDispatchAttempted(QuestionDispatchAttempted(questionID: attempt.question_id, queuedSeq: attempt.queued_seq))
+    case "slipstream.question.answered.v1":
+      let answer = try decoder.decode(Envelope<QuestionAnsweredData>.self, from: data).data
+      return .questionAnswered(
+        QuestionAnswered(
+          questionID: answer.question_id,
+          attemptSeq: answer.attempt_seq,
+          text: answer.text,
+          answeredAtMs: answer.answered_at_ms
+        )
+      )
     case _ where rowlessTypes.contains(type):
       return .recordedWithoutRow
     default:
@@ -215,6 +289,48 @@ extension SlipstreamEvent {
 
   private struct SessionResumedData: Decodable {
     var session_id: String
+  }
+
+  private struct QuestionQueuedData: Decodable {
+    var question_id: String
+    var text: String
+    var context: QuestionSourceData
+    var queued_at_ms: Int64
+    var reply_to_question_id: String?
+  }
+
+  private struct QuestionSourceData: Decodable {
+    var change_seq: Seq
+    var path: String
+    var snapshot_sha256: String
+    var line_start: Int
+    var line_end: Int
+    var selected_text: String
+
+    var source: QuestionSource {
+      QuestionSource(
+        context: QuestionContext(
+          changeSeq: change_seq.decimal,
+          path: path,
+          snapshotSHA256: snapshot_sha256,
+          lineStart: line_start,
+          lineEnd: line_end
+        ),
+        selectedText: selected_text
+      )
+    }
+  }
+
+  private struct QuestionDispatchAttemptedData: Decodable {
+    var question_id: String
+    var queued_seq: Seq
+  }
+
+  private struct QuestionAnsweredData: Decodable {
+    var question_id: String
+    var attempt_seq: Seq
+    var text: String
+    var answered_at_ms: Int64
   }
 }
 
