@@ -25,7 +25,7 @@ const seedsQuestions = !args.has('--manual');
 const CHANGE_EVERY_MS = 4000;
 const USER_ANSWER_DELAY_MS = 6000;
 const SEED_TIMEOUT_MS = 20000;
-const ANSWER_ATTEMPTS = 5;
+const RETRY_ATTEMPTS = 5;
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..');
 const root = mkdtempSync('/tmp/ss-demo-');
@@ -38,7 +38,8 @@ const log = (...parts) => console.log(`[${new Date().toLocaleTimeString()}]`, ..
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Every child runs in its own process group and is tracked from the moment it is
-// spawned, so shutdown can kill it (and anything it started) in any phase.
+// spawned until its whole group is gone, so shutdown can kill it (and anything it
+// started) in any phase.
 let stopped = false;
 const children = new Set();
 
@@ -46,21 +47,21 @@ function spawnTracked(command, argv, options) {
   if (stopped) throw new Error('stopping');
   const child = spawn(command, argv, { ...options, detached: true });
   children.add(child);
-  child.once('exit', () => children.delete(child));
+  child.once('exit', () => { if (!killGroup(child, 0)) children.delete(child); });
   return child;
 }
 
 function killGroup(child, signal) {
-  try { process.kill(-child.pid, signal); } catch { /* already gone */ }
+  try { process.kill(-child.pid, signal); return true; } catch { return false; }
 }
 
-function run(command, argv, { cwd, input, env, quiet } = {}) {
+function run(command, argv, { cwd, input, env } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawnTracked(command, argv, { cwd, env: env ?? process.env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    child.stdout.setEncoding('utf8').on('data', (s) => { stdout += s; if (!quiet) process.stdout.write(s); });
-    child.stderr.setEncoding('utf8').on('data', (s) => { stderr += s; if (!quiet) process.stderr.write(s); });
+    child.stdout.setEncoding('utf8').on('data', (s) => { stdout += s; });
+    child.stderr.setEncoding('utf8').on('data', (s) => { stderr += s; });
     child.once('error', reject);
     child.once('close', (code) => resolve({ stdout, stderr, code }));
     child.stdin.end(input);
@@ -68,9 +69,20 @@ function run(command, argv, { cwd, input, env, quiet } = {}) {
 }
 
 async function must(command, argv, options) {
-  const result = await run(command, argv, { quiet: true, ...options });
+  const result = await run(command, argv, options);
   if (result.code !== 0) throw new Error(`${command} ${argv.join(' ')} failed:\n${result.stderr || result.stdout}`);
-  return result.stdout;
+}
+
+async function withRetry(what, attempt) {
+  for (let n = 1; ; n++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (stopped || n === RETRY_ATTEMPTS) throw error;
+      log(`retry   ${what} failed (attempt ${n}/${RETRY_ATTEMPTS}): ${error.message}`);
+      await sleep(1000 * 2 ** (n - 1));
+    }
+  }
 }
 
 // MARK: - Daemon checkout
@@ -83,7 +95,7 @@ async function cloneDaemon(dir) {
   const failures = [];
   for (const remote of DAEMON_REMOTES) {
     log(`cloning the daemon (develop) from ${remote}…`);
-    const result = await run('git', ['clone', '--quiet', '--branch', 'develop', remote, dir], { quiet: true });
+    const result = await run('git', ['clone', '--quiet', '--branch', 'develop', remote, dir]);
     if (result.code === 0) return;
     failures.push(`${remote}: ${result.stderr.trim()}`);
   }
@@ -178,7 +190,7 @@ function mutate(path) {
 
 // MARK: - Daemon and capture
 
-const cli = (daemon, argv, input) => run(process.execPath, ['src/cli.ts', ...argv], { cwd: daemon, input, quiet: true });
+const cli = (daemon, argv, input) => run(process.execPath, ['src/cli.ts', ...argv], { cwd: daemon, input });
 
 async function startDaemon(daemon) {
   const child = spawnTracked(process.execPath, ['src/cli.ts', 'start', '--store', store], { cwd: daemon, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -208,8 +220,9 @@ function latestChanges(sessionID) {
   const path = join(store, 'sessions', sessionID, 'events.jsonl');
   if (!existsSync(path)) return new Map();
   const byPath = new Map();
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    if (!line) continue;
+  const lines = readFileSync(path, 'utf8').split('\n');
+  lines.pop(); // '' after the last complete record, or a record still being written
+  for (const line of lines) {
     const record = JSON.parse(line);
     if (record.type === 'slipstream.file.changed.v1' && record.data?.after?.kind === 'content') {
       byPath.set(record.data.path, { seq: String(record.seq), path: record.data.path, sha: record.data.after.sha256 });
@@ -218,19 +231,21 @@ function latestChanges(sessionID) {
   return byPath;
 }
 
+// Retries reuse the request id, so the daemon never queues the same question twice.
 async function ask(daemon, sessionID, change, text, replyTo) {
-  const input = join(root, `ask-${randomUUID()}.json`);
+  const requestID = randomUUID();
+  const input = join(root, `ask-${requestID}.json`);
   writeFileSync(input, JSON.stringify({
     text,
     context: { change_seq: change.seq, path: change.path, snapshot_sha256: change.sha, line_start: 2, line_end: 4 },
     ...(replyTo ? { reply_to_question_id: replyTo } : {}),
   }), { mode: 0o600 });
-  const result = await cli(daemon, ['ask', '--store', store, '--session', sessionID, '--request-id', randomUUID(), '--input', input]);
+  await withRetry(`ask "${text}"`, async () => {
+    const result = await cli(daemon, ['ask', '--store', store, '--session', sessionID, '--request-id', requestID, '--input', input]);
+    if (result.code !== 0) throw new Error(result.stderr.trim());
+  });
   rmSync(input, { force: true });
-  if (result.code !== 0) throw new Error(`ask failed:\n${result.stderr}`);
-  const questionID = JSON.parse(result.stdout).question_id;
   log(`ask     ${change.path}: "${text}"`);
-  return questionID;
 }
 
 // MARK: - Stand-in agent
@@ -241,8 +256,9 @@ const longAnswer = [
   'That last line is the end of the answer — the bar should only flip to Answered once you have scrolled down to here.',
 ].join('\n\n');
 
+// Keyed by question text, and set before asking: the agent can claim a question
+// before `ask` returns.
 const plannedAnswers = new Map();
-const pendingFollowUps = new Map();
 
 async function claimNext(daemon) {
   const result = await cli(daemon, ['hook', 'claude-code', 'post-tool-use', '--store', store], JSON.stringify({
@@ -262,7 +278,7 @@ async function answer(daemon, questionID, text) {
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'slipstream_answer_question', arguments: { question_id: questionID, text } } },
   ].map((m) => JSON.stringify(m)).join('\n') + '\n';
   const result = await run(process.execPath, ['src/mcp-forwarder.ts', '--store', store], {
-    cwd: daemon, input: messages, quiet: true,
+    cwd: daemon, input: messages,
     env: { PATH: process.env.PATH ?? '', CLAUDE_CODE_SESSION_ID: harnessSessionID, CLAUDE_PROJECT_DIR: work },
   });
   const reply = result.stdout.split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((m) => m.id === 2);
@@ -271,44 +287,31 @@ async function answer(daemon, questionID, text) {
   }
 }
 
-// The daemon never offers a claimed question again, so a failed answer is retried
-// here rather than dropped. Resending the same text for the same id is safe.
-async function answerWithRetry(daemon, questionID, text, isStopped) {
-  for (let attempt = 1; attempt <= ANSWER_ATTEMPTS; attempt++) {
-    try {
-      await answer(daemon, questionID, text);
-      return true;
-    } catch (error) {
-      if (isStopped()) return false;
-      const waitMs = 1000 * 2 ** (attempt - 1);
-      log(`agent   answer attempt ${attempt}/${ANSWER_ATTEMPTS} for ${questionID} failed: ${error.message}`);
-      if (attempt < ANSWER_ATTEMPTS) await sleep(waitMs);
-    }
-  }
-  log(`agent   GAVE UP on ${questionID}: the daemon will not offer it again, so it stays unanswered`);
-  return false;
-}
-
-async function agentLoop(daemon, sessionID, isStopped) {
-  while (!isStopped()) {
-    try { await agentStep(daemon, sessionID, isStopped); } catch (error) { log(`agent   ${error.message}`); await sleep(1500); }
+async function agentLoop(daemon, sessionID) {
+  while (!stopped) {
+    try { await agentStep(daemon, sessionID); } catch (error) { log(`agent   ${error.message}`); await sleep(1500); }
   }
 }
 
-async function agentStep(daemon, sessionID, isStopped) {
+async function agentStep(daemon, sessionID) {
   const claimed = await claimNext(daemon);
   if (!claimed) { await sleep(1500); return; }
-  const plan = plannedAnswers.get(claimed.questionID)
+  const plan = plannedAnswers.get(claimed.text)
     ?? { delayMs: USER_ANSWER_DELAY_MS, text: `(demo agent) You asked: "${claimed.text}". It changed because the agent was refactoring this block; nothing else depends on it.` };
+  plannedAnswers.delete(claimed.text);
   log(`agent   claimed "${claimed.text}", answering in ${plan.delayMs / 1000}s`);
   await sleep(plan.delayMs);
-  if (isStopped() || !(await answerWithRetry(daemon, claimed.questionID, plan.text, isStopped))) return;
+  if (stopped) return;
+  // Resending the same answer is safe, and the daemon never offers a claimed question
+  // again, so this is the only chance to answer it.
+  try {
+    await withRetry(`answer to "${claimed.text}"`, () => answer(daemon, claimed.questionID, plan.text));
+  } catch (error) {
+    if (!stopped) log(`agent   GAVE UP on ${claimed.questionID} (${error.message}): the daemon will not offer it again, so it stays unanswered`);
+    return;
+  }
   log(`agent   answered "${claimed.text}"`);
-  const followUp = pendingFollowUps.get(claimed.questionID);
-  if (!followUp) return;
-  pendingFollowUps.delete(claimed.questionID);
-  const id = await ask(daemon, sessionID, followUp.change, followUp.text, claimed.questionID);
-  plannedAnswers.set(id, { delayMs: 8000, text: 'Yes — the two branches could share one helper, but keeping them separate makes the diff easier to review.' });
+  if (plan.followUp) await ask(daemon, sessionID, plan.followUp.change, plan.followUp.text, claimed.questionID);
 }
 
 async function recordedChanges(sessionID, paths) {
@@ -326,13 +329,14 @@ async function recordedChanges(sessionID, paths) {
 
 async function seedQuestions(daemon, sessionID) {
   const [first, second, third] = await recordedChanges(sessionID, files.slice(0, 3));
-  const q1 = await ask(daemon, sessionID, first, 'Why did this change?');
-  plannedAnswers.set(q1, { delayMs: 4000, text: 'The agent tightened this block so the value can never go negative.' });
-  pendingFollowUps.set(q1, { change: first, text: 'Could this be simpler?' });
-  const q2 = await ask(daemon, sessionID, second, 'What does this return when the cart is empty?');
-  plannedAnswers.set(q2, { delayMs: 5000, text: longAnswer });
-  const q3 = await ask(daemon, sessionID, third, 'Is this safe to ship?');
-  plannedAnswers.set(q3, { delayMs: 20000, text: 'Mostly — the new constant needs a test before it ships.' });
+  const seeds = [
+    [first, 'Why did this change?', { delayMs: 4000, text: 'The agent tightened this block so the value can never go negative.', followUp: { change: first, text: 'Could this be simpler?' } }],
+    [second, 'What does this return when the cart is empty?', { delayMs: 5000, text: longAnswer }],
+    [third, 'Is this safe to ship?', { delayMs: 20000, text: 'Mostly — the new constant needs a test before it ships.' }],
+  ];
+  plannedAnswers.set('Could this be simpler?', { delayMs: 8000, text: 'Yes — the two branches could share one helper, but keeping them separate makes the diff easier to review.' });
+  for (const [, text, plan] of seeds) plannedAnswers.set(text, plan);
+  for (const [change, text] of seeds) await ask(daemon, sessionID, change, text);
 }
 
 // MARK: - App
@@ -353,7 +357,8 @@ async function shutdown(code = 0) {
   stopped = true;
   log('stopping…');
   const running = [...children];
-  const exited = running.map((child) => new Promise((resolve) => child.once('exit', resolve)));
+  const exited = running.filter((child) => child.exitCode === null && child.signalCode === null)
+    .map((child) => new Promise((resolve) => child.once('exit', resolve)));
   for (const child of running) killGroup(child, 'SIGTERM');
   await Promise.race([Promise.all(exited), sleep(3000)]);
   process.exit(code);
@@ -385,7 +390,7 @@ try {
   }
 
   await sleep(2000);
-  agentLoop(daemon, sessionID, () => stopped);
+  agentLoop(daemon, sessionID);
   let changes = 0;
   while (!stopped) {
     mutate(files[changes % files.length]);
