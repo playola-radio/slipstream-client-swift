@@ -34,18 +34,22 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
   public let requestID: String
   public let text: String
   public let context: QuestionContext
+  public let replyToQuestionID: String?
   let v = 1
   let verb = "ask"
 
-  public init(sessionID: String, requestID: String, text: String, context: QuestionContext) {
+  public init(sessionID: String, requestID: String, text: String, context: QuestionContext, replyToQuestionID: String? = nil) {
     self.sessionID = sessionID
     self.requestID = requestID
     self.text = text
     self.context = context
+    self.replyToQuestionID = replyToQuestionID
   }
 
   public func encoded() throws -> Data {
-    guard Self.isCanonicalUUID(sessionID), Self.isCanonicalUUID(requestID) else {
+    guard Self.isCanonicalUUID(sessionID), Self.isCanonicalUUID(requestID),
+      replyToQuestionID.map(Self.isCanonicalUUID) ?? true
+    else {
       throw QuestionError.rejected(code: "PROTOCOL", message: "Invalid capture or request identity.")
     }
     guard context.isValid else {
@@ -73,6 +77,7 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
 
   enum CodingKeys: String, CodingKey {
     case v, verb, sessionID = "session_id", requestID = "request_id", text, context
+    case replyToQuestionID = "reply_to_question_id"
   }
 }
 

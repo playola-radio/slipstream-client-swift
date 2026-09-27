@@ -165,6 +165,13 @@ enum DesignTokens {
     static let actionGap: CGFloat = 12
     static let sourceFont = variableFont(family: geistMonoFamily, size: 10, weight: 400)
     static let sourceColor = Color(hex: 0x91A8B9)
+    static let noticeColor = waitingColor
+    static let sendFill = Color(hex: 0xB2DAEE)
+    static let sendText = Color(hex: 0x132735)
+    static let sendFont = variableFont(family: geistFamily, size: 12, weight: 550)
+    static let sendRadius: CGFloat = 4
+    static let sendVerticalPadding: CGFloat = 9
+    static let sendHorizontalPadding: CGFloat = 13
     static let connectorColor = Color(hex: 0xA4D5F1)
     static let connectorDot: CGFloat = 6
     static let connectorWidth: CGFloat = 2

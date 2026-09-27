@@ -61,6 +61,12 @@ struct QuestionThreadPageView: View {
         RoundedRectangle(cornerRadius: DesignTokens.Reply.inputRadius)
           .strokeBorder(DesignTokens.Reply.inputStroke, lineWidth: DesignTokens.Reply.strokeWidth)
       }
+      if let notice = model.uncertaintyNotice {
+        Text(notice)
+          .font(DesignTokens.Reply.agentFont)
+          .foregroundStyle(DesignTokens.Reply.noticeColor)
+          .fixedSize(horizontal: false, vertical: true)
+      }
       HStack(spacing: DesignTokens.Reply.actionGap) {
         Text(model.sourceText)
           .font(DesignTokens.Reply.sourceFont)
@@ -68,6 +74,15 @@ struct QuestionThreadPageView: View {
           .lineLimit(1)
           .truncationMode(.middle)
         Spacer(minLength: 0)
+        Button { Task { await model.sendReplyTapped() } } label: {
+          Text(model.sendText)
+            .font(DesignTokens.Reply.sendFont)
+            .foregroundStyle(DesignTokens.Reply.sendText)
+            .padding(.vertical, DesignTokens.Reply.sendVerticalPadding)
+            .padding(.horizontal, DesignTokens.Reply.sendHorizontalPadding)
+            .background(DesignTokens.Reply.sendFill, in: RoundedRectangle(cornerRadius: DesignTokens.Reply.sendRadius))
+        }
+        .disabled(!model.canSendReply)
       }
     }
     .buttonStyle(.plain)
@@ -78,5 +93,10 @@ struct QuestionThreadPageView: View {
         .strokeBorder(DesignTokens.Reply.stroke, lineWidth: DesignTokens.Reply.strokeWidth)
     }
     .onExitCommand(perform: dismiss)
+    .alert(model.errorTitle, isPresented: $model.isErrorPresented) {
+      Button(model.errorDismissText, role: .cancel) {}
+    } message: {
+      Text(model.errorMessage)
+    }
   }
 }

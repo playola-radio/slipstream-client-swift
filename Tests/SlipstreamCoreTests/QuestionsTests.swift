@@ -29,6 +29,23 @@ struct QuestionsTests {
     #expect(context["selected_text"] == nil)
   }
 
+  @Test func followUpNamesItsParentOnlyWhenPresent() throws {
+    let followUp = QuestionRequest(sessionID: Self.session, requestID: Self.requestID, text: "And?",
+      context: Self.request.context, replyToQuestionID: Self.questionID)
+    let json = try #require(JSONSerialization.jsonObject(with: followUp.encoded()) as? [String: Any])
+    expectNoDifference(json["reply_to_question_id"] as? String, Self.questionID)
+    let root = try #require(JSONSerialization.jsonObject(with: Self.request.encoded()) as? [String: Any])
+    #expect(root["reply_to_question_id"] == nil)
+  }
+
+  @Test func malformedParentNeverEncodes() {
+    let followUp = QuestionRequest(sessionID: Self.session, requestID: Self.requestID, text: "And?",
+      context: Self.request.context, replyToQuestionID: "q1")
+    #expect(throws: QuestionError.rejected(code: "PROTOCOL", message: "Invalid capture or request identity.")) {
+      try followUp.encoded()
+    }
+  }
+
   @Test func exactAcknowledgmentIsRequired() throws {
     let reply = try QuestionAcknowledgment.decode(Data(Self.acknowledgment.utf8), for: Self.request)
     expectNoDifference(reply.requestID, Self.requestID)
