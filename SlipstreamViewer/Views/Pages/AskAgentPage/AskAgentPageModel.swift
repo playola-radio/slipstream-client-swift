@@ -163,16 +163,8 @@ final class AskAgentPageModel: ViewModel {
     } catch {
       guard isActive, generation == operation else { return false }
       isSubmitting = false
-      switch error {
-      case QuestionError.unavailable:
-        showError("The question service isn't available. Attach the agent session through the shared daemon, then retry." + uncertaintyText)
-      case QuestionError.rejected(let code, _):
-        if code == "STORAGE_UNAVAILABLE" { hasUncertainSubmission = true }
-        showError(Self.failureText(code) + uncertaintyText)
-      default:
-        hasUncertainSubmission = true
-        showError("The daemon's response wasn't received or couldn't be verified." + uncertaintyText)
-      }
+      if QuestionFailure.isOutcomeUnknown(error) { hasUncertainSubmission = true }
+      showError(QuestionFailure.message(error, hasUncertainSubmission: hasUncertainSubmission))
       return false
     }
   }
@@ -182,12 +174,6 @@ final class AskAgentPageModel: ViewModel {
   }
 
   // MARK: - Private Helpers
-
-  private var uncertaintyText: String {
-    hasUncertainSubmission
-      ? " An earlier submission may already be queued. Retry unchanged to reuse its request ID. Editing sends a separate question."
-      : " Your draft is kept."
-  }
 
   private func showError(_ message: String, title: String = "Question not confirmed") {
     errorTitle = title
@@ -199,19 +185,6 @@ final class AskAgentPageModel: ViewModel {
     questions.reduce(into: []) { options, text in
       guard !QuestionRequest.trim(text).isEmpty, !Self.defaults.contains(text), !options.contains(text) else { return }
       options.append(text)
-    }
-  }
-
-  private static func failureText(_ code: String) -> String {
-    switch code {
-    case "SESSION_NOT_SELECTED": "This capture is no longer attached to the agent. The question stays bound to its original capture."
-    case "CAPTURE_NOT_READY": "The capture isn't ready to accept questions. Try again shortly."
-    case "INVALID_CONTEXT": "This source selection couldn't be verified. Select up to 200 lines totaling at most 16 KiB from an available snapshot."
-    case "INVALID_QUESTION": "Use a nonempty question of at most 8192 UTF-8 bytes."
-    case "QUESTION_LIMIT": "The question queue is full. Try again later."
-    case "STORAGE_UNAVAILABLE": "The daemon couldn't confirm storage of this question."
-    case "REQUEST_CONFLICT": "This request ID already belongs to a different question."
-    default: "This question couldn't be accepted (\(code))."
     }
   }
 }

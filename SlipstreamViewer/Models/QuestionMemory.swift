@@ -38,8 +38,16 @@ extension SharedKey where Self == InMemoryKey<Set<AnswerReadMarker>>.Default {
   }
 }
 
-extension SharedKey where Self == InMemoryKey<[QuestionThreadKey: String]>.Default {
-  static var questionDrafts: Self {
-    Self[.inMemory("questionDrafts"), default: [:]]
+struct ReplyDraft: Equatable, Sendable {
+  var text = ""
+  var request: QuestionRequest?
+  var isSubmitting = false
+  var hasUncertainSubmission = false
+  var queuedQuestionID: String?
+}
+
+extension SharedKey where Self == InMemoryKey<[QuestionThreadKey: ReplyDraft]>.Default {
+  static var replyDrafts: Self {
+    Self[.inMemory("replyDrafts"), default: [:]]
   }
 }

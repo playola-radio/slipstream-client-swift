@@ -8,12 +8,14 @@ import SlipstreamCore
 final class QuestionThreadPageModel: ViewModel {
   // MARK: - Dependencies
 
+  @ObservationIgnored @Dependency(\.questionClient) var questionClient
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
+  @ObservationIgnored @Dependency(\.uuid) var uuid
 
   // MARK: - Shared State
 
   @ObservationIgnored @Shared(.readAnswers) var readAnswers
-  @ObservationIgnored @Shared(.questionDrafts) var drafts
+  @ObservationIgnored @Shared(.replyDrafts) var replyDrafts
 
   // MARK: - Initialization
 
@@ -28,14 +30,21 @@ final class QuestionThreadPageModel: ViewModel {
   let key: QuestionThreadKey
   private(set) var thread: QuestionThread
   private(set) var isDismissed = false
+  var isErrorPresented = false
+  private(set) var errorMessage = ""
 
   var draft: String {
-    get { drafts[key] ?? "" }
+    get { replyDraft.text }
     set {
       guard !isFollowUpDisabled else { return }
-      $drafts.withLock { $0[key] = newValue.isEmpty ? nil : newValue }
+      updateReplyDraft { draft in
+        if QuestionRequest.trim(newValue) != QuestionRequest.trim(draft.text) { draft.request = nil }
+        draft.text = newValue
+      }
     }
   }
+
+  private var replyDraft: ReplyDraft { replyDrafts[key] ?? ReplyDraft() }
 
   // MARK: - Display Text
 
@@ -43,6 +52,9 @@ final class QuestionThreadPageModel: ViewModel {
   let closeText = "Close reply"
   let waitingText = "Waiting for the agent to answer…"
   let followUpPlaceholder = "Ask a follow-up…"
+  let sendText = "Send reply"
+  let errorTitle = "Reply not confirmed"
+  let errorDismissText = "OK"
 
   var sourceText: String {
     let context = thread.source.context
@@ -50,6 +62,12 @@ final class QuestionThreadPageModel: ViewModel {
     let lines = context.lineStart == context.lineEnd ? "\(context.lineStart)" : "\(context.lineStart)–\(context.lineEnd)"
     let messages = thread.turns.count + thread.turns.filter { $0.answer != nil }.count
     return "\(file):\(lines) · \(messages) \(messages == 1 ? "message" : "messages")"
+  }
+
+  var uncertaintyNotice: String? {
+    replyDraft.hasUncertainSubmission
+      ? "An earlier reply may already be queued. Send it unchanged to reuse its request ID; editing sends a separate question."
+      : nil
   }
 
   func answerText(_ answer: QuestionAnswer) -> String {
@@ -66,7 +84,15 @@ final class QuestionThreadPageModel: ViewModel {
 
   // MARK: - View Helpers
 
-  var isFollowUpDisabled: Bool { isDismissed || thread.turns.last?.answer == nil }
+  var isFollowUpDisabled: Bool {
+    let draft = replyDraft
+    let isAwaitingQueuedTurn = draft.queuedQuestionID.map { id in !thread.turns.contains { $0.questionID == id } } ?? false
+    return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn || thread.turns.last?.answer == nil
+  }
+
+  var canSendReply: Bool {
+    !isFollowUpDisabled && thread.source.context.isValid && !QuestionRequest.trim(draft).isEmpty
+  }
 
   // MARK: - User Actions
 
@@ -76,6 +102,30 @@ final class QuestionThreadPageModel: ViewModel {
     $readAnswers.withLock { _ = $0.insert(marker) }
   }
 
+  func sendReplyTapped() async {
+    guard canSendReply, let parent = thread.turns.last else { return }
+    let intent = replyDraft.request ?? QuestionRequest(
+      sessionID: key.sessionID, requestID: uuid().uuidString.lowercased(), text: draft,
+      context: thread.source.context, replyToQuestionID: parent.questionID)
+    updateReplyDraft { draft in
+      draft.request = intent
+      draft.isSubmitting = true
+    }
+    do {
+      let acknowledgment = try await questionClient.send(intent)
+      settle(intent) { draft in
+        draft = ReplyDraft(queuedQuestionID: acknowledgment.questionID)
+      }
+    } catch {
+      settle(intent) { draft in
+        if QuestionFailure.isOutcomeUnknown(error) { draft.hasUncertainSubmission = true }
+      }
+      guard !isDismissed else { return }
+      errorMessage = QuestionFailure.message(error, hasUncertainSubmission: replyDraft.hasUncertainSubmission)
+      isErrorPresented = true
+    }
+  }
+
   func threadUpdated(_ thread: QuestionThread) {
     guard !isDismissed, thread.id == key.rootQuestionID else { return }
     self.thread = thread
@@ -83,5 +133,23 @@ final class QuestionThreadPageModel: ViewModel {
 
   func dismissed() {
     isDismissed = true
+  }
+
+  // MARK: - Private Helpers
+
+  private func updateReplyDraft(_ body: (inout ReplyDraft) -> Void) {
+    $replyDrafts.withLock { drafts in
+      var draft = drafts[key] ?? ReplyDraft()
+      body(&draft)
+      drafts[key] = draft == ReplyDraft() ? nil : draft
+    }
+  }
+
+  private func settle(_ intent: QuestionRequest, _ body: (inout ReplyDraft) -> Void) {
+    updateReplyDraft { draft in
+      guard draft.isSubmitting, draft.request?.requestID == intent.requestID else { return }
+      draft.isSubmitting = false
+      body(&draft)
+    }
   }
 }
