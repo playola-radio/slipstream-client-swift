@@ -1,6 +1,7 @@
 /// Which glyphs of a source line get the changed-text tint and removal ticks. A glyph covers
 /// the UTF-16 offsets from its own up to the next glyph's, so a change inside a ligature or
-/// cluster still marks it. A truncated line marks only the text it shows. Ticks are logical:
+/// cluster still marks it. A truncated line's last glyph is the ellipsis, which stands in only
+/// for the first hidden character; nothing past it is marked. Ticks are logical:
 /// `before` is the glyph's leading edge and `after` its trailing edge.
 struct ChangedTextMarks: Equatable {
   enum Tick: Equatable {
