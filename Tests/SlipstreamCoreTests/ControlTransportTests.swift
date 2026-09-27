@@ -110,15 +110,22 @@ private final class SocketFixture: Sendable {
     try? FileManager.default.removeItem(at: store)
   }
   func serve(_ body: @escaping @Sendable (Int32) throws -> Void) -> Task<Void, any Error> {
-    Task.detached {
-      let client = accept(self.fd, nil, nil)
-      guard client >= 0 else { throw POSIXError(.EBADF) }
-      defer { close(client) }
-      var timeout = timeval(tv_sec: 5, tv_usec: 0)
-      setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
-      var enabled: Int32 = 1
-      setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &enabled, socklen_t(MemoryLayout<Int32>.size))
-      try body(client)
+    // Blocking accept runs on GCD so EventFollowerTests' process-wide main serial executor can't park it on main.
+    Task {
+      try await withCheckedThrowingContinuation { continuation in
+        DispatchQueue.global().async {
+          continuation.resume(with: Result {
+            let client = accept(self.fd, nil, nil)
+            guard client >= 0 else { throw POSIXError(.EBADF) }
+            defer { close(client) }
+            var timeout = timeval(tv_sec: 5, tv_usec: 0)
+            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+            var enabled: Int32 = 1
+            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &enabled, socklen_t(MemoryLayout<Int32>.size))
+            try body(client)
+          })
+        }
+      }
     }
   }
 }
