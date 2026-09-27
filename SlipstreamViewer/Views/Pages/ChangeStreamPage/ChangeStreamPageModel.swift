@@ -581,9 +581,9 @@ final class ChangeStreamPageModel: ViewModel {
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
     case .questionQueued, .questionAnswered:
-      let previousThreads = questionThreads
+      let previousTurnCount = previousTurnCount(beforeApplying: event)
       questionThreads.apply(event)
-      shareQueuedFollowUp(event, previousThreads: previousThreads)
+      shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
       if let reply, let thread = questionThreads.threads[id: reply.key.rootQuestionID] {
         reply.threadUpdated(thread)
       }
@@ -595,11 +595,19 @@ final class ChangeStreamPageModel: ViewModel {
     return true
   }
 
-  private func shareQueuedFollowUp(_ event: SlipstreamEvent, previousThreads: QuestionThreads) {
+  private func previousTurnCount(beforeApplying event: SlipstreamEvent) -> Int? {
+    guard case .questionQueued(let question) = event.payload, let parentID = question.replyToQuestionID else {
+      return nil
+    }
+    return questionThreads.threads.first(where: { thread in thread.turns.contains { $0.questionID == parentID } })?
+      .turns.count
+  }
+
+  private func shareQueuedFollowUp(_ event: SlipstreamEvent, previousTurnCount: Int?) {
     guard case .questionQueued(let question) = event.payload, question.replyToQuestionID != nil,
       let sessionID = selectedSession?.id,
       let thread = questionThreads.threads.first(where: { $0.turns.last?.questionID == question.questionID }),
-      previousThreads.threads[id: thread.id]?.turns.count != thread.turns.count
+      previousTurnCount != thread.turns.count
     else { return }
     let key = QuestionThreadKey(storeID: daemon.storeID, sessionID: sessionID, rootQuestionID: thread.id)
     $replyDrafts.withLock { drafts in
