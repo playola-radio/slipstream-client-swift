@@ -548,23 +548,25 @@ private struct ChangedTextRenderer: TextRenderer {
       for row in layout { context.draw(row) }
       return
     }
-    let slices = layout.flatMap { $0 }.flatMap { run in run.indices.map { run[$0] } }
-      .filter { !$0.characterIndices.isEmpty }
-    guard let start = slices.flatMap(\.characterIndices).min() else {
+    let slices = layout.flatMap { $0 }
+      .flatMap { run in run.indices.map { (slice: run[$0], isRightToLeft: run.layoutDirection == .rightToLeft) } }
+      .filter { !$0.slice.characterIndices.isEmpty }
+    guard let start = slices.flatMap(\.slice.characterIndices).min() else {
       for row in layout { context.draw(row) }
       return
     }
     let marks = ChangedTextMarks(
-      glyphOffsets: slices.map { $0.characterIndices.map { start.distance(to: $0) }.min() ?? 0 },
-      text: line.text, changedRanges: line.changedRanges, removalOffsets: line.removalOffsets
+      glyphOffsets: slices.map { $0.slice.characterIndices.map { start.distance(to: $0) }.min() ?? 0 },
+      length: line.text.utf16.count, isTruncated: layout.isTruncated,
+      changedRanges: line.changedRanges, removalOffsets: line.removalOffsets
     )
     var tint = Path()
-    for index in marks.tinted { tint.addRect(slices[index].typographicBounds.rect) }
+    for index in marks.tinted { tint.addRect(slices[index].slice.typographicBounds.rect) }
     var ticks = Path()
     for tick in marks.ticks {
       switch tick {
-      case .before(let index): ticks.addRect(self.tick(at: \.minX, of: slices[index]))
-      case .after(let index): ticks.addRect(self.tick(at: \.maxX, of: slices[index]))
+      case .before(let index): ticks.addRect(self.tick(atLeadingEdge: true, of: slices[index]))
+      case .after(let index): ticks.addRect(self.tick(atLeadingEdge: false, of: slices[index]))
       }
     }
     context.fill(tint, with: .color(DesignTokens.Card.changedTextTint))
@@ -572,10 +574,13 @@ private struct ChangedTextRenderer: TextRenderer {
     context.fill(ticks, with: .color(DesignTokens.Card.removalTick))
   }
 
-  private func tick(at edge: KeyPath<CGRect, CGFloat>, of slice: Text.Layout.RunSlice) -> CGRect {
-    let rect = slice.typographicBounds.rect
+  private func tick(
+    atLeadingEdge isLeading: Bool, of glyph: (slice: Text.Layout.RunSlice, isRightToLeft: Bool)
+  ) -> CGRect {
+    let rect = glyph.slice.typographicBounds.rect
+    let x = isLeading == glyph.isRightToLeft ? rect.maxX : rect.minX
     return CGRect(
-      x: rect[keyPath: edge] - DesignTokens.Card.removalTickWidth / 2, y: rect.minY,
+      x: x - DesignTokens.Card.removalTickWidth / 2, y: rect.minY,
       width: DesignTokens.Card.removalTickWidth, height: rect.height
     )
   }

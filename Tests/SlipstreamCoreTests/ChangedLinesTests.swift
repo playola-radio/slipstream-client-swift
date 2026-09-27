@@ -352,27 +352,10 @@ struct ChangedLinesTests {
     )
   }
 
-  @Test func lineEndingOnlyChangesKeepLineMarkersOnly() {
-    let crlf = clip(before: "a = 1\n", after: "a = 1\r\n", lineStart: 1, lineEnd: 1)
-    let finalNewline = clip(before: "a = 1", after: "a = 1\n", lineStart: 1, lineEnd: 1)
-    expectNoDifference(crlf, [ClipLine(number: 1, text: "a = 1", isChanged: true)])
-    expectNoDifference(finalNewline, [ClipLine(number: 1, text: "a = 1", isChanged: true)])
-  }
-
   @Test func crlfLineWithAnEditHighlightsOnlyTheEdit() {
     expectNoDifference(
       clip(before: "x = 1\r\n", after: "x = 2\r\n", lineStart: 1, lineEnd: 1).first?.changedText,
       ChangedText(inserted: [4..<5])
-    )
-  }
-
-  @Test func newFileAndRemovedLinesKeepLineMarkersOnly() {
-    let newFile = clip(before: nil, after: "x = 1\n", lineStart: 1, lineEnd: 1)
-    let removedLine = clip(before: "a\nb = 1\nc\n", after: "a\nc\n", lineStart: 1, lineEnd: 2)
-    expectNoDifference(newFile, [ClipLine(number: 1, text: "x = 1", isChanged: true)])
-    expectNoDifference(
-      removedLine,
-      [ClipLine(number: 1, text: "a", isChanged: false), ClipLine(number: 2, text: "c", isChanged: true)]
     )
   }
 

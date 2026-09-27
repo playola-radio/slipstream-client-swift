@@ -1,6 +1,7 @@
 /// Which glyphs of a source line get the changed-text tint and removal ticks. A glyph covers
 /// the UTF-16 offsets from its own up to the next glyph's, so a change inside a ligature or
-/// cluster still marks it. A truncated line marks only the text it shows.
+/// cluster still marks it. A truncated line marks only the text it shows. Ticks are logical:
+/// `before` is the glyph's leading edge and `after` its trailing edge.
 struct ChangedTextMarks: Equatable {
   enum Tick: Equatable {
     case before(Int)
@@ -15,14 +16,12 @@ struct ChangedTextMarks: Equatable {
     self.ticks = ticks
   }
 
-  init(glyphOffsets: [Int], text: String, changedRanges: [Range<Int>], removalOffsets: [Int]) {
+  init(glyphOffsets: [Int], length: Int, isTruncated: Bool, changedRanges: [Range<Int>], removalOffsets: [Int]) {
     guard let lastOffset = glyphOffsets.max() else { return }
-    let length = text.utf16.count
-    let isTruncated = lastOffset < length - (text.last?.utf16.count ?? 0)
     let starts = Array(Set(glyphOffsets)).sorted()
     var ends: [Int: Int] = [:]
     for (start, end) in zip(starts, starts.dropFirst()) { ends[start] = end }
-    ends[lastOffset] = isTruncated ? lastOffset + 1 : length
+    ends[lastOffset] = isTruncated ? lastOffset + 1 : max(length, lastOffset + 1)
 
     var ticked = Set<Int>()
     for (index, offset) in glyphOffsets.enumerated() {
