@@ -193,6 +193,33 @@ extension QuestionThreadPageTests {
     expectNoDifference(model.uncertaintyNotice, nil)
   }
 
+  @Test func lateAcknowledgmentOfARetryKeepsANewerTurnAnotherWindowSaw() async {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
+      for await _ in gate { break }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(
+      questionID: "33333333-3333-4333-8333-333333333333", text: "And then?", queuedAtMs: 1,
+      answer: QuestionAnswer(seq: Fixture.seq(7), text: "Then.", answeredAtMs: 2))]))
+    let retry = Task { await model.sendReplyTapped() }
+    await Task.megaYield()
+    withDependencies { $0.defaultInMemoryStorage = storage } operation: {
+      @Shared(.replyDrafts) var replyDrafts
+      $replyDrafts.withLock { $0[Self.key, default: ReplyDraft()].turnQueued(QueuedTurn(questionID: "q4", seq: Fixture.seq(20))) }
+    }
+    resume.yield()
+    await retry.value
+    expectNoDifference(requests.value.count, 2)
+    expectNoDifference(requests.value[1], requests.value[0])
+    #expect(model.isFollowUpDisabled)
+  }
+
   @Test func definiteRejectionKeepsTheDraftWithoutUncertainty() async {
     let model = makeModel([Self.answered]) { _ in throw QuestionError.rejected(code: "SESSION_NOT_SELECTED", message: "") }
     model.draft = "And then?"

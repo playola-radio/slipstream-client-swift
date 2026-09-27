@@ -38,12 +38,22 @@ extension SharedKey where Self == InMemoryKey<Set<AnswerReadMarker>>.Default {
   }
 }
 
+struct QueuedTurn: Equatable, Sendable {
+  let questionID: String
+  let seq: Seq
+}
+
 struct ReplyDraft: Equatable, Sendable {
   var text = ""
   var request: QuestionRequest?
   var isSubmitting = false
   var hasUncertainSubmission = false
-  var queuedQuestionID: String?
+  var queuedTurn: QueuedTurn?
+
+  mutating func turnQueued(_ turn: QueuedTurn) {
+    guard queuedTurn.map({ $0.seq < turn.seq }) ?? true else { return }
+    queuedTurn = turn
+  }
 }
 
 extension SharedKey where Self == InMemoryKey<[QuestionThreadKey: ReplyDraft]>.Default {

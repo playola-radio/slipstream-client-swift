@@ -18,6 +18,7 @@ final class ChangeStreamPageModel: ViewModel {
   // MARK: - Shared State
 
   @ObservationIgnored @Shared(.readAnswers) var readAnswers
+  @ObservationIgnored @Shared(.replyDrafts) var replyDrafts
 
   // MARK: - Initialization
 
@@ -580,7 +581,9 @@ final class ChangeStreamPageModel: ViewModel {
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
     case .questionQueued, .questionAnswered:
+      let previousTurnCount = previousTurnCount(beforeApplying: event)
       questionThreads.apply(event)
+      shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
       if let reply, let thread = questionThreads.threads[id: reply.key.rootQuestionID] {
         reply.threadUpdated(thread)
       }
@@ -590,6 +593,26 @@ final class ChangeStreamPageModel: ViewModel {
     }
     lastAppliedSeq = event.seq
     return true
+  }
+
+  private func previousTurnCount(beforeApplying event: SlipstreamEvent) -> Int? {
+    guard case .questionQueued(let question) = event.payload, let parentID = question.replyToQuestionID else {
+      return nil
+    }
+    return questionThreads.threads.first(where: { thread in thread.turns.contains { $0.questionID == parentID } })?
+      .turns.count
+  }
+
+  private func shareQueuedFollowUp(_ event: SlipstreamEvent, previousTurnCount: Int?) {
+    guard case .questionQueued(let question) = event.payload, question.replyToQuestionID != nil,
+      let sessionID = selectedSession?.id,
+      let thread = questionThreads.threads.first(where: { $0.turns.last?.questionID == question.questionID }),
+      previousTurnCount != thread.turns.count
+    else { return }
+    let key = QuestionThreadKey(storeID: daemon.storeID, sessionID: sessionID, rootQuestionID: thread.id)
+    $replyDrafts.withLock { drafts in
+      drafts[key, default: ReplyDraft()].turnQueued(QueuedTurn(questionID: question.questionID, seq: event.seq))
+    }
   }
 
   private func append(_ item: FeedItem) {

@@ -86,7 +86,9 @@ final class QuestionThreadPageModel: ViewModel {
 
   var isFollowUpDisabled: Bool {
     let draft = replyDraft
-    let isAwaitingQueuedTurn = draft.queuedQuestionID.map { id in !thread.turns.contains { $0.questionID == id } } ?? false
+    let isAwaitingQueuedTurn = draft.queuedTurn.map { queued in
+      !thread.turns.contains { $0.questionID == queued.questionID }
+    } ?? false
     return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn || thread.turns.last?.answer == nil
   }
 
@@ -114,7 +116,8 @@ final class QuestionThreadPageModel: ViewModel {
     do {
       let acknowledgment = try await questionClient.send(intent)
       settle(intent) { draft in
-        draft = ReplyDraft(queuedQuestionID: acknowledgment.questionID)
+        draft.turnQueued(QueuedTurn(questionID: acknowledgment.questionID, seq: acknowledgment.seq))
+        draft = ReplyDraft(queuedTurn: draft.queuedTurn)
       }
     } catch {
       settle(intent) { draft in
