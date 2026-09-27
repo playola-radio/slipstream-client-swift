@@ -31,6 +31,16 @@ struct SourceSelectionTests {
     #expect(SourceSelection.make(sessionID: "capture", row: absent, block: block, startY: 1, endY: 30) == nil)
   }
 
+  @Test func highlightedTextDoesNotChangeTheSelectedSource() {
+    var highlighted = block
+    highlighted.lines[0].changedRanges = [2..<6]
+    highlighted.lines[2].removalOffsets = [3]
+    expectNoDifference(
+      SourceSelection.make(sessionID: "capture", row: row, block: highlighted, startY: 1, endY: 60),
+      SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 1, endY: 60)
+    )
+  }
+
   @Test func geometryClampsAtEveryViewportEdgeAndJoinsBoundaries() {
     let viewport = CGRect(x: 0, y: 0, width: 1100, height: 800)
     for origin in [CGPoint(x: 0, y: 0), CGPoint(x: 1000, y: 0), CGPoint(x: 0, y: 740), CGPoint(x: 1000, y: 740)] {

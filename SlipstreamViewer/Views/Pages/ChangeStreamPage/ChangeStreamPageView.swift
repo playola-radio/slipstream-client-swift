@@ -478,6 +478,8 @@ private struct CodeBlockView: View {
             .font(DesignTokens.Fonts.sourceLine)
             .foregroundStyle(DesignTokens.Colors.sourceLine)
             .lineLimit(1)
+            .textRenderer(ChangedTextRenderer(line: line))
+            .accessibilityLabel(line.accessibilityText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
@@ -534,6 +536,54 @@ private struct CodeBlockView: View {
       source()
     }
     .frame(height: DesignTokens.Card.lineHeight)
+  }
+}
+
+/// Draws the tint and removal ticks from glyph positions so the line stays one unsplit
+/// `Text` and keeps its ligatures. Offsets are UTF-16, counted from the first glyph.
+private struct ChangedTextRenderer: TextRenderer {
+  let line: CodeLine
+
+  func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+    guard !line.changedRanges.isEmpty || !line.removalOffsets.isEmpty else {
+      for row in layout { context.draw(row) }
+      return
+    }
+    let slices = layout.flatMap { $0 }
+      .flatMap { run in run.indices.map { (slice: run[$0], isRightToLeft: run.layoutDirection == .rightToLeft) } }
+      .filter { !$0.slice.characterIndices.isEmpty }
+    guard let start = slices.flatMap(\.slice.characterIndices).min() else {
+      for row in layout { context.draw(row) }
+      return
+    }
+    let marks = ChangedTextMarks(
+      glyphOffsets: slices.map { $0.slice.characterIndices.map { start.distance(to: $0) }.min() ?? 0 },
+      length: line.text.utf16.count, isTruncated: layout.isTruncated,
+      changedRanges: line.changedRanges, removalOffsets: line.removalOffsets
+    )
+    var tint = Path()
+    for index in marks.tinted { tint.addRect(slices[index].slice.typographicBounds.rect) }
+    var ticks = Path()
+    for tick in marks.ticks {
+      switch tick {
+      case .before(let index): ticks.addRect(self.tick(atLeadingEdge: true, of: slices[index]))
+      case .after(let index): ticks.addRect(self.tick(atLeadingEdge: false, of: slices[index]))
+      }
+    }
+    context.fill(tint, with: .color(DesignTokens.Card.changedTextTint))
+    for row in layout { context.draw(row) }
+    context.fill(ticks, with: .color(DesignTokens.Card.removalTick))
+  }
+
+  private func tick(
+    atLeadingEdge isLeading: Bool, of glyph: (slice: Text.Layout.RunSlice, isRightToLeft: Bool)
+  ) -> CGRect {
+    let rect = glyph.slice.typographicBounds.rect
+    let x = isLeading == glyph.isRightToLeft ? rect.maxX : rect.minX
+    return CGRect(
+      x: x - DesignTokens.Card.removalTickWidth / 2, y: rect.minY,
+      width: DesignTokens.Card.removalTickWidth, height: rect.height
+    )
   }
 }
 
