@@ -86,6 +86,8 @@ enum CardContentLoader {
 
   private static let tabWidth = 4
 
+  private static let removalAnnouncement = ", removed text, "
+
   private static func codeLine(_ line: ClipLine, isVerified: Bool) -> CodeLine {
     var codeLine = CodeLine(
       id: line.number, number: String(line.number),
@@ -99,7 +101,18 @@ enum CardContentLoader {
     }
     codeLine.changedRanges = changedText.inserted.map { displayOffsets[$0.lowerBound]..<displayOffsets[$0.upperBound] }
     codeLine.removalOffsets = changedText.removedAt.map { displayOffsets[$0] }
+    codeLine.accessibilityText = accessibilityText(codeLine.text, removalOffsets: codeLine.removalOffsets)
     return codeLine
+  }
+
+  private static func accessibilityText(_ text: String, removalOffsets: [Int]) -> String {
+    guard !removalOffsets.isEmpty else { return text }
+    var result = text
+    for offset in removalOffsets.sorted(by: >) {
+      let index = String.Index(utf16Offset: offset, in: result)
+      result.insert(contentsOf: removalAnnouncement, at: index)
+    }
+    return result
   }
 
   private static let binaryNote = "Binary file — not shown"

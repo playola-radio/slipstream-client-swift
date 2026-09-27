@@ -245,13 +245,14 @@ public enum ChangedLines {
       }
     }
 
-    // An empty edit is a removal with nothing in its place. Two removals never merge, so a
-    // tint always covers inserted text.
+    // An empty edit is a removal with nothing in its place. A removal never merges into
+    // another edit — doing so would turn its tick into part of a tint — so only a
+    // non-empty edit can absorb a nearby preceding one.
     var edits: [Range<Int>] = []
     var editStart: Int?
     func endEdit(at end: Int) {
       if let start = editStart {
-        if let last = edits.last, start < end || !last.isEmpty, start - last.upperBound <= maximumAbsorbedGap {
+        if let last = edits.last, start < end, start - last.upperBound <= maximumAbsorbedGap {
           edits[edits.count - 1] = last.lowerBound..<end
         } else {
           edits.append(start..<end)

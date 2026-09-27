@@ -414,7 +414,15 @@ struct ChangeStreamPageTests {
 
   @Test func deletionOnlyEditMarksWhereTextWasRemoved() async {
     let lines = await highlightedLines(before: "foo(a, b)\n", after: "foo(a)\n", clips: [functionClip(1, 1)])
-    expectNoDifference(lines, [CodeLine(id: 1, number: "1", text: "foo(a)", isChanged: true, removalOffsets: [5])])
+    expectNoDifference(
+      lines,
+      [
+        CodeLine(
+          id: 1, number: "1", text: "foo(a)", isChanged: true, removalOffsets: [5],
+          accessibilityText: "foo(a, removed text, )"
+        )
+      ]
+    )
   }
 
   @Test func tabsShiftHighlightsToTheDisplayedColumns() async {

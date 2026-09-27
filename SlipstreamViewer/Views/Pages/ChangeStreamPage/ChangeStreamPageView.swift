@@ -479,6 +479,7 @@ private struct CodeBlockView: View {
             .foregroundStyle(DesignTokens.Colors.sourceLine)
             .lineLimit(1)
             .textRenderer(ChangedTextRenderer(line: line))
+            .accessibilityLabel(line.accessibilityText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }

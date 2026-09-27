@@ -288,6 +288,13 @@ struct ChangedLinesTests {
     )
   }
 
+  @Test func deletionNearAReplacementKeepsItsOwnRemovalMark() {
+    expectNoDifference(
+      clip(before: "abcX dYef\n", after: "abcZ def\n", lineStart: 1, lineEnd: 1).first?.changedText,
+      ChangedText(inserted: [3..<4], removedAt: [6])
+    )
+  }
+
   @Test func pairsFollowTheLineAlignmentNotTheLineNumber() {
     expectNoDifference(
       clip(before: "a\nfoo(1)\n", after: "new\na\nfoo(2)\n", lineStart: 1, lineEnd: 3),

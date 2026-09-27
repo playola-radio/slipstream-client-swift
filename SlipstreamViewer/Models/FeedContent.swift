@@ -67,6 +67,22 @@ struct CodeLine: Identifiable, Equatable, Sendable {
   /// UTF-16 offsets into `text`.
   var changedRanges: [Range<Int>] = []
   var removalOffsets: [Int] = []
+  /// Describes `text` for VoiceOver, noting removals the tick marks show visually.
+  var accessibilityText: String
+
+  init(
+    id: Int, number: String, text: String, isChanged: Bool, isVerified: Bool = true,
+    changedRanges: [Range<Int>] = [], removalOffsets: [Int] = [], accessibilityText: String? = nil
+  ) {
+    self.id = id
+    self.number = number
+    self.text = text
+    self.isChanged = isChanged
+    self.isVerified = isVerified
+    self.changedRanges = changedRanges
+    self.removalOffsets = removalOffsets
+    self.accessibilityText = accessibilityText ?? text
+  }
 }
 
 struct CodeBlock: Identifiable, Equatable, Sendable {
