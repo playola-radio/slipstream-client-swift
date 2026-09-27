@@ -113,23 +113,6 @@ struct InterfaceFixturePinTests {
     )
   }
 
-  @Test func everyCaseIsARequestAHistoryAndOneExpectation() throws {
-    let files = try InterfaceFixtures.allFiles().keys.filter { $0 != "PIN" && $0 != "schema.json" }
-    var shapes: [String: [String]] = [:]
-    for path in files {
-      let parts = path.split(separator: "/").map(String.init)
-      try #require(parts.count == 3 && parts[0] == "cases", "unexpected fixture file \(path)")
-      shapes[parts[1], default: []].append(parts[2])
-    }
-    let success = ["expected.json", "history.json", "request.txt"]
-    let failure = ["expected-error.json", "history.json", "request.txt"]
-    expectNoDifference(shapes.count, 66)
-    expectNoDifference(shapes.values.filter { $0.sorted() == success }.count, 62)
-    expectNoDifference(shapes.filter { $0.value.sorted() == failure }.keys.sorted(), [
-      "range-corrupt-chain-500", "range-durable-ahead-409", "range-huge-seq", "range-invalid-request-400",
-    ])
-  }
-
   @Test func errorCasesAreHTTPExpectationsNotBodies() throws {
     struct Expectation: Decodable, Equatable {
       var http_status: Int

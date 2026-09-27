@@ -576,6 +576,9 @@ extension InterfaceFileResult: Decodable {
     let coverage = try container.nestedContainer(keyedBy: CoverageKeys.self, forKey: .coverage)
     beforeCoverage = try coverage.decode(InterfaceCoverage.self, forKey: .before)
     afterCoverage = try coverage.decode(InterfaceCoverage.self, forKey: .after)
+    guard beforeCoverage.fits(before), afterCoverage.fits(.recorded(after)) else {
+      throw container.corrupt(.coverage, "coverage contradicts the endpoint it describes")
+    }
     let sides = [beforeCoverage, afterCoverage]
     if status == .identical, sides.contains(where: { $0 != .notEvaluated && $0 != .absent }) {
       throw container.corrupt(.coverage, "an identical file is notEvaluated or absent on both sides")
@@ -613,6 +616,19 @@ extension InterfaceFileResult: Decodable {
       changes = .unsupportedLanguageVersion(language: language, version: version)
     default:
       throw container.corrupt(.languageVersion, "language and language_version must be null together")
+    }
+  }
+}
+
+extension InterfaceCoverage {
+  fileprivate func fits(_ endpoint: InterfaceEndpoint) -> Bool {
+    guard case .recorded(let record) = endpoint else { return self == .unavailable(reason: "unknown-boundary") }
+    switch (record.snapshot, self) {
+    case (.absent, .absent): return true
+    case (.unavailable(let snapshotReason), .unavailable(let reason)): return reason == snapshotReason
+    case (.content, .unavailable(let reason)): return reason == "blob-missing"
+    case (.content, .complete), (.content, .incomplete), (.content, .unsupported), (.content, .notEvaluated): return true
+    default: return false
     }
   }
 }
