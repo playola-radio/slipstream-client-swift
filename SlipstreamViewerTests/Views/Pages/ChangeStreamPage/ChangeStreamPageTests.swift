@@ -1338,6 +1338,7 @@ extension ChangeStreamPageTests {
     let reply = try open(first, "q1")
     reply.answerDisplayed(Fixture.seq(3))
     reply.draft = "Store A draft"
+    await send(Fixture.questionQueued(4, id: "q2", replyTo: "q1"))
     let second = makeModel(daemon: otherStore)
     await second.viewAppeared()
     await Task.megaYield()
@@ -1345,7 +1346,11 @@ extension ChangeStreamPageTests {
     for item in history { otherStore.send(item) }
     await Task.megaYield()
     #expect(try bar(second, "q1").status == .newReply)
-    expectNoDifference(try open(second, "q1").draft, "")
+    let otherStoreReply = try open(second, "q1")
+    expectNoDifference(otherStoreReply.draft, "")
+    #expect(!otherStoreReply.isFollowUpDisabled)
+    expectNoDifference(
+      Array(first.replyDrafts.keys), [QuestionThreadKey(storeID: "store-a", sessionID: Fixture.session, rootQuestionID: "q1")])
   }
 
   @Test func sessionSwitchClosesTheReplyAndDiscardsStaleQuestionEvents() async throws {
@@ -1514,26 +1519,5 @@ extension ChangeStreamPageTests {
     #expect(reply.isFollowUpDisabled)
     await send(to: 1, Fixture.questionAnswered(7, id: secondFollowUp))
     #expect(!reply.isFollowUpDisabled)
-  }
-
-  @Test func waitingFollowUpBlocksOnlyItsOwnStoreCaptureAndThread() async throws {
-    let otherStore = DaemonFake(storeID: "store-b")
-    otherStore.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
-    let history = [Fixture.edited(1), Fixture.questionQueued(2, id: Self.root), Fixture.questionAnswered(3, id: Self.root)]
-    let first = await connectedModel()
-    defer { first.viewDisappeared() }
-    for item in history { fake.send(item) }
-    await send(Fixture.questionQueued(4, id: Self.firstFollowUp, replyTo: Self.root))
-    let second = makeModel(daemon: otherStore)
-    await second.viewAppeared()
-    await Task.megaYield()
-    defer { second.viewDisappeared() }
-    for item in history { otherStore.send(item) }
-    await Task.megaYield()
-
-    #expect(try !open(second, Self.root).isFollowUpDisabled)
-    expectNoDifference(
-      Array(first.replyDrafts.keys),
-      [QuestionThreadKey(storeID: "store-a", sessionID: Fixture.session, rootQuestionID: Self.root)])
   }
 }
