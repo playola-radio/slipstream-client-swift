@@ -119,6 +119,7 @@ final class QuestionThreadPageModel: ViewModel {
     } catch {
       settle(intent) { draft in
         if QuestionFailure.isOutcomeUnknown(error) { draft.hasUncertainSubmission = true }
+        if !draft.hasUncertainSubmission { draft.request = nil }
       }
       guard !isDismissed else { return }
       errorMessage = QuestionFailure.message(error, hasUncertainSubmission: replyDraft.hasUncertainSubmission)

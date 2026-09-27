@@ -30,13 +30,13 @@ struct QuestionThreadPageTests {
   }
 
   func makeModel(
-    _ turns: [QuestionTurn], source: QuestionSource = source(), timeZone: String = "UTC",
+    _ turns: [QuestionTurn], source: QuestionSource = source(), timeZone: String = "UTC", uuid: UUIDGenerator? = nil,
     send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }
   ) -> QuestionThreadPageModel {
     withDependencies {
       $0.defaultInMemoryStorage = storage
       $0.timeZone = TimeZone(identifier: timeZone)!
-      $0.uuid = uuid
+      $0.uuid = uuid ?? self.uuid
       $0.questionClient.send = send
     } operation: {
       QuestionThreadPageModel(key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns))
@@ -202,6 +202,41 @@ extension QuestionThreadPageTests {
     expectNoDifference(model.draft, "And then?")
     expectNoDifference(model.uncertaintyNotice, nil)
     #expect(model.canSendReply)
+  }
+
+  @Test func retryAfterADefiniteRejectionFollowsTheLatestTurn() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      if requests.value.count == 1 { throw QuestionError.rejected(code: "QUESTION_LIMIT", message: "") }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    model.threadUpdated(Self.thread([Self.answered, Self.followUp]))
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.requestID), [
+      "00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001",
+    ])
+    expectNoDifference(requests.value.map(\.replyToQuestionID), ["q1", "q2"])
+  }
+
+  @Test func sentReplyEncodesItsParentOnTheWire() async throws {
+    let parentID = "44444444-4444-4444-8444-444444444444"
+    let parent = QuestionTurn(
+      questionID: parentID, text: "Why?", queuedAtMs: Fixture.observedAtMs,
+      answer: QuestionAnswer(seq: Fixture.seq(3), text: "Because.", answeredAtMs: Fixture.observedAtMs))
+    let bodies = LockIsolated<[Data]>([])
+    let model = makeModel([parent], uuid: UUIDGenerator { UUID(uuidString: "55555555-5555-4555-8555-555555555555")! }) { request in
+      try bodies.withValue { $0.append(try request.encoded()) }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    #expect(!model.isErrorPresented)
+    let body = try #require(bodies.value.first)
+    let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    expectNoDifference(json["reply_to_question_id"] as? String, parentID)
   }
 
   @Test func anotherWindowCannotEditOrResendWhileAReplyIsInFlight() async {
