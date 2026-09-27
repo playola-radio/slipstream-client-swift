@@ -1203,35 +1203,38 @@ extension ChangeStreamPageTests {
   }
 
   @Test func sendingAReplyFollowsUpTheLatestTurnAndWaitsForItsAnswer() async throws {
+    let q1 = "11111111-1111-4111-8111-111111111111"
+    let q2 = "22222222-2222-4222-8222-222222222222"
+    let queuedID = "33333333-3333-4333-8333-333333333333"
     let requests = LockIsolated<[QuestionRequest]>([])
     let model = await withDependencies {
-      $0.uuid = .incrementing
+      $0.uuid = UUIDGenerator { UUID(uuidString: queuedID)! }
       $0.questionClient.send = { request in
         requests.withValue { $0.append(request) }
+        _ = try request.encoded()
         return try AskAgentPageTests.ack(request)
       }
     } operation: { await connectedModel() }
     defer { model.viewDisappeared() }
     await send(
       Fixture.edited(1),
-      Fixture.questionQueued(2, id: "q1"),
-      Fixture.questionAnswered(3, id: "q1"),
-      Fixture.questionQueued(4, id: "q2", text: "Follow-up", replyTo: "q1"),
-      Fixture.questionAnswered(5, id: "q2"))
-    let reply = try open(model, "q1")
+      Fixture.questionQueued(2, id: q1),
+      Fixture.questionAnswered(3, id: q1),
+      Fixture.questionQueued(4, id: q2, text: "Follow-up", replyTo: q1),
+      Fixture.questionAnswered(5, id: q2))
+    let reply = try open(model, q1)
     reply.answerDisplayed(Fixture.seq(3))
     reply.answerDisplayed(Fixture.seq(5))
     reply.draft = "And the tests?"
     await reply.sendReplyTapped()
     let request = try #require(requests.value.first)
     expectNoDifference(request.sessionID, Fixture.session)
-    expectNoDifference(request.replyToQuestionID, "q2")
-    expectNoDifference(request.context, model.questionThreads.threads[id: "q1"]?.source.context)
+    expectNoDifference(request.replyToQuestionID, q2)
+    expectNoDifference(request.context, model.questionThreads.threads[id: q1]?.source.context)
     #expect(reply.isFollowUpDisabled)
-    let queuedID = "33333333-3333-4333-8333-333333333333"
-    await send(Fixture.questionQueued(6, id: queuedID, text: "And the tests?", replyTo: "q2"))
-    expectNoDifference(reply.thread.turns.map(\.questionID), ["q1", "q2", queuedID])
-    #expect(try bar(model, "q1").status == .waiting)
+    await send(Fixture.questionQueued(6, id: queuedID, text: "And the tests?", replyTo: q2))
+    expectNoDifference(reply.thread.turns.map(\.questionID), [q1, q2, queuedID])
+    #expect(try bar(model, q1).status == .waiting)
     #expect(reply.isFollowUpDisabled)
   }
 
