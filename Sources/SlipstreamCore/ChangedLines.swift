@@ -107,7 +107,7 @@ public enum ChangedLines {
   static let maximumPairedRunLines = 8
   public static let maximumHighlightedPairs = 64
   public static let maximumHighlightedLineBytes = 2048
-  static let maximumComparedCharacters = 256
+  static let maximumComparedCharacters = 128
   /// Unchanged gaps this short between two edits are highlighted with them.
   static let maximumAbsorbedGap = 2
 
