@@ -5,7 +5,7 @@
 //   node scripts/demo.mjs            # build and open the app too
 //   node scripts/demo.mjs --no-app   # daemon + changes + answers only
 //   node scripts/demo.mjs --manual   # ask nothing; you ask every question, the agent answers
-//   node scripts/demo.mjs --keep     # leave the scratch directory behind on exit
+//   node scripts/demo.mjs --keep     # leave the scratch directory behind on exit (make … KEEP=1)
 //
 // Ctrl-C (or quitting the app) stops everything and deletes the scratch directory.
 // Never touches ~/.slipstream. Set SLIPSTREAM_DAEMON_DIR to use an existing daemon
@@ -24,6 +24,8 @@ const keep = args.has('--keep');
 const seedsQuestions = !args.has('--manual');
 const CHANGE_EVERY_MS = 4000;
 const USER_ANSWER_DELAY_MS = 6000;
+const SEED_TIMEOUT_MS = 20000;
+const ANSWER_ATTEMPTS = 5;
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..');
 const root = mkdtempSync('/tmp/ss-demo-');
@@ -35,9 +37,26 @@ const transcript = join(store, 'demo-transcript.jsonl');
 const log = (...parts) => console.log(`[${new Date().toLocaleTimeString()}]`, ...parts);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Every child runs in its own process group and is tracked from the moment it is
+// spawned, so shutdown can kill it (and anything it started) in any phase.
+let stopped = false;
+const children = new Set();
+
+function spawnTracked(command, argv, options) {
+  if (stopped) throw new Error('stopping');
+  const child = spawn(command, argv, { ...options, detached: true });
+  children.add(child);
+  child.once('exit', () => children.delete(child));
+  return child;
+}
+
+function killGroup(child, signal) {
+  try { process.kill(-child.pid, signal); } catch { /* already gone */ }
+}
+
 function run(command, argv, { cwd, input, env, quiet } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, argv, { cwd, env: env ?? process.env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawnTracked(command, argv, { cwd, env: env ?? process.env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8').on('data', (s) => { stdout += s; if (!quiet) process.stdout.write(s); });
@@ -56,12 +75,26 @@ async function must(command, argv, options) {
 
 // MARK: - Daemon checkout
 
+// The daemon repo is private: HTTPS works with a git credential helper (`gh auth
+// setup-git`), SSH with a GitHub key. Try both before giving up.
+const DAEMON_REMOTES = ['https://github.com/briankeane/slipstream.git', 'git@github.com:briankeane/slipstream.git'];
+
+async function cloneDaemon(dir) {
+  const failures = [];
+  for (const remote of DAEMON_REMOTES) {
+    log(`cloning the daemon (develop) from ${remote}…`);
+    const result = await run('git', ['clone', '--quiet', '--branch', 'develop', remote, dir], { quiet: true });
+    if (result.code === 0) return;
+    failures.push(`${remote}: ${result.stderr.trim()}`);
+  }
+  throw new Error(`could not clone the daemon:\n${failures.join('\n')}\nSet SLIPSTREAM_DAEMON_DIR to an existing checkout instead.`);
+}
+
 async function daemonCheckout() {
   const dir = process.env.SLIPSTREAM_DAEMON_DIR ?? join(homedir(), '.cache', 'slipstream-demo', 'daemon');
   if (!process.env.SLIPSTREAM_DAEMON_DIR) {
     if (!existsSync(dir)) {
-      log('cloning the daemon (develop)…');
-      await must('git', ['clone', '--quiet', '--branch', 'develop', 'git@github.com:briankeane/slipstream.git', dir]);
+      await cloneDaemon(dir);
     } else {
       await must('git', ['fetch', '--quiet', 'origin', 'develop'], { cwd: dir });
       await must('git', ['checkout', '--quiet', '--detach', 'origin/develop'], { cwd: dir });
@@ -148,7 +181,7 @@ function mutate(path) {
 const cli = (daemon, argv, input) => run(process.execPath, ['src/cli.ts', ...argv], { cwd: daemon, input, quiet: true });
 
 async function startDaemon(daemon) {
-  const child = spawn(process.execPath, ['src/cli.ts', 'start', '--store', store], { cwd: daemon, stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawnTracked(process.execPath, ['src/cli.ts', 'start', '--store', store], { cwd: daemon, stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '';
   child.stderr.setEncoding('utf8').on('data', (s) => { stderr += s; });
   for (let i = 0; i < 100 && !existsSync(join(store, 'control.sock')); i++) {
@@ -234,10 +267,26 @@ async function answer(daemon, questionID, text) {
   });
   const reply = result.stdout.split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((m) => m.id === 2);
   if (!reply?.result || reply.result.isError) {
-    log(`answer failed for ${questionID}: ${JSON.stringify(reply?.result?.structuredContent ?? result.stderr)}`);
-    return false;
+    throw new Error(JSON.stringify(reply?.result?.structuredContent ?? result.stderr));
   }
-  return true;
+}
+
+// The daemon never offers a claimed question again, so a failed answer is retried
+// here rather than dropped. Resending the same text for the same id is safe.
+async function answerWithRetry(daemon, questionID, text, isStopped) {
+  for (let attempt = 1; attempt <= ANSWER_ATTEMPTS; attempt++) {
+    try {
+      await answer(daemon, questionID, text);
+      return true;
+    } catch (error) {
+      if (isStopped()) return false;
+      const waitMs = 1000 * 2 ** (attempt - 1);
+      log(`agent   answer attempt ${attempt}/${ANSWER_ATTEMPTS} for ${questionID} failed: ${error.message}`);
+      if (attempt < ANSWER_ATTEMPTS) await sleep(waitMs);
+    }
+  }
+  log(`agent   GAVE UP on ${questionID}: the daemon will not offer it again, so it stays unanswered`);
+  return false;
 }
 
 async function agentLoop(daemon, sessionID, isStopped) {
@@ -253,7 +302,7 @@ async function agentStep(daemon, sessionID, isStopped) {
     ?? { delayMs: USER_ANSWER_DELAY_MS, text: `(demo agent) You asked: "${claimed.text}". It changed because the agent was refactoring this block; nothing else depends on it.` };
   log(`agent   claimed "${claimed.text}", answering in ${plan.delayMs / 1000}s`);
   await sleep(plan.delayMs);
-  if (isStopped() || !(await answer(daemon, claimed.questionID, plan.text))) return;
+  if (isStopped() || !(await answerWithRetry(daemon, claimed.questionID, plan.text, isStopped))) return;
   log(`agent   answered "${claimed.text}"`);
   const followUp = pendingFollowUps.get(claimed.questionID);
   if (!followUp) return;
@@ -262,21 +311,28 @@ async function agentStep(daemon, sessionID, isStopped) {
   plannedAnswers.set(id, { delayMs: 8000, text: 'Yes — the two branches could share one helper, but keeping them separate makes the diff easier to review.' });
 }
 
+async function recordedChanges(sessionID, paths) {
+  const deadline = Date.now() + SEED_TIMEOUT_MS;
+  for (;;) {
+    const changes = latestChanges(sessionID);
+    const missing = paths.filter((path) => !changes.has(path));
+    if (missing.length === 0) return paths.map((path) => changes.get(path));
+    if (Date.now() > deadline) {
+      throw new Error(`no questions seeded: the daemon recorded no change to ${missing.join(', ')} within ${SEED_TIMEOUT_MS / 1000}s`);
+    }
+    await sleep(500);
+  }
+}
+
 async function seedQuestions(daemon, sessionID) {
-  const changes = latestChanges(sessionID);
-  const [first, second, third] = files.map((path) => changes.get(path)).filter(Boolean);
-  if (!first) return;
+  const [first, second, third] = await recordedChanges(sessionID, files.slice(0, 3));
   const q1 = await ask(daemon, sessionID, first, 'Why did this change?');
   plannedAnswers.set(q1, { delayMs: 4000, text: 'The agent tightened this block so the value can never go negative.' });
   pendingFollowUps.set(q1, { change: first, text: 'Could this be simpler?' });
-  if (second) {
-    const q2 = await ask(daemon, sessionID, second, 'What does this return when the cart is empty?');
-    plannedAnswers.set(q2, { delayMs: 5000, text: longAnswer });
-  }
-  if (third) {
-    const q3 = await ask(daemon, sessionID, third, 'Is this safe to ship?');
-    plannedAnswers.set(q3, { delayMs: 20000, text: 'Mostly — the new constant needs a test before it ships.' });
-  }
+  const q2 = await ask(daemon, sessionID, second, 'What does this return when the cart is empty?');
+  plannedAnswers.set(q2, { delayMs: 5000, text: longAnswer });
+  const q3 = await ask(daemon, sessionID, third, 'Is this safe to ship?');
+  plannedAnswers.set(q3, { delayMs: 20000, text: 'Mostly — the new constant needs a test before it ships.' });
 }
 
 // MARK: - App
@@ -287,36 +343,35 @@ async function launchApp() {
   const derived = join(repo, '.build', 'demo-app');
   await must('xcodebuild', ['-scheme', 'SlipstreamViewer', '-destination', 'platform=macOS', '-derivedDataPath', derived, '-quiet', 'build'], { cwd: repo });
   const binary = join(derived, 'Build/Products/Debug/SlipstreamViewer.app/Contents/MacOS/SlipstreamViewer');
-  return spawn(binary, [], { env: { ...process.env, SLIPSTREAM_STORE: store }, stdio: 'ignore' });
+  return spawnTracked(binary, [], { env: { ...process.env, SLIPSTREAM_STORE: store }, stdio: 'ignore' });
 }
 
 // MARK: - Main
-
-let stopped = false;
-const children = [];
 
 async function shutdown(code = 0) {
   if (stopped) return;
   stopped = true;
   log('stopping…');
-  for (const child of children.reverse()) {
-    if (child.exitCode === null) {
-      child.kill('SIGTERM');
-      await Promise.race([new Promise((r) => child.once('exit', r)), sleep(3000)]);
-    }
-  }
-  if (keep) log(`kept ${root}`);
-  else rmSync(root, { recursive: true, force: true });
+  const running = [...children];
+  const exited = running.map((child) => new Promise((resolve) => child.once('exit', resolve)));
+  for (const child of running) killGroup(child, 'SIGTERM');
+  await Promise.race([Promise.all(exited), sleep(3000)]);
   process.exit(code);
 }
-process.on('SIGINT', () => shutdown());
-process.on('SIGTERM', () => shutdown());
+
+// Runs on every exit, including crashes: nothing outlives the script, and the
+// scratch root goes unless --keep.
+process.on('exit', () => {
+  for (const child of children) killGroup(child, 'SIGKILL');
+  if (keep) log(`kept ${root}`);
+  else rmSync(root, { recursive: true, force: true });
+});
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => shutdown());
 
 try {
   const daemon = await daemonCheckout();
   await seedWorktree();
   const daemonProcess = await startDaemon(daemon);
-  children.push(daemonProcess);
   daemonProcess.once('exit', () => { if (!stopped) { log('daemon exited'); shutdown(1); } });
   const sessionID = await attach(daemon);
   log(`daemon  store ${store}`);
@@ -325,7 +380,6 @@ try {
 
   if (withApp) {
     const app = await launchApp();
-    children.push(app);
     app.once('exit', () => { if (!stopped) { log('app closed'); shutdown(); } });
     log('app     opened — pick the session from the toolbar');
   }
@@ -336,13 +390,10 @@ try {
   while (!stopped) {
     mutate(files[changes % files.length]);
     changes += 1;
-    if (seedsQuestions && changes === files.length) {
-      await sleep(1500);
-      await seedQuestions(daemon, sessionID);
-    }
+    if (seedsQuestions && changes === files.length) await seedQuestions(daemon, sessionID);
     await sleep(CHANGE_EVERY_MS);
   }
 } catch (error) {
-  console.error(error.message);
+  if (!stopped) console.error(error.message);
   await shutdown(1);
 }
