@@ -549,6 +549,54 @@ private func label<Value>(_ delta: InterfaceDelta<Value>, name: (Value) -> Strin
   }
 }
 
+private func typeDescription(_ reference: InterfaceTypeReference) -> String {
+  switch reference {
+  case .written(let text): "written(\(text))"
+  case .implicit(let text): "implicit(\(text))"
+  case .inferredNotComputed: "inferredNotComputed"
+  }
+}
+
+private func declaration(_ declaration: InterfaceDeclaration) -> String {
+  "\(declaration.displayName)@\(declaration.byteRange.lowerBound)..<\(declaration.byteRange.upperBound)"
+}
+
+private func declaration(_ kind: InterfaceChange.Kind) -> String {
+  switch kind {
+  case .added(let after): "-→\(declaration(after))"
+  case .removed(let before): "\(declaration(before))→-"
+  case .signatureChanged(let before, let after): "\(declaration(before))→\(declaration(after))"
+  }
+}
+
+private func parameter(_ parameter: InterfaceParameter) -> String {
+  "position=\(parameter.position) label=\(parameter.label ?? "-") name=\(parameter.name) binding=\(parameter.binding.rawValue) type=\(typeDescription(parameter.type)) optional=\(parameter.isOptional) variadic=\(parameter.isVariadic) default=\(parameter.defaultValue ?? "-") modifiers=\(parameter.modifiers.joined(separator: ","))"
+}
+
+private func resultDescription(_ result: InterfaceResult) -> String {
+  switch result {
+  case .returnType(let reference): "return(\(typeDescription(reference)))"
+  case .initializer(let failable): "initializer(failable=\(failable?.rawValue ?? "-"))"
+  }
+}
+
+private func throwsClause(_ throwsClause: InterfaceThrowsClause) -> String {
+  "mode=\(throwsClause.mode.rawValue) type=\(throwsClause.type ?? "-")"
+}
+
+private func header(_ header: InterfaceHeader) -> String {
+  "modifiers=\(header.modifiers.joined(separator: ",")) genericParameters=\(header.genericParameters.joined(separator: ",")) constraints=\(header.constraints.joined(separator: ","))"
+}
+
+private func delta<Value>(_ delta: InterfaceDelta<Value>, render: (Value) -> String) -> String {
+  switch delta {
+  case .equal(let value): "equal(\(render(value)))"
+  case .added(let value): "added(-→\(render(value)))"
+  case .removed(let value): "removed(\(render(value))→-)"
+  case .changed(let before, let after): "changed(\(render(before))→\(render(after)))"
+  }
+}
+
 private func summary(_ comparison: InterfaceComparison) -> [String] {
   var lines = [
     [
@@ -570,11 +618,12 @@ private func summary(_ comparison: InterfaceComparison) -> [String] {
         + "coverage=\(label(file.beforeCoverage))/\(label(file.afterCoverage)) language=\(language(file.changes))"
     )
     for row in rowsOf(file.changes) {
-      let parameters = row.parameters.map { label($0, name: { ":\($0.name)" }) }.joined(separator: ",")
-      let result = row.result.map { label($0) } ?? "-"
+      let parameters = row.parameters.map { delta($0, render: parameter) }.joined(separator: ",")
+      let result = row.result.map { delta($0, render: resultDescription) } ?? "-"
       lines.append(
         "  \(kindName(row.kind)) \(row.identity.kind) \(row.identity.name) "
-          + "parameters=\(parameters) result=\(result) throws=\(label(row.throwsClause)) header=\(label(row.header))"
+          + "declaration=\(declaration(row.kind)) parameters=\(parameters) result=\(result) "
+          + "throws=\(delta(row.throwsClause, render: throwsClause)) header=\(delta(row.header, render: header))"
       )
     }
   }
@@ -585,6 +634,7 @@ private func summary(_ raw: [String: Any]) -> [String] {
   func string(_ value: Any?) -> String { (value as? String) ?? "-" }
   func object(_ value: Any?) -> [String: Any] { (value as? [String: Any]) ?? [:] }
   func objects(_ value: Any?) -> [[String: Any]] { (value as? [[String: Any]]) ?? [] }
+  func strings(_ value: Any?) -> String { ((value as? [String]) ?? []).joined(separator: ",") }
   func bool(_ value: Any?) -> String { (value as? Bool).map(String.init) ?? "?" }
   func status(_ value: [String: Any]) -> String {
     value["fallback_reason"].map { "\(string(value["status"]))(\(string($0)))" } ?? string(value["status"])
@@ -603,6 +653,49 @@ private func summary(_ raw: [String: Any]) -> [String] {
     return "\(string(value["record_seq"])):\(string(value["field"])):\(tag):\(string(value["observation"])):\(string(value["gap_ref"]))"
   }
   func op(_ value: [String: Any]) -> String { string(value["op"]) }
+  func type(_ value: [String: Any]) -> String {
+    switch string(value["state"]) {
+    case "written": "written(\(string(value["text"])))"
+    case "implicit": "implicit(\(string(value["text"])))"
+    case "unknown": "inferredNotComputed"
+    case let state: state
+    }
+  }
+  func declaration(_ value: Any?) -> String {
+    let declaration = object(value)
+    let span = object(declaration["span"])
+    return "\(string(declaration["display_name"]))@\(span["byte_start"] as? Int ?? -1)..<\(span["byte_end"] as? Int ?? -1)"
+  }
+  func declaration(_ row: [String: Any]) -> String {
+    "\(row["before"] is NSNull ? "-" : declaration(row["before"]))→\(row["after"] is NSNull ? "-" : declaration(row["after"]))"
+  }
+  func parameter(_ value: [String: Any]) -> String {
+    "position=\(value["position"] as? Int ?? -1) label=\(string(value["label"])) name=\(string(value["name"])) binding=\(string(value["binding"])) type=\(type(object(value["type"]))) optional=\(bool(value["optional"])) variadic=\(bool(value["variadic"])) default=\(string(value["default"])) modifiers=\(strings(value["modifiers"]))"
+  }
+  func result(_ value: [String: Any]) -> String {
+    switch string(value["kind"]) {
+    case "return": "return(\(type(object(value["type"]))))"
+    case "initializer": "initializer(failable=\(string(value["failable"])))"
+    case let kind: kind
+    }
+  }
+  func throwsClause(_ value: [String: Any]) -> String {
+    "mode=\(string(value["mode"])) type=\(string(value["type"]))"
+  }
+  func header(_ value: [String: Any]) -> String {
+    "modifiers=\(strings(value["modifiers"])) genericParameters=\(strings(value["generic_parameters"])) constraints=\(strings(value["constraints"]))"
+  }
+  func delta(_ value: [String: Any], render: ([String: Any]) -> String) -> String {
+    let before = value["before"] is NSNull ? nil : object(value["before"])
+    let after = value["after"] is NSNull ? nil : object(value["after"])
+    return switch op(value) {
+    case "equal": "equal(\(render(before ?? [:])))"
+    case "added": "added(-→\(render(after ?? [:])))"
+    case "removed": "removed(\(render(before ?? [:]))→-)"
+    case "changed": "changed(\(render(before ?? [:]))→\(render(after ?? [:])))"
+    case let operation: operation
+    }
+  }
 
   let inventory = object(raw["inventory"])
   let range = object(raw["range"])
@@ -626,14 +719,12 @@ private func summary(_ raw: [String: Any]) -> [String] {
     )
     for row in objects(file["changes"]) {
       let identity = object(row["identity"])
-      let parameters = objects(row["parameters"]).map { delta in
-        let side = (delta["before"] as? [String: Any]) ?? object(delta["after"])
-        return "\(op(delta)):\(string(side["name"]))"
-      }.joined(separator: ",")
-      let result = row["result"] is NSNull ? "-" : op(object(row["result"]))
+      let parameters = objects(row["parameters"]).map { delta($0, render: parameter) }.joined(separator: ",")
+      let result = row["result"] is NSNull ? "-" : delta(object(row["result"]), render: result)
       lines.append(
         "  \(string(row["kind"])) \(string(identity["kind"])) \(string(identity["name"])) "
-          + "parameters=\(parameters) result=\(result) throws=\(op(object(row["throws"]))) header=\(op(object(row["header"])))"
+          + "declaration=\(declaration(row)) parameters=\(parameters) result=\(result) "
+          + "throws=\(delta(object(row["throws"]), render: throwsClause)) header=\(delta(object(row["header"]), render: header))"
       )
     }
   }
