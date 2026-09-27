@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import IdentifiedCollections
+import Sharing
 import SlipstreamCore
 import SwiftUI
 
@@ -14,6 +15,10 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Dependency(\.withRandomNumberGenerator) var withRandomNumberGenerator
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
 
+  // MARK: - Shared State
+
+  @ObservationIgnored @Shared(.readAnswers) var readAnswers
+
   // MARK: - Initialization
 
   override init() {
@@ -25,6 +30,11 @@ final class ChangeStreamPageModel: ViewModel {
   static let cardContentLimit = 64
 
   var askAgent: AskAgentPageModel?
+  private(set) var reply: QuestionThreadPageModel?
+  private(set) var questionThreads = QuestionThreads()
+  private(set) var replySize = CGSize(width: DesignTokens.Reply.width, height: 240)
+  private(set) var replyBarFrame = CGRect.zero
+  private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
   private(set) var queuedQuestionNotice: String?
   private(set) var feedViewport = CGRect.zero
@@ -60,6 +70,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
+  @ObservationIgnored private var barFrames: [String: CGRect] = [:]
 
   // MARK: - Display Text
 
@@ -69,7 +80,6 @@ final class ChangeStreamPageModel: ViewModel {
   let questionKeepText = "Keep question"
 
   let paneTitle = "Change stream"
-  let paneSubtitle = "Full functions"
   let refreshButtonText = "Refresh"
   let jumpToLatestText = "Jump to latest ↓"
   let hideFeedText = "Hide feed"
@@ -78,6 +88,15 @@ final class ChangeStreamPageModel: ViewModel {
 
   var retryButtonText: String {
     historyRolledBack ? "Reload from start" : "Retry"
+  }
+
+  var paneSubtitle: String {
+    guard isQuestionSummaryShown else { return "Full functions" }
+    let count = questionThreads.threads.count
+    let newReplies = questionThreads.threads.filter { status(of: $0) == .newReply }.count
+    let questions = "\(count) \(count == 1 ? "question" : "questions")"
+    guard newReplies > 0 else { return questions }
+    return questions + " · \(newReplies) \(newReplies == 1 ? "new reply" : "new replies")"
   }
 
   var sessionPickerTitle: String {
@@ -128,6 +147,46 @@ final class ChangeStreamPageModel: ViewModel {
       viewport: viewport, size: composerSize)
   }
 
+  var isQuestionSummaryShown: Bool { !questionThreads.threads.isEmpty }
+
+  var replyPlacement: ReplyPlacement {
+    ReplyPlacement(bar: replyBarFrame, viewport: viewport, size: replySize)
+  }
+
+  var replyWidth: CGFloat { max(0, min(DesignTokens.Reply.width, viewport.width - 2 * DesignTokens.Reply.viewportInset)) }
+  var showsReplyConnector: Bool {
+    reply != nil && isReplyBarVisible && !isFeedHidden && replyPlacement.showsConnector
+      && !replyBarFrame.intersection(feedViewport).isEmpty
+  }
+
+  func questionBars(for row: FileChangeRow) -> [QuestionBar] {
+    questionThreads.threads
+      .filter { $0.source.context.changeSeq == row.id.decimal }
+      .map { thread in
+        QuestionBar(
+          id: thread.id,
+          preview: thread.turns.first?.text ?? "",
+          status: status(of: thread),
+          isOpen: reply?.key.rootQuestionID == thread.id
+        )
+      }
+  }
+
+  func replyMeasured(_ size: CGSize) { replySize = size }
+
+  func questionBarMoved(_ bar: QuestionBar, frame: CGRect) {
+    barFrames[bar.id] = frame
+    guard reply?.key.rootQuestionID == bar.id else { return }
+    isReplyBarVisible = true
+    if replyBarFrame != frame { replyBarFrame = frame }
+  }
+
+  func questionBarDisappeared(_ bar: QuestionBar) {
+    barFrames[bar.id] = nil
+    guard reply?.key.rootQuestionID == bar.id else { return }
+    isReplyBarVisible = false
+  }
+
   var composerWidth: CGFloat { max(0, min(DesignTokens.Ask.width, viewport.width - 2 * DesignTokens.Ask.viewportInset)) }
   var showsSelectionConnector: Bool {
     sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && !isFeedHidden
@@ -158,6 +217,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sourceDragEnded() {
     guard askAgent == nil, let selection = sourceSelection else { return }
+    replyCollapsed()
     queuedQuestionNotice = nil
     askAgent = withDependencies(from: self) {
       AskAgentPageModel(sessionID: selection.sessionID, context: selection.context)
@@ -192,6 +252,22 @@ final class ChangeStreamPageModel: ViewModel {
     askAgent?.dismissed()
     askAgent = nil
     sourceSelection = nil
+  }
+
+  func questionBarTapped(_ bar: QuestionBar) {
+    let isOpen = reply?.key.rootQuestionID == bar.id
+    replyCollapsed()
+    guard !isOpen, askAgent == nil, let sessionID = selectedSession?.id,
+      let thread = questionThreads.threads[id: bar.id]
+    else { return }
+    let key = QuestionThreadKey(storeID: daemon.storeID, sessionID: sessionID, rootQuestionID: thread.id)
+    reply = withDependencies(from: self) { QuestionThreadPageModel(key: key, thread: thread) }
+    replyBarFrame = barFrames[thread.id] ?? .zero
+    isReplyBarVisible = barFrames[thread.id] != nil
+  }
+
+  func replyDismissTapped() {
+    replyCollapsed()
   }
 
   func askQuestionTapped(_ composer: AskAgentPageModel) async {
@@ -274,6 +350,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func viewDisappeared() {
+    replyCollapsed()
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
@@ -286,6 +363,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func hideFeedTapped() {
+    replyCollapsed()
     isFeedHidden = true
   }
 
@@ -501,7 +579,13 @@ final class ChangeStreamPageModel: ViewModel {
       append(.marker(FeedMarker(id: event.seq, text: "Session resumed after the daemon restarted")))
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
-    case .sessionStarted, .questionQueued, .questionDispatchAttempted, .questionAnswered, .recordedWithoutRow:
+    case .questionQueued, .questionAnswered:
+      questionThreads.apply(event)
+      if let reply, let thread = questionThreads.threads[id: reply.key.rootQuestionID] {
+        reply.threadUpdated(thread)
+      }
+      if follow == .following { scrollToLatestRequest += 1 }
+    case .sessionStarted, .questionDispatchAttempted, .recordedWithoutRow:
       break
     }
     lastAppliedSeq = event.seq
@@ -524,7 +608,26 @@ final class ChangeStreamPageModel: ViewModel {
     return formatter.string(from: Date(timeIntervalSince1970: Double(milliseconds) / 1000))
   }
 
+  private func replyCollapsed() {
+    reply?.dismissed()
+    reply = nil
+    isReplyBarVisible = false
+  }
+
+  private func status(of thread: QuestionThread) -> QuestionBarStatus {
+    let sessionID = selectedSession?.id ?? ""
+    let hasUnread = thread.turns.contains { turn in
+      guard let answer = turn.answer else { return false }
+      return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
+    }
+    if hasUnread { return .newReply }
+    return thread.turns.contains { $0.answer == nil } ? .waiting : .answered
+  }
+
   private func resetFeed() {
+    replyCollapsed()
+    questionThreads = QuestionThreads()
+    barFrames = [:]
     queuedQuestionNotice = nil
     isSourceBlockVisible = false
     feedGeneration += 1

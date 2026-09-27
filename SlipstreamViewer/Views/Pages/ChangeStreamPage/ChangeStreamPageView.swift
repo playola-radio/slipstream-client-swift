@@ -34,6 +34,32 @@ struct ChangeStreamPageView: View {
 
   @ViewBuilder
   private var questionOverlay: some View {
+    if let reply = model.reply {
+      if model.showsReplyConnector {
+        Path { path in
+          path.move(to: model.replyPlacement.barAnchor)
+          path.addLine(to: model.replyPlacement.popoverAnchor)
+        }
+        .stroke(DesignTokens.Reply.connectorColor, lineWidth: DesignTokens.Reply.connectorWidth)
+        .allowsHitTesting(false)
+        Circle().fill(DesignTokens.Reply.connectorColor)
+          .frame(width: DesignTokens.Reply.connectorDot, height: DesignTokens.Reply.connectorDot)
+          .position(model.replyPlacement.barAnchor)
+          .allowsHitTesting(false)
+      }
+      ScrollView {
+        QuestionThreadPageView(model: reply, dismiss: { model.replyDismissTapped() })
+          .id(reply)
+          .frame(width: model.replyWidth)
+          .fixedSize(horizontal: false, vertical: true)
+          .onGeometryChange(for: CGSize.self) { $0.size } action: { model.replyMeasured($0) }
+      }
+      .scrollIndicators(.hidden)
+      .frame(width: model.replyPlacement.popover.width, height: model.replyPlacement.popover.height)
+      .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Reply.radius))
+      .shadow(color: DesignTokens.Reply.shadow, radius: DesignTokens.Reply.shadowBlur, y: DesignTokens.Reply.shadowY)
+      .offset(x: model.replyPlacement.popover.minX, y: model.replyPlacement.popover.minY)
+    }
     if let composer = model.askAgent {
       if model.showsSelectionConnector {
         Path { path in
@@ -113,8 +139,8 @@ struct ChangeStreamPageView: View {
         .font(DesignTokens.Fonts.paneTitle)
         .foregroundStyle(DesignTokens.Colors.paneTitle)
       Text(model.paneSubtitle)
-        .font(DesignTokens.Fonts.paneSubtitle)
-        .foregroundStyle(DesignTokens.Colors.paneSubtitle)
+        .font(DesignTokens.Fonts.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
+        .foregroundStyle(DesignTokens.Colors.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
       Spacer()
       Button { model.hideFeedTapped() } label: {
         HStack(spacing: DesignTokens.HideFeedButton.gap) {
@@ -184,17 +210,27 @@ struct ChangeStreamPageView: View {
   private func itemView(_ item: FeedItem) -> some View {
     switch item {
     case .file(let row):
-      FileCardView(
-        row: row,
-        model: model,
-        openIndicatorText: model.openIndicatorText(for: row),
-        content: model.content(for: row),
-        emphasis: model.emphasis(for: row),
-        isRetryable: model.isCardRetryable(row),
-        retryTapped: { Task { await model.cardRetryTapped(row) } }
-      )
-      .task(id: FeedCardTaskID(feedGeneration: model.feedGeneration, rowID: row.id)) { await model.cardAppeared(row) }
-      .onDisappear { model.cardDisappeared(row) }
+      VStack(spacing: 0) {
+        FileCardView(
+          row: row,
+          model: model,
+          openIndicatorText: model.openIndicatorText(for: row),
+          content: model.content(for: row),
+          emphasis: model.emphasis(for: row),
+          isRetryable: model.isCardRetryable(row),
+          retryTapped: { Task { await model.cardRetryTapped(row) } }
+        )
+        .task(id: FeedCardTaskID(feedGeneration: model.feedGeneration, rowID: row.id)) { await model.cardAppeared(row) }
+        .onDisappear { model.cardDisappeared(row) }
+        ForEach(model.questionBars(for: row)) { bar in
+          QuestionBarView(bar: bar) { model.questionBarTapped(bar) }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("question-workspace")) } action: {
+              model.questionBarMoved(bar, frame: $0)
+            }
+            .onDisappear { model.questionBarDisappeared(bar) }
+            .padding(.horizontal, DesignTokens.Card.horizontalInset)
+        }
+      }
     case .marker(let marker):
       Text(marker.text)
         .font(DesignTokens.Fonts.eventTime)
@@ -262,6 +298,49 @@ private struct IconView: View {
       .resizable()
       .frame(width: icon.size, height: icon.size)
       .foregroundStyle(icon.color)
+  }
+}
+
+private struct QuestionBarView: View {
+  let bar: QuestionBar
+  let tapped: () -> Void
+
+  var body: some View {
+    Button(action: tapped) {
+      HStack(spacing: DesignTokens.ReplyBar.gap) {
+        Image("MessageCircle").resizable()
+          .frame(width: DesignTokens.ReplyBar.iconSize, height: DesignTokens.ReplyBar.iconSize)
+          .foregroundStyle(DesignTokens.ReplyBar.accent(bar.status))
+        Text(bar.preview)
+          .font(DesignTokens.ReplyBar.previewFont)
+          .foregroundStyle(DesignTokens.ReplyBar.previewColor)
+          .lineLimit(1)
+        Spacer(minLength: 0)
+        Text(bar.statusText)
+          .font(DesignTokens.ReplyBar.statusFont)
+          .foregroundStyle(DesignTokens.ReplyBar.accent(bar.status))
+        Image(DesignTokens.ReplyBar.chevron(isOpen: bar.isOpen)).resizable()
+          .frame(width: DesignTokens.ReplyBar.chevronSize, height: DesignTokens.ReplyBar.chevronSize)
+          .foregroundStyle(DesignTokens.ReplyBar.chevronColor)
+      }
+      .padding(.horizontal, DesignTokens.ReplyBar.horizontalPadding)
+      .frame(height: DesignTokens.ReplyBar.height)
+      .background(DesignTokens.ReplyBar.fill(isOpen: bar.isOpen),
+        in: RoundedRectangle(cornerRadius: DesignTokens.ReplyBar.radius))
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.ReplyBar.radius)
+          .strokeBorder(DesignTokens.ReplyBar.stroke(isOpen: bar.isOpen), lineWidth: DesignTokens.ReplyBar.strokeWidth)
+      }
+      .overlay(alignment: .leading) {
+        UnevenRoundedRectangle(topLeadingRadius: DesignTokens.ReplyBar.radius,
+          bottomLeadingRadius: DesignTokens.ReplyBar.radius)
+          .fill(DesignTokens.ReplyBar.stroke(isOpen: bar.isOpen))
+          .frame(width: DesignTokens.ReplyBar.leadingStrokeWidth)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityValue(bar.statusText)
   }
 }
 
