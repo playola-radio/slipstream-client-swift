@@ -240,12 +240,16 @@ async function ask(daemon, sessionID, change, text, replyTo) {
     context: { change_seq: change.seq, path: change.path, snapshot_sha256: change.sha, line_start: 2, line_end: 4 },
     ...(replyTo ? { reply_to_question_id: replyTo } : {}),
   }), { mode: 0o600 });
-  await withRetry(`ask "${text}"`, async () => {
+  const questionID = await withRetry(`ask "${text}"`, async () => {
     const result = await cli(daemon, ['ask', '--store', store, '--session', sessionID, '--request-id', requestID, '--input', input]);
     if (result.code !== 0) throw new Error(result.stderr.trim());
+    const response = JSON.parse(result.stdout);
+    if (!response.question_id) throw new Error('ask response did not include question_id');
+    return response.question_id;
   });
   rmSync(input, { force: true });
   log(`ask     ${change.path}: "${text}"`);
+  return questionID;
 }
 
 // MARK: - Stand-in agent
@@ -256,9 +260,10 @@ const longAnswer = [
   'That last line is the end of the answer — the bar should only flip to Answered once you have scrolled down to here.',
 ].join('\n\n');
 
-// Keyed by question text, and set before asking: the agent can claim a question
-// before `ask` returns.
+// Keyed by question id. Seeding and claiming are serialized in agentStep, so a
+// plan is registered immediately after its ask returns and before a claim runs.
 const plannedAnswers = new Map();
+let seedingDue = false;
 
 async function claimNext(daemon) {
   const result = await cli(daemon, ['hook', 'claude-code', 'post-tool-use', '--store', store], JSON.stringify({
@@ -294,11 +299,21 @@ async function agentLoop(daemon, sessionID) {
 }
 
 async function agentStep(daemon, sessionID) {
+  if (seedingDue) {
+    try {
+      await seedQuestions(daemon, sessionID);
+      seedingDue = false;
+    } catch (error) {
+      if (!stopped) console.error(error.message);
+      await shutdown(1);
+      return;
+    }
+  }
   const claimed = await claimNext(daemon);
   if (!claimed) { await sleep(1500); return; }
-  const plan = plannedAnswers.get(claimed.text)
+  const plan = plannedAnswers.get(claimed.questionID)
     ?? { delayMs: USER_ANSWER_DELAY_MS, text: `(demo agent) You asked: "${claimed.text}". It changed because the agent was refactoring this block; nothing else depends on it.` };
-  plannedAnswers.delete(claimed.text);
+  plannedAnswers.delete(claimed.questionID);
   log(`agent   claimed "${claimed.text}", answering in ${plan.delayMs / 1000}s`);
   await sleep(plan.delayMs);
   if (stopped) return;
@@ -311,7 +326,10 @@ async function agentStep(daemon, sessionID) {
     return;
   }
   log(`agent   answered "${claimed.text}"`);
-  if (plan.followUp) await ask(daemon, sessionID, plan.followUp.change, plan.followUp.text, claimed.questionID);
+  if (plan.followUp) {
+    const questionID = await ask(daemon, sessionID, plan.followUp.change, plan.followUp.text, claimed.questionID);
+    plannedAnswers.set(questionID, plan.followUp.plan);
+  }
 }
 
 async function recordedChanges(sessionID, paths) {
@@ -329,14 +347,21 @@ async function recordedChanges(sessionID, paths) {
 
 async function seedQuestions(daemon, sessionID) {
   const [first, second, third] = await recordedChanges(sessionID, files.slice(0, 3));
-  const seeds = [
-    [first, 'Why did this change?', { delayMs: 4000, text: 'The agent tightened this block so the value can never go negative.', followUp: { change: first, text: 'Could this be simpler?' } }],
-    [second, 'What does this return when the cart is empty?', { delayMs: 5000, text: longAnswer }],
-    [third, 'Is this safe to ship?', { delayMs: 20000, text: 'Mostly — the new constant needs a test before it ships.' }],
-  ];
-  plannedAnswers.set('Could this be simpler?', { delayMs: 8000, text: 'Yes — the two branches could share one helper, but keeping them separate makes the diff easier to review.' });
-  for (const [, text, plan] of seeds) plannedAnswers.set(text, plan);
-  for (const [change, text] of seeds) await ask(daemon, sessionID, change, text);
+  const firstPlan = {
+    delayMs: 4000,
+    text: 'The agent tightened this block so the value can never go negative.',
+    followUp: {
+      change: first,
+      text: 'Could this be simpler?',
+      plan: { delayMs: 8000, text: 'Yes — the two branches could share one helper, but keeping them separate makes the diff easier to review.' },
+    },
+  };
+  const firstID = await ask(daemon, sessionID, first, 'Why did this change?');
+  plannedAnswers.set(firstID, firstPlan);
+  const secondID = await ask(daemon, sessionID, second, 'What does this return when the cart is empty?');
+  plannedAnswers.set(secondID, { delayMs: 5000, text: longAnswer });
+  const thirdID = await ask(daemon, sessionID, third, 'Is this safe to ship?');
+  plannedAnswers.set(thirdID, { delayMs: 20000, text: 'Mostly — the new constant needs a test before it ships.' });
 }
 
 // MARK: - App
@@ -395,7 +420,7 @@ try {
   while (!stopped) {
     mutate(files[changes % files.length]);
     changes += 1;
-    if (seedsQuestions && changes === files.length) await seedQuestions(daemon, sessionID);
+    if (seedsQuestions && changes === files.length) seedingDue = true;
     await sleep(CHANGE_EVERY_MS);
   }
 } catch (error) {
