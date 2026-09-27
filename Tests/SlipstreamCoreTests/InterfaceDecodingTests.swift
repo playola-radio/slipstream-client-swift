@@ -306,6 +306,26 @@ struct InterfaceSyntheticTests {
     expectNoDifference(row.result, .changed(before: .initializer(failable: nil), after: .initializer(failable: .implicitlyUnwrapped)))
   }
 
+  @Test func changedTextThatOnlyDiffersInNormalizationIsKept() throws {
+    let comparison = try InterfaceComparison.decode(
+      edited(
+        "ts-parameter-change",
+        (#"{"state":"written","text":"number"}"#, #"{"state":"written","text":"\u00e9"}"#),
+        (#"{"state":"written","text":"string"}"#, #"{"state":"written","text":"e\u0301"}"#)
+      )
+    )
+    let row = try firstRow(comparison)
+    expectNoDifference(
+      row.parameters,
+      [
+        .changed(
+          before: InterfaceParameter(position: 0, name: "x", type: .written("\u{e9}")),
+          after: InterfaceParameter(position: 0, name: "x", type: .written("e\u{301}"))
+        )
+      ]
+    )
+  }
+
   @Test func unknownProjectionVersionIsRejectedBeforeItsBody() throws {
     #expect(throws: InterfaceDecodingError.unsupportedProjectionVersion("interface.v3")) {
       try InterfaceComparison.decode(Data(#"{"projection_version":"interface.v3","files":"anything"}"#.utf8))
@@ -339,7 +359,13 @@ struct InterfaceSyntheticTests {
     Mutation("ts-parameter-change", "analysis claimed", #""effects":"notAnalyzed""#, #""effects":"analyzed""#),
     Mutation("ts-parameter-change", "unknown policy exclusion", #""symlinks""#, #""node_modules""#),
     Mutation("ts-parameter-change", "reason on a ready file", #""status":"ready","coverage""#, #""status":"ready","fallback_reason":"x","coverage""#),
-    Mutation("ts-parameter-change", "equal delta with different sides", #""result":{"op":"equal""#, #""result":{"op":"changed""#),
+    Mutation("ts-parameter-change", "equal delta with different sides", #"[{"op":"changed","before":{"position":0"#, #"[{"op":"equal","before":{"position":0"#),
+    Mutation("ts-parameter-change", "unsupported version without changes", #""typescript.v2""#, #""typescript.v3""#, #","changes":[{"#, #","rows":[{"#),
+    Mutation("ts-parameter-change", "ready file with unavailable coverage", #""before":{"state":"complete"}"#, #""before":{"state":"unavailable","reason":"blob-missing"}"#),
+    Mutation("range-reverted-listed", "identical file that was evaluated", #""before":{"state":"notEvaluated"}"#, #""before":{"state":"complete"}"#),
+    Mutation("ts-parameter-change", "typescript function without a result slot", #""result":{"op":"equal","before":{"kind":"return","type":{"state":"written","text":"void"}},"after":{"kind":"return","type":{"state":"written","text":"void"}}}"#, #""result":null"#),
+    Mutation("swift-labels-defaults-effects", "swift declaration without a result slot", #""result":{"op":"equal","before":{"kind":"return","type":{"state":"written","text":"Bool"}},"after":{"kind":"return","type":{"state":"written","text":"Bool"}}}"#, #""result":null"#),
+    Mutation("ts-parameter-change", "policy exclusions not exact", #"["store-directory",".git","symlinks"]"#, #"[]"#),
     Mutation("ts-parameter-change", "added delta with a before side", #"{"op":"changed","before":{"position":0"#, #"{"op":"added","before":{"position":0"#),
     Mutation("ts-parameter-change", "added row with a before side", #""kind":"signatureChanged""#, #""kind":"added""#),
     Mutation("ts-parameter-change", "span runs backwards", #""byte_start":0,"byte_end":30}},"parameters""#, #""byte_start":31,"byte_end":30}},"parameters""#),

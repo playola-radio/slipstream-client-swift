@@ -431,19 +431,15 @@ extension InterfaceInventory: Decodable {
     case policyExclusions = "policy_exclusions"
   }
 
-  private enum PolicyExclusion: String, Decodable {
-    case storeDirectory = "store-directory"
-    case git = ".git"
-    case symlinks
-  }
-
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     try container.decodeConstant("observed", forKey: .scope)
     baselineCompletedSeq = try container.decodeNullable(PositiveSeq.self, forKey: .baselineCompletedSeq)?.seq
     unknownScopes = try container.decode([String].self, forKey: .unknownScopes)
     unknownScopesComplete = try container.decode(Bool.self, forKey: .unknownScopesComplete)
-    _ = try container.decode([PolicyExclusion].self, forKey: .policyExclusions)
+    guard try container.decode([String].self, forKey: .policyExclusions) == ["store-directory", ".git", "symlinks"] else {
+      throw container.corrupt(.policyExclusions, "must be exactly store-directory, .git, symlinks")
+    }
   }
 }
 
@@ -580,17 +576,36 @@ extension InterfaceFileResult: Decodable {
     let coverage = try container.nestedContainer(keyedBy: CoverageKeys.self, forKey: .coverage)
     beforeCoverage = try coverage.decode(InterfaceCoverage.self, forKey: .before)
     afterCoverage = try coverage.decode(InterfaceCoverage.self, forKey: .after)
+    let sides = [beforeCoverage, afterCoverage]
+    if status == .identical, sides.contains(where: { $0 != .notEvaluated && $0 != .absent }) {
+      throw container.corrupt(.coverage, "an identical file is notEvaluated or absent on both sides")
+    }
+    if status == .ready, sides.contains(where: { $0 != .complete && $0 != .absent }) {
+      throw container.corrupt(.coverage, "a ready file is complete or absent on both sides")
+    }
 
+    let rowCount = try container.nestedUnkeyedContainer(forKey: .changes).count ?? 0
+    guard status == .ready || rowCount == 0 else {
+      throw container.corrupt(.changes, "only a ready file carries changes")
+    }
     switch (
       try container.decodeNullable(String.self, forKey: .language),
       try container.decodeNullable(String.self, forKey: .languageVersion)
     ) {
     case ("typescript", "typescript.v2"):
-      changes = .typescript(try container.decode([InterfaceChange].self, forKey: .changes))
+      let rows = try container.decode([InterfaceChange].self, forKey: .changes)
+      guard rows.allSatisfy({ ($0.result == nil) == ($0.identity.kind == "constructor") }) else {
+        throw container.corrupt(.changes, "result is null exactly for a TypeScript constructor")
+      }
+      changes = .typescript(rows)
     case ("swift", "swift.v1"):
-      changes = .swift(try container.decode([InterfaceChange].self, forKey: .changes))
+      let rows = try container.decode([InterfaceChange].self, forKey: .changes)
+      guard rows.allSatisfy({ $0.result != nil }) else {
+        throw container.corrupt(.changes, "a Swift declaration always has a result slot")
+      }
+      changes = .swift(rows)
     case (nil, nil):
-      guard try container.decode([InterfaceChange].self, forKey: .changes).isEmpty else {
+      guard rowCount == 0 else {
         throw container.corrupt(.changes, "a path with no language module has no changes")
       }
       changes = .noLanguageModule
@@ -598,13 +613,6 @@ extension InterfaceFileResult: Decodable {
       changes = .unsupportedLanguageVersion(language: language, version: version)
     default:
       throw container.corrupt(.languageVersion, "language and language_version must be null together")
-    }
-
-    if status != .ready, case .typescript(let rows) = changes, !rows.isEmpty {
-      throw container.corrupt(.changes, "only a ready file carries changes")
-    }
-    if status != .ready, case .swift(let rows) = changes, !rows.isEmpty {
-      throw container.corrupt(.changes, "only a ready file carries changes")
     }
   }
 }
@@ -705,7 +713,7 @@ extension InterfaceDelta: Decodable where Value: Decodable {
     case (.equal, let before?, let after?) where before == after: self = .equal(before)
     case (.added, nil, let after?): self = .added(after)
     case (.removed, let before?, nil): self = .removed(before)
-    case (.changed, let before?, let after?) where before != after: self = .changed(before: before, after: after)
+    case (.changed, let before?, let after?): self = .changed(before: before, after: after)
     default: throw container.corrupt(.op, "\(operation.rawValue) does not fit the delta's sides")
     }
   }
