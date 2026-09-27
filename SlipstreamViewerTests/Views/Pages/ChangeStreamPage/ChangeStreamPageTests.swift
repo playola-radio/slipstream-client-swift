@@ -783,6 +783,19 @@ struct ChangeStreamPageTests {
     #expect(model.scrollToLatestRequest == before + 1)
   }
 
+  @Test func newQuestionBarsRequestAScrollOnlyWhileFollowing() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    let before = model.scrollToLatestRequest
+    await send(Fixture.questionQueued(2, id: "q1"))
+    #expect(model.scrollToLatestRequest == before + 1)
+    model.scrollPhaseChanged(.interacting)
+    model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
+    await send(Fixture.questionAnswered(3, id: "q1"))
+    #expect(model.scrollToLatestRequest == before + 1)
+  }
+
   @Test func newestCardIsEmphasised() async throws {
     let model = await connectedModel()
     await send(Fixture.edited(1), Fixture.edited(2))

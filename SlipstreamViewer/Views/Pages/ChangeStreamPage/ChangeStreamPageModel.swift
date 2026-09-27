@@ -584,6 +584,7 @@ final class ChangeStreamPageModel: ViewModel {
       if let reply, let thread = questionThreads.threads[id: reply.key.rootQuestionID] {
         reply.threadUpdated(thread)
       }
+      if follow == .following { scrollToLatestRequest += 1 }
     case .sessionStarted, .questionDispatchAttempted, .recordedWithoutRow:
       break
     }

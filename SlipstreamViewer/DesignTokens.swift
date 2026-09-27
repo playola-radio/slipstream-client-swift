@@ -154,6 +154,7 @@ enum DesignTokens {
     static let answerColor = Color(hex: 0xDDE7EF)
     static let answerLineSpacing: CGFloat = 13 * 0.55
     static let inputHeight: CGFloat = 68
+    static let inputMaxHeight: CGFloat = 136
     static let inputFill = Color(hex: 0x111D26)
     static let inputRadius: CGFloat = 4
     static let inputStroke = Color(hex: 0x59798F)

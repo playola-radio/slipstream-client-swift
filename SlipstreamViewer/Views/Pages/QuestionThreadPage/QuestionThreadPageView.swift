@@ -33,10 +33,8 @@ struct QuestionThreadPageView: View {
               .lineSpacing(DesignTokens.Reply.answerLineSpacing)
               .fixedSize(horizontal: false, vertical: true)
               .textSelection(.enabled)
-              .background(alignment: .top) {
-                Color.clear.frame(height: 1).onScrollVisibilityChange(threshold: 0.01) { isVisible in
-                  if isVisible { model.answerDisplayed(answer.seq) }
-                }
+              .onScrollVisibilityChange(threshold: 1) { isVisible in
+                if isVisible { model.answerDisplayed(answer.seq) }
               }
           }
         } else {
@@ -45,19 +43,22 @@ struct QuestionThreadPageView: View {
             .foregroundStyle(DesignTokens.Reply.waitingColor)
         }
       }
-      TextField(model.followUpPlaceholder, text: $model.draft, axis: .vertical)
-        .textFieldStyle(.plain)
-        .font(DesignTokens.Reply.draftFont)
-        .foregroundStyle(DesignTokens.Reply.draftColor)
-        .lineSpacing(DesignTokens.Reply.draftLineSpacing)
-        .disabled(model.isFollowUpDisabled)
-        .padding(DesignTokens.Reply.inputPadding)
-        .frame(height: DesignTokens.Reply.inputHeight, alignment: .topLeading)
-        .background(DesignTokens.Reply.inputFill, in: RoundedRectangle(cornerRadius: DesignTokens.Reply.inputRadius))
-        .overlay {
-          RoundedRectangle(cornerRadius: DesignTokens.Reply.inputRadius)
-            .strokeBorder(DesignTokens.Reply.inputStroke, lineWidth: DesignTokens.Reply.strokeWidth)
-        }
+      ScrollView {
+        TextField(model.followUpPlaceholder, text: $model.draft, axis: .vertical)
+          .textFieldStyle(.plain)
+          .font(DesignTokens.Reply.draftFont)
+          .foregroundStyle(DesignTokens.Reply.draftColor)
+          .lineSpacing(DesignTokens.Reply.draftLineSpacing)
+          .disabled(model.isFollowUpDisabled)
+          .frame(maxWidth: .infinity, alignment: .topLeading)
+      }
+      .padding(DesignTokens.Reply.inputPadding)
+      .frame(minHeight: DesignTokens.Reply.inputHeight, maxHeight: DesignTokens.Reply.inputMaxHeight, alignment: .topLeading)
+      .background(DesignTokens.Reply.inputFill, in: RoundedRectangle(cornerRadius: DesignTokens.Reply.inputRadius))
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.Reply.inputRadius)
+          .strokeBorder(DesignTokens.Reply.inputStroke, lineWidth: DesignTokens.Reply.strokeWidth)
+      }
       HStack(spacing: DesignTokens.Reply.actionGap) {
         Text(model.sourceText)
           .font(DesignTokens.Reply.sourceFont)
