@@ -9,7 +9,7 @@ These values add to `../2026-09-24/tokens.md`; everything there still applies.
 
 | Element | Value | Notes |
 |---|---|---|
-| Changed-text tint | `#4B9CDA` at 28% opacity | Fills the glyph bounds of inserted or replaced characters, behind the text. Same blue as the line marker. Text colour does not change. |
+| Changed-text tint | `#4B9CDA` at 50% opacity | Fills the glyph bounds of inserted or replaced characters, behind the text. Same blue as the line marker. Text colour does not change. Raised from the proposal's 28% after Brian reviewed it in the app: a one-character change was too faint on the dark card. |
 | Deletion tick | `#4B9CDA`, 2 pt wide, glyph height | Drawn where characters were removed and nothing replaced them. Overlays the text; nothing moves. |
 
 Rules:
