@@ -5,6 +5,7 @@ import Dependencies
 import DependenciesTestSupport
 import Foundation
 import IdentifiedCollections
+import Sharing
 import SlipstreamCore
 import SwiftUI
 import Testing
@@ -16,14 +17,16 @@ import Testing
 struct ChangeStreamPageTests {
   let fake: DaemonFake
   let clock = TestClock()
+  let storage = InMemoryStorage()
 
   init() {
     fake = DaemonFake()
     fake.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)], roots: [Fixture.session: "/tmp/project"])
   }
 
-  func makeModel(daemon: DaemonFake? = nil) -> ChangeStreamPageModel {
+  func makeModel(daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil) -> ChangeStreamPageModel {
     withDependencies {
+      $0.defaultInMemoryStorage = storage ?? self.storage
       $0.daemon = (daemon ?? fake).client
       $0.continuousClock = clock
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
@@ -33,8 +36,8 @@ struct ChangeStreamPageTests {
     }
   }
 
-  func connectedModel() async -> ChangeStreamPageModel {
-    let model = makeModel()
+  func connectedModel(storage: InMemoryStorage? = nil) async -> ChangeStreamPageModel {
+    let model = makeModel(storage: storage)
     await model.viewAppeared()
     await Task.megaYield()
     return model
@@ -780,6 +783,19 @@ struct ChangeStreamPageTests {
     #expect(model.scrollToLatestRequest == before + 1)
   }
 
+  @Test func newQuestionBarsRequestAScrollOnlyWhileFollowing() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    let before = model.scrollToLatestRequest
+    await send(Fixture.questionQueued(2, id: "q1"))
+    #expect(model.scrollToLatestRequest == before + 1)
+    model.scrollPhaseChanged(.interacting)
+    model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
+    await send(Fixture.questionAnswered(3, id: "q1"))
+    #expect(model.scrollToLatestRequest == before + 1)
+  }
+
   @Test func newestCardIsEmphasised() async throws {
     let model = await connectedModel()
     await send(Fixture.edited(1), Fixture.edited(2))
@@ -1076,5 +1092,307 @@ extension ChangeStreamPageTests {
     #expect(model.sourceSelection != nil)
     model.sourceBlockMoved(row: row, block: blocks[0], frame: CGRect(x: 30, y: -100, width: 620, height: 66))
     #expect(!model.showsSelectionConnector)
+  }
+
+  // MARK: - Question bars
+
+  func bars(_ model: ChangeStreamPageModel, _ rowID: Int) throws -> [QuestionBar] {
+    model.questionBars(for: try #require(fileRow(model, rowID)))
+  }
+
+  func bar(_ model: ChangeStreamPageModel, _ questionID: String) throws -> QuestionBar {
+    try #require(try bars(model, 1).first { $0.id == questionID })
+  }
+
+  func open(_ model: ChangeStreamPageModel, _ questionID: String) throws -> QuestionThreadPageModel {
+    model.questionBarTapped(try bar(model, questionID))
+    return try #require(model.reply)
+  }
+
+  @Test func questionBarsSitUnderTheirSourceInAskOrder() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.edited(2, "src/api.ts"),
+      Fixture.questionQueued(3, id: "q1", text: "Why this type?"),
+      Fixture.questionQueued(4, id: "q2", text: "Why this route?", changeSeq: 2, path: "src/api.ts"),
+      Fixture.questionQueued(5, id: "q3", text: "And this line?"),
+      Fixture.questionAnswered(6, id: "q1"))
+    expectNoDifference(try bars(model, 1), [
+      QuestionBar(id: "q1", preview: "Why this type?", status: .newReply, isOpen: false),
+      QuestionBar(id: "q3", preview: "And this line?", status: .waiting, isOpen: false),
+    ])
+    expectNoDifference(try bars(model, 2), [
+      QuestionBar(id: "q2", preview: "Why this route?", status: .waiting, isOpen: false),
+    ])
+    expectNoDifference(model.paneSubtitle, "3 questions · 1 new reply")
+    #expect(model.sections[0].items.ids == [Fixture.seq(1), Fixture.seq(2)])
+  }
+
+  @Test func headerKeepsItsSubtitleUntilSomeoneAsks() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    expectNoDifference(model.paneSubtitle, "Full functions")
+    #expect(!model.isQuestionSummaryShown)
+    await send(Fixture.questionQueued(2, id: "q1"))
+    expectNoDifference(model.paneSubtitle, "1 question")
+    #expect(model.isQuestionSummaryShown)
+  }
+
+  @Test func answerArrivingDoesNotMarkItReadButDisplayingItDoes() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    let reply = try open(model, "q1")
+    expectNoDifference(try bar(model, "q1"), QuestionBar(id: "q1", preview: "Why did this change?", status: .waiting, isOpen: true))
+    await send(Fixture.questionAnswered(3, id: "q1", text: "To split the type."))
+    expectNoDifference(reply.thread.turns.map(\.answer?.text), ["To split the type."])
+    #expect(try bar(model, "q1").status == .newReply)
+    expectNoDifference(model.paneSubtitle, "1 question · 1 new reply")
+    reply.answerDisplayed(Fixture.seq(3))
+    #expect(try bar(model, "q1").status == .answered)
+    expectNoDifference(model.paneSubtitle, "1 question")
+  }
+
+  @Test func newReplyOutranksAWaitingFollowUp() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionAnswered(3, id: "q1"),
+      Fixture.questionQueued(4, id: "q2", text: "Follow-up", replyTo: "q1"))
+    #expect(try bar(model, "q1").status == .newReply)
+    try open(model, "q1").answerDisplayed(Fixture.seq(3))
+    #expect(try bar(model, "q1").status == .waiting)
+    await send(Fixture.questionAnswered(5, id: "q2"))
+    #expect(try bar(model, "q1").status == .newReply)
+    model.reply?.answerDisplayed(Fixture.seq(5))
+    #expect(try bar(model, "q1").status == .answered)
+  }
+
+  @Test func anEarlierUnansweredFollowUpKeepsTheThreadWaiting() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionAnswered(3, id: "q1"),
+      Fixture.questionQueued(4, id: "q2", text: "First follow-up", replyTo: "q1"),
+      Fixture.questionQueued(5, id: "q3", text: "Second follow-up", replyTo: "q1"),
+      Fixture.questionAnswered(6, id: "q3"))
+    let reply = try open(model, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.answerDisplayed(Fixture.seq(6))
+    #expect(try bar(model, "q1").status == .waiting)
+  }
+
+  @Test func collapsedReplyCannotMarkAnswersRead() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"), Fixture.questionAnswered(3, id: "q1"))
+    let reply = try open(model, "q1")
+    model.replyDismissTapped()
+    #expect(model.reply == nil)
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.draft = "Too late"
+    #expect(try bar(model, "q1").status == .newReply)
+    expectNoDifference(try open(model, "q1").draft, "")
+  }
+
+  @Test func collapsingTheReplyKeepsItsDraft() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"), Fixture.questionAnswered(3, id: "q1"))
+    let first = try open(model, "q1")
+    first.draft = "What about the tests?"
+    model.questionBarTapped(try bar(model, "q1"))
+    #expect(model.reply == nil)
+    #expect(try bar(model, "q1").isOpen == false)
+    let reopened = try open(model, "q1")
+    #expect(reopened !== first)
+    expectNoDifference(reopened.draft, "What about the tests?")
+  }
+
+  @Test func twoThreadsAnsweredOutOfOrderKeepTheirOwnAnswers() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1", text: "First?"),
+      Fixture.questionQueued(3, id: "q2", text: "Second?"),
+      Fixture.questionAnswered(4, id: "q2", text: "Second."),
+      Fixture.questionAnswered(5, id: "q1", text: "First."))
+    expectNoDifference(model.questionThreads.threads.map { $0.turns.map(\.answer?.text) }, [["First."], ["Second."]])
+    expectNoDifference(try bars(model, 1).map(\.status), [.newReply, .newReply])
+    expectNoDifference(model.paneSubtitle, "2 questions · 2 new replies")
+    try open(model, "q2").answerDisplayed(Fixture.seq(4))
+    expectNoDifference(try bars(model, 1).map(\.status), [.newReply, .answered])
+  }
+
+  @Test func replayingTheHistoryReproducesTheThreads() async throws {
+    let history = [
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionQueued(3, id: "q2"),
+      Fixture.questionAnswered(4, id: "q2"),
+      Fixture.questionQueued(5, id: "q3", replyTo: "q2"),
+    ]
+    let live = await connectedModel()
+    defer { live.viewDisappeared() }
+    for item in history { fake.send(to: 0, item) }
+    await Task.megaYield()
+    let restarted = await connectedModel(storage: InMemoryStorage())
+    defer { restarted.viewDisappeared() }
+    for item in history { fake.send(to: 1, item) }
+    await Task.megaYield()
+    #expect(restarted.questionThreads.threads.count == 2)
+    expectNoDifference(restarted.questionThreads, live.questionThreads)
+    expectNoDifference(try bars(restarted, 1), try bars(live, 1))
+  }
+
+  @Test func readMarkersAndDraftsAreSharedAcrossWindows() async throws {
+    let history = [Fixture.edited(1), Fixture.questionQueued(2, id: "q1"), Fixture.questionAnswered(3, id: "q1")]
+    let first = await connectedModel()
+    defer { first.viewDisappeared() }
+    for item in history { fake.send(to: 0, item) }
+    let second = await connectedModel()
+    defer { second.viewDisappeared() }
+    for item in history { fake.send(to: 1, item) }
+    await Task.megaYield()
+    let reply = try open(first, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.draft = "Shared draft"
+    #expect(try bar(second, "q1") == QuestionBar(id: "q1", preview: "Why did this change?", status: .answered, isOpen: false))
+    expectNoDifference(try open(second, "q1").draft, "Shared draft")
+  }
+
+  @Test func appRestartShowsEveryAnswerAsANewReply() async throws {
+    let history = [Fixture.edited(1), Fixture.questionQueued(2, id: "q1"), Fixture.questionAnswered(3, id: "q1")]
+    let before = await connectedModel()
+    for item in history { fake.send(to: 0, item) }
+    await Task.megaYield()
+    let reply = try open(before, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.draft = "Unsent"
+    before.viewDisappeared()
+    let after = await connectedModel(storage: InMemoryStorage())
+    defer { after.viewDisappeared() }
+    for item in history { fake.send(to: 1, item) }
+    await Task.megaYield()
+    #expect(try bar(after, "q1").status == .newReply)
+    expectNoDifference(try open(after, "q1").draft, "")
+  }
+
+  @Test func readMarkersAndDraftsBelongToTheirStore() async throws {
+    let otherStore = DaemonFake(storeID: "store-b")
+    otherStore.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    let history = [Fixture.edited(1), Fixture.questionQueued(2, id: "q1"), Fixture.questionAnswered(3, id: "q1")]
+    let first = await connectedModel()
+    defer { first.viewDisappeared() }
+    for item in history { fake.send(item) }
+    await Task.megaYield()
+    let reply = try open(first, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.draft = "Store A draft"
+    let second = makeModel(daemon: otherStore)
+    await second.viewAppeared()
+    await Task.megaYield()
+    defer { second.viewDisappeared() }
+    for item in history { otherStore.send(item) }
+    await Task.megaYield()
+    #expect(try bar(second, "q1").status == .newReply)
+    expectNoDifference(try open(second, "q1").draft, "")
+  }
+
+  @Test func sessionSwitchClosesTheReplyAndDiscardsStaleQuestionEvents() async throws {
+    fake.setSessions([
+      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+      SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+    ])
+    let model = makeModel()
+    await model.viewAppeared()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let history = [Fixture.edited(1), Fixture.questionQueued(2, id: "q1"), Fixture.questionAnswered(3, id: "q1")]
+    for item in history { fake.send(to: 0, item) }
+    await Task.megaYield()
+    let reply = try open(model, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    #expect(model.reply == nil)
+    fake.send(to: 0, Fixture.questionQueued(4, id: "q2"))
+    await Task.megaYield()
+    #expect(model.questionThreads.threads.isEmpty)
+    expectNoDifference(model.paneSubtitle, "Full functions")
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    for item in history { fake.send(to: 2, item) }
+    await Task.megaYield()
+    #expect(try bar(model, "q1") == QuestionBar(id: "q1", preview: "Why did this change?", status: .answered, isOpen: false))
+  }
+
+  @Test func reconnectKeepsTheOpenReply() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    let reply = try open(model, "q1")
+    fake.close()
+    await Task.megaYield()
+    await clock.advance(by: .milliseconds(500))
+    await send(Fixture.questionAnswered(3, id: "q1"))
+    #expect(model.reply === reply)
+    expectNoDifference(reply.thread.turns.map(\.answer?.text), ["Because."])
+  }
+
+  @Test func hidingTheFeedCollapsesTheReply() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    _ = try open(model, "q1")
+    model.hideFeedTapped()
+    #expect(model.reply == nil)
+  }
+
+  @Test func askingAndReplyingNeverOverlap() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(
+      span: ClipSpan(lineStart: 1, lineEnd: 3, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(
+      Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
+      Fixture.questionQueued(2, id: "q1", path: "source.ts"))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing code"); return }
+    _ = try open(model, "q1")
+    model.sourceDragged(row: row, block: blocks[0], startY: 0, endY: 20, frame: CGRect(x: 30, y: 30, width: 620, height: 66))
+    model.sourceDragEnded()
+    #expect(model.askAgent != nil)
+    #expect(model.reply == nil)
+    model.questionBarTapped(try bar(model, "q1"))
+    #expect(model.reply == nil)
+  }
+
+  @Test func replyOpensBesideItsBarWithAConnector() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    model.viewportChanged(CGSize(width: 1400, height: 900))
+    model.feedViewportChanged(CGRect(x: 0, y: 52, width: 680, height: 800))
+    let bar = try bar(model, "q1")
+    model.questionBarMoved(bar, frame: CGRect(x: 20, y: 300, width: 640, height: 42))
+    model.questionBarTapped(bar)
+    model.replyMeasured(CGSize(width: 420, height: 300))
+    expectNoDifference(model.replyPlacement.popover, CGRect(x: 704, y: 300, width: 420, height: 300))
+    expectNoDifference(model.replyPlacement.barAnchor, CGPoint(x: 660, y: 321))
+    #expect(model.showsReplyConnector)
+    model.questionBarDisappeared(bar)
+    #expect(!model.showsReplyConnector)
   }
 }

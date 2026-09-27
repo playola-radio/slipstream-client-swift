@@ -33,8 +33,15 @@ final class DaemonFake: Sendable {
   private let clipsGate: AsyncStream<Void>?
   private let sessionsGate: AsyncStream<Void>?
   private let gatesEachClipsCall: Bool
+  private let storeID: String
 
-  init(clipsGate: AsyncStream<Void>? = nil, sessionsGate: AsyncStream<Void>? = nil, gatesEachClipsCall: Bool = false) {
+  init(
+    storeID: String = "store-a",
+    clipsGate: AsyncStream<Void>? = nil,
+    sessionsGate: AsyncStream<Void>? = nil,
+    gatesEachClipsCall: Bool = false
+  ) {
+    self.storeID = storeID
     self.clipsGate = clipsGate
     self.sessionsGate = sessionsGate
     self.gatesEachClipsCall = gatesEachClipsCall
@@ -82,6 +89,7 @@ final class DaemonFake: Sendable {
 
   var client: DaemonClient {
     DaemonClient(
+      storeID: storeID,
       discover: { [self] in
         try state.withLock { state in
           if let error = state.discoverError { throw error }
@@ -205,6 +213,33 @@ enum Fixture {
 
   static func sessionResumed(_ value: Int) -> StreamItem {
     frame(value, type: "slipstream.session.resumed.v1", data: ["session_id": session])
+  }
+
+  static func questionQueued(
+    _ value: Int,
+    id: String,
+    text: String = "Why did this change?",
+    changeSeq: Int = 1,
+    path: String = "src/user.ts",
+    replyTo parentID: String? = nil
+  ) -> StreamItem {
+    var data: [String: Any] = [
+      "question_id": id,
+      "text": text,
+      "queued_at_ms": observedAtMs,
+      "context": [
+        "change_seq": String(changeSeq), "path": path, "snapshot_sha256": shaB,
+        "line_start": 7, "line_end": 9, "selected_text": "a",
+      ],
+    ]
+    if let parentID { data["reply_to_question_id"] = parentID }
+    return frame(value, type: "slipstream.question.queued.v1", data: data)
+  }
+
+  static func questionAnswered(_ value: Int, id: String, text: String = "Because.") -> StreamItem {
+    frame(value, type: "slipstream.question.answered.v1", data: [
+      "question_id": id, "attempt_seq": String(value - 1), "text": text, "answered_at_ms": observedAtMs,
+    ])
   }
 }
 

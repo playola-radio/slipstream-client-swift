@@ -29,6 +29,9 @@ packages:
   xctest-dynamic-overlay:
     url: https://github.com/pointfreeco/xctest-dynamic-overlay
     exactVersion: 1.13.1
+  swift-sharing:
+    url: https://github.com/pointfreeco/swift-sharing
+    exactVersion: 2.9.1
 targets:
   SlipstreamViewer:
     type: application
@@ -48,6 +51,8 @@ targets:
         product: IdentifiedCollections
       - package: xctest-dynamic-overlay
         product: IssueReporting
+      - package: swift-sharing
+        product: Sharing
     info:
       path: SlipstreamViewer/Info.plist
       properties:
