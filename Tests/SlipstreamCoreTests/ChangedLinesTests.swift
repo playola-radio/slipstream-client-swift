@@ -274,6 +274,13 @@ struct ChangedLinesTests {
     )
   }
 
+  @Test func nearbyDeletionsKeepSeparateRemovalMarks() {
+    expectNoDifference(
+      clip(before: "call(a,b,c)\n", after: "call(abc)\n", lineStart: 1, lineEnd: 1).first?.changedText,
+      ChangedText(removedAt: [6, 7])
+    )
+  }
+
   @Test func deletionAtEndOfLineMarksTheLineEnd() {
     expectNoDifference(
       clip(before: "return a;\n", after: "return a\n", lineStart: 1, lineEnd: 1).first?.changedText,
