@@ -48,6 +48,11 @@ struct ChangeStreamPageTests {
     await Task.megaYield()
   }
 
+  func send(to index: Int, _ items: StreamItem...) async {
+    for item in items { fake.send(to: index, item) }
+    await Task.megaYield()
+  }
+
   func fileRow(_ model: ChangeStreamPageModel, _ id: Int) -> FileChangeRow? {
     for section in model.sections {
       if case .file(let row) = section.items[id: Fixture.seq(id)] { return row }
@@ -1430,5 +1435,105 @@ extension ChangeStreamPageTests {
     #expect(model.showsReplyConnector)
     model.questionBarDisappeared(bar)
     #expect(!model.showsReplyConnector)
+  }
+}
+
+extension ChangeStreamPageTests {
+  // MARK: - Follow-ups across windows
+
+  static let root = "11111111-1111-4111-8111-111111111111"
+  static let firstFollowUp = "22222222-2222-4222-8222-222222222222"
+
+  @Test func laggingWindowCannotReplyWhileAnotherWindowSawTheLatestTurnWaiting() async throws {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let (current, lagging) = await withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        requests.withValue { $0.append(request) }
+        if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: {
+      let current = await connectedModel()
+      return (current, await connectedModel())
+    }
+    defer {
+      current.viewDisappeared()
+      lagging.viewDisappeared()
+    }
+    for item in [Fixture.edited(1), Fixture.questionQueued(2, id: Self.root), Fixture.questionAnswered(3, id: Self.root)] {
+      fake.send(to: 0, item)
+      fake.send(to: 1, item)
+    }
+    await Task.megaYield()
+    let reply = try open(current, Self.root)
+    reply.draft = "First follow-up"
+    await reply.sendReplyTapped()
+    #expect(reply.isErrorPresented)
+    current.replyDismissTapped()
+    let queued = Fixture.questionQueued(4, id: Self.firstFollowUp, text: "First follow-up", replyTo: Self.root)
+    await send(to: 0, queued)
+
+    let stale = try open(lagging, Self.root)
+    #expect(stale.isFollowUpDisabled)
+    stale.draft = "A different follow-up"
+    await stale.sendReplyTapped()
+    expectNoDifference(requests.value.count, 1)
+    expectNoDifference(stale.draft, "First follow-up")
+    await send(to: 1, queued)
+    #expect(stale.isFollowUpDisabled)
+    await send(to: 1, Fixture.questionAnswered(5, id: Self.firstFollowUp))
+    #expect(!stale.isFollowUpDisabled)
+
+    stale.draft = "A different follow-up"
+    await stale.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.replyToQuestionID), [Self.root, Self.firstFollowUp])
+    expectNoDifference(Set(requests.value.map(\.requestID)).count, 2)
+  }
+
+  @Test func olderReplayCannotReopenRepliesBehindANewerWaitingTurn() async throws {
+    let secondFollowUp = "44444444-4444-4444-8444-444444444444"
+    let history = [
+      Fixture.edited(1), Fixture.questionQueued(2, id: Self.root), Fixture.questionAnswered(3, id: Self.root),
+      Fixture.questionQueued(4, id: Self.firstFollowUp, replyTo: Self.root),
+      Fixture.questionAnswered(5, id: Self.firstFollowUp),
+    ]
+    let waiting = Fixture.questionQueued(6, id: secondFollowUp, replyTo: Self.firstFollowUp)
+    let current = await connectedModel()
+    defer { current.viewDisappeared() }
+    for item in history + [waiting] { fake.send(to: 0, item) }
+    await Task.megaYield()
+    let replaying = await connectedModel()
+    defer { replaying.viewDisappeared() }
+    for item in history { fake.send(to: 1, item) }
+    await Task.megaYield()
+
+    let reply = try open(replaying, Self.root)
+    #expect(reply.isFollowUpDisabled)
+    await send(to: 1, waiting)
+    #expect(reply.isFollowUpDisabled)
+    await send(to: 1, Fixture.questionAnswered(7, id: secondFollowUp))
+    #expect(!reply.isFollowUpDisabled)
+  }
+
+  @Test func waitingFollowUpBlocksOnlyItsOwnStoreCaptureAndThread() async throws {
+    let otherStore = DaemonFake(storeID: "store-b")
+    otherStore.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    let history = [Fixture.edited(1), Fixture.questionQueued(2, id: Self.root), Fixture.questionAnswered(3, id: Self.root)]
+    let first = await connectedModel()
+    defer { first.viewDisappeared() }
+    for item in history { fake.send(item) }
+    await send(Fixture.questionQueued(4, id: Self.firstFollowUp, replyTo: Self.root))
+    let second = makeModel(daemon: otherStore)
+    await second.viewAppeared()
+    await Task.megaYield()
+    defer { second.viewDisappeared() }
+    for item in history { otherStore.send(item) }
+    await Task.megaYield()
+
+    #expect(try !open(second, Self.root).isFollowUpDisabled)
+    expectNoDifference(
+      Array(first.replyDrafts.keys),
+      [QuestionThreadKey(storeID: "store-a", sessionID: Fixture.session, rootQuestionID: Self.root)])
   }
 }
