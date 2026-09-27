@@ -176,11 +176,12 @@ struct LiveDaemon: Sendable {
         if case .content(let beforeSHA, _) = change.before {
           before = String(decoding: try await transport.blob(descriptor, sha256: beforeSHA), as: UTF8.self)
         }
+        let comparison = ChangedLines.compare(before: before, after: after, spans: clips.clips.compactMap(\.after.span))
         for clip in clips.clips {
           guard let span = clip.after.span else { continue }
           card.methods.append(clip.after.method.rawValue)
           card.spans.append("\(span.lineStart)-\(span.lineEnd)")
-          card.blocks.append(ChangedLines.clipLines(before: before, after: after, lineStart: span.lineStart, lineEnd: span.lineEnd))
+          card.blocks.append(comparison.clipLines(lineStart: span.lineStart, lineEnd: span.lineEnd))
         }
       }
       cards.append(card)

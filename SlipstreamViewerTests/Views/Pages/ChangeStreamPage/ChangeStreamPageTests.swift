@@ -391,7 +391,7 @@ struct ChangeStreamPageTests {
             separatorText: nil,
             lines: [
               CodeLine(id: 2, number: "2", text: "function f() {", isChanged: false),
-              CodeLine(id: 3, number: "3", text: "  return 2", isChanged: true),
+              CodeLine(id: 3, number: "3", text: "  return 2", isChanged: true, changedRanges: [9..<10]),
               CodeLine(id: 4, number: "4", text: "}", isChanged: false),
             ],
             truncationText: nil
@@ -399,6 +399,50 @@ struct ChangeStreamPageTests {
         ]
       )
     )
+  }
+
+  func highlightedLines(before: String, after: String, clips: [Clip]) async -> [CodeLine] {
+    fake.setBlob(Fixture.shaA, before)
+    fake.setBlob(Fixture.shaB, after)
+    let content = await loadedContent(Fixture.edited(1), clips: ClipsResponse(status: .ready, clips: clips))
+    guard case .code(let blocks) = content else {
+      Issue.record("Expected code, got \(content)")
+      return []
+    }
+    return blocks.flatMap(\.lines)
+  }
+
+  @Test func deletionOnlyEditMarksWhereTextWasRemoved() async {
+    let lines = await highlightedLines(before: "foo(a, b)\n", after: "foo(a)\n", clips: [functionClip(1, 1)])
+    expectNoDifference(lines, [CodeLine(id: 1, number: "1", text: "foo(a)", isChanged: true, removalOffsets: [5])])
+  }
+
+  @Test func tabsShiftHighlightsToTheDisplayedColumns() async {
+    let lines = await highlightedLines(before: "\tx\t= 1\n", after: "\tx\t= 2\n", clips: [functionClip(1, 1)])
+    expectNoDifference(
+      lines,
+      [CodeLine(id: 1, number: "1", text: "    x    = 2", isChanged: true, changedRanges: [11..<12])]
+    )
+  }
+
+  @Test func emojiAndCombiningMarksAreHighlightedWhole() async {
+    let lines = await highlightedLines(
+      before: "say(\"👍\", cafe)\n", after: "say(\"👩‍👩‍👧\", cafe\u{301})\n", clips: [functionClip(1, 1)]
+    )
+    expectNoDifference(lines.map(\.changedRanges), [[5..<13, 19..<21]])
+  }
+
+  @Test func everyBlockOfACardIsHighlighted() async {
+    let lines = await highlightedLines(
+      before: "one = 1\ntwo\nthree\nfour = 4\n", after: "one = 2\ntwo\nthree\nfour = 5\n",
+      clips: [functionClip(1, 1), functionClip(4, 4)]
+    )
+    expectNoDifference(lines.map(\.changedRanges), [[6..<7], [7..<8]])
+  }
+
+  @Test func crlfLineHighlightsWithoutTheCarriageReturn() async {
+    let lines = await highlightedLines(before: "x = 1\r\n", after: "x = 2\r\n", clips: [functionClip(1, 1)])
+    expectNoDifference(lines, [CodeLine(id: 1, number: "1", text: "x = 2", isChanged: true, changedRanges: [4..<5])])
   }
 
   @Test func multipleClipsBecomeSeparateBlocksAndTruncationIsShown() async {

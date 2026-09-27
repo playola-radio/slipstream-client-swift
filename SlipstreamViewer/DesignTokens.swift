@@ -316,6 +316,9 @@ enum DesignTokens {
     }
 
     static let markerWidth: CGFloat = 3
+    static let changedTextTint = Color(hex: 0x4B9CDA).opacity(0.28)
+    static let removalTick = Color(hex: 0x4B9CDA)
+    static let removalTickWidth: CGFloat = 2
   }
 
   enum Footer {

@@ -478,6 +478,7 @@ private struct CodeBlockView: View {
             .font(DesignTokens.Fonts.sourceLine)
             .foregroundStyle(DesignTokens.Colors.sourceLine)
             .lineLimit(1)
+            .textRenderer(ChangedTextRenderer(changedRanges: line.changedRanges, removalOffsets: line.removalOffsets))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
@@ -534,6 +535,54 @@ private struct CodeBlockView: View {
       source()
     }
     .frame(height: DesignTokens.Card.lineHeight)
+  }
+}
+
+/// Draws the tint and removal ticks from glyph positions so the line stays one unsplit
+/// `Text` and keeps its ligatures. Offsets are UTF-16, counted from the first glyph.
+private struct ChangedTextRenderer: TextRenderer {
+  let changedRanges: [Range<Int>]
+  let removalOffsets: [Int]
+
+  func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+    guard !changedRanges.isEmpty || !removalOffsets.isEmpty else {
+      for line in layout { context.draw(line) }
+      return
+    }
+    let slices = layout.flatMap { $0 }.flatMap { run in run.indices.map { run[$0] } }
+    guard let start = slices.flatMap(\.characterIndices).min() else {
+      for line in layout { context.draw(line) }
+      return
+    }
+    var tint = Path()
+    var ticks = Path()
+    var ticked = Set<Int>()
+    var last: (offset: Int, rect: CGRect)?
+    for slice in slices {
+      let offsets = slice.characterIndices.map { start.distance(to: $0) }
+      guard let first = offsets.min() else { continue }
+      let rect = slice.typographicBounds.rect
+      if changedRanges.contains(where: { $0.contains(first) }) { tint.addRect(rect) }
+      for offset in removalOffsets where offsets.contains(offset) && ticked.insert(offset).inserted {
+        ticks.addRect(tick(at: rect.minX, in: rect))
+      }
+      if first >= last?.offset ?? 0 { last = (first, rect) }
+    }
+    if let last {
+      for offset in removalOffsets where offset > last.offset && !ticked.contains(offset) {
+        ticks.addRect(tick(at: last.rect.maxX, in: last.rect))
+      }
+    }
+    context.fill(tint, with: .color(DesignTokens.Card.changedTextTint))
+    for line in layout { context.draw(line) }
+    context.fill(ticks, with: .color(DesignTokens.Card.removalTick))
+  }
+
+  private func tick(at x: CGFloat, in rect: CGRect) -> CGRect {
+    CGRect(
+      x: x - DesignTokens.Card.removalTickWidth / 2, y: rect.minY,
+      width: DesignTokens.Card.removalTickWidth, height: rect.height
+    )
   }
 }
 

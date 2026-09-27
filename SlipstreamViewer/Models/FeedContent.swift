@@ -64,6 +64,9 @@ struct CodeLine: Identifiable, Equatable, Sendable {
   var text: String
   var isChanged: Bool
   var isVerified: Bool = true
+  /// UTF-16 offsets into `text`.
+  var changedRanges: [Range<Int>] = []
+  var removalOffsets: [Int] = []
 }
 
 struct CodeBlock: Identifiable, Equatable, Sendable {

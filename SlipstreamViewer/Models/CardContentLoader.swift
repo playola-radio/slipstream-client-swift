@@ -69,22 +69,37 @@ enum CardContentLoader {
       if fallbackReason == "truncated-after" { return .note(PlainWords.clipReason("truncated-after")) }
       return .note("Only lines removed — nothing to show")
     }
-    let blocks = merged(shown.compactMap(\.after.span)).enumerated().map { index, span in
-      let lines = ChangedLines.clipLines(before: before, after: after, lineStart: span.lineStart, lineEnd: span.lineEnd)
-      return CodeBlock(
+    let spans = merged(shown.compactMap(\.after.span))
+    let comparison = ChangedLines.compare(before: before, after: after, spans: spans)
+    let blocks = spans.enumerated().map { index, span in
+      CodeBlock(
         id: index,
         separatorText: index == 0 ? nil : "···",
-        lines: lines.map {
-          CodeLine(
-            id: $0.number, number: String($0.number),
-            text: $0.text.replacingOccurrences(of: "\t", with: "    "),
-            isChanged: $0.isChanged, isVerified: isBeforeVerifiable
-          )
+        lines: comparison.clipLines(lineStart: span.lineStart, lineEnd: span.lineEnd).map {
+          codeLine($0, isVerified: isBeforeVerifiable)
         },
         truncationText: span.truncated ? "… truncated" : nil
       )
     }
     return .code(blocks)
+  }
+
+  private static let tabWidth = 4
+
+  private static func codeLine(_ line: ClipLine, isVerified: Bool) -> CodeLine {
+    var codeLine = CodeLine(
+      id: line.number, number: String(line.number),
+      text: line.text.replacingOccurrences(of: "\t", with: String(repeating: " ", count: tabWidth)),
+      isChanged: line.isChanged, isVerified: isVerified
+    )
+    guard let changedText = line.changedText else { return codeLine }
+    var displayOffsets = [0]
+    for character in line.text {
+      displayOffsets.append(displayOffsets[displayOffsets.count - 1] + (character == "\t" ? tabWidth : character.utf16.count))
+    }
+    codeLine.changedRanges = changedText.inserted.map { displayOffsets[$0.lowerBound]..<displayOffsets[$0.upperBound] }
+    codeLine.removalOffsets = changedText.removedAt.map { displayOffsets[$0] }
+    return codeLine
   }
 
   private static let binaryNote = "Binary file — not shown"
