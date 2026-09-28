@@ -7,12 +7,14 @@ struct FunctionChangesFixtureView: View {
     VStack(spacing: 0) {
       HStack {
         Text(model.pickerTitle)
-        Picker(model.pickerTitle, selection: $model.selectedCase) {
+        Picker(model.pickerTitle, selection: $model.caseSelection) {
           ForEach(model.caseNames, id: \.self) { name in Text(name).tag(name) }
         }
         .labelsHidden()
         .frame(width: 290)
-        .onChange(of: model.selectedCase) { _, name in model.caseSelected(name) }
+        if model.errorText != nil {
+          Button("Retry") { model.retryTapped() }
+        }
         Spacer()
       }
       .font(DesignTokens.FunctionTree.bodyFont)

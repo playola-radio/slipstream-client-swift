@@ -70,12 +70,11 @@ struct FunctionContractMapView: View {
         HStack(alignment: .top, spacing: DesignTokens.FunctionMap.laneGap) {
           fileColumn(file)
           LazyVStack(alignment: .leading, spacing: DesignTokens.FunctionMap.rowGap) {
+            if let status = file.statusText {
+              statusRow(status, file: file)
+            }
             ForEach(file.rows) { row in
-              if let status = row.statusText {
-                statusRow(status)
-              } else {
-                declarationRow(row)
-              }
+              declarationRow(row)
             }
           }
         }
@@ -204,14 +203,19 @@ struct FunctionContractMapView: View {
     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.FunctionMap.groupRadius))
   }
 
-  private func statusRow(_ status: String) -> some View {
-    Text(status)
-      .font(DesignTokens.FunctionMap.bodyFont)
-      .foregroundStyle(DesignTokens.FunctionMap.unknown)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(DesignTokens.FunctionMap.cardPadding)
-      .frame(minHeight: DesignTokens.FunctionMap.rowMinHeight, alignment: .topLeading)
-      .background(DesignTokens.FunctionMap.equalFill)
-      .clipShape(RoundedRectangle(cornerRadius: DesignTokens.FunctionMap.groupRadius))
+  private func statusRow(_ status: String, file: FunctionMapFile) -> some View {
+    HStack(spacing: DesignTokens.FunctionMap.rowGap) {
+      Text(file.statusMarker)
+      Text(status)
+    }
+    .font(DesignTokens.FunctionMap.bodyFont)
+    .foregroundStyle(
+      file.isUnknown ? DesignTokens.FunctionMap.unknown : DesignTokens.FunctionMap.secondary
+    )
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(DesignTokens.FunctionMap.cardPadding)
+    .frame(minHeight: DesignTokens.FunctionMap.rowMinHeight, alignment: .topLeading)
+    .background(DesignTokens.FunctionMap.equalFill)
+    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.FunctionMap.groupRadius))
   }
 }

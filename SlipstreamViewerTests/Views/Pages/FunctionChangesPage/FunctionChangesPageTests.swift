@@ -57,6 +57,11 @@ struct FunctionChangesPageTests {
     #expect(model.mapStats.contains { $0.label.contains("files not compared") })
   }
 
+  @Test func mapStatsKeepLoadedOnlyScopeWhenInventoryIsUncertain() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("range-unknown-scopes"))
+    #expect(model.mapStats.allSatisfy { $0.label.contains("loaded files") })
+  }
+
   @Test func contractMapUsesRecordedInputsAndOutputs() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     let group = try #require(model.mapGroups.first)
@@ -94,7 +99,7 @@ struct FunctionChangesPageTests {
     #expect(rows[1].subtitle.contains("!(DEBUG)"))
   }
 
-  @Test func contractMapGroupsRootFilesAndKeepsStableRowIdentity() throws {
+  @Test func contractMapGroupsRootFilesAndQualifiesSearchCounts() throws {
     var comparison = try fixture("ts-parameter-change")
     comparison.files[0].path = "f.ts"
     let model = FunctionChangesPageModel(comparison: comparison)
@@ -102,7 +107,8 @@ struct FunctionChangesPageTests {
     expectNoDifference(group.directory, "/")
     expectNoDifference(group.files.first?.rows.first?.id, "declaration:f.ts:0")
     model.searchText = "f"
-    expectNoDifference(model.mapGroups.first?.files.first?.rows.first?.id, "declaration:f.ts:0")
+    #expect(model.mapGroups.first?.summaryText.contains("matching") == true)
+    #expect(model.mapGroups.first?.files.first?.summaryText.contains("matching") == true)
   }
 
   @Test func contractMapShowsPartialAndFailedFilesWithoutInventedRows() throws {
@@ -110,8 +116,9 @@ struct FunctionChangesPageTests {
     let files = partial.mapGroups.flatMap(\.files)
     expectNoDifference(files.map(\.path), ["src/a.ts", "src/b.ts"])
     #expect(files[1].isUnknown)
-    expectNoDifference(files[1].rows.first?.statusText, "Skipped: cancelled")
-    #expect(partial.noticeText.contains("loaded data only"))
+    expectNoDifference(files[1].statusText, "Skipped: cancelled")
+    expectNoDifference(files[1].statusMarker, "?")
+    #expect(files[1].rows.isEmpty)
     let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
     #expect(failed.mapGroups.flatMap(\.files).allSatisfy { $0.isUnknown })
     #expect(failed.mapGroups.flatMap(\.files).flatMap(\.rows).allSatisfy { $0.marker == nil })
@@ -122,15 +129,16 @@ struct FunctionChangesPageTests {
     #expect(identical.mapGroups.isEmpty)
     identical.showUnchangedTapped()
     expectNoDifference(
-      identical.mapGroups.first?.files.first?.rows.first?.statusText,
+      identical.mapGroups.first?.files.first?.statusText,
       "No net change at recorded endpoints")
+    expectNoDifference(identical.mapGroups.first?.files.first?.statusMarker, "=")
     var comparison = try fixture("ts-parameter-change")
     comparison.files[0].changes = .unsupportedLanguageVersion(
       language: "typescript", version: "typescript.v3")
     let unsupported = FunctionChangesPageModel(comparison: comparison)
     #expect(unsupported.mapGroups.first?.files.first?.isUnknown == true)
     expectNoDifference(
-      unsupported.mapGroups.first?.files.first?.rows.first?.statusText,
+      unsupported.mapGroups.first?.files.first?.statusText,
       "Unsupported language version: typescript typescript.v3")
     comparison.files.append(comparison.files[0])
     #expect(FunctionChangesPageModel(comparison: comparison).mapGroups.isEmpty)
@@ -164,6 +172,21 @@ struct FunctionChangesPageTests {
     #expect(model.summaryText.contains("loaded"))
     #expect(model.filesNotCompared == 1)
     #expect(model.nodes.contains { $0.statusText?.contains("cancelled") == true })
+  }
+
+  @Test func incompleteEmptyPageDoesNotClaimEndpointFilesAreEmpty() throws {
+    var comparison = try fixture("ts-parameter-change")
+    comparison.files = []
+    comparison.page = InterfacePage(complete: false, nextAfterPath: "src/f.ts")
+    let model = FunctionChangesPageModel(comparison: comparison)
+    #expect(model.emptyStateText.contains("more files may exist"))
+  }
+
+  @Test func incompletePageSummaryQualifiesComparedFiles() throws {
+    var comparison = try fixture("range-cancelled-mid-page")
+    comparison.files[0].changes = .typescript([])
+    let model = FunctionChangesPageModel(comparison: comparison)
+    #expect(model.summaryText.contains("in loaded files"))
   }
 
   @Test func failedAndIdenticalAreDifferentFromReadyWithNoChanges() throws {
@@ -324,6 +347,39 @@ struct FunctionChangesPageTests {
     model.declarationTapped(try #require(model.nodes.first { $0.kind == .declaration }).id)
     expectNoDifference(model.sourceSelection?.side, .before)
     #expect(!model.canSelectAfter)
+    #expect(model.selectionText.contains("After source reference unavailable"))
+  }
+
+  @Test func unavailableSourceReferenceExplainsSelectedDeclaration() throws {
+    var comparison = try fixture("ts-added-function")
+    if case .typescript(var changes) = comparison.files[0].changes,
+      case .added(let after) = changes[0].kind
+    {
+      changes[0].kind = .added(
+        after: InterfaceDeclaration(displayName: after.displayName, byteRange: 0..<999_999))
+      comparison.files[0].changes = .typescript(changes)
+    }
+    let model = FunctionChangesPageModel(comparison: comparison)
+    model.declarationTapped(try #require(model.mapGroups.first?.files.first?.rows.first?.id))
+    #expect(model.sourceSelection == nil)
+    #expect(model.selectionText.contains("Source reference unavailable"))
+  }
+
+  @Test func changedAbsentThrowsModesShowBothRecordedStates() throws {
+    var comparison = try fixture("ts-parameter-change")
+    if case .typescript(var changes) = comparison.files[0].changes {
+      changes[0].throwsClause = .changed(
+        before: InterfaceThrowsClause(mode: .notWritten),
+        after: InterfaceThrowsClause(mode: .notExpressible))
+      comparison.files[0].changes = .typescript(changes)
+    }
+    let row = try #require(
+      FunctionChangesPageModel(comparison: comparison).mapGroups.first?.files.first?.rows.first)
+    #expect(row.outputLines.contains { $0.mark == .removed && $0.text == "No declared throws" })
+    #expect(
+      row.outputLines.contains {
+        $0.mark == .added && $0.text == "Throws not expressible in TypeScript"
+      })
   }
 
   @Test func directoryCountsIgnoreComponentRowsAndExposeUnknownFiles() throws {
@@ -469,6 +525,7 @@ struct FunctionChangesPageTests {
     #expect(demo.page == nil)
     #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")
     #expect(demo.caseNames.contains("ts-parameter-change"))
+    #expect(demo.caseNames.contains(demo.selectedCase))
     demo.caseSelected("ts-parameter-change")
     #expect(demo.page != nil)
   }
@@ -500,6 +557,9 @@ struct FunctionChangesPageTests {
     demo.viewAppeared()
     expectNoDifference(demo.caseNames, ["synthetic"])
     expectNoDifference(demo.page?.detectedChanges, 1)
+    let page = try #require(demo.page)
+    demo.viewAppeared()
+    #expect(demo.page === page)
   }
 
 }

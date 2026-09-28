@@ -23,6 +23,7 @@ enum DesignTokens {
     static let added = Color(hex: 0x8DD9B1)
     static let removed = Color(hex: 0xF0A4AB)
     static let changed = Color(hex: 0xE4C282)
+    static let unknown = Color(hex: 0xA4B4C3)
     static let inputFill = Color(hex: 0x11171D)
     static let controlFill = Color(hex: 0x192631)
     static let bannerFill = Color(hex: 0x1B222A)
@@ -114,10 +115,9 @@ enum DesignTokens {
 
     static func markFill(_ mark: FunctionChangeLine.Mark) -> Color {
       switch mark {
-      case .equal, .note: equalFill
+      case .equal, .changed, .note: equalFill
       case .added: addedFill
       case .removed: removedFill
-      case .changed: equalFill
       }
     }
   }

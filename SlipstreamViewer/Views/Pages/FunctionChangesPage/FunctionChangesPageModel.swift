@@ -52,10 +52,13 @@ struct FunctionMapGroup: Identifiable, Equatable {
   let files: [FunctionMapFile]
   let changedCount: Int
   let unknownCount: Int
+  let isFiltered: Bool
 
   var summaryText: String {
+    let qualifier = isFiltered ? "matching " : ""
     let changes =
-      changedCount == 1 ? "1 changed declaration" : "\(changedCount) changed declarations"
+      changedCount == 1
+      ? "1 \(qualifier)changed declaration" : "\(changedCount) \(qualifier)changed declarations"
     if unknownCount == 0 { return changes }
     let unknown = unknownCount == 1 ? "1 file not compared" : "\(unknownCount) files not compared"
     if changedCount == 0 { return "\(unknown) · changes unknown" }
@@ -69,12 +72,17 @@ struct FunctionMapFile: Identifiable, Equatable {
   let name: String
   let changedCount: Int
   let isUnknown: Bool
+  let isFiltered: Bool
+  let statusText: String?
   let rows: [FunctionMapRow]
 
   var summaryText: String {
     if isUnknown { return "Not compared" }
-    return changedCount == 1 ? "1 changed declaration" : "\(changedCount) changed declarations"
+    let qualifier = isFiltered ? "matching " : ""
+    return changedCount == 1
+      ? "1 \(qualifier)changed declaration" : "\(changedCount) \(qualifier)changed declarations"
   }
+  var statusMarker: String { isUnknown ? "?" : "=" }
 }
 
 struct FunctionMapRow: Identifiable, Equatable {
@@ -86,7 +94,6 @@ struct FunctionMapRow: Identifiable, Equatable {
   let inputLines: [FunctionChangeLine]
   let outputLines: [FunctionChangeLine]
   let headerLines: [FunctionChangeLine]
-  let statusText: String?
 }
 
 struct FunctionMapStat: Equatable {
@@ -134,9 +141,7 @@ final class FunctionChangesPageModel: ViewModel {
   var mapStats: [FunctionMapStat] {
     guard !hasDuplicatePaths, !comparison.files.isEmpty else { return [] }
     if case .skipped = comparison.status { return [] }
-    let suffix =
-      comparison.page.complete && filesNotCompared == 0
-      ? "in observed files" : "in loaded files"
+    let suffix = "in loaded files"
     let filesWithChanges = comparison.files.filter { !changes(in: $0).isEmpty }.count
     if filesNotCompared > 0 && detectedChanges == 0 {
       return [
@@ -164,7 +169,7 @@ final class FunctionChangesPageModel: ViewModel {
       let changes = changes(in: file)
       let isSwift: Bool
       if case .swift = file.changes { isSwift = true } else { isSwift = false }
-      var rows = changes.enumerated().compactMap { index, change -> FunctionMapRow? in
+      let rows = changes.enumerated().compactMap { index, change -> FunctionMapRow? in
         guard matchesSearch(change, in: file) else { return nil }
         let marker: FunctionChangeLine.Mark =
           switch change.kind {
@@ -177,28 +182,21 @@ final class FunctionChangesPageModel: ViewModel {
           subtitle: mapSubtitle(for: change), label: mapLabel(for: change), marker: marker,
           inputLines: parameterLines(for: change, isSwift: isSwift),
           outputLines: resultLines(for: change) + throwsLines(for: change),
-          headerLines: headerLines(for: change), statusText: nil)
+          headerLines: headerLines(for: change))
       }
-      if rows.isEmpty {
-        rows = [
-          FunctionMapRow(
-            id: "status:\(file.path)", title: parts.last ?? file.path, subtitle: "", label: "",
-            marker: nil, inputLines: [], outputLines: [], headerLines: [],
-            statusText: fileStatusText(file) ?? "No detected interface change")
-        ]
-      }
+      let statusText = rows.isEmpty ? fileStatusText(file) : nil
       filesByDirectory[directory, default: []].append(
         FunctionMapFile(
           id: "map-file:\(file.path)", path: file.path, name: parts.last ?? file.path,
           changedCount: rows.filter { $0.marker != nil }.count, isUnknown: isNotCompared(file),
-          rows: rows))
+          isFiltered: !searchText.isEmpty, statusText: statusText, rows: rows))
     }
     return order.map { directory in
       let files = filesByDirectory[directory] ?? []
       return FunctionMapGroup(
         id: "map-directory:\(directory)", directory: directory, files: files,
         changedCount: files.reduce(0) { $0 + $1.changedCount },
-        unknownCount: files.filter(\.isUnknown).count)
+        unknownCount: files.filter(\.isUnknown).count, isFiltered: !searchText.isEmpty)
     }
   }
   var canvasSize: CGSize { tree.size }
@@ -257,7 +255,8 @@ final class FunctionChangesPageModel: ViewModel {
       let known =
         comparison.files.count > failures
         ? "No changes detected in compared files" : "Changes unknown"
-      return "\(known) · \(failures) \(failedNoun) not compared"
+      let loaded = comparison.page.complete ? "" : " in loaded files"
+      return "\(known)\(loaded) · \(failures) \(failedNoun) not compared"
     }
     if count == 0, !comparison.page.complete {
       return "No changes detected in loaded files · more files may exist"
@@ -306,7 +305,11 @@ final class FunctionChangesPageModel: ViewModel {
     if case .skipped(let reason) = comparison.status {
       return "Page not compared: \(reason.rawValue)"
     }
-    if comparison.files.isEmpty { return "No files listed at the recorded endpoints" }
+    if comparison.files.isEmpty {
+      return comparison.page.complete
+        ? "No files listed at the recorded endpoints"
+        : "No files loaded yet · more files may exist"
+    }
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
       return "Identical endpoint files are hidden · Show unchanged branches to view them"
     }
@@ -319,11 +322,20 @@ final class FunctionChangesPageModel: ViewModel {
   }
   var selectionText: String {
     guard let sourceSelection else {
-      return "Select a declaration to inspect its recorded source reference"
+      return selectedNodeID == nil
+        ? "Select a declaration to inspect its recorded source reference"
+        : "Source reference unavailable for this declaration at the recorded endpoints"
     }
     let side = sourceSelection.side == .after ? "After" : "Before"
+    let afterUnavailable =
+      sourceSelection.side == .before && !canSelectAfter
+      && selectedNodeID.flatMap(declaration(for:)).map { target in
+        if case .signatureChanged = target.1.kind { return true }
+        return false
+      } == true
+    let fallbackNote = afterUnavailable ? " · After source reference unavailable" : ""
     return
-      "\(side) · \(sourceSelection.path) · SHA-256 \(sourceSelection.sha256) · UTF-8 bytes \(sourceSelection.byteRange.lowerBound)–\(sourceSelection.byteRange.upperBound)"
+      "\(side) · \(sourceSelection.path) · SHA-256 \(sourceSelection.sha256) · UTF-8 bytes \(sourceSelection.byteRange.lowerBound)..<\(sourceSelection.byteRange.upperBound)\(fallbackNote)"
   }
   var zoomText: String { "\(Int((zoom * 100).rounded()))%" }
   var showsMap: Bool { displayMode == .map }
@@ -675,7 +687,7 @@ final class FunctionChangesPageModel: ViewModel {
 
   private func throwsLines(for change: InterfaceChange) -> [FunctionChangeLine] {
     let rows = deltaLines(change.throwsClause, format: throwsText)
-    if hasNoDeclaredThrows(change.throwsClause) {
+    if hasNoDeclaredThrows(change.throwsClause), !isChanged(change.throwsClause) {
       return rows.last.map { [.init(mark: .note, text: $0.text)] } ?? []
     }
     return rows

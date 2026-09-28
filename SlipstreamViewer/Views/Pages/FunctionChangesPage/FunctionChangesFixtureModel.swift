@@ -20,8 +20,13 @@ final class FunctionChangesFixtureModel: ViewModel {
   // MARK: - Properties
 
   @ObservationIgnored private let root: URL?
+  private var hasAppeared = false
   private(set) var caseNames: [String] = []
-  var selectedCase: String
+  private(set) var selectedCase: String
+  var caseSelection: String {
+    get { selectedCase }
+    set { caseSelected(newValue) }
+  }
   private(set) var page: FunctionChangesPageModel?
   private(set) var errorText: String?
 
@@ -32,8 +37,13 @@ final class FunctionChangesFixtureModel: ViewModel {
 
   // MARK: - User Actions
 
-  func viewAppeared() { load(selectedCase) }
+  func viewAppeared() {
+    guard !hasAppeared else { return }
+    hasAppeared = true
+    load(selectedCase)
+  }
   func caseSelected(_ name: String) { load(name) }
+  func retryTapped() { load(selectedCase) }
 
   // MARK: - Private Helpers
 
@@ -51,6 +61,7 @@ final class FunctionChangesFixtureModel: ViewModel {
       errorText = nil
     } catch FunctionFixtureError.unknownCase(let name, let available) {
       caseNames = available
+      selectedCase = available.first ?? name
       page = nil
       errorText = "Unknown pinned fixture: \(name)"
     } catch {

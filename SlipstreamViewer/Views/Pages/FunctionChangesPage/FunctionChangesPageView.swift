@@ -221,7 +221,7 @@ struct FunctionChangesPageView: View {
         }
         if node.unknownCount > 0 {
           Text("?")
-            .foregroundStyle(DesignTokens.FunctionTree.changed)
+            .foregroundStyle(DesignTokens.FunctionTree.unknown)
         }
       }
       .font(DesignTokens.FunctionTree.labelFont)
@@ -279,8 +279,6 @@ struct FunctionChangesPageView: View {
           Button("Fit tree") { model.fitTreeTapped() }
           Button("Zoom to selection") { model.zoomToSelectionTapped() }
             .disabled(!model.canZoomToSelection)
-        } else {
-          Text(model.mapModeLabel)
         }
         Spacer()
         Text(model.selectionText)
