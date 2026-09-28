@@ -17,7 +17,11 @@ struct FunctionChangesPageView: View {
           .background(DesignTokens.FunctionTree.bannerFill)
       }
       if model.emptyStateText.isEmpty {
-        tree
+        if model.showsMap {
+          FunctionContractMapView(model: model)
+        } else {
+          tree
+        }
       } else {
         Text(model.emptyStateText)
           .font(DesignTokens.FunctionTree.bodyFont)
@@ -29,7 +33,7 @@ struct FunctionChangesPageView: View {
     }
     .background(DesignTokens.FunctionTree.background)
     .preferredColorScheme(.dark)
-    .frame(minWidth: 900, minHeight: 650)
+    .frame(minWidth: 1150, minHeight: 650)
   }
 
   private var header: some View {
@@ -45,26 +49,48 @@ struct FunctionChangesPageView: View {
             .foregroundStyle(DesignTokens.FunctionTree.changed)
         }
       }
-      HStack(alignment: .firstTextBaseline) {
-        Text(model.titleText)
-          .font(DesignTokens.FunctionTree.titleFont)
-          .foregroundStyle(DesignTokens.FunctionTree.title)
+      HStack(alignment: .top, spacing: 20) {
+        VStack(alignment: .leading, spacing: 10) {
+          Text(model.titleText)
+            .font(
+              model.showsMap
+                ? DesignTokens.FunctionMap.titleFont : DesignTokens.FunctionTree.titleFont
+            )
+            .foregroundStyle(DesignTokens.FunctionTree.title)
+          Text(model.subtitleText)
+            .font(DesignTokens.FunctionTree.bodyFont)
+            .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          Text(model.summaryText)
+            .font(DesignTokens.FunctionTree.bodyFont)
+            .foregroundStyle(DesignTokens.FunctionTree.title)
+        }
         Spacer()
-        Text(model.boundaryText)
-          .font(DesignTokens.FunctionTree.labelFont)
-          .foregroundStyle(DesignTokens.FunctionTree.secondary)
+        VStack(alignment: .trailing, spacing: 14) {
+          Text(model.boundaryText)
+            .font(DesignTokens.FunctionTree.labelFont)
+            .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          if model.showsMap {
+            HStack(alignment: .top, spacing: 14) {
+              ForEach(Array(model.mapStats.enumerated()), id: \.offset) { _, stat in
+                VStack(alignment: .leading, spacing: 3) {
+                  Text(stat.value)
+                    .font(DesignTokens.FunctionMap.titleFont)
+                    .foregroundStyle(DesignTokens.FunctionMap.title)
+                  Text(stat.label)
+                    .font(DesignTokens.FunctionMap.smallFont)
+                    .foregroundStyle(DesignTokens.FunctionMap.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(width: 120, alignment: .leading)
+              }
+            }
+          } else {
+            Text(model.scopeText)
+              .font(DesignTokens.FunctionTree.bodyFont)
+              .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          }
+        }
       }
-      Text(model.subtitleText)
-        .font(DesignTokens.FunctionTree.bodyFont)
-        .foregroundStyle(DesignTokens.FunctionTree.secondary)
-      HStack {
-        Text(model.summaryText)
-          .foregroundStyle(DesignTokens.FunctionTree.title)
-        Spacer()
-        Text(model.scopeText)
-          .foregroundStyle(DesignTokens.FunctionTree.secondary)
-      }
-      .font(DesignTokens.FunctionTree.bodyFont)
       Text(model.analysisText)
         .font(DesignTokens.FunctionTree.bodyFont)
         .foregroundStyle(DesignTokens.FunctionTree.changed)
@@ -92,6 +118,13 @@ struct FunctionChangesPageView: View {
           RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius).stroke(
             DesignTokens.FunctionTree.cardStroke)
         }
+      Picker(model.modePickerText, selection: $model.modeSelection) {
+        ForEach(FunctionChangesDisplayMode.allCases, id: \.self) { mode in
+          Text(mode.rawValue).tag(mode)
+        }
+      }
+      .pickerStyle(.segmented)
+      .frame(width: 130)
       if model.canShowUnchanged {
         Button(model.showUnchangedText) { model.showUnchangedTapped() }
       }
@@ -99,6 +132,7 @@ struct FunctionChangesPageView: View {
       legend("+", "Added", DesignTokens.FunctionTree.added)
       legend("~", "Changed", DesignTokens.FunctionTree.changed)
       legend("−", "Removed", DesignTokens.FunctionTree.removed)
+      legend("?", "Unknown", DesignTokens.FunctionMap.unknown)
       Text(model.legendText)
         .foregroundStyle(DesignTokens.FunctionTree.muted)
     }
@@ -238,12 +272,16 @@ struct FunctionChangesPageView: View {
   private var footer: some View {
     VStack(spacing: 0) {
       HStack(spacing: 10) {
-        Button("−") { model.zoomOutTapped() }
-        Text(model.zoomText).frame(width: 48)
-        Button("+") { model.zoomInTapped() }
-        Button("Fit tree") { model.fitTreeTapped() }
-        Button("Zoom to selection") { model.zoomToSelectionTapped() }
-          .disabled(!model.canZoomToSelection)
+        if model.showsTreeControls {
+          Button("−") { model.zoomOutTapped() }
+          Text(model.zoomText).frame(width: 48)
+          Button("+") { model.zoomInTapped() }
+          Button("Fit tree") { model.fitTreeTapped() }
+          Button("Zoom to selection") { model.zoomToSelectionTapped() }
+            .disabled(!model.canZoomToSelection)
+        } else {
+          Text(model.mapModeLabel)
+        }
         Spacer()
         Text(model.selectionText)
           .lineLimit(1)
@@ -257,7 +295,9 @@ struct FunctionChangesPageView: View {
       .background(DesignTokens.FunctionTree.controlFill)
       HStack {
         VStack(alignment: .leading, spacing: 2) {
-          Text(model.zoomHintText)
+          if model.showsTreeControls {
+            Text(model.zoomHintText)
+          }
           Text(model.coverageText).lineLimit(1)
         }
         Spacer()

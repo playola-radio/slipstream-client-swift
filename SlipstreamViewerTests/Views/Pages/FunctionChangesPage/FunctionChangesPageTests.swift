@@ -27,11 +27,34 @@ struct FunctionChangesPageTests {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     expectNoDifference(model.displayMode, .map)
     #expect(!model.showsTreeControls)
-    model.displayModeSelected(.tree)
+    #expect(model.showsMap)
+    expectNoDifference(model.titleText, "A map of changing contracts.")
+    model.modeSelection = .tree
     expectNoDifference(model.displayMode, .tree)
     #expect(model.showsTreeControls)
-    model.displayModeSelected(.map)
+    #expect(!model.showsMap)
+    expectNoDifference(model.titleText, "See where the change lives.")
+    model.modeSelection = .map
     expectNoDifference(model.displayMode, .map)
+  }
+
+  @Test func mapSummaryCountsOnlyComparableLoadedDeclarations() throws {
+    let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
+    expectNoDifference(partial.mapStats.map(\.value), ["1", "1", "1"])
+    #expect(partial.mapStats.allSatisfy { $0.label.contains("loaded") })
+    let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
+    #expect(!failed.mapStats.contains { $0.value == "0" && $0.label.contains("change") })
+    let skipped = FunctionChangesPageModel(comparison: try fixture("range-admission-skipped"))
+    #expect(skipped.mapStats.isEmpty)
+  }
+
+  @Test func mapSummaryDoesNotClaimZeroWhenAnObservedFileWasNotCompared() throws {
+    var comparison = try fixture("range-cancelled-mid-page")
+    comparison.files[0].changes = .typescript([])
+    let model = FunctionChangesPageModel(comparison: comparison)
+    expectNoDifference(model.mapStats.first?.value, "?")
+    #expect(model.summaryText.contains("No changes detected in compared files"))
+    #expect(model.mapStats.contains { $0.label.contains("files not compared") })
   }
 
   @Test func contractMapUsesRecordedInputsAndOutputs() throws {
@@ -71,6 +94,17 @@ struct FunctionChangesPageTests {
     #expect(rows[1].subtitle.contains("!(DEBUG)"))
   }
 
+  @Test func contractMapGroupsRootFilesAndKeepsStableRowIdentity() throws {
+    var comparison = try fixture("ts-parameter-change")
+    comparison.files[0].path = "f.ts"
+    let model = FunctionChangesPageModel(comparison: comparison)
+    let group = try #require(model.mapGroups.first)
+    expectNoDifference(group.directory, "/")
+    expectNoDifference(group.files.first?.rows.first?.id, "declaration:f.ts:0")
+    model.searchText = "f"
+    expectNoDifference(model.mapGroups.first?.files.first?.rows.first?.id, "declaration:f.ts:0")
+  }
+
   @Test func contractMapShowsPartialAndFailedFilesWithoutInventedRows() throws {
     let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
     let files = partial.mapGroups.flatMap(\.files)
@@ -81,6 +115,25 @@ struct FunctionChangesPageTests {
     let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
     #expect(failed.mapGroups.flatMap(\.files).allSatisfy { $0.isUnknown })
     #expect(failed.mapGroups.flatMap(\.files).flatMap(\.rows).allSatisfy { $0.marker == nil })
+  }
+
+  @Test func contractMapSeparatesIdenticalAndUnsupportedStatusRows() throws {
+    let identical = FunctionChangesPageModel(comparison: try fixture("range-reverted-listed"))
+    #expect(identical.mapGroups.isEmpty)
+    identical.showUnchangedTapped()
+    expectNoDifference(
+      identical.mapGroups.first?.files.first?.rows.first?.statusText,
+      "No net change at recorded endpoints")
+    var comparison = try fixture("ts-parameter-change")
+    comparison.files[0].changes = .unsupportedLanguageVersion(
+      language: "typescript", version: "typescript.v3")
+    let unsupported = FunctionChangesPageModel(comparison: comparison)
+    #expect(unsupported.mapGroups.first?.files.first?.isUnknown == true)
+    expectNoDifference(
+      unsupported.mapGroups.first?.files.first?.rows.first?.statusText,
+      "Unsupported language version: typescript typescript.v3")
+    comparison.files.append(comparison.files[0])
+    #expect(FunctionChangesPageModel(comparison: comparison).mapGroups.isEmpty)
   }
 
   @Test func contractMapIgnoresTreeZoomAndPreservesSelectionOnModeSwitch() throws {

@@ -52,6 +52,15 @@ struct FunctionMapGroup: Identifiable, Equatable {
   let files: [FunctionMapFile]
   let changedCount: Int
   let unknownCount: Int
+
+  var summaryText: String {
+    let changes =
+      changedCount == 1 ? "1 changed declaration" : "\(changedCount) changed declarations"
+    if unknownCount == 0 { return changes }
+    let unknown = unknownCount == 1 ? "1 file not compared" : "\(unknownCount) files not compared"
+    if changedCount == 0 { return "\(unknown) · changes unknown" }
+    return "\(changes) · \(unknown)"
+  }
 }
 
 struct FunctionMapFile: Identifiable, Equatable {
@@ -61,6 +70,11 @@ struct FunctionMapFile: Identifiable, Equatable {
   let changedCount: Int
   let isUnknown: Bool
   let rows: [FunctionMapRow]
+
+  var summaryText: String {
+    if isUnknown { return "Not compared" }
+    return changedCount == 1 ? "1 changed declaration" : "\(changedCount) changed declarations"
+  }
 }
 
 struct FunctionMapRow: Identifiable, Equatable {
@@ -73,6 +87,11 @@ struct FunctionMapRow: Identifiable, Equatable {
   let outputLines: [FunctionChangeLine]
   let headerLines: [FunctionChangeLine]
   let statusText: String?
+}
+
+struct FunctionMapStat: Equatable {
+  let value: String
+  let label: String
 }
 
 @MainActor
@@ -94,6 +113,10 @@ final class FunctionChangesPageModel: ViewModel {
   let comparison: InterfaceComparison
   let provenanceLabel: String?
   private(set) var displayMode: FunctionChangesDisplayMode = .map
+  var modeSelection: FunctionChangesDisplayMode {
+    get { displayMode }
+    set { displayModeSelected(newValue) }
+  }
   var searchText = "" { didSet { clearSelectionIfHidden() } }
   private(set) var showsUnchanged = false
   private(set) var selectedNodeID: String?
@@ -108,6 +131,25 @@ final class FunctionChangesPageModel: ViewModel {
 
   var detectedChanges: Int { comparison.files.reduce(0) { $0 + changes(in: $1).count } }
   var filesNotCompared: Int { comparison.files.filter(isNotCompared).count }
+  var mapStats: [FunctionMapStat] {
+    guard !hasDuplicatePaths, !comparison.files.isEmpty else { return [] }
+    if case .skipped = comparison.status { return [] }
+    let suffix =
+      comparison.page.complete && filesNotCompared == 0
+      ? "in observed files" : "in loaded files"
+    let filesWithChanges = comparison.files.filter { !changes(in: $0).isEmpty }.count
+    if filesNotCompared > 0 && detectedChanges == 0 {
+      return [
+        .init(value: "?", label: "changes unknown \(suffix)"),
+        .init(value: "\(filesNotCompared)", label: "files not compared \(suffix)"),
+      ]
+    }
+    return [
+      .init(value: "\(detectedChanges)", label: "changed declarations \(suffix)"),
+      .init(value: "\(filesWithChanges)", label: "files with changes \(suffix)"),
+      .init(value: "\(filesNotCompared)", label: "files not compared \(suffix)"),
+    ]
+  }
   var nodes: [FunctionChangeNode] { tree.nodes }
   var mapGroups: [FunctionMapGroup] {
     var order: [String] = []
@@ -171,8 +213,14 @@ final class FunctionChangesPageModel: ViewModel {
 
   // MARK: - Display Text
 
-  let titleText = "See where the change lives."
-  let subtitleText = "Follow recorded function input and output changes in observed files."
+  var titleText: String {
+    showsMap ? "A map of changing contracts." : "See where the change lives."
+  }
+  var subtitleText: String {
+    showsMap
+      ? "Follow recorded function inputs and outputs through observed files."
+      : "Follow recorded function input and output changes in observed files."
+  }
   let analysisText = "Shared types, effects and behavior: not analyzed"
   let scopeText = "Observed files"
   let searchPrompt = "Find loaded file or function"
@@ -183,6 +231,15 @@ final class FunctionChangesPageModel: ViewModel {
   let coverageText =
     "Observed files exclude the store directory, .git and symlinks. Lines show containment; the comparison covers recorded endpoints, not every intermediate edit."
   let zoomHintText = "Zoom out for branch counts. Zoom in to read inline contracts."
+  let modePickerText = "View"
+  let mapCodeTreeHeading = "CODE TREE"
+  let mapInputsHeading = "INPUTS"
+  let mapFunctionHeading = "FUNCTION"
+  let mapOutputsHeading = "OUTPUTS"
+  let mapEffectsHeading = "POSSIBLE EFFECTS · NOT ANALYZED"
+  let mapModeLabel = "CONTRACT MAP"
+  let mapArrowText = "→"
+  let mapEmptyCellText = "—"
 
   var boundaryText: String {
     "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
@@ -269,6 +326,7 @@ final class FunctionChangesPageModel: ViewModel {
       "\(side) · \(sourceSelection.path) · SHA-256 \(sourceSelection.sha256) · UTF-8 bytes \(sourceSelection.byteRange.lowerBound)–\(sourceSelection.byteRange.upperBound)"
   }
   var zoomText: String { "\(Int((zoom * 100).rounded()))%" }
+  var showsMap: Bool { displayMode == .map }
   var showsTreeControls: Bool { displayMode == .tree }
   var showsInlineContracts: Bool { zoom >= 0.7 }
   var canSelectBefore: Bool {
@@ -648,7 +706,8 @@ final class FunctionChangesPageModel: ViewModel {
       case .changed(_, let after): after
       }
 
-    return ([change.identity.kind]
+    return
+      ([change.identity.kind]
       + change.identity.guards.map { "#if \($0)" }
       + header.modifiers).joined(separator: " · ")
   }
