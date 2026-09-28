@@ -60,7 +60,11 @@ struct FunctionMapGroup: Identifiable, Equatable {
       changedCount == 1
       ? "1 \(qualifier)changed declaration" : "\(changedCount) \(qualifier)changed declarations"
     if unknownCount == 0 { return changes }
-    let unknown = unknownCount == 1 ? "1 file not compared" : "\(unknownCount) files not compared"
+    let unknownQualifier = isFiltered ? "matching " : ""
+    let unknown =
+      unknownCount == 1
+      ? "1 \(unknownQualifier)file not compared"
+      : "\(unknownCount) \(unknownQualifier)files not compared"
     if changedCount == 0 { return "\(unknown) · changes unknown" }
     return "\(changes) · \(unknown)"
   }
@@ -222,7 +226,11 @@ final class FunctionChangesPageModel: ViewModel {
   let analysisText = "Shared types, effects and behavior: not analyzed"
   let scopeText = "Observed files"
   let searchPrompt = "Find loaded file or function"
-  let legendText = "Number = changed declarations in loaded files"
+  var legendText: String {
+    searchText.isEmpty
+      ? "Number = changed declarations in loaded files"
+      : "Number = matching changed declarations in loaded files"
+  }
   let screenLabel = "FUNCTION CHANGES"
   let beforeButtonText = "Before"
   let afterButtonText = "After"
@@ -687,7 +695,8 @@ final class FunctionChangesPageModel: ViewModel {
 
   private func throwsLines(for change: InterfaceChange) -> [FunctionChangeLine] {
     let rows = deltaLines(change.throwsClause, format: throwsText)
-    if hasNoDeclaredThrows(change.throwsClause), !isChanged(change.throwsClause) {
+    if hasNoDeclaredThrows(change.throwsClause) {
+      if case .changed = change.throwsClause { return rows }
       return rows.last.map { [.init(mark: .note, text: $0.text)] } ?? []
     }
     return rows

@@ -109,6 +109,8 @@ struct FunctionChangesPageTests {
     model.searchText = "f"
     #expect(model.mapGroups.first?.summaryText.contains("matching") == true)
     #expect(model.mapGroups.first?.files.first?.summaryText.contains("matching") == true)
+    model.modeSelection = .tree
+    #expect(model.legendText.contains("matching changed declarations"))
   }
 
   @Test func contractMapShowsPartialAndFailedFilesWithoutInventedRows() throws {
@@ -424,6 +426,7 @@ struct FunctionChangesPageTests {
       let lines = try #require(model.nodes.first { $0.kind == .declaration }).lines
       #expect(!lines.contains { $0.text == "HEADER" || $0.text == "DECLARED THROWS" })
       #expect(!lines.contains { $0.text.isEmpty })
+      #expect(!lines.contains { $0.text.localizedLowercase.contains("throws") && $0.mark != .note })
     }
   }
 
@@ -560,6 +563,25 @@ struct FunctionChangesPageTests {
     let page = try #require(demo.page)
     demo.viewAppeared()
     #expect(demo.page === page)
+  }
+
+  @Test func demoKeepsFailedCaseSelectedForRetry() throws {
+    let comparison = try fixture("ts-parameter-change")
+    let demo = withDependencies {
+      $0.functionFixtures = FunctionFixtureClient { _, name in
+        if name == "bad" { throw URLError(.badServerResponse) }
+        return FunctionFixtureCatalog(caseNames: ["good", "bad"], comparison: comparison)
+      }
+    } operation: {
+      FunctionChangesFixtureModel(root: URL(fileURLWithPath: "/unused"), initialCase: "good")
+    }
+    demo.viewAppeared()
+    demo.caseSelection = "bad"
+    expectNoDifference(demo.selectedCase, "bad")
+    #expect(demo.errorText?.contains("fixture bad") == true)
+    demo.retryTapped()
+    expectNoDifference(demo.selectedCase, "bad")
+    #expect(demo.errorText?.contains("fixture bad") == true)
   }
 
 }

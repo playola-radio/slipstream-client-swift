@@ -48,6 +48,7 @@ final class FunctionChangesFixtureModel: ViewModel {
   // MARK: - Private Helpers
 
   private func load(_ name: String) {
+    selectedCase = name
     guard let root else {
       errorText = "Set SLIPSTREAM_INTERFACE_FIXTURE_ROOT to the pinned interface-v2 directory."
       page = nil
@@ -57,7 +58,6 @@ final class FunctionChangesFixtureModel: ViewModel {
       let catalog = try fixtures.load(root, name)
       caseNames = catalog.caseNames
       page = FunctionChangesPageModel(comparison: catalog.comparison)
-      selectedCase = name
       errorText = nil
     } catch FunctionFixtureError.unknownCase(let name, let available) {
       caseNames = available
@@ -66,7 +66,7 @@ final class FunctionChangesFixtureModel: ViewModel {
       errorText = "Unknown pinned fixture: \(name)"
     } catch {
       page = nil
-      errorText = "Unable to load pinned fixture: \(error)"
+      errorText = "Unable to load pinned fixture \(name): \(error)"
     }
   }
 }
