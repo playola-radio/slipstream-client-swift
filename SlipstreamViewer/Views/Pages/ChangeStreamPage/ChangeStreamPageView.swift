@@ -2,9 +2,16 @@ import SlipstreamCore
 import SwiftUI
 
 struct ChangeStreamPageView: View {
-  @State var model = ChangeStreamPageModel()
+  @State var model: ChangeStreamPageModel
+  @State private var functionChangesDemo: FunctionChangesFixtureModel?
 
   private let bottomID = "feed-bottom"
+
+  init(functionChangesDemo: FunctionChangesFixtureModel? = nil) {
+    _model = State(initialValue: ChangeStreamPageModel(
+      isFunctionDemoVisible: functionChangesDemo != nil))
+    _functionChangesDemo = State(initialValue: functionChangesDemo)
+  }
 
   var body: some View {
     HStack(spacing: 0) {
@@ -13,7 +20,9 @@ struct ChangeStreamPageView: View {
       }
       fileViewer
     }
-    .frame(minWidth: 1000, minHeight: 480)
+    .frame(
+      minWidth: functionChangesDemo == nil ? 1000 : DesignTokens.FunctionMap.demoWorkspaceMinWidth,
+      minHeight: functionChangesDemo == nil ? 480 : DesignTokens.FunctionMap.demoWorkspaceMinHeight)
     .coordinateSpace(name: "question-workspace")
     .onGeometryChange(for: CGSize.self) { $0.size } action: { model.viewportChanged($0) }
     .overlay(alignment: .topLeading) {
@@ -120,12 +129,17 @@ struct ChangeStreamPageView: View {
         }
       }
       .frame(height: DesignTokens.FileViewer.toolbarHeight)
-      Text(model.fileViewerPlaceholderText)
-        .font(DesignTokens.Fonts.liveStatus)
-        .foregroundStyle(DesignTokens.Colors.paneSubtitle)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DesignTokens.FileViewer.paneFill)
-        .border(DesignTokens.FileViewer.paneStroke)
+      if let functionChangesDemo {
+        FunctionChangesFixtureView(model: functionChangesDemo)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        Text(model.fileViewerPlaceholderText)
+          .font(DesignTokens.Fonts.liveStatus)
+          .foregroundStyle(DesignTokens.Colors.paneSubtitle)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(DesignTokens.FileViewer.paneFill)
+          .border(DesignTokens.FileViewer.paneStroke)
+      }
     }
     .padding(DesignTokens.FileViewer.padding)
     .frame(maxWidth: .infinity, maxHeight: .infinity)

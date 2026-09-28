@@ -7,6 +7,149 @@ enum CardEmphasis: Equatable, Sendable {
 
 enum DesignTokens {
 
+  enum FunctionTree {
+    static let background = Color(hex: 0x15191F)
+    static let headerFill = Color(hex: 0x191E25)
+    static let canvasFill = Color(hex: 0x121B24)
+    static let cardFill = Color(hex: 0x202F3C)
+    static let selectedFill = Color(hex: 0x2B465B)
+    static let cardStroke = Color(hex: 0x516579)
+    static let selectedStroke = Color(hex: 0xB0D7F1)
+    static let connector = Color(hex: 0x516579)
+    static let divider = Color(hex: 0x34414E)
+    static let title = Color(hex: 0xDBE9F3)
+    static let secondary = Color(hex: 0x9EB7CB)
+    static let muted = Color(hex: 0x839EB4)
+    static let added = Color(hex: 0x8DD9B1)
+    static let removed = Color(hex: 0xF0A4AB)
+    static let changed = Color(hex: 0xE4C282)
+    static let unknown = Color(hex: 0xA4B4C3)
+    static let inputFill = Color(hex: 0x11171D)
+    static let controlFill = Color(hex: 0x192631)
+    static let bannerFill = Color(hex: 0x1B222A)
+    static let bodyFont = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let smallFont = variableFont(family: geistFamily, size: 10, weight: 400)
+    static let labelFont = variableFont(family: geistMonoFamily, size: 11, weight: 500)
+    static let codeFont = variableFont(family: geistMonoFamily, size: 11, weight: 400)
+    static let cardRadius: CGFloat = 5
+    static let controlRadius: CGFloat = 4
+
+    static func mark(_ value: FunctionChangeLine.Mark) -> Color {
+      switch value {
+      case .equal: secondary
+      case .added: added
+      case .removed: removed
+      case .changed: changed
+      case .note: muted
+      }
+    }
+
+    static func symbol(_ value: FunctionChangeLine.Mark) -> String {
+      switch value {
+      case .equal: "="
+      case .added: "+"
+      case .removed: "−"
+      case .changed: "~"
+      case .note: ""
+      }
+    }
+  }
+
+  enum FunctionMap {
+    static let background = Color(hex: 0x15191F)
+    static let groupFill = Color(hex: 0x192129)
+    static let groupStroke = Color(hex: 0x33424F)
+    static let rootFill = Color(hex: 0x202B35)
+    static let functionFill = Color(hex: 0x202C37)
+    static let selectedFill = Color(hex: 0x293F50)
+    static let functionStroke = Color(hex: 0x476073)
+    static let selectedStroke = Color(hex: 0xA9CBE3)
+    static let equalFill = Color(hex: 0x1C252E)
+    static let addedFill = Color(hex: 0x203A32)
+    static let removedFill = Color(hex: 0x38282F)
+    static let title = Color(hex: 0xEDF3F8)
+    static let body = Color(hex: 0xD4E2ED)
+    static let secondary = Color(hex: 0x9EB1C0)
+    static let heading = Color(hex: 0x8FA7BA)
+    static let added = Color(hex: 0x8DD9B1)
+    static let removed = Color(hex: 0xF0A4AB)
+    static let changed = Color(hex: 0xE4C282)
+    static let unknown = Color(hex: 0xA4B4C3)
+    static let connector = Color(hex: 0x607D91)
+    static let bodyFont = variableFont(family: geistFamily, size: 13, weight: 400)
+    static let smallFont = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let headingFont = variableFont(family: geistFamily, size: 10, weight: 500)
+    static let codeFont = variableFont(family: geistMonoFamily, size: 12, weight: 400)
+    static let functionFont = variableFont(family: geistMonoFamily, size: 17, weight: 500)
+    static let codeWidth: CGFloat = 130
+    static let inputWidth: CGFloat = 190
+    static let connectorWidth: CGFloat = 20
+    static let functionWidth: CGFloat = 180
+    static let outputWidth: CGFloat = 190
+    static let effectsWidth: CGFloat = 80
+    static let laneGap: CGFloat = 10
+    static let groupGap: CGFloat = 14
+    static let rowGap: CGFloat = 8
+    static let padding: CGFloat = 24
+    static let cardPadding: CGFloat = 12
+    static let cardRadius: CGFloat = 5
+    static let groupRadius: CGFloat = 3
+    static let rowMinHeight: CGFloat = 100
+    static let demoWorkspaceMinWidth: CGFloat = 1200
+    static let demoWorkspaceMinHeight: CGFloat = 650
+
+    static var laneWidth: CGFloat {
+      codeWidth + inputWidth + connectorWidth + functionWidth + connectorWidth + outputWidth
+        + effectsWidth + laneGap * 6
+    }
+
+    struct Layout {
+      let codeWidth: CGFloat
+      let inputWidth: CGFloat
+      let connectorWidth: CGFloat
+      let functionWidth: CGFloat
+      let outputWidth: CGFloat
+      let effectsWidth: CGFloat
+
+      var laneWidth: CGFloat {
+        codeWidth + inputWidth + connectorWidth + functionWidth + connectorWidth + outputWidth
+          + effectsWidth + FunctionMap.laneGap * 6
+      }
+    }
+
+    static func layout(for viewportWidth: CGFloat) -> Layout {
+      let available = max(laneWidth, viewportWidth - padding * 2)
+      let ownerWidth: CGFloat = 1900 - padding * 2
+      let progress = min(1, (available - laneWidth) / (ownerWidth - laneWidth))
+      let extraEffects = max(0, available - ownerWidth)
+      return Layout(
+        codeWidth: codeWidth + (226 - codeWidth) * progress,
+        inputWidth: inputWidth + (336 - inputWidth) * progress,
+        connectorWidth: connectorWidth + (36 - connectorWidth) * progress,
+        functionWidth: functionWidth + (262 - functionWidth) * progress,
+        outputWidth: outputWidth + (336 - outputWidth) * progress,
+        effectsWidth: effectsWidth + (560 - effectsWidth) * progress + extraEffects)
+    }
+
+    static func markText(_ mark: FunctionChangeLine.Mark) -> Color {
+      switch mark {
+      case .equal: secondary
+      case .added: added
+      case .removed: removed
+      case .changed: changed
+      case .note: secondary
+      }
+    }
+
+    static func markFill(_ mark: FunctionChangeLine.Mark) -> Color {
+      switch mark {
+      case .equal, .changed, .note: equalFill
+      case .added: addedFill
+      case .removed: removedFill
+      }
+    }
+  }
+
   private static let geistFamily = "Geist"
   private static let geistMonoFamily = "Geist Mono"
 

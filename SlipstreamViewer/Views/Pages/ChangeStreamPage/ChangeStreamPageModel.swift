@@ -22,7 +22,8 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  override init() {
+  init(isFunctionDemoVisible: Bool = false) {
+    self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
   }
 
@@ -58,6 +59,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
   private(set) var isFeedHidden = false
+  private(set) var isFunctionDemoVisible: Bool
   private(set) var pinnedHeadings: Set<Seq> = []
 
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
@@ -318,7 +320,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func openIndicatorText(for row: FileChangeRow) -> String? {
-    row.id == newestFileID ? "OPEN →" : nil
+    !isFunctionDemoVisible && row.id == newestFileID ? "OPEN →" : nil
   }
 
   func isHeadingPinned(_ section: FeedSection) -> Bool {
