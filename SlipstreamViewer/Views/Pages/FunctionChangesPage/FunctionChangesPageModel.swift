@@ -519,7 +519,8 @@ final class FunctionChangesPageModel: ViewModel {
     guard !files.isEmpty else { return Tree(nodes: [], size: CGSize(width: 900, height: 430)) }
     var drafts: [Draft] = [
       Draft(
-        id: "root", parentID: nil, kind: .root, title: "Observed files", statusText: summaryText,
+        id: "root", parentID: nil, kind: .root, title: "Observed files",
+        statusText: searchText.isEmpty ? summaryText : "Overall: \(summaryText)",
         lines: [],
         marker: nil, depth: 0, ownChange: 0, ownUnknown: 0)
     ]
@@ -605,14 +606,21 @@ final class FunctionChangesPageModel: ViewModel {
     let horizontalOffset = (canvasWidth - (nextLeaf - 120)) / 2
     let nodes = drafts.map { draft in
       let height: CGFloat
-      if draft.kind == .declaration {
+      if draft.kind == .root {
+        height = 90
+      } else if draft.kind == .declaration {
         height = draft.lines.isEmpty ? 58 : max(185, min(350, CGFloat(draft.lines.count) * 22 + 74))
       } else if draft.kind == .file, draft.statusText != nil {
         height = 82
       } else {
         height = 58
       }
-      let width: CGFloat = draft.kind == .declaration ? 270 : 190
+      let width: CGFloat =
+        switch draft.kind {
+        case .root: 300
+        case .declaration: 270
+        case .directory, .file: 190
+        }
       let count = totals[draft.id] ?? (0, 0)
       return FunctionChangeNode(
         id: draft.id, parentID: draft.parentID, kind: draft.kind,

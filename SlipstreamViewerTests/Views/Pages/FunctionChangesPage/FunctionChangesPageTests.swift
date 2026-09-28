@@ -78,7 +78,12 @@ struct FunctionChangesPageTests {
   @Test func treeRootKeepsTheComparisonSummary() throws {
     let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
     partial.modeSelection = .tree
-    expectNoDifference(partial.nodes.first?.statusText, partial.summaryText)
+    let root = try #require(partial.nodes.first)
+    expectNoDifference(root.statusText, partial.summaryText)
+    #expect(root.width >= 300)
+    #expect(root.height >= 90)
+    partial.searchText = "a.ts"
+    #expect(partial.nodes.first?.statusText?.hasPrefix("Overall: ") == true)
     let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
     failed.modeSelection = .tree
     expectNoDifference(failed.nodes.first?.statusText, failed.summaryText)
