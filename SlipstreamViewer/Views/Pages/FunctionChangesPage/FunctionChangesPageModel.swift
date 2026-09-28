@@ -99,11 +99,6 @@ struct FunctionMapRow: Identifiable, Equatable {
   let headerLines: [FunctionChangeLine]
 }
 
-struct FunctionMapStat: Equatable {
-  let value: String
-  let label: String
-}
-
 @MainActor
 @Observable
 final class FunctionChangesPageModel: ViewModel {
@@ -141,23 +136,6 @@ final class FunctionChangesPageModel: ViewModel {
 
   var detectedChanges: Int { comparison.files.reduce(0) { $0 + changes(in: $1).count } }
   var filesNotCompared: Int { comparison.files.filter(isNotCompared).count }
-  var mapStats: [FunctionMapStat] {
-    guard !hasDuplicatePaths, !comparison.files.isEmpty else { return [] }
-    if case .skipped = comparison.status { return [] }
-    let suffix = "in loaded files"
-    let filesWithChanges = comparison.files.filter { !changes(in: $0).isEmpty }.count
-    if filesNotCompared > 0 && detectedChanges == 0 {
-      return [
-        .init(value: "?", label: "changes unknown \(suffix)"),
-        .init(value: "\(filesNotCompared)", label: "files not compared \(suffix)"),
-      ]
-    }
-    return [
-      .init(value: "\(detectedChanges)", label: "changed declarations \(suffix)"),
-      .init(value: "\(filesWithChanges)", label: "files with changes \(suffix)"),
-      .init(value: "\(filesNotCompared)", label: "files not compared \(suffix)"),
-    ]
-  }
   var nodes: [FunctionChangeNode] { tree.nodes }
   var mapGroups: [FunctionMapGroup] {
     var order: [String] = []
@@ -214,14 +192,6 @@ final class FunctionChangesPageModel: ViewModel {
 
   // MARK: - Display Text
 
-  var titleText: String {
-    showsMap ? "A map of changing contracts." : "See where the change lives."
-  }
-  var subtitleText: String {
-    showsMap
-      ? "Follow recorded function inputs and outputs through observed files."
-      : "Follow recorded function input and output changes in observed files."
-  }
   let analysisText = "Shared types, effects and behavior: not analyzed"
   let scopeText = "Observed files"
   let searchPrompt = "Find loaded file or function"
@@ -230,7 +200,6 @@ final class FunctionChangesPageModel: ViewModel {
       ? "Number = changed declarations in loaded files"
       : "Number = matching changed declarations in loaded files"
   }
-  let screenLabel = "FUNCTION CHANGES"
   let beforeButtonText = "Before"
   let afterButtonText = "After"
   let coverageText =
@@ -250,23 +219,33 @@ final class FunctionChangesPageModel: ViewModel {
     if isFixtureDemo {
       return "Demo recording #\(comparison.beforeSeq.decimal) → #\(comparison.afterSeq.decimal)"
     }
-    return "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
+    let before = comparison.beforeSeq.decimal
+    let after = comparison.afterSeq.decimal
+    return "Recorded at #\(before) → Recorded at #\(after)"
   }
+
+  var contextText: String { "\(boundaryText) · \(analysisText)" }
 
   var summaryText: String {
     if hasDuplicatePaths { return "Comparison unavailable: duplicate file path" }
     if case .skipped = comparison.status { return "Comparison skipped · changes unknown" }
     let count = detectedChanges
     let noun = count == 1 ? "change" : "changes"
-    let coverage = comparison.page.complete ? "" : " in loaded files"
+    let inventoryUncertain =
+      comparison.inventory.baselineCompletedSeq == nil
+      || !comparison.inventory.unknownScopes.isEmpty
+      || !comparison.inventory.unknownScopesComplete
+    let coverage = comparison.page.complete && !inventoryUncertain ? "" : " in loaded files"
     let failures = filesNotCompared
     if count == 0, failures > 0 {
       let failedNoun = failures == 1 ? "file" : "files"
       let known =
         comparison.files.count > failures
-        ? "No changes detected in compared files" : "Changes unknown"
-      let loaded = comparison.page.complete ? "" : " in loaded files"
-      return "\(known)\(loaded) · \(failures) \(failedNoun) not compared"
+        ? (coverage.isEmpty
+          ? "No changes detected in compared files"
+          : "No changes detected in loaded compared files")
+        : "Changes unknown\(coverage)"
+      return "\(known) · \(failures) \(failedNoun) not compared"
     }
     if count == 0, !comparison.page.complete {
       return "No changes detected in loaded files · more files may exist"
@@ -314,7 +293,7 @@ final class FunctionChangesPageModel: ViewModel {
   var emptyStateText: String {
     if hasDuplicatePaths { return "Comparison unavailable: duplicate file path" }
     if case .skipped(let reason) = comparison.status {
-      return "Page not compared: \(reason.rawValue)"
+      return "Page not compared: \(reason.rawValue) · changes unknown"
     }
     if comparison.files.isEmpty {
       return comparison.page.complete
@@ -540,7 +519,8 @@ final class FunctionChangesPageModel: ViewModel {
     guard !files.isEmpty else { return Tree(nodes: [], size: CGSize(width: 900, height: 430)) }
     var drafts: [Draft] = [
       Draft(
-        id: "root", parentID: nil, kind: .root, title: "Observed files", statusText: nil, lines: [],
+        id: "root", parentID: nil, kind: .root, title: "Observed files", statusText: summaryText,
+        lines: [],
         marker: nil, depth: 0, ownChange: 0, ownUnknown: 0)
     ]
     var directoryIDs: Set<String> = []

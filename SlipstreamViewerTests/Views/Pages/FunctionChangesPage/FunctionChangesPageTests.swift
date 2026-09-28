@@ -28,12 +28,13 @@ struct FunctionChangesPageTests {
     expectNoDifference(model.displayMode, .map)
     #expect(!model.showsTreeControls)
     #expect(model.showsMap)
-    expectNoDifference(model.titleText, "A map of changing contracts.")
+    #expect(model.contextText.contains("not analyzed"))
+    #expect(model.contextText.contains(model.boundaryText))
+    #expect(!model.contextText.contains("detected changes"))
     model.modeSelection = .tree
     expectNoDifference(model.displayMode, .tree)
     #expect(model.showsTreeControls)
     #expect(!model.showsMap)
-    expectNoDifference(model.titleText, "See where the change lives.")
     model.modeSelection = .map
     expectNoDifference(model.displayMode, .map)
   }
@@ -51,26 +52,36 @@ struct FunctionChangesPageTests {
 
   @Test func mapSummaryCountsOnlyComparableLoadedDeclarations() throws {
     let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
-    expectNoDifference(partial.mapStats.map(\.value), ["1", "1", "1"])
-    #expect(partial.mapStats.allSatisfy { $0.label.contains("loaded") })
+    expectNoDifference(partial.detectedChanges, 1)
+    expectNoDifference(partial.filesNotCompared, 1)
+    #expect(partial.summaryText.contains("in loaded files"))
     let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
-    #expect(!failed.mapStats.contains { $0.value == "0" && $0.label.contains("change") })
+    #expect(failed.summaryText.contains("Changes unknown"))
+    #expect(!failed.summaryText.contains("0 detected changes"))
     let skipped = FunctionChangesPageModel(comparison: try fixture("range-admission-skipped"))
-    #expect(skipped.mapStats.isEmpty)
+    #expect(skipped.summaryText.contains("changes unknown"))
   }
 
   @Test func mapSummaryDoesNotClaimZeroWhenAnObservedFileWasNotCompared() throws {
     var comparison = try fixture("range-cancelled-mid-page")
     comparison.files[0].changes = .typescript([])
     let model = FunctionChangesPageModel(comparison: comparison)
-    expectNoDifference(model.mapStats.first?.value, "?")
-    #expect(model.summaryText.contains("No changes detected in compared files"))
-    #expect(model.mapStats.contains { $0.label.contains("files not compared") })
+    #expect(model.summaryText.contains("No changes detected in loaded compared files"))
+    #expect(model.summaryText.contains("file not compared"))
   }
 
-  @Test func mapStatsKeepLoadedOnlyScopeWhenInventoryIsUncertain() throws {
+  @Test func mapSummaryKeepsLoadedOnlyScopeWhenInventoryIsUncertain() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("range-unknown-scopes"))
-    #expect(model.mapStats.allSatisfy { $0.label.contains("loaded files") })
+    #expect(model.summaryText.contains("in loaded files"))
+  }
+
+  @Test func treeRootKeepsTheComparisonSummary() throws {
+    let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
+    partial.modeSelection = .tree
+    expectNoDifference(partial.nodes.first?.statusText, partial.summaryText)
+    let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
+    failed.modeSelection = .tree
+    expectNoDifference(failed.nodes.first?.statusText, failed.summaryText)
   }
 
   @Test func contractMapUsesRecordedInputsAndOutputs() throws {
@@ -199,7 +210,7 @@ struct FunctionChangesPageTests {
     var comparison = try fixture("range-cancelled-mid-page")
     comparison.files[0].changes = .typescript([])
     let model = FunctionChangesPageModel(comparison: comparison)
-    #expect(model.summaryText.contains("in loaded files"))
+    #expect(model.summaryText.contains("loaded compared files"))
   }
 
   @Test func failedAndIdenticalAreDifferentFromReadyWithNoChanges() throws {

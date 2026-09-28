@@ -5,7 +5,13 @@ struct FunctionChangesPageView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      header
+      Text(model.contextText)
+        .font(DesignTokens.FunctionTree.smallFont)
+        .foregroundStyle(DesignTokens.FunctionTree.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
       controls
       if !model.noticeText.isEmpty {
         Text(model.noticeText)
@@ -33,81 +39,6 @@ struct FunctionChangesPageView: View {
     }
     .background(DesignTokens.FunctionTree.background)
     .preferredColorScheme(.dark)
-  }
-
-  private var header: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Text(model.screenLabel)
-        .font(DesignTokens.FunctionTree.labelFont)
-        .foregroundStyle(DesignTokens.FunctionTree.muted)
-      ViewThatFits(in: .horizontal) {
-        HStack(alignment: .top, spacing: 20) {
-          headerIntro
-          Spacer()
-          headerMetadata
-        }
-        VStack(alignment: .leading, spacing: 12) {
-          headerIntro
-          headerMetadata
-        }
-      }
-      Text(model.analysisText)
-        .font(DesignTokens.FunctionTree.bodyFont)
-        .foregroundStyle(DesignTokens.FunctionTree.changed)
-        .padding(.vertical, 7)
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DesignTokens.FunctionTree.bannerFill)
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius))
-    }
-    .padding(.horizontal, 24)
-    .padding(.vertical, 18)
-    .background(DesignTokens.FunctionTree.headerFill)
-  }
-
-  private var headerIntro: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Text(model.titleText)
-        .font(
-          model.showsMap
-            ? DesignTokens.FunctionMap.titleFont : DesignTokens.FunctionTree.titleFont
-        )
-        .foregroundStyle(DesignTokens.FunctionTree.title)
-      Text(model.subtitleText)
-        .font(DesignTokens.FunctionTree.bodyFont)
-        .foregroundStyle(DesignTokens.FunctionTree.secondary)
-      Text(model.summaryText)
-        .font(DesignTokens.FunctionTree.bodyFont)
-        .foregroundStyle(DesignTokens.FunctionTree.title)
-    }
-  }
-
-  private var headerMetadata: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Text(model.boundaryText)
-        .font(DesignTokens.FunctionTree.labelFont)
-        .foregroundStyle(DesignTokens.FunctionTree.secondary)
-      if model.showsMap {
-        HStack(alignment: .top, spacing: 14) {
-          ForEach(Array(model.mapStats.enumerated()), id: \.offset) { _, stat in
-            VStack(alignment: .leading, spacing: 3) {
-              Text(stat.value)
-                .font(DesignTokens.FunctionMap.titleFont)
-                .foregroundStyle(DesignTokens.FunctionMap.title)
-              Text(stat.label)
-                .font(DesignTokens.FunctionMap.smallFont)
-                .foregroundStyle(DesignTokens.FunctionMap.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(width: 120, alignment: .leading)
-          }
-        }
-      } else {
-        Text(model.scopeText)
-          .font(DesignTokens.FunctionTree.bodyFont)
-          .foregroundStyle(DesignTokens.FunctionTree.secondary)
-      }
-    }
   }
 
   private var controls: some View {
