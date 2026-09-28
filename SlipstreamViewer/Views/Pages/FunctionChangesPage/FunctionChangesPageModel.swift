@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SlipstreamCore
+import SwiftUI
 
 struct FunctionSourceSelection: Equatable {
   enum Side: Equatable { case before, after }
@@ -45,35 +46,39 @@ struct FunctionChangeNode: Identifiable, Equatable {
 final class FunctionChangesPageModel: ViewModel {
   // MARK: - Initialization
 
-  init(comparison: InterfaceComparison) {
-    pages = [comparison]
+  init(
+    comparison: InterfaceComparison,
+    provenanceLabel: String? = "FIXTURE DEMO · Recorded example, not a live capture"
+  ) {
+    self.comparison = comparison
+    self.provenanceLabel = provenanceLabel
     super.init()
   }
 
   // MARK: - Properties
 
-  private(set) var pages: [InterfaceComparison]
-  var searchText = ""
+  let comparison: InterfaceComparison
+  let provenanceLabel: String?
+  var searchText = "" { didSet { clearSelectionIfHidden() } }
   private(set) var showsUnchanged = false
   private(set) var selectedNodeID: String?
   private(set) var sourceSelection: FunctionSourceSelection?
-  private(set) var focusedNodeID: String?
-  private(set) var focusRequest = 0
+  var scrollPosition = ScrollPosition()
   private(set) var zoom: CGFloat = 1
   private(set) var viewportSize = CGSize.zero
 
-  private var firstPage: InterfaceComparison { pages[0] }
-  private var lastPage: InterfaceComparison { pages[pages.count - 1] }
-  private var allFiles: [InterfaceFileResult] { pages.flatMap(\.files) }
+  private var hasDuplicatePaths: Bool {
+    Set(comparison.files.map(\.path)).count != comparison.files.count
+  }
 
-  var detectedChanges: Int { allFiles.reduce(0) { $0 + changes(in: $1).count } }
-  var filesNotCompared: Int { allFiles.filter(isNotCompared).count }
-  var visibleFileCount: Int { visibleFiles.count }
+  var detectedChanges: Int { comparison.files.reduce(0) { $0 + changes(in: $1).count } }
+  var filesNotCompared: Int { comparison.files.filter(isNotCompared).count }
   var nodes: [FunctionChangeNode] { tree.nodes }
   var canvasSize: CGSize { tree.size }
   var edges: [(CGPoint, CGPoint)] {
-    let positions = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
-    return nodes.compactMap { node in
+    let currentNodes = nodes
+    let positions = Dictionary(uniqueKeysWithValues: currentNodes.map { ($0.id, $0) })
+    return currentNodes.compactMap { node in
       guard let parentID = node.parentID, let parent = positions[parentID] else { return nil }
       return (CGPoint(x: parent.x, y: parent.y + parent.height), CGPoint(x: node.x, y: node.y))
     }
@@ -83,23 +88,38 @@ final class FunctionChangesPageModel: ViewModel {
 
   let titleText = "See where the change lives."
   let subtitleText = "Follow recorded function input and output changes in observed files."
-  let analysisText = "Shared types, effects and behaviour: not analyzed"
+  let analysisText = "Shared types, effects and behavior: not analyzed"
   let scopeText = "Observed files"
   let searchPrompt = "Find loaded file or function"
   let legendText = "Number = changed declarations in loaded files"
-  let fixtureText = "FIXTURE DEMO · Recorded example, not a live capture"
+  let screenLabel = "FUNCTION CHANGES"
+  let beforeButtonText = "Before"
+  let afterButtonText = "After"
   let coverageText =
     "Observed files exclude the store directory, .git and symlinks. Lines show containment; the comparison covers recorded endpoints, not every intermediate edit."
+  let zoomHintText = "Zoom out for branch counts. Zoom in to read inline contracts."
 
   var boundaryText: String {
-    "Recorded at #\(firstPage.beforeSeq.decimal) → Recorded at #\(firstPage.afterSeq.decimal)"
+    "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
   }
 
   var summaryText: String {
+    if hasDuplicatePaths { return "Comparison unavailable: duplicate file path" }
+    if case .skipped = comparison.status { return "Comparison skipped · changes unknown" }
     let count = detectedChanges
     let noun = count == 1 ? "change" : "changes"
-    let coverage = lastPage.page.complete ? "" : " in loaded files"
+    let coverage = comparison.page.complete ? "" : " in loaded files"
     let failures = filesNotCompared
+    if count == 0, failures > 0 {
+      let failedNoun = failures == 1 ? "file" : "files"
+      let known =
+        comparison.files.count > failures
+        ? "No changes detected in compared files" : "Changes unknown"
+      return "\(known) · \(failures) \(failedNoun) not compared"
+    }
+    if count == 0, !comparison.page.complete {
+      return "No changes detected in loaded files · more files may exist"
+    }
     if failures > 0 {
       return
         "\(count) detected \(noun)\(coverage) · \(failures) \(failures == 1 ? "file" : "files") not compared"
@@ -109,35 +129,52 @@ final class FunctionChangesPageModel: ViewModel {
 
   var noticeText: String {
     var notes: [String] = []
-    if case .skipped(let reason) = lastPage.status {
+    if case .skipped(let reason) = comparison.status {
       notes.append("Page skipped: \(reason.rawValue)")
     }
-    if !lastPage.page.complete {
+    if !comparison.page.complete {
       notes.append("More files may exist; counts and search cover loaded data only")
     }
-    if firstPage.inventory.baselineCompletedSeq == nil {
+    if comparison.inventory.baselineCompletedSeq == nil {
       notes.append("Baseline inventory was incomplete")
     }
-    if !firstPage.inventory.unknownScopes.isEmpty {
-      notes.append(
-        "Unknown observed scopes: \(firstPage.inventory.unknownScopes.joined(separator: ", "))")
+    if !comparison.inventory.unknownScopes.isEmpty {
+      let scopes = comparison.inventory.unknownScopes
+      let shown = scopes.prefix(3).joined(separator: ", ")
+      let remainder = scopes.count > 3 ? " and \(scopes.count - 3) more" : ""
+      notes.append("Unknown observed scopes: \(shown)\(remainder)")
     }
-    if !firstPage.inventory.unknownScopesComplete {
+    if !comparison.inventory.unknownScopesComplete {
       notes.append("Additional unknown scopes were omitted")
     }
-    let gapSequences = Set(pages.flatMap { $0.gaps.map(\.seq.decimal) }).sorted()
+    let gapSequences = comparison.gaps.prefix(3).map(\.seq.decimal)
     if !gapSequences.isEmpty {
       notes.append(
         "Capture gaps at #\(gapSequences.joined(separator: ", #")); intermediate edits may be missing"
       )
     }
-    if pages.contains(where: { !$0.gapsComplete }) {
+    if !comparison.gapsComplete || comparison.gaps.count > 3 {
       notes.append("Additional capture gaps were omitted")
     }
     return notes.joined(separator: " · ")
   }
 
-  var searchNotice: String { "Search covers loaded file paths and function names only" }
+  var emptyStateText: String {
+    if hasDuplicatePaths { return "Comparison unavailable: duplicate file path" }
+    if case .skipped(let reason) = comparison.status {
+      return "Page not compared: \(reason.rawValue)"
+    }
+    if comparison.files.isEmpty { return "No files listed at the recorded endpoints" }
+    if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
+      return "Identical endpoint files are hidden · Show unchanged branches to view them"
+    }
+    if visibleFiles.isEmpty { return "No loaded files match this view" }
+    return ""
+  }
+  var canShowUnchanged: Bool { comparison.files.contains { $0.status == .identical } }
+  var showUnchangedText: String {
+    showsUnchanged ? "Hide unchanged branches" : "Show unchanged branches"
+  }
   var selectionText: String {
     guard let sourceSelection else {
       return "Select a declaration to inspect its recorded source reference"
@@ -147,6 +184,7 @@ final class FunctionChangesPageModel: ViewModel {
       "\(side) · \(sourceSelection.path) · SHA-256 \(sourceSelection.sha256) · UTF-8 bytes \(sourceSelection.byteRange.lowerBound)–\(sourceSelection.byteRange.upperBound)"
   }
   var zoomText: String { "\(Int((zoom * 100).rounded()))%" }
+  var showsInlineContracts: Bool { zoom >= 0.7 }
   var canSelectBefore: Bool {
     guard let selectedNodeID, let target = declaration(for: selectedNodeID) else { return false }
     return selection(for: target, preferredSide: .before) != nil
@@ -155,12 +193,30 @@ final class FunctionChangesPageModel: ViewModel {
     guard let selectedNodeID, let target = declaration(for: selectedNodeID) else { return false }
     return selection(for: target, preferredSide: .after) != nil
   }
+  var canZoomToSelection: Bool {
+    guard let selectedNodeID else { return false }
+    return nodes.contains { $0.id == selectedNodeID }
+  }
+  var selectionScrollPoint: CGPoint? {
+    guard let selectedNodeID,
+      let node = nodes.first(where: { $0.id == selectedNodeID }),
+      viewportSize.width > 0, viewportSize.height > 0
+    else { return nil }
+    return CGPoint(
+      x: max(0, node.x * zoom - viewportSize.width / 2),
+      y: max(0, (node.y + node.height / 2) * zoom - viewportSize.height / 2)
+    )
+  }
 
   // MARK: - User Actions
 
-  func showUnchangedTapped() { showsUnchanged.toggle() }
+  func showUnchangedTapped() {
+    guard canShowUnchanged else { return }
+    showsUnchanged.toggle()
+    clearSelectionIfHidden()
+  }
   func zoomInTapped() { zoom = min(1.5, zoom + 0.1) }
-  func zoomOutTapped() { zoom = max(0.1, zoom - 0.1) }
+  func zoomOutTapped() { zoom *= 0.8 }
   func viewportChanged(width: CGFloat, height: CGFloat) {
     viewportSize = CGSize(width: width, height: height)
   }
@@ -175,10 +231,9 @@ final class FunctionChangesPageModel: ViewModel {
   }
 
   func zoomToSelectionTapped() {
-    guard let selectedNodeID, nodes.contains(where: { $0.id == selectedNodeID }) else { return }
+    guard canZoomToSelection else { return }
     zoom = max(1, zoom)
-    focusedNodeID = selectedNodeID
-    focusRequest += 1
+    if let point = selectionScrollPoint { scrollPosition.scrollTo(point: point) }
   }
 
   func declarationTapped(_ id: String) {
@@ -194,26 +249,11 @@ final class FunctionChangesPageModel: ViewModel {
     if let next = selection(for: target, preferredSide: side) { sourceSelection = next }
   }
 
-  @discardableResult
-  func pageReceived(_ page: InterfaceComparison) -> Bool {
-    guard !lastPage.page.complete,
-      page.sessionID == firstPage.sessionID,
-      page.beforeSeq == firstPage.beforeSeq,
-      page.afterSeq == firstPage.afterSeq,
-      let cursor = lastPage.page.nextAfterPath,
-      let firstPath = page.files.first?.path,
-      firstPath.utf16.lexicographicallyPrecedes(cursor.utf16) == false,
-      firstPath != cursor,
-      !page.files.contains(where: { file in allFiles.contains(where: { $0.path == file.path }) })
-    else { return false }
-    pages.append(page)
-    return true
-  }
-
   // MARK: - Private Helpers
 
   private var visibleFiles: [InterfaceFileResult] {
-    allFiles.filter { file in
+    guard !hasDuplicatePaths else { return [] }
+    return comparison.files.filter { file in
       guard showsUnchanged || file.status != .identical else { return false }
       guard !searchText.isEmpty else { return true }
       return file.path.localizedCaseInsensitiveContains(searchText)
@@ -223,8 +263,18 @@ final class FunctionChangesPageModel: ViewModel {
     }
   }
 
+  private func clearSelectionIfHidden() {
+    guard let selectedNodeID, declaration(for: selectedNodeID) == nil else { return }
+    self.selectedNodeID = nil
+    sourceSelection = nil
+  }
+
   private func isNotCompared(_ file: InterfaceFileResult) -> Bool {
-    if case .unsupportedLanguageVersion = file.changes { return true }
+    if file.status == .identical { return false }
+    switch file.changes {
+    case .noLanguageModule, .unsupportedLanguageVersion: return true
+    case .typescript, .swift: break
+    }
     switch file.status {
     case .ready, .identical: return false
     case .incomplete, .unavailable, .unsupported, .skipped: return true
@@ -281,15 +331,13 @@ final class FunctionChangesPageModel: ViewModel {
       case .removed: return nil
       }
     }
-    guard case .content(let sha256, _) = record.snapshot else { return nil }
-    let languageVersion: String
-    switch file.changes {
-    case .typescript: languageVersion = "typescript.v2"
-    case .swift: languageVersion = "swift.v1"
-    case .noLanguageModule, .unsupportedLanguageVersion: return nil
-    }
+    guard case .content(let sha256, let size) = record.snapshot,
+      declaration.byteRange.upperBound <= size
+    else { return nil }
+    guard let languageVersion = file.changes.languageVersion else { return nil }
     return FunctionSourceSelection(
-      sessionID: firstPage.sessionID, beforeSeq: firstPage.beforeSeq, afterSeq: firstPage.afterSeq,
+      sessionID: comparison.sessionID, beforeSeq: comparison.beforeSeq,
+      afterSeq: comparison.afterSeq,
       path: file.path, side: preferredSide, sha256: sha256, byteRange: declaration.byteRange,
       projectionVersion: InterfaceComparison.projectionVersion, languageVersion: languageVersion,
       identity: change.identity
@@ -339,6 +387,8 @@ final class FunctionChangesPageModel: ViewModel {
       let fileID = "file:\(file.path)"
       let changes = changes(in: file)
       let unknown = isNotCompared(file)
+      let isSwift: Bool
+      if case .swift = file.changes { isSwift = true } else { isSwift = false }
       drafts.append(
         Draft(
           id: fileID, parentID: parent, kind: .file, title: parts.last ?? file.path,
@@ -358,7 +408,8 @@ final class FunctionChangesPageModel: ViewModel {
           Draft(
             id: "declaration:\(file.path):\(index)", parentID: fileID,
             kind: .declaration, title: displayName(of: change), statusText: nil,
-            lines: lines(for: change), marker: marker, depth: maxDirectoryDepth + 2,
+            lines: showsInlineContracts ? lines(for: change, isSwift: isSwift) : [],
+            marker: marker, depth: maxDirectoryDepth + 2,
             ownChange: 1, ownUnknown: 0))
       }
     }
@@ -385,10 +436,11 @@ final class FunctionChangesPageModel: ViewModel {
       return value
     }
     _ = center("root")
+    let draftsByID = Dictionary(uniqueKeysWithValues: drafts.map { ($0.id, $0) })
     var totals: [String: (Int, Int)] = [:]
     func total(_ id: String) -> (Int, Int) {
       if let value = totals[id] { return value }
-      let draft = drafts.first { $0.id == id }!
+      let draft = draftsByID[id]!
       let descendants = (children[id] ?? []).map(total)
       let result = (
         draft.ownChange + descendants.reduce(0) { $0 + $1.0 },
@@ -401,8 +453,14 @@ final class FunctionChangesPageModel: ViewModel {
     let canvasWidth = max(900, nextLeaf - 120)
     let horizontalOffset = (canvasWidth - (nextLeaf - 120)) / 2
     let nodes = drafts.map { draft in
-      let height: CGFloat =
-        draft.kind == .declaration ? max(185, CGFloat(draft.lines.count) * 22 + 74) : 58
+      let height: CGFloat
+      if draft.kind == .declaration {
+        height = draft.lines.isEmpty ? 58 : max(185, min(350, CGFloat(draft.lines.count) * 22 + 74))
+      } else if draft.kind == .file, draft.statusText != nil {
+        height = 82
+      } else {
+        height = 58
+      }
       let width: CGFloat = draft.kind == .declaration ? 270 : 190
       let count = totals[draft.id] ?? (0, 0)
       return FunctionChangeNode(
@@ -417,12 +475,14 @@ final class FunctionChangesPageModel: ViewModel {
   }
 
   private func fileStatusText(_ file: InterfaceFileResult) -> String? {
-    if case .unsupportedLanguageVersion(let language, let version) = file.changes {
-      return "Unsupported language version: \(language) \(version)"
-    }
     switch file.status {
     case .identical: return "No net change at recorded endpoints"
-    case .ready: return changes(in: file).isEmpty ? "No detected interface change" : nil
+    case .ready:
+      if case .unsupportedLanguageVersion(let language, let version) = file.changes {
+        return "Unsupported language version: \(language) \(version)"
+      }
+      if case .noLanguageModule = file.changes { return "Unsupported language" }
+      return changes(in: file).isEmpty ? "No detected interface change" : nil
     case .incomplete(let reason): return "Incomplete: \(reason)"
     case .unavailable(let reason): return "Unavailable: \(reason)"
     case .unsupported(let reason): return "Unsupported: \(reason)"
@@ -430,30 +490,41 @@ final class FunctionChangesPageModel: ViewModel {
     }
   }
 
-  private func lines(for change: InterfaceChange) -> [FunctionChangeLine] {
+  private func lines(for change: InterfaceChange, isSwift: Bool) -> [FunctionChangeLine] {
     var lines: [FunctionChangeLine] = []
     if !change.parameters.isEmpty {
       lines.append(.init(mark: .note, text: "INPUTS"))
-      for parameter in change.parameters { lines += deltaLines(parameter, format: parameterText) }
+      for parameter in change.parameters {
+        lines += deltaLines(parameter) { parameterText($0, isSwift: isSwift) }
+      }
     }
     if let result = change.result {
       lines.append(.init(mark: .note, text: "OUTPUT"))
       lines += deltaLines(result, format: resultText)
     }
-    if case .equal(let clause) = change.throwsClause, clause.mode == .notExpressible {
-      lines.append(.init(mark: .note, text: "Throws not expressible in TypeScript"))
-    } else if case .equal(let clause) = change.throwsClause, clause.mode == .notWritten {
-      lines.append(.init(mark: .note, text: "No declared throws"))
+    let throwsRows = deltaLines(change.throwsClause, format: throwsText)
+    if hasNoDeclaredThrows(change.throwsClause) {
+      if let final = throwsRows.last { lines.append(.init(mark: .note, text: final.text)) }
     } else {
       lines.append(.init(mark: .note, text: "DECLARED THROWS"))
-      lines += deltaLines(change.throwsClause, format: throwsText)
+      lines += throwsRows
     }
-    if case .equal(let header) = change.header, header == InterfaceHeader() {
-    } else {
+    let headerRows = deltaLines(change.header, format: headerText).filter { !$0.text.isEmpty }
+    if !headerRows.isEmpty {
       lines.append(.init(mark: .note, text: "HEADER"))
-      lines += deltaLines(change.header, format: headerText)
+      lines += headerRows
     }
     return lines
+  }
+
+  private func hasNoDeclaredThrows(_ delta: InterfaceDelta<InterfaceThrowsClause>) -> Bool {
+    func isAbsent(_ clause: InterfaceThrowsClause) -> Bool {
+      clause.mode == .notExpressible || clause.mode == .notWritten
+    }
+    switch delta {
+    case .equal(let clause), .added(let clause), .removed(let clause): return isAbsent(clause)
+    case .changed(let before, let after): return isAbsent(before) && isAbsent(after)
+    }
   }
 
   private func deltaLines<Value>(_ delta: InterfaceDelta<Value>, format: (Value) -> String)
@@ -471,14 +542,15 @@ final class FunctionChangesPageModel: ViewModel {
     }
   }
 
-  private func parameterText(_ value: InterfaceParameter) -> String {
+  private func parameterText(_ value: InterfaceParameter, isSwift: Bool) -> String {
     let label = value.label.map { "\($0) " } ?? ""
     let modifiers = value.modifiers.isEmpty ? "" : value.modifiers.joined(separator: " ") + " "
     let suffix = value.isOptional ? "?" : ""
-    let variadic = value.isVariadic ? "..." : ""
+    let prefix = value.isVariadic && !isSwift ? "..." : ""
+    let typeSuffix = value.isVariadic && isSwift ? "..." : ""
     let defaultValue = value.defaultValue.map { " = \($0)" } ?? ""
     return
-      "\(modifiers)\(label)\(variadic)\(value.name)\(suffix): \(typeText(value.type))\(defaultValue)"
+      "\(modifiers)\(label)\(prefix)\(value.name)\(suffix): \(typeText(value.type))\(typeSuffix)\(defaultValue)"
   }
 
   private func typeText(_ value: InterfaceTypeReference) -> String {

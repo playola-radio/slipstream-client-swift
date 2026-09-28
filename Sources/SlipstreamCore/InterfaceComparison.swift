@@ -160,10 +160,22 @@ public struct InterfaceFileResult: Equatable, Sendable {
   }
 
   public enum Changes: Equatable, Sendable {
+    public static let typescriptVersion = "typescript.v2"
+    public static let swiftVersion = "swift.v1"
+
     case typescript([InterfaceChange])
     case swift([InterfaceChange])
     case noLanguageModule
     case unsupportedLanguageVersion(language: String, version: String)
+
+    public var languageVersion: String? {
+      switch self {
+      case .typescript: Self.typescriptVersion
+      case .swift: Self.swiftVersion
+      case .noLanguageModule: nil
+      case .unsupportedLanguageVersion(_, let version): version
+      }
+    }
   }
 
   public var path: String
@@ -595,13 +607,13 @@ extension InterfaceFileResult: Decodable {
       try container.decodeNullable(String.self, forKey: .language),
       try container.decodeNullable(String.self, forKey: .languageVersion)
     ) {
-    case ("typescript", "typescript.v2"):
+    case ("typescript", let version?) where version == Changes.typescriptVersion:
       let rows = try container.decode([InterfaceChange].self, forKey: .changes)
       guard rows.allSatisfy({ ($0.result == nil) == ($0.identity.kind == "constructor") }) else {
         throw container.corrupt(.changes, "result is null exactly for a TypeScript constructor")
       }
       changes = .typescript(rows)
-    case ("swift", "swift.v1"):
+    case ("swift", let version?) where version == Changes.swiftVersion:
       let rows = try container.decode([InterfaceChange].self, forKey: .changes)
       guard rows.allSatisfy({ $0.result != nil }) else {
         throw container.corrupt(.changes, "a Swift declaration always has a result slot")

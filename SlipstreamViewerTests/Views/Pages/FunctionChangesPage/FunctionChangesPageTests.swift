@@ -1,4 +1,5 @@
 import CustomDump
+import Dependencies
 import Foundation
 import SlipstreamCore
 import Testing
@@ -42,10 +43,13 @@ struct FunctionChangesPageTests {
     expectNoDifference(failed.detectedChanges, 0)
     expectNoDifference(failed.filesNotCompared, 2)
     #expect(!failed.summaryText.contains("0 changes"))
+    #expect(failed.summaryText.contains("not compared"))
+    #expect(failed.summaryText.contains("Changes unknown"))
     let ready = FunctionChangesPageModel(comparison: try fixture("ts-unchanged-signature"))
     #expect(ready.nodes.contains { $0.statusText == "No detected interface change" })
     let identical = FunctionChangesPageModel(comparison: try fixture("range-reverted-listed"))
     #expect(!identical.nodes.contains { $0.kind == .file })
+    #expect(identical.emptyStateText.contains("hidden"))
     identical.showUnchangedTapped()
     #expect(identical.nodes.contains { $0.statusText == "No net change at recorded endpoints" })
   }
@@ -53,15 +57,15 @@ struct FunctionChangesPageTests {
   @Test func pageSkipIsNotAnEmptySuccess() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("range-admission-skipped"))
     #expect(model.noticeText.contains("overloaded"))
-    #expect(model.summaryText.contains("loaded"))
+    #expect(model.summaryText.contains("changes unknown"))
   }
 
   @Test func searchOnlyFiltersLoadedPathsAndDeclarations() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("range-page-boundary-first"))
-    #expect(model.searchPrompt.contains("loaded"))
+    model.searchText = "a"
+    #expect(model.nodes.contains { $0.kind == .declaration && $0.title == "a" })
     model.searchText = "not-in-this-page"
-    expectNoDifference(model.visibleFileCount, 0)
-    #expect(model.searchNotice.contains("loaded"))
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 0)
   }
 
   @Test func selectionCarriesActualEndpointSideHashAndUTF8Span() throws {
@@ -104,20 +108,22 @@ struct FunctionChangesPageTests {
     #expect(lines.contains("x: unknown"))
   }
 
-  @Test func zoomAndFitClampToReadableBounds() throws {
+  @Test func zoomAndSelectionCanBeRequestedRepeatedly() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     model.zoomOutTapped()
     #expect(model.zoom < 1)
-    model.viewportChanged(width: 900, height: 600)
-    model.fitTreeTapped()
-    #expect(model.zoom >= 0.5 && model.zoom <= 1.5)
+    model.zoomOutTapped()
+    #expect(try #require(model.nodes.first { $0.kind == .declaration }).lines.isEmpty)
+    model.zoomInTapped()
+    #expect(!((try #require(model.nodes.first { $0.kind == .declaration })).lines.isEmpty))
     let declaration = try #require(model.nodes.first { $0.kind == .declaration })
     model.declarationTapped(declaration.id)
+    model.viewportChanged(width: 900, height: 600)
     model.zoomToSelectionTapped()
-    #expect(model.focusedNodeID == declaration.id)
-    let firstRequest = model.focusRequest
+    let point = try #require(model.selectionScrollPoint)
+    expectNoDifference(model.scrollPosition.point, point)
     model.zoomToSelectionTapped()
-    expectNoDifference(model.focusRequest, firstRequest + 1)
+    expectNoDifference(model.scrollPosition.point, point)
   }
 
   @Test func fitTreeCanShowAWideLoadedTree() throws {
@@ -134,15 +140,21 @@ struct FunctionChangesPageTests {
     #expect(model.canvasSize.width * model.zoom <= 900)
   }
 
-  @Test func secondPageCompletesCountsAndRejectsOtherComparisons() throws {
-    let model = FunctionChangesPageModel(comparison: try fixture("range-page-boundary-first"))
-    expectNoDifference(model.detectedChanges, 1)
-    #expect(model.summaryText.contains("loaded"))
-    #expect(!model.pageReceived(try fixture("ts-parameter-change")))
-    #expect(model.pageReceived(try fixture("range-page-boundary-second")))
-    expectNoDifference(model.detectedChanges, 2)
-    #expect(!model.summaryText.contains("loaded"))
-    #expect(!model.pageReceived(try fixture("range-page-boundary-second")))
+  @Test func zoomOutNeverIncreasesZoomAfterFit() throws {
+    var comparison = try fixture("ts-parameter-change")
+    let file = try #require(comparison.files.first)
+    comparison.files = (0..<50).map { index in
+      var copy = file
+      copy.path = "src/f\(index).ts"
+      return copy
+    }
+    let model = FunctionChangesPageModel(comparison: comparison)
+    model.viewportChanged(width: 900, height: 650)
+    model.fitTreeTapped()
+    let fittedZoom = model.zoom
+    #expect(fittedZoom < 0.1)
+    model.zoomOutTapped()
+    #expect(model.zoom <= fittedZoom)
   }
 
   @Test func unsupportedLanguageVersionIsAnUnknownFile() throws {
@@ -167,6 +179,23 @@ struct FunctionChangesPageTests {
     let removed = FunctionChangesPageModel(comparison: try fixture("ts-removed-function"))
     removed.declarationTapped(try #require(removed.nodes.first { $0.kind == .declaration }).id)
     expectNoDifference(removed.sourceSelection?.side, .before)
+  }
+
+  @Test func outOfRangeAfterSpanFallsBackToRecordedBeforeSide() throws {
+    var comparison = try fixture("ts-unicode-span")
+    if case .typescript(var changes) = comparison.files[0].changes,
+      case .signatureChanged(let before, let after) = changes[0].kind
+    {
+      changes[0].kind = .signatureChanged(
+        before: before,
+        after: InterfaceDeclaration(displayName: after.displayName, byteRange: 20..<999)
+      )
+      comparison.files[0].changes = .typescript(changes)
+    }
+    let model = FunctionChangesPageModel(comparison: comparison)
+    model.declarationTapped(try #require(model.nodes.first { $0.kind == .declaration }).id)
+    expectNoDifference(model.sourceSelection?.side, .before)
+    #expect(!model.canSelectAfter)
   }
 
   @Test func directoryCountsIgnoreComponentRowsAndExposeUnknownFiles() throws {
@@ -203,14 +232,95 @@ struct FunctionChangesPageTests {
     expectNoDifference(Set(ids).count, ids.count)
   }
 
+  @Test func addedDeclarationsDoNotClaimThrowsOrShowEmptyHeaders() throws {
+    for caseName in [
+      "ts-added-function", "swift-added-function", "ts-removed-function", "swift-removed-function",
+    ] {
+      let model = FunctionChangesPageModel(comparison: try fixture(caseName))
+      let lines = try #require(model.nodes.first { $0.kind == .declaration }).lines
+      #expect(!lines.contains { $0.text == "HEADER" || $0.text == "DECLARED THROWS" })
+      #expect(!lines.contains { $0.text.isEmpty })
+    }
+  }
+
+  @Test func swiftVariadicUsesWrittenSuffix() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("swift-variadic"))
+    let lines = model.nodes.flatMap(\.lines).map(\.text)
+    #expect(lines.contains { $0.contains("Int...") })
+    #expect(!lines.contains { $0.hasPrefix("...values") })
+  }
+
+  @Test func filteringASelectedDeclarationClearsItsSource() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
+    model.declarationTapped(try #require(model.nodes.first { $0.kind == .declaration }).id)
+    #expect(model.sourceSelection != nil)
+    model.searchText = "not-in-this-page"
+    #expect(model.sourceSelection == nil)
+    #expect(!model.canZoomToSelection)
+  }
+
+  @Test func unchangedToggleOnlyOffersLoadedIdenticalResults() throws {
+    let hidden = FunctionChangesPageModel(comparison: try fixture("range-reverted-hidden"))
+    #expect(!hidden.canShowUnchanged)
+    #expect(hidden.emptyStateText.contains("No files listed"))
+    let listed = FunctionChangesPageModel(comparison: try fixture("range-reverted-listed"))
+    #expect(listed.canShowUnchanged)
+  }
+
+  @Test func duplicateFilePathsAreUnavailableInsteadOfCrashing() throws {
+    var comparison = try fixture("ts-parameter-change")
+    comparison.files.append(try #require(comparison.files.first))
+    let model = FunctionChangesPageModel(comparison: comparison)
+    #expect(model.emptyStateText.contains("duplicate"))
+    #expect(model.nodes.isEmpty)
+    #expect(!model.summaryText.contains("0 detected changes"))
+  }
+
+  @Test func identicalUnknownVersionIsStillNoNetChange() throws {
+    var comparison = try fixture("range-reverted-listed")
+    comparison.files[0].changes = .unsupportedLanguageVersion(
+      language: "typescript", version: "typescript.v3")
+    let model = FunctionChangesPageModel(comparison: comparison)
+    expectNoDifference(model.filesNotCompared, 0)
+    model.showUnchangedTapped()
+    #expect(model.nodes.contains { $0.statusText == "No net change at recorded endpoints" })
+  }
+
+  @Test func missingLanguageModuleCannotClaimZeroChanges() throws {
+    var comparison = try fixture("ts-parameter-change")
+    comparison.files[0].changes = .noLanguageModule
+    let model = FunctionChangesPageModel(comparison: comparison)
+    expectNoDifference(model.filesNotCompared, 1)
+    #expect(model.summaryText.contains("not compared"))
+    #expect(model.nodes.contains { $0.statusText == "Unsupported language" })
+  }
+
   @Test func demoLoadsOnlyNamedPinnedCases() {
-    let demo = FunctionChangesFixtureModel(root: fixtureRoot, initialCase: "ts-parameter-change")
+    let demo = withDependencies {
+      $0.functionFixtures = .liveValue
+    } operation: {
+      FunctionChangesFixtureModel(root: fixtureRoot, initialCase: "ts-parameter-change")
+    }
     demo.viewAppeared()
     #expect(demo.page != nil)
     #expect(demo.errorText == nil)
     demo.caseSelected("not-a-pinned-case")
     #expect(demo.page == nil)
     #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")
+  }
+
+  @Test func demoUsesItsInjectedFixtureClient() throws {
+    let comparison = try fixture("ts-parameter-change")
+    let demo = withDependencies {
+      $0.functionFixtures = FunctionFixtureClient { _, _ in
+        FunctionFixtureCatalog(caseNames: ["synthetic"], comparison: comparison)
+      }
+    } operation: {
+      FunctionChangesFixtureModel(root: URL(fileURLWithPath: "/unused"), initialCase: "synthetic")
+    }
+    demo.viewAppeared()
+    expectNoDifference(demo.caseNames, ["synthetic"])
+    expectNoDifference(demo.page?.detectedChanges, 1)
   }
 
 }

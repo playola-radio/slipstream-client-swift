@@ -16,7 +16,15 @@ struct FunctionChangesPageView: View {
           .padding(.vertical, 8)
           .background(DesignTokens.FunctionTree.bannerFill)
       }
-      tree
+      if model.emptyStateText.isEmpty {
+        tree
+      } else {
+        Text(model.emptyStateText)
+          .font(DesignTokens.FunctionTree.bodyFont)
+          .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(DesignTokens.FunctionTree.canvasFill)
+      }
       footer
     }
     .background(DesignTokens.FunctionTree.background)
@@ -27,13 +35,15 @@ struct FunctionChangesPageView: View {
   private var header: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
-        Text("FUNCTION CHANGES")
+        Text(model.screenLabel)
           .font(DesignTokens.FunctionTree.labelFont)
           .foregroundStyle(DesignTokens.FunctionTree.muted)
         Spacer()
-        Text(model.fixtureText)
-          .font(DesignTokens.FunctionTree.smallFont)
-          .foregroundStyle(DesignTokens.FunctionTree.changed)
+        if let provenanceLabel = model.provenanceLabel {
+          Text(provenanceLabel)
+            .font(DesignTokens.FunctionTree.smallFont)
+            .foregroundStyle(DesignTokens.FunctionTree.changed)
+        }
       }
       HStack(alignment: .firstTextBaseline) {
         Text(model.titleText)
@@ -82,8 +92,8 @@ struct FunctionChangesPageView: View {
           RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius).stroke(
             DesignTokens.FunctionTree.cardStroke)
         }
-      Button(model.showsUnchanged ? "Hide unchanged branches" : "Show unchanged branches") {
-        model.showUnchangedTapped()
+      if model.canShowUnchanged {
+        Button(model.showUnchangedText) { model.showUnchangedTapped() }
       }
       Spacer()
       legend("+", "Added", DesignTokens.FunctionTree.added)
@@ -106,23 +116,19 @@ struct FunctionChangesPageView: View {
   }
 
   private var tree: some View {
-    ScrollViewReader { proxy in
-      ScrollView([.horizontal, .vertical]) {
-        treeCanvas
-          .scaleEffect(model.zoom, anchor: .topLeading)
-          .frame(
-            width: model.canvasSize.width * model.zoom,
-            height: model.canvasSize.height * model.zoom, alignment: .topLeading)
-      }
-      .background(DesignTokens.FunctionTree.canvasFill)
-      .onGeometryChange(for: CGSize.self) {
-        $0.size
-      } action: { size in
-        model.viewportChanged(width: size.width, height: size.height)
-      }
-      .onChange(of: model.focusRequest) {
-        if let id = model.focusedNodeID { proxy.scrollTo(id, anchor: .center) }
-      }
+    ScrollView([.horizontal, .vertical]) {
+      treeCanvas
+        .scaleEffect(model.zoom, anchor: .topLeading)
+        .frame(
+          width: model.canvasSize.width * model.zoom,
+          height: model.canvasSize.height * model.zoom, alignment: .topLeading)
+    }
+    .scrollPosition($model.scrollPosition)
+    .background(DesignTokens.FunctionTree.canvasFill)
+    .onGeometryChange(for: CGSize.self) {
+      $0.size
+    } action: { size in
+      model.viewportChanged(width: size.width, height: size.height)
     }
   }
 
@@ -145,7 +151,6 @@ struct FunctionChangesPageView: View {
         nodeView(node)
           .frame(width: node.width, height: node.height)
           .position(x: node.x, y: node.y + node.height / 2)
-          .id(node.id)
       }
     }
     .frame(width: model.canvasSize.width, height: model.canvasSize.height, alignment: .topLeading)
@@ -190,21 +195,26 @@ struct FunctionChangesPageView: View {
         Text(status)
           .font(DesignTokens.FunctionTree.smallFont)
           .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          .lineLimit(2)
+          .help(status)
       }
       if !node.lines.isEmpty {
         DesignTokens.FunctionTree.divider.frame(height: 1)
-        ForEach(Array(node.lines.enumerated()), id: \.offset) { _, line in
-          HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(DesignTokens.FunctionTree.symbol(line.mark))
-              .frame(width: 10, alignment: .leading)
-            Text(line.text)
-              .frame(maxWidth: .infinity, alignment: .leading)
+        ScrollView([.vertical, .horizontal]) {
+          VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(node.lines.enumerated()), id: \.offset) { _, line in
+              HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(DesignTokens.FunctionTree.symbol(line.mark))
+                  .frame(width: 10, alignment: .leading)
+                Text(line.text).fixedSize(horizontal: true, vertical: false)
+              }
+              .font(
+                line.mark == .note
+                  ? DesignTokens.FunctionTree.smallFont : DesignTokens.FunctionTree.codeFont
+              )
+              .foregroundStyle(DesignTokens.FunctionTree.mark(line.mark))
+            }
           }
-          .font(
-            line.mark == .note
-              ? DesignTokens.FunctionTree.smallFont : DesignTokens.FunctionTree.codeFont
-          )
-          .foregroundStyle(DesignTokens.FunctionTree.mark(line.mark))
         }
       }
       Spacer(minLength: 0)
@@ -233,7 +243,7 @@ struct FunctionChangesPageView: View {
         Button("+") { model.zoomInTapped() }
         Button("Fit tree") { model.fitTreeTapped() }
         Button("Zoom to selection") { model.zoomToSelectionTapped() }
-          .disabled(model.selectedNodeID == nil)
+          .disabled(!model.canZoomToSelection)
         Spacer()
         Text(model.selectionText)
           .lineLimit(1)
@@ -247,15 +257,15 @@ struct FunctionChangesPageView: View {
       .background(DesignTokens.FunctionTree.controlFill)
       HStack {
         VStack(alignment: .leading, spacing: 2) {
-          Text(model.searchNotice)
+          Text(model.zoomHintText)
           Text(model.coverageText).lineLimit(1)
         }
         Spacer()
         if model.canSelectBefore {
-          Button("Before") { model.sourceSideTapped(.before) }
+          Button(model.beforeButtonText) { model.sourceSideTapped(.before) }
         }
         if model.canSelectAfter {
-          Button("After") { model.sourceSideTapped(.after) }
+          Button(model.afterButtonText) { model.sourceSideTapped(.after) }
         }
       }
       .font(DesignTokens.FunctionTree.smallFont)

@@ -1,5 +1,4 @@
 import IssueReporting
-import Foundation
 import SwiftUI
 
 @main
