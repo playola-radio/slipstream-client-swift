@@ -24,6 +24,11 @@ struct FunctionChangeLine: Equatable {
   let text: String
 }
 
+enum FunctionChangesDisplayMode: String, CaseIterable, Equatable {
+  case map = "Map"
+  case tree = "Tree"
+}
+
 struct FunctionChangeNode: Identifiable, Equatable {
   enum Kind: Equatable { case root, directory, file, declaration }
   let id: String
@@ -39,6 +44,35 @@ struct FunctionChangeNode: Identifiable, Equatable {
   let y: CGFloat
   let width: CGFloat
   let height: CGFloat
+}
+
+struct FunctionMapGroup: Identifiable, Equatable {
+  let id: String
+  let directory: String
+  let files: [FunctionMapFile]
+  let changedCount: Int
+  let unknownCount: Int
+}
+
+struct FunctionMapFile: Identifiable, Equatable {
+  let id: String
+  let path: String
+  let name: String
+  let changedCount: Int
+  let isUnknown: Bool
+  let rows: [FunctionMapRow]
+}
+
+struct FunctionMapRow: Identifiable, Equatable {
+  let id: String
+  let title: String
+  let subtitle: String
+  let label: String
+  let marker: FunctionChangeLine.Mark?
+  let inputLines: [FunctionChangeLine]
+  let outputLines: [FunctionChangeLine]
+  let headerLines: [FunctionChangeLine]
+  let statusText: String?
 }
 
 @MainActor
@@ -59,6 +93,7 @@ final class FunctionChangesPageModel: ViewModel {
 
   let comparison: InterfaceComparison
   let provenanceLabel: String?
+  private(set) var displayMode: FunctionChangesDisplayMode = .map
   var searchText = "" { didSet { clearSelectionIfHidden() } }
   private(set) var showsUnchanged = false
   private(set) var selectedNodeID: String?
@@ -74,6 +109,56 @@ final class FunctionChangesPageModel: ViewModel {
   var detectedChanges: Int { comparison.files.reduce(0) { $0 + changes(in: $1).count } }
   var filesNotCompared: Int { comparison.files.filter(isNotCompared).count }
   var nodes: [FunctionChangeNode] { tree.nodes }
+  var mapGroups: [FunctionMapGroup] {
+    var order: [String] = []
+    var filesByDirectory: [String: [FunctionMapFile]] = [:]
+    for file in visibleFiles {
+      let parts = file.path.split(separator: "/").map(String.init)
+      let directory = parts.dropLast().isEmpty ? "/" : parts.dropLast().joined(separator: "/")
+      if filesByDirectory[directory] == nil {
+        order.append(directory)
+        filesByDirectory[directory] = []
+      }
+      let changes = changes(in: file)
+      let isSwift: Bool
+      if case .swift = file.changes { isSwift = true } else { isSwift = false }
+      var rows = changes.enumerated().compactMap { index, change -> FunctionMapRow? in
+        guard matchesSearch(change, in: file) else { return nil }
+        let marker: FunctionChangeLine.Mark =
+          switch change.kind {
+          case .added: .added
+          case .removed: .removed
+          case .signatureChanged: .changed
+          }
+        return FunctionMapRow(
+          id: "declaration:\(file.path):\(index)", title: displayName(of: change),
+          subtitle: mapSubtitle(for: change), label: mapLabel(for: change), marker: marker,
+          inputLines: parameterLines(for: change, isSwift: isSwift),
+          outputLines: resultLines(for: change) + throwsLines(for: change),
+          headerLines: headerLines(for: change), statusText: nil)
+      }
+      if rows.isEmpty {
+        rows = [
+          FunctionMapRow(
+            id: "status:\(file.path)", title: parts.last ?? file.path, subtitle: "", label: "",
+            marker: nil, inputLines: [], outputLines: [], headerLines: [],
+            statusText: fileStatusText(file) ?? "No detected interface change")
+        ]
+      }
+      filesByDirectory[directory, default: []].append(
+        FunctionMapFile(
+          id: "map-file:\(file.path)", path: file.path, name: parts.last ?? file.path,
+          changedCount: rows.filter { $0.marker != nil }.count, isUnknown: isNotCompared(file),
+          rows: rows))
+    }
+    return order.map { directory in
+      let files = filesByDirectory[directory] ?? []
+      return FunctionMapGroup(
+        id: "map-directory:\(directory)", directory: directory, files: files,
+        changedCount: files.reduce(0) { $0 + $1.changedCount },
+        unknownCount: files.filter(\.isUnknown).count)
+    }
+  }
   var canvasSize: CGSize { tree.size }
   var edges: [(CGPoint, CGPoint)] {
     let currentNodes = nodes
@@ -184,6 +269,7 @@ final class FunctionChangesPageModel: ViewModel {
       "\(side) · \(sourceSelection.path) · SHA-256 \(sourceSelection.sha256) · UTF-8 bytes \(sourceSelection.byteRange.lowerBound)–\(sourceSelection.byteRange.upperBound)"
   }
   var zoomText: String { "\(Int((zoom * 100).rounded()))%" }
+  var showsTreeControls: Bool { displayMode == .tree }
   var showsInlineContracts: Bool { zoom >= 0.7 }
   var canSelectBefore: Bool {
     guard let selectedNodeID, let target = declaration(for: selectedNodeID) else { return false }
@@ -209,6 +295,8 @@ final class FunctionChangesPageModel: ViewModel {
   }
 
   // MARK: - User Actions
+
+  func displayModeSelected(_ mode: FunctionChangesDisplayMode) { displayMode = mode }
 
   func showUnchangedTapped() {
     guard canShowUnchanged else { return }
@@ -496,27 +584,78 @@ final class FunctionChangesPageModel: ViewModel {
     var lines: [FunctionChangeLine] = []
     if !change.parameters.isEmpty {
       lines.append(.init(mark: .note, text: "INPUTS"))
-      for parameter in change.parameters {
-        lines += deltaLines(parameter) { parameterText($0, isSwift: isSwift) }
-      }
+      lines += parameterLines(for: change, isSwift: isSwift)
     }
-    if let result = change.result {
+    if change.result != nil {
       lines.append(.init(mark: .note, text: "OUTPUT"))
-      lines += deltaLines(result, format: resultText)
+      lines += resultLines(for: change)
     }
-    let throwsRows = deltaLines(change.throwsClause, format: throwsText)
     if hasNoDeclaredThrows(change.throwsClause) {
-      if let final = throwsRows.last { lines.append(.init(mark: .note, text: final.text)) }
+      lines += throwsLines(for: change)
     } else {
       lines.append(.init(mark: .note, text: "DECLARED THROWS"))
-      lines += throwsRows
+      lines += throwsLines(for: change)
     }
-    let headerRows = deltaLines(change.header, format: headerText).filter { !$0.text.isEmpty }
+    let headerRows = headerLines(for: change)
     if !headerRows.isEmpty {
       lines.append(.init(mark: .note, text: "HEADER"))
       lines += headerRows
     }
     return lines
+  }
+
+  private func parameterLines(for change: InterfaceChange, isSwift: Bool)
+    -> [FunctionChangeLine]
+  {
+    change.parameters.flatMap { deltaLines($0) { parameterText($0, isSwift: isSwift) } }
+  }
+
+  private func resultLines(for change: InterfaceChange) -> [FunctionChangeLine] {
+    guard let result = change.result else { return [] }
+    return deltaLines(result, format: resultText)
+  }
+
+  private func throwsLines(for change: InterfaceChange) -> [FunctionChangeLine] {
+    let rows = deltaLines(change.throwsClause, format: throwsText)
+    if hasNoDeclaredThrows(change.throwsClause) {
+      return rows.last.map { [.init(mark: .note, text: $0.text)] } ?? []
+    }
+    return rows
+  }
+
+  private func headerLines(for change: InterfaceChange) -> [FunctionChangeLine] {
+    deltaLines(change.header, format: headerText).filter { !$0.text.isEmpty }
+  }
+
+  private func mapLabel(for change: InterfaceChange) -> String {
+    switch change.kind {
+    case .added: return "Added"
+    case .removed: return "Removed"
+    case .signatureChanged:
+      var parts: [String] = []
+      if change.parameters.contains(where: { isChanged($0) }) { parts.append("Inputs") }
+      if let result = change.result, isChanged(result) { parts.append("Output") }
+      if isChanged(change.throwsClause) { parts.append("Throws") }
+      if isChanged(change.header) { parts.append("Header") }
+      return parts.joined(separator: " + ") + " changed"
+    }
+  }
+
+  private func mapSubtitle(for change: InterfaceChange) -> String {
+    let header: InterfaceHeader =
+      switch change.header {
+      case .equal(let value), .added(let value), .removed(let value): value
+      case .changed(_, let after): after
+      }
+
+    return ([change.identity.kind]
+      + change.identity.guards.map { "#if \($0)" }
+      + header.modifiers).joined(separator: " · ")
+  }
+
+  private func isChanged<Value>(_ delta: InterfaceDelta<Value>) -> Bool {
+    if case .equal = delta { return false }
+    return true
   }
 
   private func hasNoDeclaredThrows(_ delta: InterfaceDelta<InterfaceThrowsClause>) -> Bool {

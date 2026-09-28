@@ -23,6 +23,81 @@ struct FunctionChangesPageTests {
     return try InterfaceComparison.decode(Data(contentsOf: url))
   }
 
+  @Test func mapIsPrimaryAndTreeRemainsAvailable() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
+    expectNoDifference(model.displayMode, .map)
+    #expect(!model.showsTreeControls)
+    model.displayModeSelected(.tree)
+    expectNoDifference(model.displayMode, .tree)
+    #expect(model.showsTreeControls)
+    model.displayModeSelected(.map)
+    expectNoDifference(model.displayMode, .map)
+  }
+
+  @Test func contractMapUsesRecordedInputsAndOutputs() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
+    let group = try #require(model.mapGroups.first)
+    expectNoDifference(group.directory, "src")
+    let file = try #require(group.files.first)
+    expectNoDifference(file.path, "src/f.ts")
+    expectNoDifference(file.changedCount, 1)
+    let row = try #require(file.rows.first)
+    expectNoDifference(row.label, "Inputs changed")
+    expectNoDifference(row.title, "f")
+    #expect(row.inputLines.contains { $0.mark == .removed && $0.text == "x: number" })
+    #expect(row.inputLines.contains { $0.mark == .added && $0.text == "x: string" })
+    #expect(row.outputLines.contains { $0.text == "void" })
+    expectNoDifference(
+      row.outputLines.filter { $0.text == "Throws not expressible in TypeScript" }.count, 1)
+  }
+
+  @Test func contractMapKeepsSwiftImplicitAndHeaderChanges() throws {
+    let added = FunctionChangesPageModel(comparison: try fixture("swift-added-function"))
+    let addedRow = try #require(added.mapGroups.first?.files.first?.rows.first)
+    expectNoDifference(addedRow.label, "Added")
+    #expect(addedRow.outputLines.contains { $0.text == "Void (implicit)" })
+    #expect(addedRow.outputLines.contains { $0.text == "No declared throws" })
+    let generics = FunctionChangesPageModel(comparison: try fixture("swift-generics-where"))
+    let genericsRow = try #require(generics.mapGroups.first?.files.first?.rows.first)
+    expectNoDifference(genericsRow.label, "Header changed")
+    #expect(genericsRow.headerLines.contains { $0.text.contains("T: Comparable") })
+  }
+
+  @Test func contractMapDistinguishesGuardedRemoveAndAdd() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("swift-guard-move"))
+    let rows = try #require(model.mapGroups.first?.files.first?.rows)
+    expectNoDifference(rows.map(\.label), ["Removed", "Added"])
+    #expect(rows[0].subtitle.contains("DEBUG"))
+    #expect(rows[1].subtitle.contains("!(DEBUG)"))
+  }
+
+  @Test func contractMapShowsPartialAndFailedFilesWithoutInventedRows() throws {
+    let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
+    let files = partial.mapGroups.flatMap(\.files)
+    expectNoDifference(files.map(\.path), ["src/a.ts", "src/b.ts"])
+    #expect(files[1].isUnknown)
+    expectNoDifference(files[1].rows.first?.statusText, "Skipped: cancelled")
+    #expect(partial.noticeText.contains("loaded data only"))
+    let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
+    #expect(failed.mapGroups.flatMap(\.files).allSatisfy { $0.isUnknown })
+    #expect(failed.mapGroups.flatMap(\.files).flatMap(\.rows).allSatisfy { $0.marker == nil })
+  }
+
+  @Test func contractMapIgnoresTreeZoomAndPreservesSelectionOnModeSwitch() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("ts-unicode-span"))
+    let row = try #require(model.mapGroups.first?.files.first?.rows.first)
+    model.declarationTapped(row.id)
+    let source = try #require(model.sourceSelection)
+    model.displayModeSelected(.tree)
+    model.zoomOutTapped()
+    model.zoomOutTapped()
+    model.displayModeSelected(.map)
+    expectNoDifference(model.sourceSelection, source)
+    #expect(!((try #require(model.mapGroups.first?.files.first?.rows.first)).inputLines.isEmpty))
+    model.searchText = "not-in-this-page"
+    #expect(model.sourceSelection == nil)
+  }
+
   @Test func changedDeclarationCountsOnceDespiteMultipleComponentRows() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     expectNoDifference(model.detectedChanges, 1)
