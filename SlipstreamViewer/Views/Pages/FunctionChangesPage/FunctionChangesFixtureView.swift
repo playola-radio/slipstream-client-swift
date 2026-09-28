@@ -22,6 +22,7 @@ struct FunctionChangesFixtureView: View {
       }
       .font(DesignTokens.FunctionTree.bodyFont)
       .foregroundStyle(DesignTokens.FunctionTree.secondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.horizontal, 24)
       .padding(.vertical, 10)
       .background(DesignTokens.FunctionTree.headerFill)
