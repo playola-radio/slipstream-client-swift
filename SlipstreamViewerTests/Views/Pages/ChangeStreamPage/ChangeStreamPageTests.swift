@@ -24,7 +24,10 @@ struct ChangeStreamPageTests {
     fake.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)], roots: [Fixture.session: "/tmp/project"])
   }
 
-  func makeModel(daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil) -> ChangeStreamPageModel {
+  func makeModel(
+    daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
+    isFunctionDemoVisible: Bool = false
+  ) -> ChangeStreamPageModel {
     withDependencies {
       $0.defaultInMemoryStorage = storage ?? self.storage
       $0.daemon = (daemon ?? fake).client
@@ -32,7 +35,7 @@ struct ChangeStreamPageTests {
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
       $0.timeZone = TimeZone(identifier: "UTC")!
     } operation: {
-      ChangeStreamPageModel()
+      ChangeStreamPageModel(isFunctionDemoVisible: isFunctionDemoVisible)
     }
   }
 
@@ -865,6 +868,14 @@ struct ChangeStreamPageTests {
     await send(Fixture.edited(1), Fixture.edited(2))
     #expect(model.openIndicatorText(for: try #require(fileRow(model, 1))) == nil)
     #expect(model.openIndicatorText(for: try #require(fileRow(model, 2))) == "OPEN →")
+  }
+
+  @Test func fixturePaneDoesNotMarkAnUnrelatedFeedCardOpen() async throws {
+    let model = makeModel(isFunctionDemoVisible: true)
+    await model.viewAppeared()
+    await Task.megaYield()
+    await send(Fixture.edited(1))
+    #expect(model.openIndicatorText(for: try #require(fileRow(model, 1))) == nil)
   }
 
   @Test func showingAHiddenFeedReturnsToTheLatestChange() async {

@@ -97,8 +97,8 @@ enum DesignTokens {
     static let cardRadius: CGFloat = 5
     static let groupRadius: CGFloat = 3
     static let rowMinHeight: CGFloat = 100
-    static let demoWorkspaceMinWidth: CGFloat = 1600
-    static let demoWorkspaceMinHeight: CGFloat = 900
+    static let demoWorkspaceMinWidth: CGFloat = 1200
+    static let demoWorkspaceMinHeight: CGFloat = 650
 
     static var laneWidth: CGFloat {
       codeWidth + inputWidth + connectorWidth + functionWidth + connectorWidth + outputWidth

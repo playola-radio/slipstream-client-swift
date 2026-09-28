@@ -60,11 +60,10 @@ struct FunctionMapGroup: Identifiable, Equatable {
       changedCount == 1
       ? "1 \(qualifier)changed declaration" : "\(changedCount) \(qualifier)changed declarations"
     if unknownCount == 0 { return changes }
-    let unknownQualifier = isFiltered ? "matching " : ""
     let unknown =
       unknownCount == 1
-      ? "1 \(unknownQualifier)file not compared"
-      : "\(unknownCount) \(unknownQualifier)files not compared"
+      ? "1 \(qualifier)file not compared"
+      : "\(unknownCount) \(qualifier)files not compared"
     if changedCount == 0 { return "\(unknown) · changes unknown" }
     return "\(changes) · \(unknown)"
   }
@@ -94,7 +93,7 @@ struct FunctionMapRow: Identifiable, Equatable {
   let title: String
   let subtitle: String
   let label: String
-  let marker: FunctionChangeLine.Mark?
+  let marker: FunctionChangeLine.Mark
   let inputLines: [FunctionChangeLine]
   let outputLines: [FunctionChangeLine]
   let headerLines: [FunctionChangeLine]
@@ -112,17 +111,17 @@ final class FunctionChangesPageModel: ViewModel {
 
   init(
     comparison: InterfaceComparison,
-    provenanceLabel: String? = "FIXTURE DEMO · Recorded example, not a live capture"
+    isFixtureDemo: Bool = false
   ) {
     self.comparison = comparison
-    self.provenanceLabel = provenanceLabel
+    self.isFixtureDemo = isFixtureDemo
     super.init()
   }
 
   // MARK: - Properties
 
   let comparison: InterfaceComparison
-  let provenanceLabel: String?
+  let isFixtureDemo: Bool
   private(set) var displayMode: FunctionChangesDisplayMode = .map
   var modeSelection: FunctionChangesDisplayMode {
     get { displayMode }
@@ -192,7 +191,7 @@ final class FunctionChangesPageModel: ViewModel {
       filesByDirectory[directory, default: []].append(
         FunctionMapFile(
           id: "map-file:\(file.path)", path: file.path, name: parts.last ?? file.path,
-          changedCount: rows.filter { $0.marker != nil }.count, isUnknown: isNotCompared(file),
+          changedCount: rows.count, isUnknown: isNotCompared(file),
           isFiltered: !searchText.isEmpty, statusText: statusText, rows: rows))
     }
     return order.map { directory in
@@ -248,7 +247,10 @@ final class FunctionChangesPageModel: ViewModel {
   let mapEmptyCellText = "—"
 
   var boundaryText: String {
-    "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
+    if isFixtureDemo {
+      return "Demo recording #\(comparison.beforeSeq.decimal) → #\(comparison.afterSeq.decimal)"
+    }
+    return "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
   }
 
   var summaryText: String {

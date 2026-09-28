@@ -35,6 +35,14 @@ final class FunctionChangesFixtureModel: ViewModel {
   let pickerTitle = "Demo example"
   let feedContextText = "Recorded example · not from this feed session"
   let loadingText = "Loading fixture…"
+  var canRetry: Bool {
+    root != nil && errorText != nil
+      && (!caseNames.isEmpty || errorText?.hasPrefix("Unknown pinned fixture:") != true)
+  }
+  var retryButtonText: String {
+    errorText?.hasPrefix("Unknown pinned fixture:") == true && !caseNames.isEmpty
+      ? "Load selected example" : "Retry"
+  }
 
   // MARK: - User Actions
 
@@ -58,7 +66,7 @@ final class FunctionChangesFixtureModel: ViewModel {
     do {
       let catalog = try fixtures.load(root, name)
       caseNames = catalog.caseNames
-      page = FunctionChangesPageModel(comparison: catalog.comparison)
+      page = FunctionChangesPageModel(comparison: catalog.comparison, isFixtureDemo: true)
       errorText = nil
     } catch FunctionFixtureError.unknownCase(let name, let available) {
       caseNames = available

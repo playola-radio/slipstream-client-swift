@@ -134,7 +134,7 @@ struct FunctionChangesPageTests {
     #expect(files[1].rows.isEmpty)
     let failed = FunctionChangesPageModel(comparison: try fixture("range-all-failed-page"))
     #expect(failed.mapGroups.flatMap(\.files).allSatisfy { $0.isUnknown })
-    #expect(failed.mapGroups.flatMap(\.files).flatMap(\.rows).allSatisfy { $0.marker == nil })
+    #expect(failed.mapGroups.flatMap(\.files).allSatisfy { $0.rows.isEmpty })
   }
 
   @Test func contractMapSeparatesIdenticalAndUnsupportedStatusRows() throws {
@@ -535,13 +535,14 @@ struct FunctionChangesPageTests {
     demo.viewAppeared()
     #expect(demo.page != nil)
     #expect(demo.errorText == nil)
-    #expect(demo.feedContextText.contains("not from this feed session"))
+    #expect(demo.page?.boundaryText.contains("Demo recording") == true)
     demo.caseSelected("not-a-pinned-case")
     #expect(demo.page == nil)
     #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")
     #expect(demo.caseNames.contains("ts-parameter-change"))
     #expect(demo.caseNames.contains(demo.selectedCase))
-    demo.caseSelected("ts-parameter-change")
+    #expect(demo.retryButtonText == "Load selected example")
+    demo.retryTapped()
     #expect(demo.page != nil)
   }
 
@@ -555,9 +556,19 @@ struct FunctionChangesPageTests {
     #expect(demo.page == nil)
     #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")
     #expect(demo.caseNames.contains("ts-parameter-change"))
-    demo.caseSelected("ts-parameter-change")
+    #expect(demo.canRetry)
+    demo.retryTapped()
     #expect(demo.page != nil)
     #expect(demo.errorText == nil)
+  }
+
+  @Test func demoWithoutFixtureRootCannotRetry() {
+    let demo = FunctionChangesFixtureModel(root: nil, initialCase: "ts-parameter-change")
+    demo.viewAppeared()
+    #expect(demo.page == nil)
+    #expect(demo.caseNames.isEmpty)
+    #expect(demo.errorText?.contains("SLIPSTREAM_INTERFACE_FIXTURE_ROOT") == true)
+    #expect(!demo.canRetry)
   }
 
   @Test func demoUsesItsInjectedFixtureClient() throws {

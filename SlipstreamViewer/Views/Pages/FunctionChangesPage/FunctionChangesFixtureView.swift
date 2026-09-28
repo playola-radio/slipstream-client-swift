@@ -7,14 +7,16 @@ struct FunctionChangesFixtureView: View {
     VStack(spacing: 0) {
       HStack {
         Text(model.pickerTitle)
-        Picker(model.pickerTitle, selection: $model.caseSelection) {
-          ForEach(model.caseNames, id: \.self) { name in Text(name).tag(name) }
+        if !model.caseNames.isEmpty {
+          Picker(model.pickerTitle, selection: $model.caseSelection) {
+            ForEach(model.caseNames, id: \.self) { name in Text(name).tag(name) }
+          }
+          .labelsHidden()
+          .help("Recorded test data, not a live comparison")
+          .frame(width: 290)
         }
-        .labelsHidden()
-        .help("Recorded test data, not a live comparison")
-        .frame(width: 290)
-        if model.errorText != nil {
-          Button("Retry") { model.retryTapped() }
+        if model.canRetry {
+          Button(model.retryButtonText) { model.retryTapped() }
         }
         Spacer()
         Text(model.feedContextText)

@@ -151,12 +151,10 @@ struct FunctionContractMapView: View {
   private func functionCard(_ row: FunctionMapRow, width: CGFloat) -> some View {
     VStack(alignment: .leading, spacing: DesignTokens.FunctionMap.rowGap) {
       HStack(spacing: DesignTokens.FunctionMap.rowGap) {
-        if let marker = row.marker {
-          Text(DesignTokens.FunctionTree.symbol(marker))
-            .foregroundStyle(DesignTokens.FunctionMap.markText(marker))
-        }
+        Text(DesignTokens.FunctionTree.symbol(row.marker))
+          .foregroundStyle(DesignTokens.FunctionMap.markText(row.marker))
         Text(row.label)
-          .foregroundStyle(DesignTokens.FunctionMap.markText(row.marker ?? .note))
+          .foregroundStyle(DesignTokens.FunctionMap.markText(row.marker))
       }
       .font(DesignTokens.FunctionMap.smallFont)
       Text(row.title)

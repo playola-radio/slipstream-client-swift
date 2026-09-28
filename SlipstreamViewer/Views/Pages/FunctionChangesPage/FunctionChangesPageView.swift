@@ -37,17 +37,9 @@ struct FunctionChangesPageView: View {
 
   private var header: some View {
     VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        Text(model.screenLabel)
-          .font(DesignTokens.FunctionTree.labelFont)
-          .foregroundStyle(DesignTokens.FunctionTree.muted)
-        Spacer()
-        if let provenanceLabel = model.provenanceLabel {
-          Text(provenanceLabel)
-            .font(DesignTokens.FunctionTree.smallFont)
-            .foregroundStyle(DesignTokens.FunctionTree.changed)
-        }
-      }
+      Text(model.screenLabel)
+        .font(DesignTokens.FunctionTree.labelFont)
+        .foregroundStyle(DesignTokens.FunctionTree.muted)
       ViewThatFits(in: .horizontal) {
         HStack(alignment: .top, spacing: 20) {
           headerIntro

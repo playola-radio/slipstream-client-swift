@@ -2,12 +2,14 @@ import SlipstreamCore
 import SwiftUI
 
 struct ChangeStreamPageView: View {
-  @State var model = ChangeStreamPageModel()
+  @State var model: ChangeStreamPageModel
   @State private var functionChangesDemo: FunctionChangesFixtureModel?
 
   private let bottomID = "feed-bottom"
 
   init(functionChangesDemo: FunctionChangesFixtureModel? = nil) {
+    _model = State(initialValue: ChangeStreamPageModel(
+      isFunctionDemoVisible: functionChangesDemo != nil))
     _functionChangesDemo = State(initialValue: functionChangesDemo)
   }
 
