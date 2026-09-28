@@ -199,7 +199,7 @@ struct FunctionChangesPageView: View {
         Text(status)
           .font(DesignTokens.FunctionTree.smallFont)
           .foregroundStyle(DesignTokens.FunctionTree.secondary)
-          .lineLimit(3)
+          .lineLimit(node.statusLineLimit)
           .help(status)
       }
       if !node.lines.isEmpty {

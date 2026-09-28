@@ -44,6 +44,8 @@ struct FunctionChangeNode: Identifiable, Equatable {
   let y: CGFloat
   let width: CGFloat
   let height: CGFloat
+
+  var statusLineLimit: Int { kind == .root ? 3 : 2 }
 }
 
 struct FunctionMapGroup: Identifiable, Equatable {
@@ -219,12 +221,12 @@ final class FunctionChangesPageModel: ViewModel {
     if isFixtureDemo {
       return "Demo recording #\(comparison.beforeSeq.decimal) → #\(comparison.afterSeq.decimal)"
     }
-    let before = comparison.beforeSeq.decimal
-    let after = comparison.afterSeq.decimal
-    return "Recorded at #\(before) → Recorded at #\(after)"
+    return
+      "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
   }
 
   var contextText: String { "\(boundaryText) · \(analysisText)" }
+  var rootSummaryText: String { searchText.isEmpty ? summaryText : "Overall: \(summaryText)" }
 
   var summaryText: String {
     if hasDuplicatePaths { return "Comparison unavailable: duplicate file path" }
@@ -247,7 +249,7 @@ final class FunctionChangesPageModel: ViewModel {
         : "Changes unknown\(coverage)"
       return "\(known) · \(failures) \(failedNoun) not compared"
     }
-    if count == 0, !comparison.page.complete {
+    if count == 0, !comparison.page.complete || inventoryUncertain {
       return "No changes detected in loaded files · more files may exist"
     }
     if failures > 0 {
@@ -303,7 +305,7 @@ final class FunctionChangesPageModel: ViewModel {
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
       return "Identical endpoint files are hidden · Show unchanged branches to view them"
     }
-    if visibleFiles.isEmpty { return "No loaded files match this view" }
+    if visibleFiles.isEmpty { return "No loaded files match this view · \(rootSummaryText)" }
     return ""
   }
   var canShowUnchanged: Bool { comparison.files.contains { $0.status == .identical } }
@@ -520,7 +522,7 @@ final class FunctionChangesPageModel: ViewModel {
     var drafts: [Draft] = [
       Draft(
         id: "root", parentID: nil, kind: .root, title: "Observed files",
-        statusText: searchText.isEmpty ? summaryText : "Overall: \(summaryText)",
+        statusText: rootSummaryText,
         lines: [],
         marker: nil, depth: 0, ownChange: 0, ownUnknown: 0)
     ]

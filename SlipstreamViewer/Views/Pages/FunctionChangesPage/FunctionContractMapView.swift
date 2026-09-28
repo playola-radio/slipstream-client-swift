@@ -28,7 +28,7 @@ struct FunctionContractMapView: View {
       Text(model.scopeText)
         .font(DesignTokens.FunctionMap.codeFont)
         .foregroundStyle(DesignTokens.FunctionMap.title)
-      Text(model.summaryText)
+      Text(model.rootSummaryText)
         .font(DesignTokens.FunctionMap.smallFont)
         .foregroundStyle(DesignTokens.FunctionMap.secondary)
       Spacer()
