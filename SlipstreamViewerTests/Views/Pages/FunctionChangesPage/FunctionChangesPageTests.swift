@@ -38,6 +38,17 @@ struct FunctionChangesPageTests {
     expectNoDifference(model.displayMode, .map)
   }
 
+  @Test func contractMapUsesOwnerLaneWidthsWhenSpaceAllows() {
+    let compact = DesignTokens.FunctionMap.layout(for: 1134)
+    expectNoDifference(compact.laneWidth, DesignTokens.FunctionMap.laneWidth)
+    let wide = DesignTokens.FunctionMap.layout(for: 1900)
+    expectNoDifference(wide.codeWidth, 226)
+    expectNoDifference(wide.inputWidth, 336)
+    expectNoDifference(wide.functionWidth, 262)
+    expectNoDifference(wide.outputWidth, 336)
+    expectNoDifference(wide.laneWidth, 1852)
+  }
+
   @Test func mapSummaryCountsOnlyComparableLoadedDeclarations() throws {
     let partial = FunctionChangesPageModel(comparison: try fixture("range-cancelled-mid-page"))
     expectNoDifference(partial.mapStats.map(\.value), ["1", "1", "1"])

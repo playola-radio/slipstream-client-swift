@@ -32,7 +32,7 @@ final class FunctionChangesFixtureModel: ViewModel {
 
   // MARK: - Display Text
 
-  let pickerTitle = "Pinned fixture"
+  let pickerTitle = "Demo example"
   let loadingText = "Loading fixture…"
 
   // MARK: - User Actions

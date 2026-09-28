@@ -103,6 +103,34 @@ enum DesignTokens {
         + effectsWidth + laneGap * 6
     }
 
+    struct Layout {
+      let codeWidth: CGFloat
+      let inputWidth: CGFloat
+      let connectorWidth: CGFloat
+      let functionWidth: CGFloat
+      let outputWidth: CGFloat
+      let effectsWidth: CGFloat
+
+      var laneWidth: CGFloat {
+        codeWidth + inputWidth + connectorWidth + functionWidth + connectorWidth + outputWidth
+          + effectsWidth + FunctionMap.laneGap * 6
+      }
+    }
+
+    static func layout(for viewportWidth: CGFloat) -> Layout {
+      let available = max(laneWidth, viewportWidth - padding * 2)
+      let ownerWidth: CGFloat = 1900 - padding * 2
+      let progress = min(1, (available - laneWidth) / (ownerWidth - laneWidth))
+      let extraEffects = max(0, available - ownerWidth)
+      return Layout(
+        codeWidth: codeWidth + (226 - codeWidth) * progress,
+        inputWidth: inputWidth + (336 - inputWidth) * progress,
+        connectorWidth: connectorWidth + (36 - connectorWidth) * progress,
+        functionWidth: functionWidth + (262 - functionWidth) * progress,
+        outputWidth: outputWidth + (336 - outputWidth) * progress,
+        effectsWidth: effectsWidth + (560 - effectsWidth) * progress + extraEffects)
+    }
+
     static func markText(_ mark: FunctionChangeLine.Mark) -> Color {
       switch mark {
       case .equal: secondary

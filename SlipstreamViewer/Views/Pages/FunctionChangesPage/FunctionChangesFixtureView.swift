@@ -11,6 +11,7 @@ struct FunctionChangesFixtureView: View {
           ForEach(model.caseNames, id: \.self) { name in Text(name).tag(name) }
         }
         .labelsHidden()
+        .help("Recorded test data, not a live comparison")
         .frame(width: 290)
         if model.errorText != nil {
           Button("Retry") { model.retryTapped() }
