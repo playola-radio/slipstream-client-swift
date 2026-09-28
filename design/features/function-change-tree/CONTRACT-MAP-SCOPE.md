@@ -8,3 +8,5 @@ The native version deliberately replaces the illustration's "Entire codebase" wi
 
 All seven owner export files are copied byte-for-byte. `tokens.md` records values extracted from the Pen node for native styling.
 The map keeps compact lane widths in a small Mac window and expands toward the Pen widths as the window grows. A folder glyph and branch rule carry the source-tree hierarchy without inventing more files.
+
+The explicit fixture launch places this map in the detail pane beside the existing feed. The feed may show a separate disposable capture session; the demo bar says the recorded interface example is not from that feed session. Normal launches retain the existing detail-pane placeholder until live interface integration arrives in FS3.

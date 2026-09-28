@@ -33,7 +33,6 @@ struct FunctionChangesPageView: View {
     }
     .background(DesignTokens.FunctionTree.background)
     .preferredColorScheme(.dark)
-    .frame(minWidth: 1150, minHeight: 650)
   }
 
   private var header: some View {
@@ -49,46 +48,15 @@ struct FunctionChangesPageView: View {
             .foregroundStyle(DesignTokens.FunctionTree.changed)
         }
       }
-      HStack(alignment: .top, spacing: 20) {
-        VStack(alignment: .leading, spacing: 10) {
-          Text(model.titleText)
-            .font(
-              model.showsMap
-                ? DesignTokens.FunctionMap.titleFont : DesignTokens.FunctionTree.titleFont
-            )
-            .foregroundStyle(DesignTokens.FunctionTree.title)
-          Text(model.subtitleText)
-            .font(DesignTokens.FunctionTree.bodyFont)
-            .foregroundStyle(DesignTokens.FunctionTree.secondary)
-          Text(model.summaryText)
-            .font(DesignTokens.FunctionTree.bodyFont)
-            .foregroundStyle(DesignTokens.FunctionTree.title)
+      ViewThatFits(in: .horizontal) {
+        HStack(alignment: .top, spacing: 20) {
+          headerIntro
+          Spacer()
+          headerMetadata
         }
-        Spacer()
-        VStack(alignment: .trailing, spacing: 14) {
-          Text(model.boundaryText)
-            .font(DesignTokens.FunctionTree.labelFont)
-            .foregroundStyle(DesignTokens.FunctionTree.secondary)
-          if model.showsMap {
-            HStack(alignment: .top, spacing: 14) {
-              ForEach(Array(model.mapStats.enumerated()), id: \.offset) { _, stat in
-                VStack(alignment: .leading, spacing: 3) {
-                  Text(stat.value)
-                    .font(DesignTokens.FunctionMap.titleFont)
-                    .foregroundStyle(DesignTokens.FunctionMap.title)
-                  Text(stat.label)
-                    .font(DesignTokens.FunctionMap.smallFont)
-                    .foregroundStyle(DesignTokens.FunctionMap.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(width: 120, alignment: .leading)
-              }
-            }
-          } else {
-            Text(model.scopeText)
-              .font(DesignTokens.FunctionTree.bodyFont)
-              .foregroundStyle(DesignTokens.FunctionTree.secondary)
-          }
+        VStack(alignment: .leading, spacing: 12) {
+          headerIntro
+          headerMetadata
         }
       }
       Text(model.analysisText)
@@ -105,7 +73,74 @@ struct FunctionChangesPageView: View {
     .background(DesignTokens.FunctionTree.headerFill)
   }
 
+  private var headerIntro: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Text(model.titleText)
+        .font(
+          model.showsMap
+            ? DesignTokens.FunctionMap.titleFont : DesignTokens.FunctionTree.titleFont
+        )
+        .foregroundStyle(DesignTokens.FunctionTree.title)
+      Text(model.subtitleText)
+        .font(DesignTokens.FunctionTree.bodyFont)
+        .foregroundStyle(DesignTokens.FunctionTree.secondary)
+      Text(model.summaryText)
+        .font(DesignTokens.FunctionTree.bodyFont)
+        .foregroundStyle(DesignTokens.FunctionTree.title)
+    }
+  }
+
+  private var headerMetadata: some View {
+    VStack(alignment: .leading, spacing: 14) {
+      Text(model.boundaryText)
+        .font(DesignTokens.FunctionTree.labelFont)
+        .foregroundStyle(DesignTokens.FunctionTree.secondary)
+      if model.showsMap {
+        HStack(alignment: .top, spacing: 14) {
+          ForEach(Array(model.mapStats.enumerated()), id: \.offset) { _, stat in
+            VStack(alignment: .leading, spacing: 3) {
+              Text(stat.value)
+                .font(DesignTokens.FunctionMap.titleFont)
+                .foregroundStyle(DesignTokens.FunctionMap.title)
+              Text(stat.label)
+                .font(DesignTokens.FunctionMap.smallFont)
+                .foregroundStyle(DesignTokens.FunctionMap.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: 120, alignment: .leading)
+          }
+        }
+      } else {
+        Text(model.scopeText)
+          .font(DesignTokens.FunctionTree.bodyFont)
+          .foregroundStyle(DesignTokens.FunctionTree.secondary)
+      }
+    }
+  }
+
   private var controls: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 18) {
+        searchControls
+        Spacer()
+        legendControls
+      }
+      VStack(alignment: .leading, spacing: 10) {
+        searchControls
+        ScrollView(.horizontal) { legendControls }
+          .scrollIndicators(.hidden)
+      }
+    }
+    .font(DesignTokens.FunctionTree.smallFont)
+    .buttonStyle(.plain)
+    .foregroundStyle(DesignTokens.FunctionTree.secondary)
+    .padding(.horizontal, 24)
+    .padding(.vertical, 12)
+    .background(DesignTokens.FunctionTree.background)
+    .overlay(alignment: .bottom) { DesignTokens.FunctionTree.divider.frame(height: 1) }
+  }
+
+  private var searchControls: some View {
     HStack(spacing: 18) {
       TextField(model.searchPrompt, text: $model.searchText)
         .textFieldStyle(.plain)
@@ -128,7 +163,11 @@ struct FunctionChangesPageView: View {
       if model.canShowUnchanged {
         Button(model.showUnchangedText) { model.showUnchangedTapped() }
       }
-      Spacer()
+    }
+  }
+
+  private var legendControls: some View {
+    HStack(spacing: 18) {
       legend("+", "Added", DesignTokens.FunctionTree.added)
       legend("~", "Changed", DesignTokens.FunctionTree.changed)
       legend("−", "Removed", DesignTokens.FunctionTree.removed)
@@ -136,13 +175,6 @@ struct FunctionChangesPageView: View {
       Text(model.legendText)
         .foregroundStyle(DesignTokens.FunctionTree.muted)
     }
-    .font(DesignTokens.FunctionTree.smallFont)
-    .buttonStyle(.plain)
-    .foregroundStyle(DesignTokens.FunctionTree.secondary)
-    .padding(.horizontal, 24)
-    .frame(height: 54)
-    .background(DesignTokens.FunctionTree.background)
-    .overlay(alignment: .bottom) { DesignTokens.FunctionTree.divider.frame(height: 1) }
   }
 
   private func legend(_ symbol: String, _ text: String, _ color: Color) -> some View {

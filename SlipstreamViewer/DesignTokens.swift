@@ -83,12 +83,12 @@ enum DesignTokens {
     static let headingFont = variableFont(family: geistFamily, size: 10, weight: 500)
     static let codeFont = variableFont(family: geistMonoFamily, size: 12, weight: 400)
     static let functionFont = variableFont(family: geistMonoFamily, size: 17, weight: 500)
-    static let codeWidth: CGFloat = 170
-    static let inputWidth: CGFloat = 240
-    static let connectorWidth: CGFloat = 28
-    static let functionWidth: CGFloat = 200
-    static let outputWidth: CGFloat = 240
-    static let effectsWidth: CGFloat = 120
+    static let codeWidth: CGFloat = 130
+    static let inputWidth: CGFloat = 190
+    static let connectorWidth: CGFloat = 20
+    static let functionWidth: CGFloat = 180
+    static let outputWidth: CGFloat = 190
+    static let effectsWidth: CGFloat = 80
     static let laneGap: CGFloat = 10
     static let groupGap: CGFloat = 14
     static let rowGap: CGFloat = 8
@@ -97,6 +97,8 @@ enum DesignTokens {
     static let cardRadius: CGFloat = 5
     static let groupRadius: CGFloat = 3
     static let rowMinHeight: CGFloat = 100
+    static let demoWorkspaceMinWidth: CGFloat = 1600
+    static let demoWorkspaceMinHeight: CGFloat = 900
 
     static var laneWidth: CGFloat {
       codeWidth + inputWidth + connectorWidth + functionWidth + connectorWidth + outputWidth

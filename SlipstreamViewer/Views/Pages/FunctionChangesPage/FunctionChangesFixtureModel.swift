@@ -33,6 +33,7 @@ final class FunctionChangesFixtureModel: ViewModel {
   // MARK: - Display Text
 
   let pickerTitle = "Demo example"
+  let feedContextText = "Recorded example · not from this feed session"
   let loadingText = "Loading fixture…"
 
   // MARK: - User Actions

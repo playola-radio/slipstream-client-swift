@@ -39,7 +39,7 @@ struct FunctionChangesPageTests {
   }
 
   @Test func contractMapUsesOwnerLaneWidthsWhenSpaceAllows() {
-    let compact = DesignTokens.FunctionMap.layout(for: 1134)
+    let compact = DesignTokens.FunctionMap.layout(for: 918)
     expectNoDifference(compact.laneWidth, DesignTokens.FunctionMap.laneWidth)
     let wide = DesignTokens.FunctionMap.layout(for: 1900)
     expectNoDifference(wide.codeWidth, 226)
@@ -535,6 +535,7 @@ struct FunctionChangesPageTests {
     demo.viewAppeared()
     #expect(demo.page != nil)
     #expect(demo.errorText == nil)
+    #expect(demo.feedContextText.contains("not from this feed session"))
     demo.caseSelected("not-a-pinned-case")
     #expect(demo.page == nil)
     #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")

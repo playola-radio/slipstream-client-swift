@@ -17,6 +17,9 @@ struct FunctionChangesFixtureView: View {
           Button("Retry") { model.retryTapped() }
         }
         Spacer()
+        Text(model.feedContextText)
+          .font(DesignTokens.FunctionTree.smallFont)
+          .foregroundStyle(DesignTokens.FunctionTree.changed)
       }
       .font(DesignTokens.FunctionTree.bodyFont)
       .foregroundStyle(DesignTokens.FunctionTree.secondary)
