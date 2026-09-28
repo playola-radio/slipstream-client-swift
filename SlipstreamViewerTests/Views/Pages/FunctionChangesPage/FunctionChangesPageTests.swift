@@ -345,6 +345,21 @@ struct FunctionChangesPageTests {
     #expect(demo.page != nil)
   }
 
+  @Test func demoRecoversFromAnUnknownInitialCase() {
+    let demo = withDependencies {
+      $0.functionFixtures = .liveValue
+    } operation: {
+      FunctionChangesFixtureModel(root: fixtureRoot, initialCase: "not-a-pinned-case")
+    }
+    demo.viewAppeared()
+    #expect(demo.page == nil)
+    #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")
+    #expect(demo.caseNames.contains("ts-parameter-change"))
+    demo.caseSelected("ts-parameter-change")
+    #expect(demo.page != nil)
+    #expect(demo.errorText == nil)
+  }
+
   @Test func demoUsesItsInjectedFixtureClient() throws {
     let comparison = try fixture("ts-parameter-change")
     let demo = withDependencies {
