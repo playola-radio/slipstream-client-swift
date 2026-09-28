@@ -419,6 +419,10 @@ struct FunctionChangesPageTests {
     let gap = FunctionChangesPageModel(comparison: try fixture("range-gap-cap"))
     #expect(gap.noticeText.contains("gaps"))
     #expect(gap.noticeText.contains("unknown"))
+    var withListedGap = try fixture("range-gap-cap")
+    withListedGap.gaps = [InterfaceGap(seq: try #require(Seq("4")), reason: .restart, scope: .session)]
+    let demo = FunctionChangesPageModel(comparison: withListedGap, isFixtureDemo: true)
+    #expect(demo.noticeText.contains("Demo capture gaps at #"))
     let boundary = FunctionChangesPageModel(comparison: try fixture("swift-unknown-boundary"))
     #expect(boundary.nodes.contains { $0.statusText?.contains("unknown-boundary") == true })
   }

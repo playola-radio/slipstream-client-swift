@@ -300,8 +300,9 @@ final class FunctionChangesPageModel: ViewModel {
     }
     let gapSequences = comparison.gaps.prefix(3).map(\.seq.decimal)
     if !gapSequences.isEmpty {
+      let prefix = isFixtureDemo ? "Demo capture gaps" : "Capture gaps"
       notes.append(
-        "Capture gaps at #\(gapSequences.joined(separator: ", #")); intermediate edits may be missing"
+        "\(prefix) at #\(gapSequences.joined(separator: ", #")); intermediate edits may be missing"
       )
     }
     if !comparison.gapsComplete || comparison.gaps.count > 3 {

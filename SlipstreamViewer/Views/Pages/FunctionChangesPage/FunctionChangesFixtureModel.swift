@@ -35,6 +35,7 @@ final class FunctionChangesFixtureModel: ViewModel {
   let pickerTitle = "Demo example"
   let feedContextText = "Recorded example · not from this feed session"
   let loadingText = "Loading fixture…"
+  var hasCases: Bool { !caseNames.isEmpty }
   var canRetry: Bool {
     root != nil && errorText != nil
       && (!caseNames.isEmpty || errorText?.hasPrefix("Unknown pinned fixture:") != true)

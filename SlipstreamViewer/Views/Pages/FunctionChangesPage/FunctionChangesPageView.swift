@@ -133,6 +133,24 @@ struct FunctionChangesPageView: View {
   }
 
   private var searchControls: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 18) {
+        searchAndMode
+        if model.canShowUnchanged {
+          Button(model.showUnchangedText) { model.showUnchangedTapped() }
+        }
+      }
+      .fixedSize(horizontal: true, vertical: false)
+      VStack(alignment: .leading, spacing: 8) {
+        searchAndMode
+        if model.canShowUnchanged {
+          Button(model.showUnchangedText) { model.showUnchangedTapped() }
+        }
+      }
+    }
+  }
+
+  private var searchAndMode: some View {
     HStack(spacing: 18) {
       TextField(model.searchPrompt, text: $model.searchText)
         .textFieldStyle(.plain)
@@ -152,9 +170,6 @@ struct FunctionChangesPageView: View {
       }
       .pickerStyle(.segmented)
       .frame(width: 130)
-      if model.canShowUnchanged {
-        Button(model.showUnchangedText) { model.showUnchangedTapped() }
-      }
     }
   }
 
