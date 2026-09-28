@@ -49,7 +49,8 @@ final class FunctionChangesFixtureModel: ViewModel {
       page = FunctionChangesPageModel(comparison: catalog.comparison)
       selectedCase = name
       errorText = nil
-    } catch FunctionFixtureError.unknownCase(let name) {
+    } catch FunctionFixtureError.unknownCase(let name, let available) {
+      caseNames = available
       page = nil
       errorText = "Unknown pinned fixture: \(name)"
     } catch {

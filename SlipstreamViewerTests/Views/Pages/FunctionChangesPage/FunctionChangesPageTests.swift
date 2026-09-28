@@ -259,6 +259,39 @@ struct FunctionChangesPageTests {
     #expect(!model.canZoomToSelection)
   }
 
+  @Test func filteringASiblingDeclarationClearsItsSource() throws {
+    var comparison = try fixture("ts-parameter-change")
+    guard case .typescript(let changes) = comparison.files[0].changes,
+      let original = changes.first
+    else {
+      Issue.record("Expected a TypeScript change")
+      return
+    }
+    var foo = original
+    foo.kind = .signatureChanged(
+      before: .init(displayName: "foo", byteRange: 0..<10),
+      after: .init(displayName: "foo", byteRange: 0..<10))
+    var bar = original
+    bar.kind = .signatureChanged(
+      before: .init(displayName: "bar", byteRange: 0..<10),
+      after: .init(displayName: "bar", byteRange: 0..<10))
+    comparison.files[0].changes = .typescript([foo, bar])
+    let model = FunctionChangesPageModel(comparison: comparison)
+    model.declarationTapped(try #require(model.nodes.first { $0.title == "bar" }).id)
+    #expect(model.sourceSelection != nil)
+    model.searchText = "foo"
+    #expect(model.nodes.contains { $0.title == "foo" })
+    #expect(!model.nodes.contains { $0.title == "bar" })
+    #expect(model.sourceSelection == nil)
+    #expect(!model.canSelectAfter)
+  }
+
+  @Test func repeatedZoomOutStopsAtATenth() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
+    for _ in 0..<50 { model.zoomOutTapped() }
+    expectNoDifference(model.zoom, 0.1)
+  }
+
   @Test func unchangedToggleOnlyOffersLoadedIdenticalResults() throws {
     let hidden = FunctionChangesPageModel(comparison: try fixture("range-reverted-hidden"))
     #expect(!hidden.canShowUnchanged)
@@ -307,6 +340,9 @@ struct FunctionChangesPageTests {
     demo.caseSelected("not-a-pinned-case")
     #expect(demo.page == nil)
     #expect(demo.errorText == "Unknown pinned fixture: not-a-pinned-case")
+    #expect(demo.caseNames.contains("ts-parameter-change"))
+    demo.caseSelected("ts-parameter-change")
+    #expect(demo.page != nil)
   }
 
   @Test func demoUsesItsInjectedFixtureClient() throws {

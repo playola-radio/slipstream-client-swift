@@ -8,7 +8,7 @@ struct FunctionFixtureCatalog: Sendable {
 }
 
 enum FunctionFixtureError: Error {
-  case unknownCase(String)
+  case unknownCase(String, available: [String])
 }
 
 struct FunctionFixtureClient: Sendable {
@@ -25,7 +25,9 @@ extension FunctionFixtureClient: DependencyKey {
       .filter { FileManager.default.fileExists(atPath: $0.appending(path: "expected.json").path) }
       .map(\.lastPathComponent)
       .sorted()
-      guard names.contains(name) else { throw FunctionFixtureError.unknownCase(name) }
+      guard names.contains(name) else {
+        throw FunctionFixtureError.unknownCase(name, available: names)
+      }
       let data = try Data(contentsOf: cases.appending(path: name).appending(path: "expected.json"))
       return FunctionFixtureCatalog(
         caseNames: names, comparison: try InterfaceComparison.decode(data))

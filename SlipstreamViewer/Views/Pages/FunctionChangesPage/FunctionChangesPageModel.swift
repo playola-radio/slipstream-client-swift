@@ -216,7 +216,7 @@ final class FunctionChangesPageModel: ViewModel {
     clearSelectionIfHidden()
   }
   func zoomInTapped() { zoom = min(1.5, zoom + 0.1) }
-  func zoomOutTapped() { zoom *= 0.8 }
+  func zoomOutTapped() { zoom = min(zoom, max(0.1, zoom * 0.8)) }
   func viewportChanged(width: CGFloat, height: CGFloat) {
     viewportSize = CGSize(width: width, height: height)
   }
@@ -300,11 +300,16 @@ final class FunctionChangesPageModel: ViewModel {
   private func declaration(for id: String) -> (InterfaceFileResult, InterfaceChange)? {
     for file in visibleFiles {
       for (index, change) in changes(in: file).enumerated()
-      where "declaration:\(file.path):\(index)" == id {
+      where "declaration:\(file.path):\(index)" == id && matchesSearch(change, in: file) {
         return (file, change)
       }
     }
     return nil
+  }
+
+  private func matchesSearch(_ change: InterfaceChange, in file: InterfaceFileResult) -> Bool {
+    searchText.isEmpty || file.path.localizedCaseInsensitiveContains(searchText)
+      || displayName(of: change).localizedCaseInsensitiveContains(searchText)
   }
 
   private func selection(
@@ -394,10 +399,7 @@ final class FunctionChangesPageModel: ViewModel {
           id: fileID, parentID: parent, kind: .file, title: parts.last ?? file.path,
           statusText: fileStatusText(file), lines: [], marker: nil, depth: maxDirectoryDepth + 1,
           ownChange: 0, ownUnknown: unknown ? 1 : 0))
-      for (index, change) in changes.enumerated()
-      where searchText.isEmpty || file.path.localizedCaseInsensitiveContains(searchText)
-        || displayName(of: change).localizedCaseInsensitiveContains(searchText)
-      {
+      for (index, change) in changes.enumerated() where matchesSearch(change, in: file) {
         let marker: FunctionChangeLine.Mark =
           switch change.kind {
           case .added: .added
