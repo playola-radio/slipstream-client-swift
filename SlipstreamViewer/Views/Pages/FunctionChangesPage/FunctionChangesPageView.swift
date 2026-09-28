@@ -310,25 +310,25 @@ struct FunctionChangesPageView: View {
 
   private var footer: some View {
     VStack(spacing: 0) {
-      HStack(spacing: 10) {
-        if model.showsTreeControls {
-          Button("−") { model.zoomOutTapped() }
-          Text(model.zoomText).frame(width: 48)
-          Button("+") { model.zoomInTapped() }
-          Button("Fit tree") { model.fitTreeTapped() }
-          Button("Zoom to selection") { model.zoomToSelectionTapped() }
-            .disabled(!model.canZoomToSelection)
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 10) {
+          zoomControls
+          Spacer()
+          Text(model.selectionText)
+            .lineLimit(1)
+            .truncationMode(.middle)
         }
-        Spacer()
-        Text(model.selectionText)
-          .lineLimit(1)
-          .truncationMode(.middle)
+        .frame(height: 58)
+        VStack(alignment: .leading, spacing: 6) {
+          HStack(spacing: 10) { zoomControls }
+          Text(model.selectionText).textSelection(.enabled)
+        }
+        .padding(.vertical, 10)
       }
       .font(DesignTokens.FunctionTree.labelFont)
       .buttonStyle(.plain)
       .foregroundStyle(DesignTokens.FunctionTree.secondary)
       .padding(.horizontal, 20)
-      .frame(height: 58)
       .background(DesignTokens.FunctionTree.controlFill)
       HStack {
         VStack(alignment: .leading, spacing: 2) {
@@ -351,6 +351,18 @@ struct FunctionChangesPageView: View {
       .padding(.horizontal, 24)
       .frame(height: 44)
       .background(DesignTokens.FunctionTree.background)
+    }
+  }
+
+  @ViewBuilder
+  private var zoomControls: some View {
+    if model.showsTreeControls {
+      Button("−") { model.zoomOutTapped() }
+      Text(model.zoomText).frame(width: 48)
+      Button("+") { model.zoomInTapped() }
+      Button("Fit tree") { model.fitTreeTapped() }
+      Button("Zoom to selection") { model.zoomToSelectionTapped() }
+        .disabled(!model.canZoomToSelection)
     }
   }
 }

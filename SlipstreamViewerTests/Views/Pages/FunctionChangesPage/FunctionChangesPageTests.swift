@@ -452,6 +452,17 @@ struct FunctionChangesPageTests {
     #expect(!lines.contains { $0.hasPrefix("...values") })
   }
 
+  @Test func swiftInoutModifierFollowsTheLabelAndName() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("swift-labels-defaults-effects"))
+    let treeLines = model.nodes.flatMap(\.lines).map(\.text)
+    #expect(treeLines.contains { $0.contains("from point: inout Point") })
+    #expect(treeLines.contains { $0.contains("at point: inout Point") })
+    #expect(!treeLines.contains { $0.contains("inout from point") })
+    let row = try #require(model.mapGroups.first?.files.first?.rows.first)
+    #expect(row.inputLines.contains { $0.text.contains("from point: inout Point") })
+    #expect(row.inputLines.contains { $0.text.contains("at point: inout Point") })
+  }
+
   @Test func filteringASelectedDeclarationClearsItsSource() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     model.declarationTapped(try #require(model.nodes.first { $0.kind == .declaration }).id)

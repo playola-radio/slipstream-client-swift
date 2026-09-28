@@ -767,14 +767,17 @@ final class FunctionChangesPageModel: ViewModel {
   }
 
   private func parameterText(_ value: InterfaceParameter, isSwift: Bool) -> String {
-    let label = value.label.map { "\($0) " } ?? ""
     let modifiers = value.modifiers.isEmpty ? "" : value.modifiers.joined(separator: " ") + " "
+    let label = value.label.map { "\($0) " } ?? ""
     let suffix = value.isOptional ? "?" : ""
     let prefix = value.isVariadic && !isSwift ? "..." : ""
     let typeSuffix = value.isVariadic && isSwift ? "..." : ""
     let defaultValue = value.defaultValue.map { " = \($0)" } ?? ""
-    return
-      "\(modifiers)\(label)\(prefix)\(value.name)\(suffix): \(typeText(value.type))\(typeSuffix)\(defaultValue)"
+    // Swift modifiers (e.g. `inout`) are written right before the type; TypeScript
+    // parameter-property modifiers (e.g. `readonly`, `public`) precede the name.
+    return isSwift
+      ? "\(label)\(prefix)\(value.name)\(suffix): \(modifiers)\(typeText(value.type))\(typeSuffix)\(defaultValue)"
+      : "\(modifiers)\(label)\(prefix)\(value.name)\(suffix): \(typeText(value.type))\(typeSuffix)\(defaultValue)"
   }
 
   private func typeText(_ value: InterfaceTypeReference) -> String {
