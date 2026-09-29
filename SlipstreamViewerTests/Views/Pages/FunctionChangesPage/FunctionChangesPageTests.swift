@@ -280,10 +280,22 @@ struct FunctionChangesPageTests {
   }
 
   @Test func emptyFinalContinuationDoesNotClaimMoreFiles() throws {
-    let model = FunctionChangesPageModel(comparison: try fixture("range-lookahead-empty-continuation"))
+    let model = FunctionChangesPageModel(
+      comparison: try fixture("range-lookahead-empty-continuation"), afterPath: "src/a.ts")
     expectNoDifference(model.summaryText, "0 detected changes")
     expectNoDifference(model.noticeText, "")
-    #expect(!model.emptyStateText.contains("more files may exist"))
+    expectNoDifference(model.emptyStateText, "No more files after src/a.ts")
+  }
+
+  @Test func demoPassesTheRequestedCursorToTheContinuationPage() {
+    let demo = withDependencies {
+      $0.functionFixtures = .liveValue
+    } operation: {
+      FunctionChangesFixtureModel(
+        root: fixtureRoot, initialCase: "range-lookahead-empty-continuation")
+    }
+    demo.viewAppeared()
+    expectNoDifference(demo.page?.emptyStateText, "No more files after src/a.ts")
   }
 
   @Test func searchOnlyFiltersLoadedPathsAndDeclarations() throws {
@@ -652,7 +664,7 @@ struct FunctionChangesPageTests {
     let comparison = try fixture("ts-parameter-change")
     let demo = withDependencies {
       $0.functionFixtures = FunctionFixtureClient { _, _ in
-        FunctionFixtureCatalog(caseNames: ["synthetic"], comparison: comparison)
+        FunctionFixtureCatalog(caseNames: ["synthetic"], comparison: comparison, afterPath: nil)
       }
     } operation: {
       FunctionChangesFixtureModel(root: URL(fileURLWithPath: "/unused"), initialCase: "synthetic")
@@ -670,7 +682,7 @@ struct FunctionChangesPageTests {
     let demo = withDependencies {
       $0.functionFixtures = FunctionFixtureClient { _, name in
         if name == "bad" { throw URLError(.badServerResponse) }
-        return FunctionFixtureCatalog(caseNames: ["good", "bad"], comparison: comparison)
+        return FunctionFixtureCatalog(caseNames: ["good", "bad"], comparison: comparison, afterPath: nil)
       }
     } operation: {
       FunctionChangesFixtureModel(root: URL(fileURLWithPath: "/unused"), initialCase: "good")

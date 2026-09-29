@@ -67,7 +67,8 @@ final class FunctionChangesFixtureModel: ViewModel {
     do {
       let catalog = try fixtures.load(root, name)
       caseNames = catalog.caseNames
-      page = FunctionChangesPageModel(comparison: catalog.comparison, isFixtureDemo: true)
+      page = FunctionChangesPageModel(
+        comparison: catalog.comparison, afterPath: catalog.afterPath, isFixtureDemo: true)
       errorText = nil
     } catch FunctionFixtureError.unknownCase(let name, let available) {
       caseNames = available

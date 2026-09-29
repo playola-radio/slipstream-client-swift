@@ -108,9 +108,11 @@ final class FunctionChangesPageModel: ViewModel {
 
   init(
     comparison: InterfaceComparison,
+    afterPath: String? = nil,
     isFixtureDemo: Bool = false
   ) {
     self.comparison = comparison
+    self.afterPath = afterPath
     self.isFixtureDemo = isFixtureDemo
     super.init()
   }
@@ -118,6 +120,7 @@ final class FunctionChangesPageModel: ViewModel {
   // MARK: - Properties
 
   let comparison: InterfaceComparison
+  let afterPath: String?
   let isFixtureDemo: Bool
   private(set) var displayMode: FunctionChangesDisplayMode = .map
   var modeSelection: FunctionChangesDisplayMode {
@@ -306,9 +309,9 @@ final class FunctionChangesPageModel: ViewModel {
       return "Page not compared: \(reason.rawValue) · changes unknown"
     }
     if comparison.files.isEmpty {
-      return comparison.page.complete
-        ? "No files listed at the recorded endpoints"
-        : "No files loaded yet · more files may exist"
+      guard comparison.page.complete else { return "No files loaded yet · more files may exist" }
+      return afterPath.map { "No more files after \($0)" }
+        ?? "No files listed at the recorded endpoints"
     }
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
       return "Identical endpoint files are hidden · Show unchanged branches to view them"
