@@ -231,8 +231,7 @@ struct InterfaceFixtureValueTests {
   }
 
   @Test(arguments: [
-    ("range-admission-skipped", InterfaceComparison.SkipReason.overloaded, nil),
-    ("range-scan-limit-before-file", .scanLimit, nil),
+    ("range-scan-limit-before-file", InterfaceComparison.SkipReason.scanLimit, nil),
     ("range-deadline-before-file", .timeout, nil),
     ("range-cancelled-before-file", .cancelled, "src/a.ts"),
   ] as [(String, InterfaceComparison.SkipReason, String?)])

@@ -240,7 +240,8 @@ final class FunctionChangesPageModel: ViewModel {
       comparison.inventory.map {
         $0.baselineCompletedSeq == nil || !$0.unknownScopes.isEmpty || !$0.unknownScopesComplete
       } ?? true
-    let coverage = comparison.page.complete && !inventoryUncertain ? "" : " in loaded files"
+    let coversRange = comparison.page.complete && afterPath == nil
+    let coverage = coversRange && !inventoryUncertain ? "" : " in loaded files"
     let failures = filesNotCompared
     if count == 0, failures > 0 {
       let failedNoun = failures == 1 ? "file" : "files"
@@ -310,7 +311,7 @@ final class FunctionChangesPageModel: ViewModel {
     }
     if comparison.files.isEmpty {
       guard comparison.page.complete else { return "No files loaded yet · more files may exist" }
-      return afterPath.map { "No more files after \($0)" }
+      return afterPath.map { "No more files listed after \($0)" }
         ?? "No files listed at the recorded endpoints"
     }
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {

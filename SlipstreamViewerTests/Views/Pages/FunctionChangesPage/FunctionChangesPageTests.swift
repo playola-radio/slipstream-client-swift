@@ -282,9 +282,9 @@ struct FunctionChangesPageTests {
   @Test func emptyFinalContinuationDoesNotClaimMoreFiles() throws {
     let model = FunctionChangesPageModel(
       comparison: try fixture("range-lookahead-empty-continuation"), afterPath: "src/a.ts")
-    expectNoDifference(model.summaryText, "0 detected changes")
+    expectNoDifference(model.summaryText, "0 detected changes in loaded files")
     expectNoDifference(model.noticeText, "")
-    expectNoDifference(model.emptyStateText, "No more files after src/a.ts")
+    expectNoDifference(model.emptyStateText, "No more files listed after src/a.ts")
   }
 
   @Test func demoPassesTheRequestedCursorToTheContinuationPage() {
@@ -295,7 +295,13 @@ struct FunctionChangesPageTests {
         root: fixtureRoot, initialCase: "range-lookahead-empty-continuation")
     }
     demo.viewAppeared()
-    expectNoDifference(demo.page?.emptyStateText, "No more files after src/a.ts")
+    expectNoDifference(demo.page?.emptyStateText, "No more files listed after src/a.ts")
+  }
+
+  @Test func finalContinuationCountsCoverOnlyItsLoadedFiles() throws {
+    let model = FunctionChangesPageModel(
+      comparison: try fixture("range-page-boundary-second"), afterPath: "src/a.ts")
+    expectNoDifference(model.summaryText, "1 detected change in loaded files")
   }
 
   @Test func searchOnlyFiltersLoadedPathsAndDeclarations() throws {
