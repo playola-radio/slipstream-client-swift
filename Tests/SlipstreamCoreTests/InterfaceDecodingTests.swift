@@ -15,16 +15,26 @@ struct InterfaceCorpusTests {
     let comparisons = try InterfaceFixtures.successCaseNames().map { try InterfaceComparison.decode(InterfaceFixtures.expected($0)) }
     let files = comparisons.flatMap(\.files)
     let rows = files.flatMap { rowsOf($0.changes) }
-    expectNoDifference(comparisons.count, 62)
-    expectNoDifference(files.count, 66)
-    expectNoDifference(rows.count, 37)
-    expectNoDifference(tally(comparisons.map { label($0.status) }), ["partial": 17, "ready": 44, "skipped(overloaded)": 1])
+    expectNoDifference(comparisons.count, 67)
+    expectNoDifference(files.count, 67)
+    expectNoDifference(rows.count, 38)
+    expectNoDifference(
+      tally(comparisons.map { label($0.status) }),
+      [
+        "partial": 17, "ready": 46, "skipped(cancelled)": 1, "skipped(overloaded)": 1, "skipped(scan-limit)": 1,
+        "skipped(timeout)": 1,
+      ]
+    )
+    expectNoDifference(
+      tally(comparisons.map { $0.inventory == nil && $0.gaps == nil ? "notEvaluated" : "resolved" }),
+      ["notEvaluated": 4, "resolved": 63]
+    )
     expectNoDifference(
       tally(files.map { label($0.status).split(separator: "(").first.map(String.init) ?? "" }),
-      ["identical": 6, "incomplete": 6, "ready": 42, "skipped": 3, "unavailable": 8, "unsupported": 1]
+      ["identical": 6, "incomplete": 6, "ready": 43, "skipped": 3, "unavailable": 8, "unsupported": 1]
     )
-    expectNoDifference(tally(files.map { language($0.changes) }), ["-": 3, "swift/swift.v1": 24, "typescript/typescript.v2": 39])
-    expectNoDifference(tally(rows.map { kindName($0.kind) }), ["added": 6, "removed": 6, "signatureChanged": 25])
+    expectNoDifference(tally(files.map { language($0.changes) }), ["-": 3, "swift/swift.v1": 24, "typescript/typescript.v2": 40])
+    expectNoDifference(tally(rows.map { kindName($0.kind) }), ["added": 6, "removed": 6, "signatureChanged": 26])
     expectNoDifference(files.filter { $0.before == .unknownBoundary }.count, 2)
     expectNoDifference(files.filter { $0.after.gapRef != nil }.count, 1)
     expectNoDifference(rows.filter { $0.result == nil }.count, 1)
@@ -211,13 +221,61 @@ struct InterfaceFixtureValueTests {
         beforeSeq: Seq("3")!,
         afterSeq: Seq("4")!,
         status: .skipped(.overloaded),
-        inventory: baseline,
-        gaps: [],
-        gapsComplete: true,
+        inventory: nil,
+        gaps: nil,
+        gapsComplete: false,
         files: [],
         page: InterfacePage(complete: false, nextAfterPath: nil)
       )
     )
+  }
+
+  @Test(arguments: [
+    ("range-scan-limit-before-file", InterfaceComparison.SkipReason.scanLimit, nil),
+    ("range-deadline-before-file", .timeout, nil),
+    ("range-cancelled-before-file", .cancelled, "src/a.ts"),
+  ] as [(String, InterfaceComparison.SkipReason, String?)])
+  func preResolutionSkipLeavesMetadataNotEvaluated(caseName: String, reason: InterfaceComparison.SkipReason, cursor: String?) throws {
+    let comparison = try InterfaceComparison.decode(InterfaceFixtures.expected(caseName))
+    expectNoDifference(comparison.status, .skipped(reason))
+    expectNoDifference(comparison.inventory, nil)
+    expectNoDifference(comparison.gaps, nil)
+    expectNoDifference(comparison.gapsComplete, false)
+    expectNoDifference(comparison.files, [])
+    expectNoDifference(comparison.page, InterfacePage(complete: false, nextAfterPath: cursor))
+  }
+
+  @Test func skippedPageAfterResolutionKeepsItsMetadata() throws {
+    let comparison = try InterfaceComparison.decode(
+      edited(
+        "range-admission-skipped",
+        (
+          #""inventory":null"#,
+          #""inventory":{"scope":"observed","baseline_completed_seq":"3","unknown_scopes":[],"unknown_scopes_complete":true,"policy_exclusions":["store-directory",".git","symlinks"]}"#
+        ),
+        (#""gaps":null,"gaps_complete":false"#, #""gaps":[],"gaps_complete":true"#)
+      )
+    )
+    expectNoDifference(comparison.status, .skipped(.overloaded))
+    expectNoDifference(comparison.inventory, baseline)
+    expectNoDifference(comparison.gaps, [])
+    expectNoDifference(comparison.gapsComplete, true)
+  }
+
+  @Test func lookaheadInterruptionKeepsAReadyPageIncompleteAtTheLastReturnedPath() throws {
+    let comparison = try InterfaceComparison.decode(InterfaceFixtures.expected("range-lookahead-timeout"))
+    expectNoDifference(comparison.status, .ready)
+    expectNoDifference(comparison.inventory, InterfaceInventory(baselineCompletedSeq: Seq("4"), unknownScopes: [], unknownScopesComplete: true))
+    expectNoDifference(comparison.gaps, [])
+    expectNoDifference(comparison.files.map(\.path), ["src/a.ts"])
+    expectNoDifference(comparison.page, InterfacePage(complete: false, nextAfterPath: "src/a.ts"))
+  }
+
+  @Test func continuationMayBeAnEmptyFinalPage() throws {
+    let comparison = try InterfaceComparison.decode(InterfaceFixtures.expected("range-lookahead-empty-continuation"))
+    expectNoDifference(comparison.status, .ready)
+    expectNoDifference(comparison.files, [])
+    expectNoDifference(comparison.page, finished)
   }
 
   @Test func pathWithoutALanguageModule() throws {
@@ -244,7 +302,7 @@ struct InterfaceFixtureValueTests {
   @Test func cappedMetadataIsMarkedIncomplete() throws {
     let comparison = try InterfaceComparison.decode(InterfaceFixtures.expected("range-gap-cap"))
     expectNoDifference(comparison.gapsComplete, false)
-    expectNoDifference(comparison.inventory.unknownScopesComplete, false)
+    expectNoDifference(comparison.inventory?.unknownScopesComplete, false)
   }
 }
 
@@ -390,6 +448,19 @@ struct InterfaceSyntheticTests {
     Mutation("ts-parameter-change", "uppercase content hash", #""sha256":"86e1381da"#, #""sha256":"86E1381DA"#),
     Mutation("range-admission-skipped", "skipped page without a reason", #","fallback_reason":"overloaded""#, ""),
     Mutation("range-admission-skipped", "complete skipped page", #""complete":false"#, #""complete":true"#),
+    Mutation("range-admission-skipped", "missing unevaluated inventory", #""inventory":null,"#, ""),
+    Mutation("range-admission-skipped", "missing unevaluated gaps", #""gaps":null,"#, ""),
+    Mutation("range-admission-skipped", "empty gaps standing in for unevaluated gaps", #""gaps":null"#, #""gaps":[]"#),
+    Mutation(
+      "range-admission-skipped", "inventory without gaps", #""inventory":null"#,
+      #""inventory":{"scope":"observed","baseline_completed_seq":"3","unknown_scopes":[],"unknown_scopes_complete":true,"policy_exclusions":["store-directory",".git","symlinks"]}"#
+    ),
+    Mutation("range-admission-skipped", "unevaluated gaps claimed complete", #""gaps_complete":false"#, #""gaps_complete":true"#),
+    Mutation(
+      "ts-parameter-change", "unevaluated metadata on a ready page",
+      #""inventory":{"scope":"observed","baseline_completed_seq":"3","unknown_scopes":[],"unknown_scopes_complete":true,"policy_exclusions":["store-directory",".git","symlinks"]}"#,
+      #""inventory":null"#, #""gaps":[],"gaps_complete":true"#, #""gaps":null,"gaps_complete":false"#
+    ),
     Mutation("range-all-failed-page", "ready page over failures", #""status":"partial""#, #""status":"ready""#),
     Mutation("range-restart-reconciliation", "unknown gap reason", #""reason":"restart""#, #""reason":"reboot""#),
     Mutation("ts-parameter-change", "rows without a language module", #""language":"typescript","language_version":"typescript.v2""#, #""language":null,"language_version":null"#),
@@ -602,9 +673,10 @@ private func summary(_ comparison: InterfaceComparison) -> [String] {
     [
       "range=\(comparison.beforeSeq)..\(comparison.afterSeq)",
       "status=\(label(comparison.status))",
-      "baseline=\(comparison.inventory.baselineCompletedSeq?.decimal ?? "-")",
-      "unknownScopes=\(comparison.inventory.unknownScopes.joined(separator: ","))/\(comparison.inventory.unknownScopesComplete)",
-      "gaps=\(comparison.gaps.map { "\($0.seq):\($0.reason.rawValue)" }.joined(separator: ","))/\(comparison.gapsComplete)",
+      comparison.inventory.map {
+        "baseline=\($0.baselineCompletedSeq?.decimal ?? "-") unknownScopes=\($0.unknownScopes.joined(separator: ","))/\($0.unknownScopesComplete)"
+      } ?? "inventory=notEvaluated",
+      "gaps=\(comparison.gaps.map { $0.map { "\($0.seq):\($0.reason.rawValue)" }.joined(separator: ",") } ?? "notEvaluated")/\(comparison.gapsComplete)",
       "page=\(comparison.page.complete):\(comparison.page.nextAfterPath ?? "-")",
     ].joined(separator: " ")
   ]
@@ -704,9 +776,10 @@ private func summary(_ raw: [String: Any]) -> [String] {
     [
       "range=\(string(range["before_seq"]))..\(string(range["after_seq"]))",
       "status=\(status(raw))",
-      "baseline=\(string(inventory["baseline_completed_seq"]))",
-      "unknownScopes=\(((inventory["unknown_scopes"] as? [String]) ?? []).joined(separator: ","))/\(bool(inventory["unknown_scopes_complete"]))",
-      "gaps=\(objects(raw["gaps"]).map { "\(string($0["seq"])):\(string($0["reason"]))" }.joined(separator: ","))/\(bool(raw["gaps_complete"]))",
+      raw["inventory"] is NSNull
+        ? "inventory=notEvaluated"
+        : "baseline=\(string(inventory["baseline_completed_seq"])) unknownScopes=\(strings(inventory["unknown_scopes"]))/\(bool(inventory["unknown_scopes_complete"]))",
+      "gaps=\(raw["gaps"] is NSNull ? "notEvaluated" : objects(raw["gaps"]).map { "\(string($0["seq"])):\(string($0["reason"]))" }.joined(separator: ","))/\(bool(raw["gaps_complete"]))",
       "page=\(bool(page["complete"])):\(string(page["next_after_path"]))",
     ].joined(separator: " ")
   ]

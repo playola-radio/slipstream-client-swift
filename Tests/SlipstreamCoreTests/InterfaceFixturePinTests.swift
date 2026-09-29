@@ -3,7 +3,7 @@ import CustomDump
 import Foundation
 import Testing
 
-private let pinnedDaemonCommit = "b0688d7d637f15f579c680efcd46416b8335142c"
+private let pinnedDaemonCommit = "9110c6d768d6e2fd49fb3cb9626b65c589208d23"
 
 private enum PinProblem: Equatable {
   case malformedLine(String)
@@ -73,8 +73,8 @@ struct InterfaceFixturePinTests {
   @Test func bundledFixturesMatchThePinnedDaemonCommit() throws {
     let (pin, files) = try bundled()
     expectNoDifference(pin.daemonCommit, pinnedDaemonCommit)
-    expectNoDifference(pin.entries.count, 199)
-    expectNoDifference(files.count, 200)
+    expectNoDifference(pin.entries.count, 214)
+    expectNoDifference(files.count, 215)
     expectNoDifference(pin.problems(files: files), [])
   }
 

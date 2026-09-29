@@ -5,6 +5,7 @@ import SlipstreamCore
 struct FunctionFixtureCatalog: Sendable {
   let caseNames: [String]
   let comparison: InterfaceComparison
+  let afterPath: String?
 }
 
 enum FunctionFixtureError: Error {
@@ -28,9 +29,21 @@ extension FunctionFixtureClient: DependencyKey {
       guard names.contains(name) else {
         throw FunctionFixtureError.unknownCase(name, available: names)
       }
-      let data = try Data(contentsOf: cases.appending(path: name).appending(path: "expected.json"))
+      let caseURL = cases.appending(path: name)
+      let data = try Data(contentsOf: caseURL.appending(path: "expected.json"))
+      let requestURL = caseURL.appending(path: "request.txt")
+      let afterPath: String?
+      if FileManager.default.fileExists(atPath: requestURL.path) {
+        let request = try String(contentsOf: requestURL, encoding: .utf8)
+        let target =
+          request.split(whereSeparator: \.isWhitespace).dropFirst().first.map(String.init) ?? ""
+        afterPath = URLComponents(string: target)?.queryItems?
+          .first { $0.name == "after_path" }?.value
+      } else {
+        afterPath = nil
+      }
       return FunctionFixtureCatalog(
-        caseNames: names, comparison: try InterfaceComparison.decode(data))
+        caseNames: names, comparison: try InterfaceComparison.decode(data), afterPath: afterPath)
     }
   }
 
