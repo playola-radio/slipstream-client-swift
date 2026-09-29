@@ -31,11 +31,17 @@ extension FunctionFixtureClient: DependencyKey {
       }
       let caseURL = cases.appending(path: name)
       let data = try Data(contentsOf: caseURL.appending(path: "expected.json"))
-      let request = try String(contentsOf: caseURL.appending(path: "request.txt"), encoding: .utf8)
-      let target =
-        request.split(whereSeparator: \.isWhitespace).dropFirst().first.map(String.init) ?? ""
-      let afterPath = URLComponents(string: target)?.queryItems?
-        .first { $0.name == "after_path" }?.value
+      let requestURL = caseURL.appending(path: "request.txt")
+      let afterPath: String?
+      if FileManager.default.fileExists(atPath: requestURL.path) {
+        let request = try String(contentsOf: requestURL, encoding: .utf8)
+        let target =
+          request.split(whereSeparator: \.isWhitespace).dropFirst().first.map(String.init) ?? ""
+        afterPath = URLComponents(string: target)?.queryItems?
+          .first { $0.name == "after_path" }?.value
+      } else {
+        afterPath = nil
+      }
       return FunctionFixtureCatalog(
         caseNames: names, comparison: try InterfaceComparison.decode(data), afterPath: afterPath)
     }
