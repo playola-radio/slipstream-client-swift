@@ -234,9 +234,9 @@ final class FunctionChangesPageModel: ViewModel {
     let count = detectedChanges
     let noun = count == 1 ? "change" : "changes"
     let inventoryUncertain =
-      comparison.inventory.baselineCompletedSeq == nil
-      || !comparison.inventory.unknownScopes.isEmpty
-      || !comparison.inventory.unknownScopesComplete
+      comparison.inventory.map {
+        $0.baselineCompletedSeq == nil || !$0.unknownScopes.isEmpty || !$0.unknownScopesComplete
+      } ?? true
     let coverage = comparison.page.complete && !inventoryUncertain ? "" : " in loaded files"
     let failures = filesNotCompared
     if count == 0, failures > 0 {
@@ -267,27 +267,35 @@ final class FunctionChangesPageModel: ViewModel {
     if !comparison.page.complete {
       notes.append("More files may exist; counts and search cover loaded data only")
     }
-    if comparison.inventory.baselineCompletedSeq == nil {
-      notes.append("Baseline inventory was incomplete")
+    if let inventory = comparison.inventory {
+      if inventory.baselineCompletedSeq == nil {
+        notes.append("Baseline inventory was incomplete")
+      }
+      if !inventory.unknownScopes.isEmpty {
+        let scopes = inventory.unknownScopes
+        let shown = scopes.prefix(3).joined(separator: ", ")
+        let remainder = scopes.count > 3 ? " and \(scopes.count - 3) more" : ""
+        notes.append("Unknown observed scopes: \(shown)\(remainder)")
+      }
+      if !inventory.unknownScopesComplete {
+        notes.append("Additional unknown scopes were omitted")
+      }
+    } else {
+      notes.append("Observed inventory not evaluated")
     }
-    if !comparison.inventory.unknownScopes.isEmpty {
-      let scopes = comparison.inventory.unknownScopes
-      let shown = scopes.prefix(3).joined(separator: ", ")
-      let remainder = scopes.count > 3 ? " and \(scopes.count - 3) more" : ""
-      notes.append("Unknown observed scopes: \(shown)\(remainder)")
-    }
-    if !comparison.inventory.unknownScopesComplete {
-      notes.append("Additional unknown scopes were omitted")
-    }
-    let gapSequences = comparison.gaps.prefix(3).map(\.seq.decimal)
-    if !gapSequences.isEmpty {
-      let prefix = isFixtureDemo ? "Demo capture gaps" : "Capture gaps"
-      notes.append(
-        "\(prefix) at #\(gapSequences.joined(separator: ", #")); intermediate edits may be missing"
-      )
-    }
-    if !comparison.gapsComplete || comparison.gaps.count > 3 {
-      notes.append("Additional capture gaps were omitted")
+    if let gaps = comparison.gaps {
+      let gapSequences = gaps.prefix(3).map(\.seq.decimal)
+      if !gapSequences.isEmpty {
+        let prefix = isFixtureDemo ? "Demo capture gaps" : "Capture gaps"
+        notes.append(
+          "\(prefix) at #\(gapSequences.joined(separator: ", #")); intermediate edits may be missing"
+        )
+      }
+      if !comparison.gapsComplete || gaps.count > 3 {
+        notes.append("Additional capture gaps were omitted")
+      }
+    } else {
+      notes.append("Capture gaps not evaluated")
     }
     return notes.joined(separator: " · ")
   }

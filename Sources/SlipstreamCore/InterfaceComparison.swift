@@ -25,8 +25,10 @@ public struct InterfaceComparison: Equatable, Sendable {
   public var beforeSeq: Seq
   public var afterSeq: Seq
   public var status: Status
-  public var inventory: InterfaceInventory
-  public var gaps: [InterfaceGap]
+  /// `nil` when a skipped page stopped before the recorded range was resolved: not evaluated, never empty.
+  public var inventory: InterfaceInventory?
+  /// `nil` exactly when `inventory` is.
+  public var gaps: [InterfaceGap]?
   public var gapsComplete: Bool
   public var files: [InterfaceFileResult]
   public var page: InterfacePage
@@ -36,8 +38,8 @@ public struct InterfaceComparison: Equatable, Sendable {
     beforeSeq: Seq,
     afterSeq: Seq,
     status: Status,
-    inventory: InterfaceInventory,
-    gaps: [InterfaceGap],
+    inventory: InterfaceInventory?,
+    gaps: [InterfaceGap]?,
     gapsComplete: Bool,
     files: [InterfaceFileResult],
     page: InterfacePage
@@ -410,13 +412,24 @@ extension InterfaceComparison: Decodable {
     default: throw container.corrupt(.fallbackReason, "fallback_reason must be present exactly when status is skipped")
     }
 
-    inventory = try container.decode(InterfaceInventory.self, forKey: .inventory)
+    inventory = try container.decodeNullable(InterfaceInventory.self, forKey: .inventory)
     let analysis = try container.nestedContainer(keyedBy: AnalysisKeys.self, forKey: .analysis)
     for key in AnalysisKeys.allCases {
       try analysis.decodeConstant("notAnalyzed", forKey: key)
     }
-    gaps = try container.decode([InterfaceGap].self, forKey: .gaps)
+    gaps = try container.decodeNullable([InterfaceGap].self, forKey: .gaps)
     gapsComplete = try container.decode(Bool.self, forKey: .gapsComplete)
+    switch (inventory, gaps) {
+    case (nil, nil):
+      guard case .skipped = status else {
+        throw container.corrupt(.inventory, "only a skipped page may leave inventory and gaps not evaluated")
+      }
+      guard !gapsComplete else { throw container.corrupt(.gapsComplete, "gaps that were not evaluated are not complete") }
+    case (_?, _?):
+      break
+    default:
+      throw container.corrupt(.gaps, "inventory and gaps are evaluated together")
+    }
     files = try container.decode([InterfaceFileResult].self, forKey: .files)
     page = try container.decode(InterfacePage.self, forKey: .page)
 

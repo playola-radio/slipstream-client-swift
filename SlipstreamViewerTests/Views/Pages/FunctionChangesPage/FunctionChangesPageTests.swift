@@ -232,6 +232,60 @@ struct FunctionChangesPageTests {
     #expect(model.summaryText.contains("changes unknown"))
   }
 
+  @Test(arguments: [
+    ("range-admission-skipped", "overloaded"),
+    ("range-scan-limit-before-file", "scan-limit"),
+    ("range-deadline-before-file", "timeout"),
+    ("range-cancelled-before-file", "cancelled"),
+  ])
+  func unevaluatedMetadataIsNotShownAsKnownEmpty(caseName: String, reason: String) throws {
+    let model = FunctionChangesPageModel(comparison: try fixture(caseName))
+    expectNoDifference(model.summaryText, "Comparison skipped · changes unknown")
+    expectNoDifference(
+      model.noticeText,
+      "Page skipped: \(reason) · More files may exist; counts and search cover loaded data only · Observed inventory not evaluated · Capture gaps not evaluated"
+    )
+    expectNoDifference(model.emptyStateText, "Page not compared: \(reason) · changes unknown")
+  }
+
+  @Test func skippedPageKeepsResolvedMetadataCaveats() throws {
+    var comparison = try fixture("range-admission-skipped")
+    comparison.inventory = InterfaceInventory(baselineCompletedSeq: nil, unknownScopes: [], unknownScopesComplete: true)
+    comparison.gaps = []
+    comparison.gapsComplete = true
+    let model = FunctionChangesPageModel(comparison: comparison)
+    expectNoDifference(
+      model.noticeText,
+      "Page skipped: overloaded · More files may exist; counts and search cover loaded data only · Baseline inventory was incomplete"
+    )
+  }
+
+  @Test func readyPageInterruptedDuringLookaheadStaysLoadedOnly() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("range-lookahead-timeout"))
+    expectNoDifference(model.summaryText, "1 detected change in loaded files")
+    expectNoDifference(model.noticeText, "More files may exist; counts and search cover loaded data only")
+    expectNoDifference(model.emptyStateText, "")
+    let declaration = try #require(model.nodes.first { $0.kind == .declaration })
+    model.declarationTapped(declaration.id)
+    expectNoDifference(
+      model.sourceSelection,
+      FunctionSourceSelection(
+        sessionID: "11111111-1111-4111-8111-111111111111", beforeSeq: try #require(Seq("4")),
+        afterSeq: try #require(Seq("5")), path: "src/a.ts", side: .after,
+        sha256: "8c4e68ed763fbcb0b4a2f5b6dcc26feb0c0f95ff46dfb5550d2c407a21b988a3", byteRange: 0..<30,
+        projectionVersion: "interface.v2", languageVersion: "typescript.v2",
+        identity: InterfaceIdentity(kind: "function", scope: [], name: "a", guards: [])
+      )
+    )
+  }
+
+  @Test func emptyFinalContinuationDoesNotClaimMoreFiles() throws {
+    let model = FunctionChangesPageModel(comparison: try fixture("range-lookahead-empty-continuation"))
+    expectNoDifference(model.summaryText, "0 detected changes")
+    expectNoDifference(model.noticeText, "")
+    #expect(!model.emptyStateText.contains("more files may exist"))
+  }
+
   @Test func searchOnlyFiltersLoadedPathsAndDeclarations() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("range-page-boundary-first"))
     model.searchText = "a"

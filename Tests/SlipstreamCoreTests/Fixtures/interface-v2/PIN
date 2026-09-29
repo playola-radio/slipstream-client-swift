@@ -1,4 +1,4 @@
-daemon-commit: b0688d7d637f15f579c680efcd46416b8335142c
+daemon-commit: 9110c6d768d6e2fd49fb3cb9626b65c589208d23
 source: briankeane/slipstream contracts/interface/v2/
 manifest: every regular file below this directory except PIN itself, one "<sha256>  <path>" line each, sorted by path bytes
 update: replace this directory with contracts/interface/v2/ from the new approved commit, then regenerate the lines below with
@@ -17,18 +17,24 @@ b6245f28aebfe898f35052ba5921759c929f62f5daa85bdc838bc341ee778f1d  cases/range-ad
 d0c64c9291fd166e988cb6ca75d3897bdac5f7e6f3ad580067e5703f588a273f  cases/range-add-then-remove-ts/expected.json
 07337a1a98f98814f162db24a22be498041a1c0bfa18a94992147c47439a6f18  cases/range-add-then-remove-ts/history.json
 8fe012ed22b7254739fc903f1ca68149f06384b4519ec29eecab1289320cf9ab  cases/range-add-then-remove-ts/request.txt
-756e98018a15510483cd454636b7197aeda367089efd6b227e3f4805e154932b  cases/range-admission-skipped/expected.json
+58daeca38c3ac508a745079bdab70bc8c4e859cfc036b3dfd4093de7d66fcb21  cases/range-admission-skipped/expected.json
 6645d4cad1d17920e7860ee4feaad541a06073b43702b410db66a06d43ac3e0d  cases/range-admission-skipped/history.json
 12fc7d260e055cd45a57c3a5dbd31f8e7d7b3b0060cd910f6bf9338685eb54b8  cases/range-admission-skipped/request.txt
 5968c3d58144540531848243ae9f8d04cc8b7c490c397eaeebfcfee50801c90c  cases/range-all-failed-page/expected.json
 39953ea1724b2e3f157f811c43b8d4f41594f2c8e19c207c82f1826a38b2ed59  cases/range-all-failed-page/history.json
 c5062e7a3ef96079c384010a3adcfdb3f2a020ac4169b600d0a8576c35eb774d  cases/range-all-failed-page/request.txt
+6d65eadfa12965d387d8b98d8c22cba9ee24b5a1b1cff2a516fab6967b4be9ea  cases/range-cancelled-before-file/expected.json
+14888c800bd6ff13e8732ff5ab19bc434feb32f3dc357a8b06ad76d9dd1ff642  cases/range-cancelled-before-file/history.json
+1b15ac20693fd86bb29692a30da77d60d878efe8f6f6cb32d44c222e13ecae2d  cases/range-cancelled-before-file/request.txt
 e36b95dcafb0825708d6a3aed3208367e8b3becaeccd635d5ee6779918c62477  cases/range-cancelled-mid-page/expected.json
 4684a04d907c5c32abc3ee9e042d8538d5784df35063fe7809cd222cb16522cd  cases/range-cancelled-mid-page/history.json
 d8ec8859a6f856543463bd05d7574ced80f2488c25e6c9bd7c5b5cd7125dc243  cases/range-cancelled-mid-page/request.txt
 5f29590d87e37086c4581d2ca3eacdc82936e68a7500610cbed7af6c162fb69f  cases/range-corrupt-chain-500/expected-error.json
 9cf8c61fb78700ff7a1c1bfd2fe3d585b0b86476c9625b4bbaf4cff575e7e4c2  cases/range-corrupt-chain-500/history.json
 12fc7d260e055cd45a57c3a5dbd31f8e7d7b3b0060cd910f6bf9338685eb54b8  cases/range-corrupt-chain-500/request.txt
+058201cdee8edeede1430f025fcfa14f405dc63c67176648a1091929f6dcd237  cases/range-deadline-before-file/expected.json
+a232077bb6874686eb164676a606fed19381a83c43534306388bbe3683bb05a7  cases/range-deadline-before-file/history.json
+12fc7d260e055cd45a57c3a5dbd31f8e7d7b3b0060cd910f6bf9338685eb54b8  cases/range-deadline-before-file/request.txt
 97d9b9d5a959534b79006ff30d6219698c05968fcdb4292b681f8c321327fec3  cases/range-deadline-mid-page/expected.json
 d8879cb34a25bc0c834112e190f3a5a0109622811debf1b94b4cceed798dccd0  cases/range-deadline-mid-page/history.json
 d8ec8859a6f856543463bd05d7574ced80f2488c25e6c9bd7c5b5cd7125dc243  cases/range-deadline-mid-page/request.txt
@@ -50,6 +56,12 @@ acea875d89b0269097f21c48091970b1bd192e52c7bcbfb9e59e0e020b0c71ed  cases/range-ga
 7382edbbb48b1d83f6b7c9ff765da0422e4cb8680e1df47db549ff364622871f  cases/range-invalid-request-400/expected-error.json
 43150ed1a60fee9dedf52443053295e16c9904bf4355acfb10dd1a7606306ab6  cases/range-invalid-request-400/history.json
 a0bb00bc87d2dc085a10dd98cba08e307cb7aea65e15ddf9b2ef54f485f88cda  cases/range-invalid-request-400/request.txt
+4e051595b2e14067e2f6cf3983e18664be295777f836ab4eac51be4f6af1e595  cases/range-lookahead-empty-continuation/expected.json
+882ed309218af8701cefe620dc398fba30dbb8784c68633fce02441d2a7079ff  cases/range-lookahead-empty-continuation/history.json
+0ffe41aa4981394fdad08fb7cf44077bb41946819fe909d621b07e39b0e2abdf  cases/range-lookahead-empty-continuation/request.txt
+da81497a91545856abf60111a1fb54f302d05b8bbf38d378299e16cbbdd288fe  cases/range-lookahead-timeout/expected.json
+8a43dffe089dc9670520f8952e0fb7f63afd5162a40aa3342e7d6b6693bc2502  cases/range-lookahead-timeout/history.json
+909485508f92b88bf2a4ada07c103717b6df8c67cffc17e46628b0600140ff30  cases/range-lookahead-timeout/request.txt
 b03690ace9b4c11291996c29dbd77fdb7e134a51a35de4c38a1e2c7aeaaf6bda  cases/range-page-boundary-first/expected.json
 87505fd534472d2e1e562bd3369bab055af5dfc249a5198c968736c4241de106  cases/range-page-boundary-first/history.json
 6c9fa6cef3c788ea04813ef3d534642b386ef94e8831daaab0319331243ca887  cases/range-page-boundary-first/request.txt
@@ -68,6 +80,9 @@ a4255ea1942127a0c35dc9d87fde4153bf751fd93013d59908166d14449888bc  cases/range-re
 cd4bf4e02934adf73751c11b5807c0a7302f09816e2787db9211efcb37c94094  cases/range-reverted-listed/expected.json
 1a36e80a8690abeba58f8330d2eafd53fe6910cac21a64657329ba7e5680ccc2  cases/range-reverted-listed/history.json
 65094cabacf8b232ee97843f99a75750cd7a6173aba0ace2b02e18deff711189  cases/range-reverted-listed/request.txt
+465eedb8f1bc803e3ab7b78c731dd55064df082ba44834bde4423c241f1399a1  cases/range-scan-limit-before-file/expected.json
+627affbd417a911acfdff0333e34b3d7b5981e1f32ee4fe5bc2ffecd65f9d2f5  cases/range-scan-limit-before-file/history.json
+12fc7d260e055cd45a57c3a5dbd31f8e7d7b3b0060cd910f6bf9338685eb54b8  cases/range-scan-limit-before-file/request.txt
 b4dfc5db5df51778541945a0438de32ff8556294c7c262bc1a67c1eff1c05712  cases/range-too-large-first-file/expected.json
 bcd9f0d8b2dd5f11ebaa784e6bc8a5c635581a0327af9bd023395ef54e0d813d  cases/range-too-large-first-file/history.json
 c5062e7a3ef96079c384010a3adcfdb3f2a020ac4169b600d0a8576c35eb774d  cases/range-too-large-first-file/request.txt
@@ -203,4 +218,4 @@ da66b7761aff6beca326a97e72492292247a039df5296a9f572b1abaed07b24d  cases/ts-uncha
 19e917efe74d9e70e7c214183ec3a8552a2816720a10bbe1d4ac6e67b9e49399  cases/ts-unknown-boundary/expected.json
 faed3c2d62ac7f7b86d75c1dc278c693e71259f4e82c80e08d441c303adf4822  cases/ts-unknown-boundary/history.json
 70c17b8cbafdc23b6f81cdf243829b1ec0f200e1b5d915cd5f8c49f0854ca55d  cases/ts-unknown-boundary/request.txt
-101b3d03b4ccb7af5dbdcc676373b04d088cf7e2e4291da1375fd8555ac809b3  schema.json
+d54c82e371d69c1d1b555df2670f13db4a1992c3d21ecd80206206b62b83b4ee  schema.json
