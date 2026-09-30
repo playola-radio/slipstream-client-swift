@@ -6,16 +6,31 @@ import Testing
 
 @testable import SlipstreamViewer
 
+private func hasDisposableAcceptanceStore(environment: [String: String], home: URL) -> Bool {
+  guard let configured = environment["SLIPSTREAM_STORE"], !configured.isEmpty else { return false }
+  let selected = DescriptorDiscovery.storeURL(environment: environment, home: home)
+    .resolvingSymlinksInPath()
+  let real = home.appending(path: ".slipstream").resolvingSymlinksInPath()
+  return selected.path != real.path
+}
+
+@Test func acceptanceStoreGuardExpandsLiteralTilde() {
+  let home = FileManager.default.homeDirectoryForCurrentUser
+  #expect(!hasDisposableAcceptanceStore(environment: [:], home: home))
+  #expect(
+    !hasDisposableAcceptanceStore(environment: ["SLIPSTREAM_STORE": "~/.slipstream"], home: home))
+  #expect(
+    hasDisposableAcceptanceStore(
+      environment: ["SLIPSTREAM_STORE": "/tmp/fs3-disposable"], home: home))
+}
+
 @MainActor
 @Suite(
   .enabled(
     if: ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_ACCEPTANCE"] != nil
-      && ProcessInfo.processInfo.environment["SLIPSTREAM_STORE"].map { store in
-        !store.isEmpty
-          && URL(fileURLWithPath: store).resolvingSymlinksInPath().path
-            != FileManager.default.homeDirectoryForCurrentUser.appending(path: ".slipstream")
-            .resolvingSymlinksInPath().path
-      } == true,
+      && hasDisposableAcceptanceStore(
+        environment: ProcessInfo.processInfo.environment,
+        home: FileManager.default.homeDirectoryForCurrentUser),
     "Set SLIPSTREAM_FS3_ACCEPTANCE to the independent consumer summary and SLIPSTREAM_STORE to its disposable store"
   ))
 struct LiveFunctionAcceptanceTests {

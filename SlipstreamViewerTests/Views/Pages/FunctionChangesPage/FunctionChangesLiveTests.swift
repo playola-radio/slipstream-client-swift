@@ -132,10 +132,10 @@ struct FunctionChangesLiveTests {
 
   @Test func canonicallyEquivalentDistinctPathsStayDistinct() async throws {
     var first = try fixture("ts-parameter-change")
-    first.files[0].path = "src/caf\u{00E9}.ts"
+    first.files[0].path = "src/caf\u{00E9}/a.ts"
     first.page = InterfacePage(complete: false, nextAfterPath: first.files[0].path)
     var final = first
-    final.files[0].path = "src/cafe\u{0301}.ts"
+    final.files[0].path = "src/cafe\u{0301}/a.ts"
     final.page = InterfacePage(complete: true, nextAfterPath: nil)
     let fake = DaemonFake()
     fake.setInterfacePages([first, final])
@@ -150,6 +150,17 @@ struct FunctionChangesLiveTests {
     expectNoDifference(fake.interfaceRequests.count, 2)
     #expect(model.page?.comparison.files.count == 2)
     #expect(model.page?.comparison.page.complete == true)
+    let page = try #require(model.page)
+    #expect(!page.summaryText.contains("unavailable"))
+    let mapFiles = page.mapGroups.flatMap(\.files)
+    #expect(mapFiles.count == 2)
+    #expect(Set(mapFiles.map(\.id)).count == 2)
+    #expect(Set(page.nodes.map(\.id)).count == page.nodes.count)
+    for file in mapFiles {
+      let row = try #require(file.rows.first)
+      page.declarationTapped(row.id)
+      #expect(page.sourceSelection.map { Data($0.path.utf8) } == Data(file.path.utf8))
+    }
   }
 
   @Test func descriptorRefreshRetries401OnceWithSameFrozenRequest() async throws {

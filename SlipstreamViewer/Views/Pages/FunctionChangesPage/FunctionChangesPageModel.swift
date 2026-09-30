@@ -139,7 +139,22 @@ final class FunctionChangesPageModel: ViewModel {
   private(set) var viewportSize = CGSize.zero
 
   private var hasDuplicatePaths: Bool {
-    Set(comparison.files.map(\.path)).count != comparison.files.count
+    Set(comparison.files.map { Data($0.path.utf8) }).count != comparison.files.count
+  }
+
+  private func pathID(_ path: String) -> String {
+    let hex = Array("0123456789ABCDEF".utf8)
+    var id = ""
+    for byte in path.utf8 {
+      if (32...126).contains(byte), byte != 37 {
+        id.append(Character(UnicodeScalar(byte)))
+      } else {
+        id.append("%")
+        id.append(Character(UnicodeScalar(hex[Int(byte >> 4)])))
+        id.append(Character(UnicodeScalar(hex[Int(byte & 15)])))
+      }
+    }
+    return id
   }
 
   var detectedChanges: Int { comparison.files.reduce(0) { $0 + changes(in: $1).count } }
@@ -147,13 +162,16 @@ final class FunctionChangesPageModel: ViewModel {
   var nodes: [FunctionChangeNode] { tree.nodes }
   var mapGroups: [FunctionMapGroup] {
     var order: [String] = []
+    var directoryNames: [String: String] = [:]
     var filesByDirectory: [String: [FunctionMapFile]] = [:]
     for file in visibleFiles {
       let parts = file.path.split(separator: "/").map(String.init)
       let directory = parts.dropLast().isEmpty ? "/" : parts.dropLast().joined(separator: "/")
-      if filesByDirectory[directory] == nil {
-        order.append(directory)
-        filesByDirectory[directory] = []
+      let directoryID = pathID(directory)
+      if filesByDirectory[directoryID] == nil {
+        order.append(directoryID)
+        directoryNames[directoryID] = directory
+        filesByDirectory[directoryID] = []
       }
       let changes = changes(in: file)
       let isSwift: Bool
@@ -167,23 +185,23 @@ final class FunctionChangesPageModel: ViewModel {
           case .signatureChanged: .changed
           }
         return FunctionMapRow(
-          id: "declaration:\(file.path):\(index)", title: displayName(of: change),
+          id: "declaration:\(pathID(file.path)):\(index)", title: displayName(of: change),
           subtitle: mapSubtitle(for: change), label: mapLabel(for: change), marker: marker,
           inputLines: parameterLines(for: change, isSwift: isSwift),
           outputLines: resultLines(for: change) + throwsLines(for: change),
           headerLines: headerLines(for: change))
       }
       let statusText = rows.isEmpty ? fileStatusText(file) : nil
-      filesByDirectory[directory, default: []].append(
+      filesByDirectory[directoryID, default: []].append(
         FunctionMapFile(
-          id: "map-file:\(file.path)", path: file.path, name: parts.last ?? file.path,
+          id: "map-file:\(pathID(file.path))", path: file.path, name: parts.last ?? file.path,
           changedCount: rows.count, isUnknown: isNotCompared(file),
           isFiltered: !searchText.isEmpty, statusText: statusText, rows: rows))
     }
-    return order.map { directory in
-      let files = filesByDirectory[directory] ?? []
+    return order.map { directoryID in
+      let files = filesByDirectory[directoryID] ?? []
       return FunctionMapGroup(
-        id: "map-directory:\(directory)", directory: directory, files: files,
+        id: "map-directory:\(directoryID)", directory: directoryNames[directoryID] ?? "/", files: files,
         changedCount: files.reduce(0) { $0 + $1.changedCount },
         unknownCount: files.filter(\.isUnknown).count, isFiltered: !searchText.isEmpty)
     }
@@ -471,7 +489,7 @@ final class FunctionChangesPageModel: ViewModel {
   private func declaration(for id: String) -> (InterfaceFileResult, InterfaceChange)? {
     for file in visibleFiles {
       for (index, change) in changes(in: file).enumerated()
-      where "declaration:\(file.path):\(index)" == id && matchesSearch(change, in: file) {
+      where "declaration:\(pathID(file.path)):\(index)" == id && matchesSearch(change, in: file) {
         return (file, change)
       }
     }
@@ -553,7 +571,7 @@ final class FunctionChangesPageModel: ViewModel {
       let parts = file.path.split(separator: "/").map(String.init)
       var parent = "root"
       for (index, part) in parts.dropLast().enumerated() {
-        let id = "directory:" + parts[...index].joined(separator: "/")
+        let id = "directory:" + pathID(parts[...index].joined(separator: "/"))
         if directoryIDs.insert(id).inserted {
           drafts.append(
             Draft(
@@ -562,7 +580,7 @@ final class FunctionChangesPageModel: ViewModel {
         }
         parent = id
       }
-      let fileID = "file:\(file.path)"
+      let fileID = "file:\(pathID(file.path))"
       let changes = changes(in: file)
       let unknown = isNotCompared(file)
       let isSwift: Bool
@@ -581,7 +599,7 @@ final class FunctionChangesPageModel: ViewModel {
           }
         drafts.append(
           Draft(
-            id: "declaration:\(file.path):\(index)", parentID: fileID,
+            id: "declaration:\(pathID(file.path)):\(index)", parentID: fileID,
             kind: .declaration, title: displayName(of: change), statusText: nil,
             lines: showsInlineContracts ? lines(for: change, isSwift: isSwift) : [],
             marker: marker, depth: maxDirectoryDepth + 2,
