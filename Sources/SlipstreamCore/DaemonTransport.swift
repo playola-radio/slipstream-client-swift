@@ -112,6 +112,55 @@ public final class DaemonTransport: Sendable {
     return try JSONDecoder().decode(ClipsResponse.self, from: data)
   }
 
+  public func interfaces(
+    _ descriptor: DaemonDescriptor, sessionID: String, before: Seq, after: Seq,
+    pathPrefix: String?, afterPath: String?, includeIdentical: Bool
+  ) async throws -> InterfaceComparison {
+    let request = interfaceRequest(
+      descriptor, sessionID: sessionID, before: before, after: after,
+      pathPrefix: pathPrefix, afterPath: afterPath, includeIdentical: includeIdentical)
+    let (data, response) = try await session.data(for: request)
+    try Self.check(response)
+    try Task.checkCancellation()
+    return try InterfaceComparison.decode(data)
+  }
+
+  func interfaceRequest(
+    _ descriptor: DaemonDescriptor, sessionID: String, before: Seq, after: Seq,
+    pathPrefix: String?, afterPath: String?, includeIdentical: Bool
+  ) -> URLRequest {
+    var components = URLComponents(url: descriptor.baseURL, resolvingAgainstBaseURL: false)!
+    components.percentEncodedPath = "/v1/sessions/\(Self.encode(sessionID))/interfaces"
+    var query = [
+      "before_seq=\(before.decimal)", "after_seq=\(after.decimal)", "limit=16"
+    ]
+    if let pathPrefix { query.append("path_prefix=\(Self.encode(pathPrefix))") }
+    if let afterPath { query.append("after_path=\(Self.encode(afterPath))") }
+    if includeIdentical { query.append("include_identical=true") }
+    components.percentEncodedQuery = query.joined(separator: "&")
+    var request = URLRequest(url: components.url!)
+    request.httpMethod = "GET"
+    request.setValue("Bearer \(descriptor.token)", forHTTPHeaderField: "Authorization")
+    return request
+  }
+
+  private static func encode(_ value: String) -> String {
+    let hex = Array("0123456789ABCDEF".utf8)
+    var result = ""
+    for byte in value.utf8 {
+      if (65...90).contains(byte) || (97...122).contains(byte)
+        || (48...57).contains(byte) || [45, 46, 95, 126].contains(byte)
+      {
+        result.append(Character(UnicodeScalar(byte)))
+      } else {
+        result.append("%")
+        result.append(Character(UnicodeScalar(hex[Int(byte >> 4)])))
+        result.append(Character(UnicodeScalar(hex[Int(byte & 15)])))
+      }
+    }
+    return result
+  }
+
   public func blob(_ descriptor: DaemonDescriptor, sha256: String) async throws -> Data {
     guard sha256.utf8.count == 64, sha256.utf8.allSatisfy(\.isLowercaseHexDigit) else {
       throw DaemonHTTPError.invalidResponse
@@ -135,7 +184,7 @@ public final class DaemonTransport: Sendable {
   }
 
   @discardableResult
-  private static func check(_ response: URLResponse) throws -> HTTPURLResponse {
+  static func check(_ response: URLResponse) throws -> HTTPURLResponse {
     guard let http = response as? HTTPURLResponse else { throw DaemonHTTPError.invalidResponse }
     guard http.statusCode == 200 else {
       let durable = http.value(forHTTPHeaderField: "slipstream-durable-seq").flatMap(Seq.init)

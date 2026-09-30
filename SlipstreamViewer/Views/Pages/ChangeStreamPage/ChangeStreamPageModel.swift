@@ -50,6 +50,8 @@ final class ChangeStreamPageModel: ViewModel {
   var hasLoadedSessions = false
   var sessionsError: String?
   var selectedSession: SessionOption?
+  private(set) var baselineCompletedSeq: Seq?
+  private(set) var functionChanges: FunctionChangesLiveModel?
   var connection: ConnectionState = .idle
   var sections: IdentifiedArrayOf<FeedSection> = []
   private(set) var feedGeneration = 0
@@ -84,6 +86,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   let paneTitle = "Change stream"
   let refreshButtonText = "Refresh"
+  let compareFunctionsText = "Compare functions"
   let jumpToLatestText = "Jump to latest ↓"
   let hideFeedText = "Hide feed"
   let showFeedText = "◧  Activity"
@@ -290,6 +293,10 @@ final class ChangeStreamPageModel: ViewModel {
     sessions.isEmpty
   }
 
+  var canCompareFunctions: Bool {
+    !isFunctionDemoVisible && selectedSession != nil && baselineCompletedSeq != nil
+  }
+
   var isRetryVisible: Bool {
     switch connection {
     case .disconnected, .halted: true
@@ -353,10 +360,26 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func viewDisappeared() {
+    functionChanges?.viewDisappeared()
     replyCollapsed()
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
+  }
+
+  func compareFunctionsTapped() {
+    guard canCompareFunctions, let sessionID = selectedSession?.id,
+      let baselineCompletedSeq else { return }
+    functionChanges?.viewDisappeared()
+    functionChanges = withDependencies(from: self) {
+      FunctionChangesLiveModel(
+        sessionID: sessionID, before: baselineCompletedSeq, after: lastAppliedSeq)
+    }
+  }
+
+  func functionChangesClosed() {
+    functionChanges?.viewDisappeared()
+    functionChanges = nil
   }
 
   func retryTapped() {
@@ -590,7 +613,11 @@ final class ChangeStreamPageModel: ViewModel {
         reply.threadUpdated(thread)
       }
       if follow == .following { scrollToLatestRequest += 1 }
-    case .sessionStarted, .questionDispatchAttempted, .recordedWithoutRow:
+    case .recordedWithoutRow:
+      if event.type == "slipstream.capture.baseline.completed.v1", baselineCompletedSeq == nil {
+        baselineCompletedSeq = event.seq
+      }
+    case .sessionStarted, .questionDispatchAttempted:
       break
     }
     lastAppliedSeq = event.seq
@@ -650,6 +677,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func resetFeed() {
+    functionChanges?.viewDisappeared()
+    functionChanges = nil
+    baselineCompletedSeq = nil
     replyCollapsed()
     questionThreads = QuestionThreads()
     barFrames = [:]
