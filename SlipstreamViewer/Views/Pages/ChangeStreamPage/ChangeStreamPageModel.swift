@@ -294,8 +294,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var canCompareFunctions: Bool {
-    !isFunctionDemoVisible && selectedSession != nil
-      && baselineCompletedSeq.map { $0 <= lastAppliedSeq } == true
+    !isFunctionDemoVisible && selectedSession != nil && baselineCompletedSeq != nil
   }
 
   var isRetryVisible: Bool {
@@ -355,8 +354,6 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sessionSelected(_ id: String) {
     guard let session = sessions[id: id], session.id != selectedSession?.id else { return }
-    functionChanges?.viewDisappeared()
-    functionChanges = nil
     selectedSession = session
     resetFeed()
     startWatching()
@@ -617,7 +614,7 @@ final class ChangeStreamPageModel: ViewModel {
       }
       if follow == .following { scrollToLatestRequest += 1 }
     case .recordedWithoutRow:
-      if event.type == "slipstream.capture.baseline.completed.v1" {
+      if event.type == "slipstream.capture.baseline.completed.v1", baselineCompletedSeq == nil {
         baselineCompletedSeq = event.seq
       }
     case .sessionStarted, .questionDispatchAttempted:

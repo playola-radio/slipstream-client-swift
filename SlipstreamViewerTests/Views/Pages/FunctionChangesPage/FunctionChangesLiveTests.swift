@@ -41,7 +41,6 @@ struct FunctionChangesLiveTests {
     await model.viewAppeared()
 
     expectNoDifference(fake.interfaceRequests.map(\.5), [nil, "src/f.ts"])
-    expectNoDifference(fake.interfaceRequests.map(\.6), [true, true])
     expectNoDifference(model.page?.comparison.files, first.files)
     #expect(model.page?.comparison.page.complete == true)
     #expect(model.page?.afterPath == "src/f.ts")
@@ -105,6 +104,54 @@ struct FunctionChangesLiveTests {
     #expect(model.page?.comparison.page.complete == true)
   }
 
+  @Test func timedOutFilePausesBeforeContinuingAtNextCursor() async throws {
+    var first = try fixture("ts-parameter-change")
+    first.files[0].status = .skipped(reason: "timeout")
+    first.page = InterfacePage(complete: false, nextAfterPath: first.files[0].path)
+    var final = first
+    final.files = []
+    final.page = InterfacePage(complete: true, nextAfterPath: nil)
+    let fake = DaemonFake()
+    fake.setInterfacePages([first, final])
+    let model = withDependencies {
+      $0.daemon = fake.client
+    } operation: {
+      FunctionChangesLiveModel(
+        sessionID: first.sessionID, before: first.beforeSeq, after: first.afterSeq)
+    }
+
+    await model.viewAppeared()
+    expectNoDifference(fake.interfaceRequests.count, 1)
+    #expect(model.canRetry)
+    #expect(model.page?.comparison.files[0].status == .skipped(reason: "timeout"))
+    #expect(model.page?.comparison.page.complete == false)
+    await model.retryTapped()
+    expectNoDifference(fake.interfaceRequests.map(\.5), [nil, first.files[0].path])
+    #expect(model.page?.comparison.page.complete == true)
+  }
+
+  @Test func canonicallyEquivalentDistinctPathsStayDistinct() async throws {
+    var first = try fixture("ts-parameter-change")
+    first.files[0].path = "src/caf\u{00E9}.ts"
+    first.page = InterfacePage(complete: false, nextAfterPath: first.files[0].path)
+    var final = first
+    final.files[0].path = "src/cafe\u{0301}.ts"
+    final.page = InterfacePage(complete: true, nextAfterPath: nil)
+    let fake = DaemonFake()
+    fake.setInterfacePages([first, final])
+    let model = withDependencies {
+      $0.daemon = fake.client
+    } operation: {
+      FunctionChangesLiveModel(
+        sessionID: first.sessionID, before: first.beforeSeq, after: first.afterSeq)
+    }
+
+    await model.viewAppeared()
+    expectNoDifference(fake.interfaceRequests.count, 2)
+    #expect(model.page?.comparison.files.count == 2)
+    #expect(model.page?.comparison.page.complete == true)
+  }
+
   @Test func descriptorRefreshRetries401OnceWithSameFrozenRequest() async throws {
     let ready = try fixture("ts-parameter-change")
     let fake = DaemonFake()
@@ -122,9 +169,12 @@ struct FunctionChangesLiveTests {
     #expect(model.page?.comparison.page.complete == true)
   }
 
-  @Test func durableConflictAndRemovalNeedANewRange() async throws {
+  @Test func rejectedAndUnavailableRangesNeedANewSelection() async throws {
     let ready = try fixture("ts-parameter-change")
-    for (code, expected) in [(409, "beyond daemon history"), (410, "session removed")] {
+    for (code, expected) in [
+      (400, "request rejected"), (404, "session not found"),
+      (409, "beyond daemon history"), (410, "session removed"),
+    ] {
       let fake = DaemonFake()
       fake.setInterfaceReplies([.failure(.status(code, durableSeq: Seq("1")))])
       let model = withDependencies {

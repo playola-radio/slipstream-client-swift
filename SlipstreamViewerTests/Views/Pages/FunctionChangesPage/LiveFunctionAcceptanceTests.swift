@@ -9,7 +9,13 @@ import Testing
 @MainActor
 @Suite(
   .enabled(
-    if: ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_ACCEPTANCE"] != nil,
+    if: ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_ACCEPTANCE"] != nil
+      && ProcessInfo.processInfo.environment["SLIPSTREAM_STORE"].map { store in
+        !store.isEmpty
+          && URL(fileURLWithPath: store).resolvingSymlinksInPath().path
+            != FileManager.default.homeDirectoryForCurrentUser.appending(path: ".slipstream")
+            .resolvingSymlinksInPath().path
+      } == true,
     "Set SLIPSTREAM_FS3_ACCEPTANCE to the independent consumer summary and SLIPSTREAM_STORE to its disposable store"
   ))
 struct LiveFunctionAcceptanceTests {
@@ -76,9 +82,6 @@ struct LiveFunctionAcceptanceTests {
       expectNoDifference(
         beforeSelection.byteRange, expected.beforeSpan.byteStart..<expected.beforeSpan.byteEnd)
     }
-    print(
-      "FS3 live model matched independent HTTP consumer for \(summary.files.count) files at #\(before)…#\(after)"
-    )
   }
 
   @Test(.enabled(if: ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_BLOB_LOSS"] == "1"))

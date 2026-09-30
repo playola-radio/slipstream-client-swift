@@ -38,7 +38,7 @@ struct FunctionChangesLiveView: View {
         FunctionChangesPageView(model: page)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        Text(model.statusText ?? model.loadingText)
+        Text(model.statusText == nil ? model.loadingText : "Comparison unavailable")
           .font(DesignTokens.FunctionTree.bodyFont)
           .foregroundStyle(DesignTokens.FunctionTree.secondary)
           .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -120,8 +120,12 @@ struct ChangeStreamPageTests {
     expectNoDifference(model.functionChanges?.after, Fixture.seq(2))
     await send(Fixture.edited(3))
     expectNoDifference(model.functionChanges?.after, Fixture.seq(2))
+    await send(Fixture.frame(4, type: "slipstream.capture.baseline.completed.v1", data: [:]))
+    model.compareFunctionsTapped()
+    expectNoDifference(model.functionChanges?.before, Fixture.seq(1))
+    expectNoDifference(model.functionChanges?.after, Fixture.seq(4))
     fake.setSessions([
-      SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(3), removed: false),
+      SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(4), removed: false),
       SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
     ])
     await model.refreshTapped()

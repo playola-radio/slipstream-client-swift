@@ -114,7 +114,7 @@ public final class DaemonTransport: Sendable {
 
   public func interfaces(
     _ descriptor: DaemonDescriptor, sessionID: String, before: Seq, after: Seq,
-    pathPrefix: String? = nil, afterPath: String? = nil, includeIdentical: Bool = false
+    pathPrefix: String?, afterPath: String?, includeIdentical: Bool
   ) async throws -> InterfaceComparison {
     let request = interfaceRequest(
       descriptor, sessionID: sessionID, before: before, after: after,

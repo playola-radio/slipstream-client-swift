@@ -12,15 +12,10 @@ final class FunctionChangesLiveModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(
-    sessionID: String, before: Seq, after: Seq,
-    pathPrefix: String? = nil, includeIdentical: Bool = true
-  ) {
+  init(sessionID: String, before: Seq, after: Seq) {
     self.sessionID = sessionID
     self.before = before
     self.after = after
-    self.pathPrefix = pathPrefix
-    self.includeIdentical = includeIdentical
     super.init()
   }
 
@@ -29,8 +24,6 @@ final class FunctionChangesLiveModel: ViewModel {
   let sessionID: String
   let before: Seq
   let after: Seq
-  let pathPrefix: String?
-  let includeIdentical: Bool
   private(set) var page: FunctionChangesPageModel?
   private(set) var statusText: String?
   private(set) var isLoading = false
@@ -40,6 +33,8 @@ final class FunctionChangesLiveModel: ViewModel {
   @ObservationIgnored private var loadTask: Task<Void, Never>?
   @ObservationIgnored private var nextCursor: String?
   @ObservationIgnored private var files: [InterfaceFileResult] = []
+  @ObservationIgnored private var seenPaths: Set<Data> = []
+  @ObservationIgnored private var hasNonReadyFile = false
   @ObservationIgnored private var inventory: InterfaceInventory?
   @ObservationIgnored private var gaps: [InterfaceGap]?
   @ObservationIgnored private var gapsComplete = false
@@ -104,15 +99,14 @@ final class FunctionChangesLiveModel: ViewModel {
         }
         guard metadataAgrees(with: response) else { throw DaemonHTTPError.invalidResponse }
         guard
-          response.page.complete || response.page.nextAfterPath == response.files.last?.path
-            || response.files.isEmpty && response.page.nextAfterPath == requestedCursor
+          response.page.complete || samePath(response.page.nextAfterPath, response.files.last?.path)
+            || response.files.isEmpty && samePath(response.page.nextAfterPath, requestedCursor)
         else {
           throw DaemonHTTPError.invalidResponse
         }
-        guard !response.page.complete || response.page.nextAfterPath == nil else {
-          throw DaemonHTTPError.invalidResponse
-        }
-        guard !response.files.contains(where: { file in files.contains { $0.path == file.path } })
+        let pagePaths = response.files.map { Data($0.path.utf8) }
+        guard Set(pagePaths).count == pagePaths.count,
+          pagePaths.allSatisfy({ !seenPaths.contains($0) })
         else {
           throw DaemonHTTPError.invalidResponse
         }
@@ -121,11 +115,15 @@ final class FunctionChangesLiveModel: ViewModel {
           gaps = response.gaps
           gapsComplete = response.gapsComplete
         }
+        seenPaths.formUnion(pagePaths)
+        if response.files.contains(where: { $0.status != .ready && $0.status != .identical }) {
+          hasNonReadyFile = true
+        }
         files += response.files
         let status: InterfaceComparison.Status
         if files.isEmpty, case .skipped(let reason) = response.status {
           status = .skipped(reason)
-        } else if files.allSatisfy({ $0.status == .ready || $0.status == .identical }) {
+        } else if !hasNonReadyFile {
           status = .ready
         } else {
           status = .partial
@@ -148,12 +146,20 @@ final class FunctionChangesLiveModel: ViewModel {
           canRetry = true
           return
         }
-        guard let cursor = response.page.nextAfterPath, cursor != requestedCursor else {
+        guard let cursor = response.page.nextAfterPath, !samePath(cursor, requestedCursor) else {
           statusText = "Comparison paused before the next file. \(incompleteText)"
           canRetry = true
           return
         }
         nextCursor = cursor
+        if response.files.contains(where: { file in
+          file.status == .skipped(reason: "timeout") || file.status == .skipped(reason: "cancelled")
+        }) {
+          statusText =
+            "Comparison paused after a file timed out or was cancelled. \(incompleteText)"
+          canRetry = true
+          return
+        }
       } catch {
         guard generation == self.generation, !Task.isCancelled else { return }
         statusText = errorText(error)
@@ -167,12 +173,20 @@ final class FunctionChangesLiveModel: ViewModel {
     let descriptor = try await daemon.discover()
     do {
       return try await daemon.interfaces(
-        descriptor, sessionID, before, after, pathPrefix, afterPath, includeIdentical)
+        descriptor, sessionID, before, after, nil, afterPath, true)
     } catch DaemonHTTPError.status(401, _) {
       try Task.checkCancellation()
       let refreshed = try await daemon.discover()
       return try await daemon.interfaces(
-        refreshed, sessionID, before, after, pathPrefix, afterPath, includeIdentical)
+        refreshed, sessionID, before, after, nil, afterPath, true)
+    }
+  }
+
+  private func samePath(_ first: String?, _ second: String?) -> Bool {
+    switch (first, second) {
+    case (nil, nil): true
+    case (let first?, let second?): first.utf8.elementsEqual(second.utf8)
+    default: false
     }
   }
 
@@ -184,7 +198,11 @@ final class FunctionChangesLiveModel: ViewModel {
   }
 
   private func isRetryable(_ error: any Error) -> Bool {
-    if case DaemonHTTPError.status(let code, _) = error, code == 409 || code == 410 { return false }
+    if case DaemonHTTPError.status(let code, _) = error,
+      code == 400 || code == 404 || code == 409 || code == 410
+    {
+      return false
+    }
     return true
   }
 
