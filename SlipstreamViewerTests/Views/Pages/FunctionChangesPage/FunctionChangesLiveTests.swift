@@ -104,15 +104,14 @@ struct FunctionChangesLiveTests {
     #expect(model.page?.comparison.page.complete == true)
   }
 
-  @Test func timedOutFilePausesBeforeContinuingAtNextCursor() async throws {
+  @Test func timedOutFileIsRetriedAtTheSameCursorInsteadOfBeingSkipped() async throws {
     var first = try fixture("ts-parameter-change")
     first.files[0].status = .skipped(reason: "timeout")
     first.page = InterfacePage(complete: false, nextAfterPath: first.files[0].path)
-    var final = first
-    final.files = []
-    final.page = InterfacePage(complete: true, nextAfterPath: nil)
+    var retried = try fixture("ts-parameter-change")
+    retried.page = InterfacePage(complete: true, nextAfterPath: nil)
     let fake = DaemonFake()
-    fake.setInterfacePages([first, final])
+    fake.setInterfacePages([first, retried])
     let model = withDependencies {
       $0.daemon = fake.client
     } operation: {
@@ -126,8 +125,35 @@ struct FunctionChangesLiveTests {
     #expect(model.page?.comparison.files[0].status == .skipped(reason: "timeout"))
     #expect(model.page?.comparison.page.complete == false)
     await model.retryTapped()
-    expectNoDifference(fake.interfaceRequests.map(\.5), [nil, first.files[0].path])
+    expectNoDifference(fake.interfaceRequests.map(\.5), [nil, nil])
     #expect(model.page?.comparison.page.complete == true)
+    expectNoDifference(model.page?.comparison.files, retried.files)
+  }
+
+  @Test func timedOutFileOnTheFinalPageStillOffersRetry() async throws {
+    var final = try fixture("ts-parameter-change")
+    final.files[0].status = .skipped(reason: "timeout")
+    final.page = InterfacePage(complete: true, nextAfterPath: nil)
+    let fake = DaemonFake()
+    fake.setInterfacePages([final])
+    let model = withDependencies {
+      $0.daemon = fake.client
+    } operation: {
+      FunctionChangesLiveModel(
+        sessionID: final.sessionID, before: final.beforeSeq, after: final.afterSeq)
+    }
+
+    await model.viewAppeared()
+    #expect(model.canRetry)
+    #expect(model.page?.comparison.files[0].status == .skipped(reason: "timeout"))
+
+    var retried = try fixture("ts-parameter-change")
+    retried.page = InterfacePage(complete: true, nextAfterPath: nil)
+    fake.setInterfacePages([retried])
+    await model.retryTapped()
+    expectNoDifference(fake.interfaceRequests.map(\.5), [nil, nil])
+    #expect(model.page?.comparison.page.complete == true)
+    expectNoDifference(model.page?.comparison.files, retried.files)
   }
 
   @Test func canonicallyEquivalentDistinctPathsStayDistinct() async throws {

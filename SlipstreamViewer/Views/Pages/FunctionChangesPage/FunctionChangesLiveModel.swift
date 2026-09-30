@@ -34,7 +34,7 @@ final class FunctionChangesLiveModel: ViewModel {
   @ObservationIgnored private var nextCursor: String?
   @ObservationIgnored private var files: [InterfaceFileResult] = []
   @ObservationIgnored private var seenPaths: Set<Data> = []
-  @ObservationIgnored private var hasNonReadyFile = false
+  @ObservationIgnored private var pendingRetryPath: Data?
   @ObservationIgnored private var inventory: InterfaceInventory?
   @ObservationIgnored private var gaps: [InterfaceGap]?
   @ObservationIgnored private var gapsComplete = false
@@ -104,6 +104,11 @@ final class FunctionChangesLiveModel: ViewModel {
         else {
           throw DaemonHTTPError.invalidResponse
         }
+        if let pendingRetryPath {
+          seenPaths.remove(pendingRetryPath)
+          files.removeAll { Data($0.path.utf8) == pendingRetryPath }
+          self.pendingRetryPath = nil
+        }
         let pagePaths = response.files.map { Data($0.path.utf8) }
         guard Set(pagePaths).count == pagePaths.count,
           pagePaths.allSatisfy({ !seenPaths.contains($0) })
@@ -116,10 +121,8 @@ final class FunctionChangesLiveModel: ViewModel {
           gapsComplete = response.gapsComplete
         }
         seenPaths.formUnion(pagePaths)
-        if response.files.contains(where: { $0.status != .ready && $0.status != .identical }) {
-          hasNonReadyFile = true
-        }
         files += response.files
+        let hasNonReadyFile = files.contains { $0.status != .ready && $0.status != .identical }
         let status: InterfaceComparison.Status
         if files.isEmpty, case .skipped(let reason) = response.status {
           status = .skipped(reason)
@@ -140,6 +143,15 @@ final class FunctionChangesLiveModel: ViewModel {
               comparison: combined, afterPath: requestedCursor, isAccumulatedRange: true)
           }
         }
+        if let timedOutFile = response.files.last(where: { file in
+          file.status == .skipped(reason: "timeout") || file.status == .skipped(reason: "cancelled")
+        }) {
+          statusText =
+            "Comparison paused after a file timed out or was cancelled. \(incompleteText)"
+          canRetry = true
+          pendingRetryPath = Data(timedOutFile.path.utf8)
+          return
+        }
         if response.page.complete { return }
         if case .skipped(let reason) = response.status {
           statusText = "Page skipped: \(reason.rawValue). \(incompleteText)"
@@ -152,14 +164,6 @@ final class FunctionChangesLiveModel: ViewModel {
           return
         }
         nextCursor = cursor
-        if response.files.contains(where: { file in
-          file.status == .skipped(reason: "timeout") || file.status == .skipped(reason: "cancelled")
-        }) {
-          statusText =
-            "Comparison paused after a file timed out or was cancelled. \(incompleteText)"
-          canRetry = true
-          return
-        }
       } catch {
         guard generation == self.generation, !Task.isCancelled else { return }
         statusText = errorText(error)
