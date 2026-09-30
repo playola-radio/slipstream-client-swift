@@ -15,6 +15,11 @@ struct FollowRequest: Equatable {
 final class DaemonFake: Sendable {
   typealias Connection = AsyncThrowingStream<StreamItem, any Error>.Continuation
 
+  enum InterfaceReply: Sendable {
+    case page(InterfaceComparison)
+    case failure(DaemonHTTPError)
+  }
+
   private struct State {
     var tokens: [String] = ["token-1"]
     var discoverError: (any Error)?
@@ -23,6 +28,9 @@ final class DaemonFake: Sendable {
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
+    var interfaceReplies: [InterfaceReply] = []
+    var interfaceRequests: [(String, String, Seq, Seq, String?, String?, Bool)] = []
+    var interfaceCallGates: [Int: AsyncStream<Void>.Continuation] = [:]
     var clipsFailures = 0
     var blobs: [String: Data] = [:]
     var clipsCallCount = 0
@@ -33,21 +41,35 @@ final class DaemonFake: Sendable {
   private let clipsGate: AsyncStream<Void>?
   private let sessionsGate: AsyncStream<Void>?
   private let gatesEachClipsCall: Bool
+  private let gatesEachInterfaceCall: Bool
   private let storeID: String
 
   init(
     storeID: String = "store-a",
     clipsGate: AsyncStream<Void>? = nil,
     sessionsGate: AsyncStream<Void>? = nil,
-    gatesEachClipsCall: Bool = false
+    gatesEachClipsCall: Bool = false,
+    gatesEachInterfaceCall: Bool = false
   ) {
     self.storeID = storeID
     self.clipsGate = clipsGate
     self.sessionsGate = sessionsGate
     self.gatesEachClipsCall = gatesEachClipsCall
+    self.gatesEachInterfaceCall = gatesEachInterfaceCall
   }
 
   var follows: [FollowRequest] { state.withLock { $0.follows } }
+  var interfaceRequests: [(String, String, Seq, Seq, String?, String?, Bool)] { state.withLock { $0.interfaceRequests } }
+  func setInterfacePages(_ pages: [InterfaceComparison]) {
+    setInterfaceReplies(pages.map { .page($0) })
+  }
+  func setInterfaceReplies(_ replies: [InterfaceReply]) { state.withLock { $0.interfaceReplies = replies } }
+  func waitForInterfaceCall(_ number: Int) async {
+    while state.withLock({ $0.interfaceRequests.count }) < number { await Task.yield() }
+  }
+  func releaseInterfaceCall(_ number: Int) {
+    state.withLock { $0.interfaceCallGates[number] }?.yield()
+  }
 
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
   func setDiscoverError(_ error: (any Error)?) { state.withLock { $0.discoverError = error } }
@@ -133,6 +155,23 @@ final class DaemonFake: Sendable {
           }
           guard let response = state.clips[seq] else { throw DaemonHTTPError.status(404, durableSeq: nil) }
           return response
+        }
+      },
+      interfaces: { [self] descriptor, sessionID, before, after, prefix, cursor, identical in
+        let gate: AsyncStream<Void>? = state.withLock { state in
+          state.interfaceRequests.append((descriptor.token, sessionID, before, after, prefix, cursor, identical))
+          guard gatesEachInterfaceCall else { return nil }
+          let (stream, open) = AsyncStream<Void>.makeStream()
+          state.interfaceCallGates[state.interfaceRequests.count] = open
+          return stream
+        }
+        if let gate { for await _ in gate { break } }
+        return try state.withLock { state in
+          guard !state.interfaceReplies.isEmpty else { throw DaemonHTTPError.status(500, durableSeq: nil) }
+          switch state.interfaceReplies.removeFirst() {
+          case .page(let page): return page
+          case .failure(let error): throw error
+          }
         }
       },
       blob: { [self] _, sha in

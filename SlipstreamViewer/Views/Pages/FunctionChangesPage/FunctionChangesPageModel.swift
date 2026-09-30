@@ -109,19 +109,22 @@ final class FunctionChangesPageModel: ViewModel {
   init(
     comparison: InterfaceComparison,
     afterPath: String? = nil,
-    isFixtureDemo: Bool = false
+    isFixtureDemo: Bool = false,
+    isAccumulatedRange: Bool = false
   ) {
     self.comparison = comparison
     self.afterPath = afterPath
     self.isFixtureDemo = isFixtureDemo
+    self.isAccumulatedRange = isAccumulatedRange
     super.init()
   }
 
   // MARK: - Properties
 
-  let comparison: InterfaceComparison
-  let afterPath: String?
+  private(set) var comparison: InterfaceComparison
+  private(set) var afterPath: String?
   let isFixtureDemo: Bool
+  let isAccumulatedRange: Bool
   private(set) var displayMode: FunctionChangesDisplayMode = .map
   var modeSelection: FunctionChangesDisplayMode {
     get { displayMode }
@@ -240,7 +243,7 @@ final class FunctionChangesPageModel: ViewModel {
       comparison.inventory.map {
         $0.baselineCompletedSeq == nil || !$0.unknownScopes.isEmpty || !$0.unknownScopesComplete
       } ?? true
-    let coversRange = comparison.page.complete && afterPath == nil
+    let coversRange = comparison.page.complete && (afterPath == nil || isAccumulatedRange)
     let coverage = coversRange && !inventoryUncertain ? "" : " in loaded files"
     let failures = filesNotCompared
     if count == 0, failures > 0 {
@@ -311,7 +314,7 @@ final class FunctionChangesPageModel: ViewModel {
     }
     if comparison.files.isEmpty {
       guard comparison.page.complete else { return "No files loaded yet · more files may exist" }
-      return afterPath.map { "No more files listed after \($0)" }
+      return (isAccumulatedRange ? nil : afterPath).map { "No more files listed after \($0)" }
         ?? "No files listed at the recorded endpoints"
     }
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
@@ -369,6 +372,12 @@ final class FunctionChangesPageModel: ViewModel {
   }
 
   // MARK: - User Actions
+
+  func comparisonUpdated(_ comparison: InterfaceComparison, afterPath: String?) {
+    self.comparison = comparison
+    self.afterPath = afterPath
+    clearSelectionIfHidden()
+  }
 
   func displayModeSelected(_ mode: FunctionChangesDisplayMode) { displayMode = mode }
 

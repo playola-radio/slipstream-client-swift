@@ -9,6 +9,7 @@ struct DaemonClient: Sendable {
   var sessionRoot: @Sendable (DaemonDescriptor, String) async throws -> String?
   var follow: @Sendable (DaemonDescriptor, String, Seq) -> AsyncThrowingStream<StreamItem, any Error>
   var clips: @Sendable (DaemonDescriptor, String, Seq) async throws -> ClipsResponse
+  var interfaces: @Sendable (DaemonDescriptor, String, Seq, Seq, String?, String?, Bool) async throws -> InterfaceComparison
   var blob: @Sendable (DaemonDescriptor, String) async throws -> Data
 }
 
@@ -30,6 +31,9 @@ extension DaemonClient: DependencyKey {
       },
       follow: { transport.follow($0, sessionID: $1, after: $2) },
       clips: { try await transport.clips($0, sessionID: $1, seq: $2) },
+      interfaces: { try await transport.interfaces(
+        $0, sessionID: $1, before: $2, after: $3,
+        pathPrefix: $4, afterPath: $5, includeIdentical: $6) },
       blob: { try await transport.blob($0, sha256: $1) }
     )
   }
@@ -42,6 +46,7 @@ extension DaemonClient: DependencyKey {
       sessionRoot: unimplemented("DaemonClient.sessionRoot", placeholder: nil),
       follow: unimplemented("DaemonClient.follow", placeholder: AsyncThrowingStream { $0.finish() }),
       clips: unimplemented("DaemonClient.clips"),
+      interfaces: unimplemented("DaemonClient.interfaces"),
       blob: unimplemented("DaemonClient.blob")
     )
   }

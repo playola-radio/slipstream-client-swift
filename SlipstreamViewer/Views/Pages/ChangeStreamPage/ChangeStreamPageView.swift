@@ -132,6 +132,10 @@ struct ChangeStreamPageView: View {
       if let functionChangesDemo {
         FunctionChangesFixtureView(model: functionChangesDemo)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if let functionChanges = model.functionChanges {
+        FunctionChangesLiveView(model: functionChanges, close: { model.functionChangesClosed() })
+          .id(functionChanges)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         Text(model.fileViewerPlaceholderText)
           .font(DesignTokens.Fonts.liveStatus)
@@ -295,6 +299,10 @@ struct ChangeStreamPageView: View {
       Button(model.refreshButtonText, systemImage: "arrow.clockwise") {
         Task { await model.refreshTapped() }
       }
+    }
+    ToolbarItem {
+      Button(model.compareFunctionsText) { model.compareFunctionsTapped() }
+        .disabled(!model.canCompareFunctions)
     }
   }
 }
