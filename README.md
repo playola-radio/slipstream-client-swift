@@ -43,6 +43,12 @@ Pick a session from the toolbar. New changes scroll into view while you are at t
 scroll up to pause (the footer counts what arrived) and click **Jump to latest ↓** to
 resume. Credentials are read from the daemon's runtime descriptor and held in memory only.
 
+**Compare functions** defaults to source files (`.ts`, `.tsx`, `.swift`) in both Map
+and Tree. **Show all files** includes other recorded file types; **Show source files**
+switches back. Counts describe the selected file-type scope. Search and **Show unchanged
+branches** still apply independently, and source files with comparison errors remain visible.
+This filters the display, including existing recordings; it does not exclude files from capture.
+
 ## Test
 
 ```sh

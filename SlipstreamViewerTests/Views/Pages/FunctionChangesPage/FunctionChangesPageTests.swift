@@ -23,6 +23,82 @@ struct FunctionChangesPageTests {
     return try InterfaceComparison.decode(Data(contentsOf: url))
   }
 
+  @Test func sourceFilesAreVisibleByDefaultInMapAndTree() throws {
+    var comparison = try fixture("ts-parameter-change")
+    var tsx = comparison.files[0]
+    tsx.path = "src/view.tsx"
+    let swift = try #require(fixture("swift-parse-failure").files.first)
+    let unsupported = try #require(fixture("py-unsupported-language").files.first)
+    comparison.files += [tsx, swift]
+    comparison.files += [".gstack/screen.png", "debug.log", "assets.ts/icon.png"].map { path in
+      var file = unsupported
+      file.path = path
+      return file
+    }
+    let model = FunctionChangesPageModel(comparison: comparison)
+    expectNoDifference(
+      model.mapGroups.flatMap(\.files).map(\.path), ["src/f.ts", "src/view.tsx", swift.path])
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 3)
+    #expect(model.nodes.contains { $0.statusText?.contains("parse-error") == true })
+    expectNoDifference(model.filesNotCompared, 1)
+    expectNoDifference(model.scopeText, "Observed source files")
+    expectNoDifference(model.nodes.first?.title, model.scopeText)
+    #expect(model.contextText.contains("Source files: .ts, .tsx, .swift"))
+    model.showAllFilesTapped()
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 6)
+    expectNoDifference(model.mapGroups.flatMap(\.files).count, 6)
+    expectNoDifference(model.filesNotCompared, 4)
+    expectNoDifference(model.scopeText, "Observed files")
+    expectNoDifference(model.nodes.first?.title, model.scopeText)
+    expectNoDifference(model.showAllFilesText, "Show source files")
+    model.comparisonUpdated(comparison, afterPath: "src/view.tsx")
+    #expect(model.showsAllFiles)
+    model.showAllFilesTapped()
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 3)
+    expectNoDifference(model.showAllFilesText, "Show all files")
+  }
+
+  @Test func nonSourceOnlyPageExplainsItsFilterAndKeepsUnchangedIndependent() throws {
+    var comparison = try fixture("py-unsupported-language")
+    comparison.files[0].path = "screenshots/latest.png"
+    comparison.files[0].status = .identical
+    let model = FunctionChangesPageModel(comparison: comparison)
+    #expect(model.mapGroups.isEmpty)
+    #expect(model.emptyStateText.contains("No supported source files loaded"))
+    #expect(model.emptyStateText.contains("Show all files"))
+    #expect(!model.canShowUnchanged)
+    model.showAllFilesTapped()
+    #expect(model.canShowUnchanged)
+    #expect(model.emptyStateText.contains("Identical endpoint files are hidden"))
+    model.showUnchangedTapped()
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), ["screenshots/latest.png"])
+    model.showAllFilesTapped()
+    #expect(model.showsUnchanged)
+    #expect(model.mapGroups.isEmpty)
+    #expect(model.emptyStateText.contains("No supported source files loaded"))
+  }
+
+  @Test func sourceFilterComposesWithSearchAndRetainsSupportedFailures() throws {
+    var comparison = try fixture("swift-parse-failure")
+    comparison.files[0].path = "src/Broken.TSX"
+    let other = try #require(fixture("py-unsupported-language").files.first)
+    comparison.files.append(other)
+    let model = FunctionChangesPageModel(comparison: comparison)
+    model.searchText = "broken"
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), ["src/Broken.TSX"])
+    model.searchText = other.path
+    #expect(model.mapGroups.isEmpty)
+    #expect(model.emptyStateText.contains("Show all files"))
+    model.showAllFilesTapped()
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), [other.path])
+    model.showAllFilesTapped()
+    #expect(model.mapGroups.isEmpty)
+    model.comparisonUpdated(comparison, afterPath: other.path)
+    #expect(!model.showsAllFiles)
+    model.searchText = ""
+    expectNoDifference(model.mapGroups.flatMap(\.files).count, 1)
+  }
+
   @Test func mapIsPrimaryAndTreeRemainsAvailable() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     expectNoDifference(model.displayMode, .map)
@@ -250,7 +326,8 @@ struct FunctionChangesPageTests {
 
   @Test func skippedPageKeepsResolvedMetadataCaveats() throws {
     var comparison = try fixture("range-admission-skipped")
-    comparison.inventory = InterfaceInventory(baselineCompletedSeq: nil, unknownScopes: [], unknownScopesComplete: true)
+    comparison.inventory = InterfaceInventory(
+      baselineCompletedSeq: nil, unknownScopes: [], unknownScopesComplete: true)
     comparison.gaps = []
     comparison.gapsComplete = true
     let model = FunctionChangesPageModel(comparison: comparison)
@@ -263,7 +340,8 @@ struct FunctionChangesPageTests {
   @Test func readyPageInterruptedDuringLookaheadStaysLoadedOnly() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("range-lookahead-timeout"))
     expectNoDifference(model.summaryText, "1 detected change in loaded files")
-    expectNoDifference(model.noticeText, "More files may exist; counts and search cover loaded data only")
+    expectNoDifference(
+      model.noticeText, "More files may exist; counts and search cover loaded data only")
     expectNoDifference(model.emptyStateText, "")
     let declaration = try #require(model.nodes.first { $0.kind == .declaration })
     model.declarationTapped(declaration.id)
@@ -272,7 +350,8 @@ struct FunctionChangesPageTests {
       FunctionSourceSelection(
         sessionID: "11111111-1111-4111-8111-111111111111", beforeSeq: try #require(Seq("4")),
         afterSeq: try #require(Seq("5")), path: "src/a.ts", side: .after,
-        sha256: "8c4e68ed763fbcb0b4a2f5b6dcc26feb0c0f95ff46dfb5550d2c407a21b988a3", byteRange: 0..<30,
+        sha256: "8c4e68ed763fbcb0b4a2f5b6dcc26feb0c0f95ff46dfb5550d2c407a21b988a3",
+        byteRange: 0..<30,
         projectionVersion: "interface.v2", languageVersion: "typescript.v2",
         identity: InterfaceIdentity(kind: "function", scope: [], name: "a", guards: [])
       )
@@ -490,6 +569,7 @@ struct FunctionChangesPageTests {
 
   @Test func unsupportedAndIncompleteFilesNameTheirReasons() throws {
     let unsupported = FunctionChangesPageModel(comparison: try fixture("py-unsupported-language"))
+    unsupported.showAllFilesTapped()
     #expect(unsupported.nodes.contains { $0.statusText == "Unsupported: unsupported-language" })
     let incomplete = FunctionChangesPageModel(comparison: try fixture("swift-parse-failure"))
     #expect(incomplete.nodes.contains { $0.statusText?.contains("parse-error") == true })
@@ -500,7 +580,9 @@ struct FunctionChangesPageTests {
     #expect(gap.noticeText.contains("gaps"))
     #expect(gap.noticeText.contains("unknown"))
     var withListedGap = try fixture("range-gap-cap")
-    withListedGap.gaps = [InterfaceGap(seq: try #require(Seq("4")), reason: .restart, scope: .session)]
+    withListedGap.gaps = [
+      InterfaceGap(seq: try #require(Seq("4")), reason: .restart, scope: .session)
+    ]
     let demo = FunctionChangesPageModel(comparison: withListedGap, isFixtureDemo: true)
     #expect(demo.noticeText.contains("Demo capture gaps at #"))
     let boundary = FunctionChangesPageModel(comparison: try fixture("swift-unknown-boundary"))
@@ -688,7 +770,8 @@ struct FunctionChangesPageTests {
     let demo = withDependencies {
       $0.functionFixtures = FunctionFixtureClient { _, name in
         if name == "bad" { throw URLError(.badServerResponse) }
-        return FunctionFixtureCatalog(caseNames: ["good", "bad"], comparison: comparison, afterPath: nil)
+        return FunctionFixtureCatalog(
+          caseNames: ["good", "bad"], comparison: comparison, afterPath: nil)
       }
     } operation: {
       FunctionChangesFixtureModel(root: URL(fileURLWithPath: "/unused"), initialCase: "good")

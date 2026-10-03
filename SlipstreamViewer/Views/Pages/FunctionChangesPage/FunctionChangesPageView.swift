@@ -69,6 +69,7 @@ struct FunctionChangesPageView: View {
   private var searchRow: some View {
     HStack(spacing: 18) {
       searchAndMode
+      Button(model.showAllFilesText) { model.showAllFilesTapped() }
       showUnchangedButton
     }
     .fixedSize(horizontal: true, vertical: false)
@@ -77,6 +78,7 @@ struct FunctionChangesPageView: View {
   private var searchColumn: some View {
     VStack(alignment: .leading, spacing: 8) {
       searchAndMode
+      Button(model.showAllFilesText) { model.showAllFilesTapped() }
       showUnchangedButton
     }
   }
