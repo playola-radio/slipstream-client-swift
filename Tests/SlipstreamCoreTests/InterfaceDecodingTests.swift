@@ -4,6 +4,14 @@ import SlipstreamCore
 import Testing
 
 struct InterfaceCorpusTests {
+  @Test func decodesComparisonWithCaptureIgnoreRules() throws {
+    let original = try InterfaceFixtures.expected("ts-parameter-change")
+    let data = try edited("ts-parameter-change", [
+      (#"["store-directory",".git","symlinks"]"#, #"["store-directory",".git","symlinks","ignore-rules"]"#)
+    ])
+    expectNoDifference(try InterfaceComparison.decode(data), try InterfaceComparison.decode(original))
+  }
+
   @Test(arguments: try InterfaceFixtures.successCaseNames())
   func decodesAndAgreesWithTheRawFixture(caseName: String) throws {
     let data = try InterfaceFixtures.expected(caseName)
