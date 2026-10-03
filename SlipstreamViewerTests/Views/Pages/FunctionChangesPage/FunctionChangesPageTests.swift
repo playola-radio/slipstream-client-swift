@@ -23,6 +23,82 @@ struct FunctionChangesPageTests {
     return try InterfaceComparison.decode(Data(contentsOf: url))
   }
 
+  @Test func sourceFilesAreVisibleByDefaultInMapAndTree() throws {
+    var comparison = try fixture("ts-parameter-change")
+    var tsx = comparison.files[0]
+    tsx.path = "src/view.tsx"
+    let swift = try #require(fixture("swift-parse-failure").files.first)
+    let unsupported = try #require(fixture("py-unsupported-language").files.first)
+    comparison.files += [tsx, swift]
+    comparison.files += [".gstack/screen.png", "debug.log", "assets.ts/icon.png"].map { path in
+      var file = unsupported
+      file.path = path
+      return file
+    }
+    let model = FunctionChangesPageModel(comparison: comparison)
+    expectNoDifference(
+      model.mapGroups.flatMap(\.files).map(\.path), ["src/f.ts", "src/view.tsx", swift.path])
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 3)
+    #expect(model.nodes.contains { $0.statusText?.contains("parse-error") == true })
+    expectNoDifference(model.filesNotCompared, 1)
+    expectNoDifference(model.scopeText, "Observed source files")
+    expectNoDifference(model.nodes.first?.title, model.scopeText)
+    #expect(model.contextText.contains("Source files: .ts, .tsx, .swift"))
+    model.showAllFilesTapped()
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 6)
+    expectNoDifference(model.mapGroups.flatMap(\.files).count, 6)
+    expectNoDifference(model.filesNotCompared, 4)
+    expectNoDifference(model.scopeText, "Observed files")
+    expectNoDifference(model.nodes.first?.title, model.scopeText)
+    expectNoDifference(model.showAllFilesText, "Show source files")
+    model.comparisonUpdated(comparison, afterPath: "src/view.tsx")
+    #expect(model.showsAllFiles)
+    model.showAllFilesTapped()
+    expectNoDifference(model.nodes.filter { $0.kind == .file }.count, 3)
+    expectNoDifference(model.showAllFilesText, "Show all files")
+  }
+
+  @Test func nonSourceOnlyPageExplainsItsFilterAndKeepsUnchangedIndependent() throws {
+    var comparison = try fixture("py-unsupported-language")
+    comparison.files[0].path = "screenshots/latest.png"
+    comparison.files[0].status = .identical
+    let model = FunctionChangesPageModel(comparison: comparison)
+    #expect(model.mapGroups.isEmpty)
+    #expect(model.emptyStateText.contains("No supported source files loaded"))
+    #expect(model.emptyStateText.contains("Show all files"))
+    #expect(!model.canShowUnchanged)
+    comparison.page = InterfacePage(complete: false, nextAfterPath: "screenshots/latest.png")
+    model.comparisonUpdated(comparison, afterPath: nil)
+    #expect(model.emptyStateText.contains("more files may exist"))
+    model.showAllFilesTapped()
+    #expect(model.canShowUnchanged)
+    #expect(model.emptyStateText.contains("Identical endpoint files are hidden"))
+    model.showUnchangedTapped()
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), ["screenshots/latest.png"])
+    model.showAllFilesTapped()
+    #expect(model.showsUnchanged)
+    #expect(model.mapGroups.isEmpty)
+    #expect(model.emptyStateText.contains("No supported source files loaded"))
+  }
+
+  @Test(arguments: ["src/Broken.TSX", "src/.ts"])
+  func sourceFilterComposesWithSearchAndRetainsSupportedFailures(sourcePath: String) throws {
+    var comparison = try fixture("swift-parse-failure")
+    comparison.files[0].path = sourcePath
+    let other = try #require(fixture("py-unsupported-language").files.first)
+    comparison.files.append(other)
+    let model = FunctionChangesPageModel(comparison: comparison)
+    model.searchText = sourcePath.lowercased()
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), [sourcePath])
+    model.searchText = other.path
+    #expect(model.mapGroups.isEmpty)
+    #expect(model.emptyStateText.contains("Show all files"))
+    model.showAllFilesTapped()
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), [other.path])
+    model.showAllFilesTapped()
+    #expect(model.mapGroups.isEmpty)
+  }
+
   @Test func mapIsPrimaryAndTreeRemainsAvailable() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("ts-parameter-change"))
     expectNoDifference(model.displayMode, .map)
@@ -490,6 +566,7 @@ struct FunctionChangesPageTests {
 
   @Test func unsupportedAndIncompleteFilesNameTheirReasons() throws {
     let unsupported = FunctionChangesPageModel(comparison: try fixture("py-unsupported-language"))
+    unsupported.showAllFilesTapped()
     #expect(unsupported.nodes.contains { $0.statusText == "Unsupported: unsupported-language" })
     let incomplete = FunctionChangesPageModel(comparison: try fixture("swift-parse-failure"))
     #expect(incomplete.nodes.contains { $0.statusText?.contains("parse-error") == true })

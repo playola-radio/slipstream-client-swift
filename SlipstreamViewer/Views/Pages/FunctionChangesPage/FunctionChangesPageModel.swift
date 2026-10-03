@@ -132,6 +132,7 @@ final class FunctionChangesPageModel: ViewModel {
   }
   var searchText = "" { didSet { clearSelectionIfHidden() } }
   private(set) var showsUnchanged = false
+  private(set) var showsAllFiles = false
   private(set) var selectedNodeID: String?
   private(set) var sourceSelection: FunctionSourceSelection?
   var scrollPosition = ScrollPosition()
@@ -157,8 +158,8 @@ final class FunctionChangesPageModel: ViewModel {
     return id
   }
 
-  var detectedChanges: Int { comparison.files.reduce(0) { $0 + changes(in: $1).count } }
-  var filesNotCompared: Int { comparison.files.filter(isNotCompared).count }
+  var detectedChanges: Int { scopedFiles.reduce(0) { $0 + changes(in: $1).count } }
+  var filesNotCompared: Int { scopedFiles.filter(isNotCompared).count }
   var nodes: [FunctionChangeNode] { tree.nodes }
   var mapGroups: [FunctionMapGroup] {
     var order: [String] = []
@@ -219,7 +220,11 @@ final class FunctionChangesPageModel: ViewModel {
   // MARK: - Display Text
 
   let analysisText = "Shared types, effects and behavior: not analyzed"
-  let scopeText = "Observed files"
+  var scopeText: String { showsAllFiles ? "Observed files" : "Observed source files" }
+  var showAllFilesText: String { showsAllFiles ? "Show source files" : "Show all files" }
+  var fileScopeText: String {
+    showsAllFiles ? "All file types" : "Source files: .ts, .tsx, .swift"
+  }
   let searchPrompt = "Find loaded file or function"
   var legendText: String {
     searchText.isEmpty
@@ -249,7 +254,7 @@ final class FunctionChangesPageModel: ViewModel {
       "Recorded at #\(comparison.beforeSeq.decimal) → Recorded at #\(comparison.afterSeq.decimal)"
   }
 
-  var contextText: String { "\(boundaryText) · \(analysisText)" }
+  var contextText: String { "\(boundaryText) · \(fileScopeText) · \(analysisText)" }
   var rootSummaryText: String { searchText.isEmpty ? summaryText : "Overall: \(summaryText)" }
 
   var summaryText: String {
@@ -267,7 +272,7 @@ final class FunctionChangesPageModel: ViewModel {
     if count == 0, failures > 0 {
       let failedNoun = failures == 1 ? "file" : "files"
       let known =
-        comparison.files.count > failures
+        scopedFiles.count > failures
         ? (coverage.isEmpty
           ? "No changes detected in compared files"
           : "No changes detected in loaded compared files")
@@ -335,13 +340,22 @@ final class FunctionChangesPageModel: ViewModel {
       return (isAccumulatedRange ? nil : afterPath).map { "No more files listed after \($0)" }
         ?? "No files listed at the recorded endpoints"
     }
+    if scopedFiles.isEmpty {
+      return comparison.page.complete
+        ? "No supported source files loaded · Show all files to view other recorded files"
+        : "No supported source files loaded yet · more files may exist · Show all files to view other recorded files"
+    }
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
       return "Identical endpoint files are hidden · Show unchanged branches to view them"
     }
-    if visibleFiles.isEmpty { return "No loaded files match this view · \(rootSummaryText)" }
+    if visibleFiles.isEmpty {
+      return showsAllFiles
+        ? "No loaded files match this view · \(rootSummaryText)"
+        : "No loaded source files match this view · Show all files to include other file types · \(rootSummaryText)"
+    }
     return ""
   }
-  var canShowUnchanged: Bool { comparison.files.contains { $0.status == .identical } }
+  var canShowUnchanged: Bool { scopedFiles.contains { $0.status == .identical } }
   var showUnchangedText: String {
     showsUnchanged ? "Hide unchanged branches" : "Show unchanged branches"
   }
@@ -404,6 +418,10 @@ final class FunctionChangesPageModel: ViewModel {
     showsUnchanged.toggle()
     clearSelectionIfHidden()
   }
+  func showAllFilesTapped() {
+    showsAllFiles.toggle()
+    clearSelectionIfHidden()
+  }
   func zoomInTapped() { zoom = min(1.5, zoom + 0.1) }
   func zoomOutTapped() { zoom = min(zoom, max(0.1, zoom * 0.8)) }
   func viewportChanged(width: CGFloat, height: CGFloat) {
@@ -440,9 +458,17 @@ final class FunctionChangesPageModel: ViewModel {
 
   // MARK: - Private Helpers
 
+  private var scopedFiles: [InterfaceFileResult] {
+    guard !showsAllFiles else { return comparison.files }
+    return comparison.files.filter {
+      let path = $0.path.lowercased()
+      return path.hasSuffix(".ts") || path.hasSuffix(".tsx") || path.hasSuffix(".swift")
+    }
+  }
+
   private var visibleFiles: [InterfaceFileResult] {
     guard !hasDuplicatePaths else { return [] }
-    return comparison.files.filter { file in
+    return scopedFiles.filter { file in
       guard showsUnchanged || file.status != .identical else { return false }
       guard !searchText.isEmpty else { return true }
       return file.path.localizedCaseInsensitiveContains(searchText)
@@ -560,7 +586,7 @@ final class FunctionChangesPageModel: ViewModel {
     guard !files.isEmpty else { return Tree(nodes: [], size: CGSize(width: 900, height: 430)) }
     var drafts: [Draft] = [
       Draft(
-        id: "root", parentID: nil, kind: .root, title: "Observed files",
+        id: "root", parentID: nil, kind: .root, title: scopeText,
         statusText: rootSummaryText,
         lines: [],
         marker: nil, depth: 0, ownChange: 0, ownUnknown: 0)
