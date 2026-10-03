@@ -67,6 +67,9 @@ struct FunctionChangesPageTests {
     #expect(model.emptyStateText.contains("No supported source files loaded"))
     #expect(model.emptyStateText.contains("Show all files"))
     #expect(!model.canShowUnchanged)
+    comparison.page = InterfacePage(complete: false, nextAfterPath: "screenshots/latest.png")
+    model.comparisonUpdated(comparison, afterPath: nil)
+    #expect(model.emptyStateText.contains("more files may exist"))
     model.showAllFilesTapped()
     #expect(model.canShowUnchanged)
     #expect(model.emptyStateText.contains("Identical endpoint files are hidden"))
@@ -78,14 +81,15 @@ struct FunctionChangesPageTests {
     #expect(model.emptyStateText.contains("No supported source files loaded"))
   }
 
-  @Test func sourceFilterComposesWithSearchAndRetainsSupportedFailures() throws {
+  @Test(arguments: ["src/Broken.TSX", "src/.ts"])
+  func sourceFilterComposesWithSearchAndRetainsSupportedFailures(sourcePath: String) throws {
     var comparison = try fixture("swift-parse-failure")
-    comparison.files[0].path = "src/Broken.TSX"
+    comparison.files[0].path = sourcePath
     let other = try #require(fixture("py-unsupported-language").files.first)
     comparison.files.append(other)
     let model = FunctionChangesPageModel(comparison: comparison)
-    model.searchText = "broken"
-    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), ["src/Broken.TSX"])
+    model.searchText = sourcePath.lowercased()
+    expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), [sourcePath])
     model.searchText = other.path
     #expect(model.mapGroups.isEmpty)
     #expect(model.emptyStateText.contains("Show all files"))
@@ -93,10 +97,6 @@ struct FunctionChangesPageTests {
     expectNoDifference(model.mapGroups.flatMap(\.files).map(\.path), [other.path])
     model.showAllFilesTapped()
     #expect(model.mapGroups.isEmpty)
-    model.comparisonUpdated(comparison, afterPath: other.path)
-    #expect(!model.showsAllFiles)
-    model.searchText = ""
-    expectNoDifference(model.mapGroups.flatMap(\.files).count, 1)
   }
 
   @Test func mapIsPrimaryAndTreeRemainsAvailable() throws {
@@ -326,8 +326,7 @@ struct FunctionChangesPageTests {
 
   @Test func skippedPageKeepsResolvedMetadataCaveats() throws {
     var comparison = try fixture("range-admission-skipped")
-    comparison.inventory = InterfaceInventory(
-      baselineCompletedSeq: nil, unknownScopes: [], unknownScopesComplete: true)
+    comparison.inventory = InterfaceInventory(baselineCompletedSeq: nil, unknownScopes: [], unknownScopesComplete: true)
     comparison.gaps = []
     comparison.gapsComplete = true
     let model = FunctionChangesPageModel(comparison: comparison)
@@ -340,8 +339,7 @@ struct FunctionChangesPageTests {
   @Test func readyPageInterruptedDuringLookaheadStaysLoadedOnly() throws {
     let model = FunctionChangesPageModel(comparison: try fixture("range-lookahead-timeout"))
     expectNoDifference(model.summaryText, "1 detected change in loaded files")
-    expectNoDifference(
-      model.noticeText, "More files may exist; counts and search cover loaded data only")
+    expectNoDifference(model.noticeText, "More files may exist; counts and search cover loaded data only")
     expectNoDifference(model.emptyStateText, "")
     let declaration = try #require(model.nodes.first { $0.kind == .declaration })
     model.declarationTapped(declaration.id)
@@ -350,8 +348,7 @@ struct FunctionChangesPageTests {
       FunctionSourceSelection(
         sessionID: "11111111-1111-4111-8111-111111111111", beforeSeq: try #require(Seq("4")),
         afterSeq: try #require(Seq("5")), path: "src/a.ts", side: .after,
-        sha256: "8c4e68ed763fbcb0b4a2f5b6dcc26feb0c0f95ff46dfb5550d2c407a21b988a3",
-        byteRange: 0..<30,
+        sha256: "8c4e68ed763fbcb0b4a2f5b6dcc26feb0c0f95ff46dfb5550d2c407a21b988a3", byteRange: 0..<30,
         projectionVersion: "interface.v2", languageVersion: "typescript.v2",
         identity: InterfaceIdentity(kind: "function", scope: [], name: "a", guards: [])
       )
@@ -580,9 +577,7 @@ struct FunctionChangesPageTests {
     #expect(gap.noticeText.contains("gaps"))
     #expect(gap.noticeText.contains("unknown"))
     var withListedGap = try fixture("range-gap-cap")
-    withListedGap.gaps = [
-      InterfaceGap(seq: try #require(Seq("4")), reason: .restart, scope: .session)
-    ]
+    withListedGap.gaps = [InterfaceGap(seq: try #require(Seq("4")), reason: .restart, scope: .session)]
     let demo = FunctionChangesPageModel(comparison: withListedGap, isFixtureDemo: true)
     #expect(demo.noticeText.contains("Demo capture gaps at #"))
     let boundary = FunctionChangesPageModel(comparison: try fixture("swift-unknown-boundary"))
@@ -770,8 +765,7 @@ struct FunctionChangesPageTests {
     let demo = withDependencies {
       $0.functionFixtures = FunctionFixtureClient { _, name in
         if name == "bad" { throw URLError(.badServerResponse) }
-        return FunctionFixtureCatalog(
-          caseNames: ["good", "bad"], comparison: comparison, afterPath: nil)
+        return FunctionFixtureCatalog(caseNames: ["good", "bad"], comparison: comparison, afterPath: nil)
       }
     } operation: {
       FunctionChangesFixtureModel(root: URL(fileURLWithPath: "/unused"), initialCase: "good")

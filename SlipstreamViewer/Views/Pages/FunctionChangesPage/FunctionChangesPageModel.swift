@@ -202,8 +202,7 @@ final class FunctionChangesPageModel: ViewModel {
     return order.map { directoryID in
       let files = filesByDirectory[directoryID] ?? []
       return FunctionMapGroup(
-        id: "map-directory:\(directoryID)", directory: directoryNames[directoryID] ?? "/",
-        files: files,
+        id: "map-directory:\(directoryID)", directory: directoryNames[directoryID] ?? "/", files: files,
         changedCount: files.reduce(0) { $0 + $1.changedCount },
         unknownCount: files.filter(\.isUnknown).count, isFiltered: !searchText.isEmpty)
     }
@@ -342,7 +341,9 @@ final class FunctionChangesPageModel: ViewModel {
         ?? "No files listed at the recorded endpoints"
     }
     if scopedFiles.isEmpty {
-      return "No supported source files loaded · Show all files to view other recorded files"
+      return comparison.page.complete
+        ? "No supported source files loaded · Show all files to view other recorded files"
+        : "No supported source files loaded yet · more files may exist · Show all files to view other recorded files"
     }
     if searchText.isEmpty, canShowUnchanged, !showsUnchanged, visibleFiles.isEmpty {
       return "Identical endpoint files are hidden · Show unchanged branches to view them"
@@ -460,7 +461,8 @@ final class FunctionChangesPageModel: ViewModel {
   private var scopedFiles: [InterfaceFileResult] {
     guard !showsAllFiles else { return comparison.files }
     return comparison.files.filter {
-      ["ts", "tsx", "swift"].contains(($0.path as NSString).pathExtension.lowercased())
+      let path = $0.path.lowercased()
+      return path.hasSuffix(".ts") || path.hasSuffix(".tsx") || path.hasSuffix(".swift")
     }
   }
 
