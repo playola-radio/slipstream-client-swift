@@ -21,7 +21,7 @@ struct ChangeStreamPageTests {
 
   init() {
     fake = DaemonFake()
-    fake.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)], roots: [Fixture.session: "/tmp/project"])
+    fake.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)], starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
   }
 
   func makeModel(
@@ -65,23 +65,45 @@ struct ChangeStreamPageTests {
 
   // MARK: - Sessions
 
-  @Test func sessionsAreLabelledByRootAndRemovedOnesHidden() async {
+  @Test func sessionsAreLabelledByRootAndStartTimeAndRemovedOnesHidden() async {
     fake.setSessions(
       [
         SessionSummary(id: "a", durableSeq: .zero, removed: false),
         SessionSummary(id: "b", durableSeq: .zero, removed: true),
         SessionSummary(id: "c", durableSeq: .zero, removed: false),
       ],
-      roots: ["a": "/work/alpha"]
+      starts: ["a": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_974)]
     )
     let model = makeModel()
     await model.viewAppeared()
     expectNoDifference(
       model.sessions,
-      [SessionOption(id: "a", label: "/work/alpha"), SessionOption(id: "c", label: "c")]
+      [
+        SessionOption(id: "a", label: "/work/alpha · started Oct 3 14:18:10"),
+        SessionOption(id: "c", label: "c"),
+      ]
     )
     #expect(model.selectedSession == nil)
     #expect(model.emptyStateText == "Choose a capture session to watch its changes")
+  }
+
+  @Test func capturesOfTheSameFolderAreToldApartByStartTime() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: "a", durableSeq: .zero, removed: false),
+        SessionSummary(id: "b", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        "a": SessionStarted(root: "/work/alpha", startedAtMs: 1_790_950_000_000),
+        "b": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_974),
+      ]
+    )
+    let model = makeModel()
+    await model.viewAppeared()
+    expectNoDifference(
+      model.sessions.map(\.label),
+      ["/work/alpha · started Oct 2 14:06:40", "/work/alpha · started Oct 3 14:18:10"]
+    )
   }
 
   @Test func closingTheWindowDuringSessionDiscoveryStartsNothing() async {
@@ -100,7 +122,7 @@ struct ChangeStreamPageTests {
 
   @Test func singleSessionIsSelectedAutomatically() async {
     let model = await connectedModel()
-    #expect(model.sessionPickerTitle == "/tmp/project")
+    #expect(model.sessionPickerTitle == "/tmp/project · started Jan 1 00:00:00")
     expectNoDifference(fake.follows, [FollowRequest(token: "token-1", sessionID: Fixture.session, cursor: .zero)])
     #expect(model.statusText == "Connecting…")
     #expect(model.emptyStateText == "Waiting for changes…")

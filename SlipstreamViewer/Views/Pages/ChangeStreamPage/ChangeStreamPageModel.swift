@@ -474,14 +474,15 @@ final class ChangeStreamPageModel: ViewModel {
       if selectedSession == nil, sessions.count == 1 {
         sessionSelected(sessions[0].id)
       }
-      await withTaskGroup(of: (String, String?).self) { group in
+      await withTaskGroup(of: (String, SessionStarted?).self) { group in
         for summary in summaries {
-          group.addTask { (summary.id, try? await daemon.sessionRoot(descriptor, summary.id)) }
+          group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
         }
-        for await (id, root) in group {
-          guard generation == sessionsGeneration, let root else { continue }
-          sessions[id: id]?.label = root
-          if selectedSession?.id == id { selectedSession?.label = root }
+        for await (id, start) in group {
+          guard generation == sessionsGeneration, let start else { continue }
+          let label = sessionLabel(start)
+          sessions[id: id]?.label = label
+          if selectedSession?.id == id { selectedSession?.label = label }
         }
       }
     } catch {
@@ -650,6 +651,15 @@ final class ChangeStreamPageModel: ViewModel {
     }
     sections[sections.count - 1].items.append(item)
     if follow == .following { scrollToLatestRequest += 1 }
+  }
+
+  private func sessionLabel(_ start: SessionStarted) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "MMM d HH:mm:ss"
+    let started = formatter.string(from: Date(timeIntervalSince1970: Double(start.startedAtMs) / 1000))
+    return "\(start.root) · started \(started)"
   }
 
   private func time(_ milliseconds: Int64) -> String {

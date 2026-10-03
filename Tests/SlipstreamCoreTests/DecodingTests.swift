@@ -15,7 +15,7 @@ struct EventDecodingTests {
   @Test func sessionStarted() throws {
     expectNoDifference(
       try SlipstreamEvent.decode(fixture("session-started")),
-      SlipstreamEvent(seq: Seq("1")!, type: "slipstream.session.started.v1", payload: .sessionStarted(root: "/tmp/qa/worktree"))
+      SlipstreamEvent(seq: Seq("1")!, type: "slipstream.session.started.v1", payload: .sessionStarted(SessionStarted(root: "/tmp/qa/worktree", startedAtMs: 1_790_246_520_000)))
     )
   }
 

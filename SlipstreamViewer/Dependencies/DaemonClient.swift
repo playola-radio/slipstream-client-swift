@@ -6,7 +6,7 @@ struct DaemonClient: Sendable {
   var storeID: String
   var discover: @Sendable () async throws -> DaemonDescriptor
   var sessions: @Sendable (DaemonDescriptor) async throws -> [SessionSummary]
-  var sessionRoot: @Sendable (DaemonDescriptor, String) async throws -> String?
+  var sessionStart: @Sendable (DaemonDescriptor, String) async throws -> SessionStarted?
   var follow: @Sendable (DaemonDescriptor, String, Seq) -> AsyncThrowingStream<StreamItem, any Error>
   var clips: @Sendable (DaemonDescriptor, String, Seq) async throws -> ClipsResponse
   var interfaces: @Sendable (DaemonDescriptor, String, Seq, Seq, String?, String?, Bool) async throws -> InterfaceComparison
@@ -24,10 +24,10 @@ extension DaemonClient: DependencyKey {
       storeID: store.standardizedFileURL.path,
       discover: { try DescriptorDiscovery.discover(store: store) },
       sessions: { try await transport.sessions($0) },
-      sessionRoot: { descriptor, sessionID in
-        guard case .sessionStarted(let root) = try await transport.firstEvent(descriptor, sessionID: sessionID)?.payload
+      sessionStart: { descriptor, sessionID in
+        guard case .sessionStarted(let start) = try await transport.firstEvent(descriptor, sessionID: sessionID)?.payload
         else { return nil }
-        return root
+        return start
       },
       follow: { transport.follow($0, sessionID: $1, after: $2) },
       clips: { try await transport.clips($0, sessionID: $1, seq: $2) },
@@ -43,7 +43,7 @@ extension DaemonClient: DependencyKey {
       storeID: "test-store",
       discover: unimplemented("DaemonClient.discover"),
       sessions: unimplemented("DaemonClient.sessions", placeholder: []),
-      sessionRoot: unimplemented("DaemonClient.sessionRoot", placeholder: nil),
+      sessionStart: unimplemented("DaemonClient.sessionStart", placeholder: nil),
       follow: unimplemented("DaemonClient.follow", placeholder: AsyncThrowingStream { $0.finish() }),
       clips: unimplemented("DaemonClient.clips"),
       interfaces: unimplemented("DaemonClient.interfaces"),

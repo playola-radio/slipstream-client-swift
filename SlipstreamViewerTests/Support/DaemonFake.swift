@@ -24,7 +24,7 @@ final class DaemonFake: Sendable {
     var tokens: [String] = ["token-1"]
     var discoverError: (any Error)?
     var sessions: [SessionSummary] = []
-    var roots: [String: String] = [:]
+    var starts: [String: SessionStarted] = [:]
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
@@ -73,10 +73,10 @@ final class DaemonFake: Sendable {
 
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
   func setDiscoverError(_ error: (any Error)?) { state.withLock { $0.discoverError = error } }
-  func setSessions(_ sessions: [SessionSummary], roots: [String: String] = [:]) {
+  func setSessions(_ sessions: [SessionSummary], starts: [String: SessionStarted] = [:]) {
     state.withLock {
       $0.sessions = sessions
-      $0.roots = roots
+      $0.starts = starts
     }
   }
   func setClips(_ response: ClipsResponse, for seq: Seq) { state.withLock { $0.clips[seq] = response } }
@@ -125,7 +125,7 @@ final class DaemonFake: Sendable {
         }
         return state.withLock { $0.sessions }
       },
-      sessionRoot: { [self] _, id in state.withLock { $0.roots[id] } },
+      sessionStart: { [self] _, id in state.withLock { $0.starts[id] } },
       follow: { [self] descriptor, sessionID, cursor in
         let (stream, continuation) = AsyncThrowingStream<StreamItem, any Error>.makeStream()
         state.withLock {
@@ -235,7 +235,7 @@ enum Fixture {
   }
 
   static func sessionStarted(_ value: Int) -> StreamItem {
-    frame(value, type: "slipstream.session.started.v1", data: ["session_id": session, "root": "/tmp/project"])
+    frame(value, type: "slipstream.session.started.v1", data: ["session_id": session, "root": "/tmp/project", "started_at_ms": 0])
   }
 
   static func unknown(_ value: Int) -> StreamItem {
