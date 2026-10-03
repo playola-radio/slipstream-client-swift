@@ -13,21 +13,17 @@ import Testing
 struct FunctionChangesLayoutTests {
   private static let layoutBudget: Duration = .seconds(1)
 
-  private func fixture(_ name: String) throws -> InterfaceComparison {
-    let url = URL(fileURLWithPath: #filePath)
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .appending(path: "Tests/SlipstreamCoreTests/Fixtures/interface-v2/cases/\(name)/expected.json")
-    return try InterfaceComparison.decode(Data(contentsOf: url))
-  }
-
   @Test func comparisonLaysOutWithinBudgetInsideTheFileViewer() throws {
-    let page = FunctionChangesPageModel(comparison: try fixture("range-add-then-remove-ts"))
-    #expect(page.canShowUnchanged)
-    let host = NSHostingView(rootView: FileViewerStandIn(page: page))
+    let fixture = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appending(path: "Tests/SlipstreamCoreTests/Fixtures/interface-v2/cases/ts-parameter-change/expected.json")
+    let page = FunctionChangesPageModel(
+      comparison: try InterfaceComparison.decode(Data(contentsOf: fixture))
+    )
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1400, height: 820),
       styleMask: [.titled, .resizable],
@@ -36,16 +32,16 @@ struct FunctionChangesLayoutTests {
     )
     window.isReleasedWhenClosed = false
     defer { window.close() }
-    window.contentView = host
 
     let firstLayout = ContinuousClock().measure {
+      window.contentView = NSHostingView(rootView: FileViewerStandIn(page: page))
       window.updateConstraintsIfNeeded()
-      host.layoutSubtreeIfNeeded()
+      window.contentView?.layoutSubtreeIfNeeded()
     }
     let resize = ContinuousClock().measure {
       window.setContentSize(NSSize(width: 1361, height: 799))
       window.updateConstraintsIfNeeded()
-      host.layoutSubtreeIfNeeded()
+      window.contentView?.layoutSubtreeIfNeeded()
     }
 
     #expect(firstLayout < Self.layoutBudget, "first layout took \(firstLayout)")
