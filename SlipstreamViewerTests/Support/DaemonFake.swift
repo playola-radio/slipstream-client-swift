@@ -25,6 +25,7 @@ final class DaemonFake: Sendable {
     var discoverError: (any Error)?
     var sessions: [SessionSummary] = []
     var starts: [String: SessionStarted] = [:]
+    var sessionStartCallCount = 0
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
@@ -40,6 +41,7 @@ final class DaemonFake: Sendable {
   private let state = Mutex(State())
   private let clipsGate: AsyncStream<Void>?
   private let sessionsGate: AsyncStream<Void>?
+  private let sessionStartGates: [String: AsyncStream<Void>]
   private let gatesEachClipsCall: Bool
   private let gatesEachInterfaceCall: Bool
   private let storeID: String
@@ -48,12 +50,14 @@ final class DaemonFake: Sendable {
     storeID: String = "store-a",
     clipsGate: AsyncStream<Void>? = nil,
     sessionsGate: AsyncStream<Void>? = nil,
+    sessionStartGates: [String: AsyncStream<Void>] = [:],
     gatesEachClipsCall: Bool = false,
     gatesEachInterfaceCall: Bool = false
   ) {
     self.storeID = storeID
     self.clipsGate = clipsGate
     self.sessionsGate = sessionsGate
+    self.sessionStartGates = sessionStartGates
     self.gatesEachClipsCall = gatesEachClipsCall
     self.gatesEachInterfaceCall = gatesEachInterfaceCall
   }
@@ -86,6 +90,10 @@ final class DaemonFake: Sendable {
 
   func waitForClipsCall(_ number: Int) async {
     while state.withLock({ $0.clipsCallCount }) < number { await Task.yield() }
+  }
+
+  func waitForSessionStartCall(_ number: Int) async {
+    while state.withLock({ $0.sessionStartCallCount }) < number { await Task.yield() }
   }
 
   func releaseClipsCall(_ number: Int) {
@@ -125,7 +133,13 @@ final class DaemonFake: Sendable {
         }
         return state.withLock { $0.sessions }
       },
-      sessionStart: { [self] _, id in state.withLock { $0.starts[id] } },
+      sessionStart: { [self] _, id in
+        state.withLock { $0.sessionStartCallCount += 1 }
+        if let gate = sessionStartGates[id] {
+          for await _ in gate { break }
+        }
+        return state.withLock { $0.starts[id] }
+      },
       follow: { [self] descriptor, sessionID, cursor in
         let (stream, continuation) = AsyncThrowingStream<StreamItem, any Error>.makeStream()
         state.withLock {

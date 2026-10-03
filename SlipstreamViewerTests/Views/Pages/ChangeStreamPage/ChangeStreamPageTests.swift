@@ -106,6 +106,28 @@ struct ChangeStreamPageTests {
     )
   }
 
+  @Test func readySessionLabelAppearsWhileAnotherStartLookupIsSlow() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionStartGates: ["slow": gate])
+    daemon.setSessions(
+      [
+        SessionSummary(id: "slow", durableSeq: .zero, removed: false),
+        SessionSummary(id: "ready", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        "slow": SessionStarted(root: "/work/slow", startedAtMs: 1_791_037_090_974),
+        "ready": SessionStarted(root: "/work/ready", startedAtMs: 1_791_037_090_974),
+      ]
+    )
+    let model = makeModel(daemon: daemon)
+    let appeared = Task { await model.viewAppeared() }
+    await daemon.waitForSessionStartCall(2)
+    await Task.megaYield()
+    #expect(model.sessions[id: "ready"]?.label == "/work/ready · started Oct 3 14:18:10")
+    release.yield()
+    await appeared.value
+  }
+
   @Test func capturesStartedInTheSameSecondAreToldApartByID() async {
     fake.setSessions(
       [
@@ -124,8 +146,8 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       model.sessions.map(\.label),
       [
-        "/work/alpha · started Oct 3 14:18:10 · 11111111",
-        "/work/alpha · started Oct 3 14:18:10 · 22222222",
+        "/work/alpha · started Oct 3 14:18:10 · 11111111-aaaa",
+        "/work/alpha · started Oct 3 14:18:10 · 22222222-bbbb",
         "/work/beta · started Oct 3 14:18:10",
       ]
     )

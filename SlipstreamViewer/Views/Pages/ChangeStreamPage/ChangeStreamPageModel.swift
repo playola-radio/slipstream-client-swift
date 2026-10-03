@@ -481,11 +481,11 @@ final class ChangeStreamPageModel: ViewModel {
         var starts: [String: SessionStarted] = [:]
         for await (id, start) in group {
           starts[id] = start
-        }
-        guard generation == sessionsGeneration else { return }
-        for (id, label) in sessionLabels(starts) {
-          sessions[id: id]?.label = label
-          if selectedSession?.id == id { selectedSession?.label = label }
+          guard generation == sessionsGeneration else { return }
+          for (id, label) in sessionLabels(starts) {
+            sessions[id: id]?.label = label
+            if selectedSession?.id == id { selectedSession?.label = label }
+          }
         }
       }
     } catch {
@@ -668,7 +668,7 @@ final class ChangeStreamPageModel: ViewModel {
     let counts = Dictionary(labels.values.map { ($0, 1) }, uniquingKeysWith: +)
     var unique: [String: String] = [:]
     for (id, label) in labels {
-      unique[id] = counts[label, default: 0] > 1 ? "\(label) · \(id.prefix(8))" : label
+      unique[id] = counts[label, default: 0] > 1 ? "\(label) · \(id)" : label
     }
     return unique
   }
