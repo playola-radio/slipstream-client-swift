@@ -14,6 +14,9 @@ private func hasDisposableAcceptanceStore(environment: [String: String], home: U
   return selected.path != real.path
 }
 
+private let acceptanceMode =
+  ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_MODE"] ?? "ready"
+
 @Test func acceptanceStoreGuardExpandsLiteralTilde() {
   let home = FileManager.default.homeDirectoryForCurrentUser
   #expect(!hasDisposableAcceptanceStore(environment: [:], home: home))
@@ -53,13 +56,19 @@ struct LiveFunctionAcceptanceTests {
       let afterSpan: Span
     }
 
+    struct ReturnedFile: Decodable, Hashable {
+      let path: String
+      let identical: Bool
+    }
+
     let sessionID: String
     let beforeSeq: String
     let afterSeq: String
+    let returnedFiles: [ReturnedFile]
     let files: [File]
   }
 
-  @Test(.enabled(if: ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_BLOB_LOSS"] != "1"))
+  @Test(.enabled(if: acceptanceMode == "ready"))
   func liveAppModelMatchesIndependentAuthenticatedConsumer() async throws {
     let path = try #require(ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_ACCEPTANCE"])
     let summary = try JSONDecoder().decode(
@@ -79,7 +88,12 @@ struct LiveFunctionAcceptanceTests {
     #expect(page.comparison.status == .ready)
     expectNoDifference(page.detectedChanges, 2)
     expectNoDifference(page.filesNotCompared, 0)
-    expectNoDifference(Set(page.comparison.files.map(\.path)), Set(summary.files.map(\.path)))
+    expectNoDifference(
+      Set(
+        page.comparison.files.map {
+          Summary.ReturnedFile(path: $0.path, identical: $0.status == .identical)
+        }),
+      Set(summary.returnedFiles))
     for expected in summary.files {
       let row = try #require(
         page.mapGroups.flatMap(\.files).first { $0.path == expected.path }?.rows.first)
@@ -99,7 +113,7 @@ struct LiveFunctionAcceptanceTests {
     }
   }
 
-  @Test(.enabled(if: ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_BLOB_LOSS"] == "1"))
+  @Test(.enabled(if: acceptanceMode == "blob-loss"))
   func missingRecordedBlobStaysUnavailableInLiveModel() async throws {
     let path = try #require(ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_ACCEPTANCE"])
     let summary = try JSONDecoder().decode(
@@ -123,5 +137,23 @@ struct LiveFunctionAcceptanceTests {
       Issue.record("Missing recorded blob was not unavailable")
     }
     #expect(page.summaryText.contains("not compared"))
+  }
+
+  @Test(.enabled(if: acceptanceMode == "session-removed"))
+  func removedSessionNeedsANewSelectionInLiveModel() async throws {
+    let path = try #require(ProcessInfo.processInfo.environment["SLIPSTREAM_FS3_ACCEPTANCE"])
+    let summary = try JSONDecoder().decode(
+      Summary.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
+    let model = withDependencies {
+      $0.daemon = .liveValue
+    } operation: {
+      FunctionChangesLiveModel(
+        sessionID: summary.sessionID,
+        before: Seq(summary.beforeSeq)!, after: Seq(summary.afterSeq)!)
+    }
+    await model.viewAppeared()
+    #expect(model.statusText?.contains("session removed") == true)
+    #expect(!model.canRetry)
+    #expect(model.page == nil)
   }
 }
