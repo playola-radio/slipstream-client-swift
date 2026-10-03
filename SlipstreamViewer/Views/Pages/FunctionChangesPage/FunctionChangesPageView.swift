@@ -44,14 +44,17 @@ struct FunctionChangesPageView: View {
   private var controls: some View {
     ViewThatFits(in: .horizontal) {
       HStack(spacing: 18) {
-        searchControls
+        searchRow
         Spacer()
         legendControls
       }
       VStack(alignment: .leading, spacing: 10) {
-        searchControls
-        ScrollView(.horizontal) { legendControls }
-          .scrollIndicators(.hidden)
+        searchRow
+        scrollingLegend
+      }
+      VStack(alignment: .leading, spacing: 10) {
+        searchColumn
+        scrollingLegend
       }
     }
     .font(DesignTokens.FunctionTree.smallFont)
@@ -63,22 +66,31 @@ struct FunctionChangesPageView: View {
     .overlay(alignment: .bottom) { DesignTokens.FunctionTree.divider.frame(height: 1) }
   }
 
-  private var searchControls: some View {
-    ViewThatFits(in: .horizontal) {
-      HStack(spacing: 18) {
-        searchAndMode
-        if model.canShowUnchanged {
-          Button(model.showUnchangedText) { model.showUnchangedTapped() }
-        }
-      }
-      .fixedSize(horizontal: true, vertical: false)
-      VStack(alignment: .leading, spacing: 8) {
-        searchAndMode
-        if model.canShowUnchanged {
-          Button(model.showUnchangedText) { model.showUnchangedTapped() }
-        }
-      }
+  private var searchRow: some View {
+    HStack(spacing: 18) {
+      searchAndMode
+      showUnchangedButton
     }
+    .fixedSize(horizontal: true, vertical: false)
+  }
+
+  private var searchColumn: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      searchAndMode
+      showUnchangedButton
+    }
+  }
+
+  @ViewBuilder
+  private var showUnchangedButton: some View {
+    if model.canShowUnchanged {
+      Button(model.showUnchangedText) { model.showUnchangedTapped() }
+    }
+  }
+
+  private var scrollingLegend: some View {
+    ScrollView(.horizontal) { legendControls }
+      .scrollIndicators(.hidden)
   }
 
   private var searchAndMode: some View {
