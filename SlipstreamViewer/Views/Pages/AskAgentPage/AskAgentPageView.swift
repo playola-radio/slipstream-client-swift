@@ -202,6 +202,7 @@ private struct QuestionEditor: NSViewRepresentable {
     if context.coordinator.fontScale != fontScale {
       context.coordinator.fontScale = fontScale
       applyTypography(to: text)
+      if text.window?.firstResponder === text { text.scrollRangeToVisible(text.selectedRange()) }
     }
     if context.coordinator.caretRevision != model.caretRevision {
       context.coordinator.caretRevision = model.caretRevision

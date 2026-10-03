@@ -153,7 +153,7 @@ enum DesignTokens {
   private static let geistFamily = "Geist"
   private static let geistMonoFamily = "Geist Mono"
 
-  struct FontToken: Hashable, Sendable {
+  struct FontToken: Sendable {
     let family: String
     let size: CGFloat
     let weight: CGFloat

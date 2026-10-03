@@ -172,6 +172,7 @@ struct FunctionChangesPageView: View {
       }
     }
     .frame(width: model.canvasSize.width, height: model.canvasSize.height, alignment: .topLeading)
+    .environment(\.fontScale, 1)
   }
 
   @ViewBuilder

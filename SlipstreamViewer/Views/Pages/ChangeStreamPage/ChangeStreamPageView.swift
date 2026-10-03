@@ -554,7 +554,7 @@ private struct CodeBlockView: View {
         .fill(DesignTokens.Card.marker(isChanged: isChanged, isVerified: isVerified))
         .frame(width: DesignTokens.Card.markerWidth)
       number()
-        .frame(width: DesignTokens.Card.lineNumberWidth, alignment: .trailing)
+        .frame(width: model.sourceLineNumberWidth, alignment: .trailing)
       source()
     }
     .frame(height: model.sourceLineHeight)

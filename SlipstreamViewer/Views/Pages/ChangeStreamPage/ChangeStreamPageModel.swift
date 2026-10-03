@@ -196,6 +196,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var composerWidth: CGFloat { max(0, min(DesignTokens.Ask.width, viewport.width - 2 * DesignTokens.Ask.viewportInset)) }
   var sourceLineHeight: CGFloat { DesignTokens.Card.lineHeight * FontSize.scale(step: fontSizeStep) }
+  var sourceLineNumberWidth: CGFloat { DesignTokens.Card.lineNumberWidth * FontSize.scale(step: fontSizeStep) }
   var showsSelectionConnector: Bool {
     sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && !isFeedHidden
       && !selectionFrame.intersection(feedViewport).isEmpty

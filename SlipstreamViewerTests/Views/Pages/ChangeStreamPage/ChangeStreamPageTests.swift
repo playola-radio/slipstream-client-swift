@@ -1688,6 +1688,7 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     model.$fontSizeStep.withLock { $0 = 5 }
     expectNoDifference(model.sourceLineHeight, 44)
+    expectNoDifference(model.sourceLineNumberWidth, 50)
     fake.setBlob(Fixture.shaB, "one\ntwo\nthree\nlast\n")
     fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
     await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
