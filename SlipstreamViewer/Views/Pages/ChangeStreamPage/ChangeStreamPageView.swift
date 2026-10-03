@@ -449,7 +449,7 @@ private struct FileCardView: View {
   private var contentView: some View {
     switch content {
     case .loading:
-      ProgressView().controlSize(.small).frame(height: DesignTokens.Card.lineHeight)
+      ProgressView().controlSize(.small).frame(height: model.sourceLineHeight)
     case .note(let text):
       HStack(spacing: DesignTokens.Card.headerGap) {
         Text(text)
@@ -462,7 +462,7 @@ private struct FileCardView: View {
             .foregroundStyle(DesignTokens.Colors.jumpToLatest)
         }
       }
-      .frame(minHeight: DesignTokens.Card.lineHeight)
+      .frame(minHeight: model.sourceLineHeight)
     case .code(let blocks):
       VStack(alignment: .leading, spacing: 0) {
         ForEach(blocks) { block in
@@ -557,7 +557,7 @@ private struct CodeBlockView: View {
         .frame(width: DesignTokens.Card.lineNumberWidth, alignment: .trailing)
       source()
     }
-    .frame(height: DesignTokens.Card.lineHeight)
+    .frame(height: model.sourceLineHeight)
   }
 }
 

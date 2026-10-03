@@ -153,25 +153,38 @@ enum DesignTokens {
   private static let geistFamily = "Geist"
   private static let geistMonoFamily = "Geist Mono"
 
-  private static func variableFont(family: String, size: CGFloat, weight: CGFloat, codeLigatures: Bool = false) -> Font {
-    let wghtAxis = 0x7767_6874 as UInt32
-    var attributes: [NSFontDescriptor.AttributeName: Any] = [
-      .name: family,
-      .variation: [NSNumber(value: wghtAxis): NSNumber(value: Double(weight))],
-    ]
-    if codeLigatures {
-      attributes[.featureSettings] = [
-        [
-          NSFontDescriptor.FeatureKey.typeIdentifier: kStylisticAlternativesType,
-          NSFontDescriptor.FeatureKey.selectorIdentifier: kStylisticAltElevenOnSelector,
-        ]
+  struct FontToken: Hashable, Sendable {
+    let family: String
+    let size: CGFloat
+    let weight: CGFloat
+    let codeLigatures: Bool
+
+    func font(scale: CGFloat) -> Font {
+      let wghtAxis = 0x7767_6874 as UInt32
+      var attributes: [NSFontDescriptor.AttributeName: Any] = [
+        .name: family,
+        .variation: [NSNumber(value: wghtAxis): NSNumber(value: Double(weight))],
       ]
+      if codeLigatures {
+        attributes[.featureSettings] = [
+          [
+            NSFontDescriptor.FeatureKey.typeIdentifier: kStylisticAlternativesType,
+            NSFontDescriptor.FeatureKey.selectorIdentifier: kStylisticAltElevenOnSelector,
+          ]
+        ]
+      }
+      let descriptor = NSFontDescriptor(fontAttributes: attributes)
+      guard let nsFont = NSFont(descriptor: descriptor, size: size * scale) else {
+        return .system(size: size * scale)
+      }
+      return Font(nsFont)
     }
-    let descriptor = NSFontDescriptor(fontAttributes: attributes)
-    guard let nsFont = NSFont(descriptor: descriptor, size: size) else {
-      return .system(size: size)
-    }
-    return Font(nsFont)
+  }
+
+  private static func variableFont(
+    family: String, size: CGFloat, weight: CGFloat, codeLigatures: Bool = false
+  ) -> FontToken {
+    FontToken(family: family, size: size, weight: weight, codeLigatures: codeLigatures)
   }
 
   enum Ask {
@@ -323,25 +336,25 @@ enum DesignTokens {
   }
 
   enum Fonts {
-    static let paneTitle: Font = variableFont(family: geistFamily, size: 16, weight: 400)
-    static let paneSubtitle: Font = variableFont(family: geistFamily, size: 10, weight: 400)
-    static let taskTitle: Font = variableFont(family: geistFamily, size: 15, weight: 400)
-    static let taskBadge: Font = variableFont(family: geistMonoFamily, size: 12, weight: 400)
-    static let filePath: Font = variableFont(family: geistMonoFamily, size: 11, weight: 400)
-    static let eventTime: Font = variableFont(family: geistFamily, size: 10, weight: 400)
-    static let lineNumber: Font = variableFont(family: geistMonoFamily, size: 10, weight: 400)
-    static let sourceLine: Font = variableFont(family: geistMonoFamily, size: 12, weight: 400, codeLigatures: true)
-    static let liveStatus: Font = variableFont(family: geistFamily, size: 11, weight: 400)
-    static let jumpToLatest: Font = variableFont(family: geistFamily, size: 10, weight: 400)
-    static let hideFeed: Font = variableFont(family: geistFamily, size: 10, weight: 400)
-    static let openIndicator: Font = variableFont(family: geistMonoFamily, size: 9, weight: 400)
-    static let restoreFeed: Font = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let paneTitle: FontToken = variableFont(family: geistFamily, size: 16, weight: 400)
+    static let paneSubtitle: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
+    static let taskTitle: FontToken = variableFont(family: geistFamily, size: 15, weight: 400)
+    static let taskBadge: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
+    static let filePath: FontToken = variableFont(family: geistMonoFamily, size: 11, weight: 400)
+    static let eventTime: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
+    static let lineNumber: FontToken = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+    static let sourceLine: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400, codeLigatures: true)
+    static let liveStatus: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let jumpToLatest: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
+    static let hideFeed: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
+    static let openIndicator: FontToken = variableFont(family: geistMonoFamily, size: 9, weight: 400)
+    static let restoreFeed: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
 
-    static func paneSubtitle(isQuestionSummary: Bool) -> Font {
+    static func paneSubtitle(isQuestionSummary: Bool) -> FontToken {
       isQuestionSummary ? questionSummary : paneSubtitle
     }
 
-    private static let questionSummary: Font = variableFont(family: geistFamily, size: 11, weight: 400)
+    private static let questionSummary: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
   }
 
   enum Colors {
@@ -491,6 +504,21 @@ enum DesignTokens {
     static func pin(isPinned: Bool) -> Icon {
       Icon(assetName: "Pin", size: 13, color: isPinned ? Color(hex: 0x9ACBB8) : Color(hex: 0x7F96A6))
     }
+  }
+}
+
+extension View {
+  func font(_ token: DesignTokens.FontToken) -> some View {
+    modifier(ScaledFont(token: token))
+  }
+}
+
+private struct ScaledFont: ViewModifier {
+  let token: DesignTokens.FontToken
+  @Environment(\.fontScale) private var scale
+
+  func body(content: Content) -> some View {
+    content.font(token.font(scale: scale))
   }
 }
 

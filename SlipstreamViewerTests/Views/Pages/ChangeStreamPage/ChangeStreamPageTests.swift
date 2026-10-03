@@ -1681,3 +1681,24 @@ extension ChangeStreamPageTests {
     #expect(!reply.isFollowUpDisabled)
   }
 }
+
+extension ChangeStreamPageTests {
+  @Test func largerTextScalesSourceRowsAndSelection() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.$fontSizeStep.withLock { $0 = 5 }
+    expectNoDifference(model.sourceLineHeight, 44)
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    model.sourceDragged(row: row, block: blocks[0], startY: 45, endY: 100, frame: CGRect(x: 20, y: 100, width: 600, height: 176))
+    model.sourceDragEnded()
+    let composer = try #require(model.askAgent)
+    expectNoDifference(composer.context.lineStart, 2)
+    expectNoDifference(composer.context.lineEnd, 3)
+    expectNoDifference(model.highlightRect(row: row, block: blocks[0], width: 600), CGRect(x: 0, y: 44, width: 600, height: 88))
+  }
+}
