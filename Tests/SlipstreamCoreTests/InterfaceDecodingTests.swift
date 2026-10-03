@@ -435,6 +435,8 @@ struct InterfaceSyntheticTests {
     Mutation("ts-parameter-change", "typescript function without a result slot", #""result":{"op":"equal","before":{"kind":"return","type":{"state":"written","text":"void"}},"after":{"kind":"return","type":{"state":"written","text":"void"}}}"#, #""result":null"#),
     Mutation("swift-labels-defaults-effects", "swift declaration without a result slot", #""result":{"op":"equal","before":{"kind":"return","type":{"state":"written","text":"Bool"}},"after":{"kind":"return","type":{"state":"written","text":"Bool"}}}"#, #""result":null"#),
     Mutation("ts-parameter-change", "policy exclusions not exact", #"["store-directory",".git","symlinks"]"#, #"[]"#),
+    Mutation("ts-parameter-change", "policy exclusions reordered", #"["store-directory",".git","symlinks"]"#, #"[".git","store-directory","symlinks"]"#),
+    Mutation("ts-parameter-change", "policy exclusions with an extra entry beyond ignore-rules", #"["store-directory",".git","symlinks"]"#, #"["store-directory",".git","symlinks","ignore-rules","node_modules"]"#),
     Mutation("ts-parameter-change", "added delta with a before side", #"{"op":"changed","before":{"position":0"#, #"{"op":"added","before":{"position":0"#),
     Mutation("ts-parameter-change", "added row with a before side", #""kind":"signatureChanged""#, #""kind":"added""#),
     Mutation("ts-parameter-change", "span runs backwards", #""byte_start":0,"byte_end":30}},"parameters""#, #""byte_start":31,"byte_end":30}},"parameters""#),
