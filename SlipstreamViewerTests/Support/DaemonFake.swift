@@ -24,7 +24,8 @@ final class DaemonFake: Sendable {
     var tokens: [String] = ["token-1"]
     var discoverError: (any Error)?
     var sessions: [SessionSummary] = []
-    var roots: [String: String] = [:]
+    var starts: [String: SessionStarted] = [:]
+    var sessionStartCallCount = 0
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
@@ -40,6 +41,7 @@ final class DaemonFake: Sendable {
   private let state = Mutex(State())
   private let clipsGate: AsyncStream<Void>?
   private let sessionsGate: AsyncStream<Void>?
+  private let sessionStartGates: [String: AsyncStream<Void>]
   private let gatesEachClipsCall: Bool
   private let gatesEachInterfaceCall: Bool
   private let storeID: String
@@ -48,12 +50,14 @@ final class DaemonFake: Sendable {
     storeID: String = "store-a",
     clipsGate: AsyncStream<Void>? = nil,
     sessionsGate: AsyncStream<Void>? = nil,
+    sessionStartGates: [String: AsyncStream<Void>] = [:],
     gatesEachClipsCall: Bool = false,
     gatesEachInterfaceCall: Bool = false
   ) {
     self.storeID = storeID
     self.clipsGate = clipsGate
     self.sessionsGate = sessionsGate
+    self.sessionStartGates = sessionStartGates
     self.gatesEachClipsCall = gatesEachClipsCall
     self.gatesEachInterfaceCall = gatesEachInterfaceCall
   }
@@ -73,10 +77,10 @@ final class DaemonFake: Sendable {
 
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
   func setDiscoverError(_ error: (any Error)?) { state.withLock { $0.discoverError = error } }
-  func setSessions(_ sessions: [SessionSummary], roots: [String: String] = [:]) {
+  func setSessions(_ sessions: [SessionSummary], starts: [String: SessionStarted] = [:]) {
     state.withLock {
       $0.sessions = sessions
-      $0.roots = roots
+      $0.starts = starts
     }
   }
   func setClips(_ response: ClipsResponse, for seq: Seq) { state.withLock { $0.clips[seq] = response } }
@@ -86,6 +90,10 @@ final class DaemonFake: Sendable {
 
   func waitForClipsCall(_ number: Int) async {
     while state.withLock({ $0.clipsCallCount }) < number { await Task.yield() }
+  }
+
+  func waitForSessionStartCall(_ number: Int) async {
+    while state.withLock({ $0.sessionStartCallCount }) < number { await Task.yield() }
   }
 
   func releaseClipsCall(_ number: Int) {
@@ -125,7 +133,13 @@ final class DaemonFake: Sendable {
         }
         return state.withLock { $0.sessions }
       },
-      sessionRoot: { [self] _, id in state.withLock { $0.roots[id] } },
+      sessionStart: { [self] _, id in
+        state.withLock { $0.sessionStartCallCount += 1 }
+        if let gate = sessionStartGates[id] {
+          for await _ in gate { break }
+        }
+        return state.withLock { $0.starts[id] }
+      },
       follow: { [self] descriptor, sessionID, cursor in
         let (stream, continuation) = AsyncThrowingStream<StreamItem, any Error>.makeStream()
         state.withLock {
@@ -235,7 +249,7 @@ enum Fixture {
   }
 
   static func sessionStarted(_ value: Int) -> StreamItem {
-    frame(value, type: "slipstream.session.started.v1", data: ["session_id": session, "root": "/tmp/project"])
+    frame(value, type: "slipstream.session.started.v1", data: ["session_id": session, "root": "/tmp/project", "started_at_ms": 0])
   }
 
   static func unknown(_ value: Int) -> StreamItem {

@@ -474,14 +474,18 @@ final class ChangeStreamPageModel: ViewModel {
       if selectedSession == nil, sessions.count == 1 {
         sessionSelected(sessions[0].id)
       }
-      await withTaskGroup(of: (String, String?).self) { group in
+      await withTaskGroup(of: (String, SessionStarted?).self) { group in
         for summary in summaries {
-          group.addTask { (summary.id, try? await daemon.sessionRoot(descriptor, summary.id)) }
+          group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
         }
-        for await (id, root) in group {
-          guard generation == sessionsGeneration, let root else { continue }
-          sessions[id: id]?.label = root
-          if selectedSession?.id == id { selectedSession?.label = root }
+        var starts: [String: SessionStarted] = [:]
+        for await (id, start) in group {
+          starts[id] = start
+          guard generation == sessionsGeneration else { return }
+          for (id, label) in sessionLabels(starts) {
+            sessions[id: id]?.label = label
+            if selectedSession?.id == id { selectedSession?.label = label }
+          }
         }
       }
     } catch {
@@ -650,6 +654,23 @@ final class ChangeStreamPageModel: ViewModel {
     }
     sections[sections.count - 1].items.append(item)
     if follow == .following { scrollToLatestRequest += 1 }
+  }
+
+  private func sessionLabels(_ starts: [String: SessionStarted]) -> [String: String] {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "MMM d HH:mm:ss"
+    let labels = starts.mapValues { start in
+      let started = formatter.string(from: Date(timeIntervalSince1970: Double(start.startedAtMs) / 1000))
+      return "\(start.root) · started \(started)"
+    }
+    let counts = Dictionary(labels.values.map { ($0, 1) }, uniquingKeysWith: +)
+    var unique: [String: String] = [:]
+    for (id, label) in labels {
+      unique[id] = counts[label, default: 0] > 1 ? "\(label) · \(id)" : label
+    }
+    return unique
   }
 
   private func time(_ milliseconds: Int64) -> String {

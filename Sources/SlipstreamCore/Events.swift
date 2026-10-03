@@ -20,6 +20,16 @@ public struct FileChange: Equatable, Sendable {
   }
 }
 
+public struct SessionStarted: Equatable, Sendable {
+  public var root: String
+  public var startedAtMs: Int64
+
+  public init(root: String, startedAtMs: Int64) {
+    self.root = root
+    self.startedAtMs = startedAtMs
+  }
+}
+
 public struct TaskStarted: Equatable, Sendable {
   public var title: String
 
@@ -95,7 +105,7 @@ public struct QuestionAnswered: Equatable, Sendable {
 }
 
 public enum EventPayload: Equatable, Sendable {
-  case sessionStarted(root: String)
+  case sessionStarted(SessionStarted)
   case fileChanged(FileChange)
   case taskStarted(TaskStarted)
   case captureGap(CaptureGap)
@@ -157,7 +167,8 @@ extension SlipstreamEvent {
   private static func payload(_ type: String, _ data: Data, _ decoder: JSONDecoder) throws -> EventPayload {
     switch type {
     case "slipstream.session.started.v1":
-      return .sessionStarted(root: try decoder.decode(Envelope<SessionStartedData>.self, from: data).data.root)
+      let session = try decoder.decode(Envelope<SessionStartedData>.self, from: data).data
+      return .sessionStarted(SessionStarted(root: session.root, startedAtMs: session.started_at_ms))
     case "slipstream.file.changed.v1":
       let change = try decoder.decode(Envelope<FileChangedData>.self, from: data).data
       return .fileChanged(
@@ -228,6 +239,7 @@ extension SlipstreamEvent {
 
   private struct SessionStartedData: Decodable {
     var root: String
+    var started_at_ms: Int64
   }
 
   private struct FileChangedData: Decodable {

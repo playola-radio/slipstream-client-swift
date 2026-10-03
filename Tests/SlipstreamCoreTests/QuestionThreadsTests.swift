@@ -227,7 +227,7 @@ struct QuestionThreadsTests {
 
   @Test func nonQuestionEventsAreIgnored() {
     let threads = QuestionThreads([
-      SlipstreamEvent(seq: Seq("1")!, type: "slipstream.session.started.v1", payload: .sessionStarted(root: "/w")),
+      SlipstreamEvent(seq: Seq("1")!, type: "slipstream.session.started.v1", payload: .sessionStarted(SessionStarted(root: "/w", startedAtMs: 0))),
       SlipstreamEvent(seq: Seq("2")!, type: "slipstream.future.v1", payload: .unsupported(type: "slipstream.future.v1")),
     ])
     expectNoDifference(threads, QuestionThreads())
