@@ -36,6 +36,11 @@ private let acceptanceMode =
         home: FileManager.default.homeDirectoryForCurrentUser),
     "Set SLIPSTREAM_FS3_ACCEPTANCE to the independent consumer summary and SLIPSTREAM_STORE to its disposable store"
   ))
+/// Forward these values with the `TEST_RUNNER_` prefix through `xcodebuild`: `SLIPSTREAM_STORE`
+/// is a disposable store; `SLIPSTREAM_FS3_ACCEPTANCE` is summary JSON; and
+/// `SLIPSTREAM_FS3_MODE` is `ready` (default), `blob-loss` (after removing the `src/fs3-live.ts`
+/// blob from the store), or `session-removed` (after `slipstream detach`, then
+/// `slipstream delete <id>`, so the reader returns 410).
 struct LiveFunctionAcceptanceTests {
   struct Summary: Decodable {
     struct File: Decodable {
@@ -56,7 +61,7 @@ struct LiveFunctionAcceptanceTests {
       let afterSpan: Span
     }
 
-    struct ReturnedFile: Decodable, Hashable {
+    struct ReturnedFile: Decodable, Equatable {
       let path: String
       let identical: Bool
     }
@@ -64,8 +69,14 @@ struct LiveFunctionAcceptanceTests {
     let sessionID: String
     let beforeSeq: String
     let afterSeq: String
-    let returnedFiles: [ReturnedFile]
+    let returnedFiles: [ReturnedFile]?
     let files: [File]
+  }
+
+  @Test func acceptanceModeIsSupported() {
+    #expect(
+      ["ready", "blob-loss", "session-removed"].contains(acceptanceMode),
+      "SLIPSTREAM_FS3_MODE must be ready, blob-loss, or session-removed")
   }
 
   @Test(.enabled(if: acceptanceMode == "ready"))
@@ -88,12 +99,14 @@ struct LiveFunctionAcceptanceTests {
     #expect(page.comparison.status == .ready)
     expectNoDifference(page.detectedChanges, 2)
     expectNoDifference(page.filesNotCompared, 0)
+    let returnedFiles = try #require(summary.returnedFiles)
     expectNoDifference(
-      Set(
-        page.comparison.files.map {
+      page.comparison.files
+        .map {
           Summary.ReturnedFile(path: $0.path, identical: $0.status == .identical)
-        }),
-      Set(summary.returnedFiles))
+        }
+        .sorted { $0.path < $1.path },
+      returnedFiles.sorted { $0.path < $1.path })
     for expected in summary.files {
       let row = try #require(
         page.mapGroups.flatMap(\.files).first { $0.path == expected.path }?.rows.first)
