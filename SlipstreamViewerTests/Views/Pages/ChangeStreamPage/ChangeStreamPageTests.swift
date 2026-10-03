@@ -106,6 +106,31 @@ struct ChangeStreamPageTests {
     )
   }
 
+  @Test func capturesStartedInTheSameSecondAreToldApartByID() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: "11111111-aaaa", durableSeq: .zero, removed: false),
+        SessionSummary(id: "22222222-bbbb", durableSeq: .zero, removed: false),
+        SessionSummary(id: "33333333-cccc", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        "11111111-aaaa": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_100),
+        "22222222-bbbb": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_974),
+        "33333333-cccc": SessionStarted(root: "/work/beta", startedAtMs: 1_791_037_090_100),
+      ]
+    )
+    let model = makeModel()
+    await model.viewAppeared()
+    expectNoDifference(
+      model.sessions.map(\.label),
+      [
+        "/work/alpha · started Oct 3 14:18:10 · 11111111",
+        "/work/alpha · started Oct 3 14:18:10 · 22222222",
+        "/work/beta · started Oct 3 14:18:10",
+      ]
+    )
+  }
+
   @Test func closingTheWindowDuringSessionDiscoveryStartsNothing() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)

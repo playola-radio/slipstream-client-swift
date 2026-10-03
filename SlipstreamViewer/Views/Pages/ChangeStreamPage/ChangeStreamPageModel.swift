@@ -478,9 +478,12 @@ final class ChangeStreamPageModel: ViewModel {
         for summary in summaries {
           group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
         }
+        var starts: [String: SessionStarted] = [:]
         for await (id, start) in group {
-          guard generation == sessionsGeneration, let start else { continue }
-          let label = sessionLabel(start)
+          starts[id] = start
+        }
+        guard generation == sessionsGeneration else { return }
+        for (id, label) in sessionLabels(starts) {
           sessions[id: id]?.label = label
           if selectedSession?.id == id { selectedSession?.label = label }
         }
@@ -653,13 +656,21 @@ final class ChangeStreamPageModel: ViewModel {
     if follow == .following { scrollToLatestRequest += 1 }
   }
 
-  private func sessionLabel(_ start: SessionStarted) -> String {
+  private func sessionLabels(_ starts: [String: SessionStarted]) -> [String: String] {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
     formatter.timeZone = timeZone
     formatter.dateFormat = "MMM d HH:mm:ss"
-    let started = formatter.string(from: Date(timeIntervalSince1970: Double(start.startedAtMs) / 1000))
-    return "\(start.root) · started \(started)"
+    let labels = starts.mapValues { start in
+      let started = formatter.string(from: Date(timeIntervalSince1970: Double(start.startedAtMs) / 1000))
+      return "\(start.root) · started \(started)"
+    }
+    let counts = Dictionary(labels.values.map { ($0, 1) }, uniquingKeysWith: +)
+    var unique: [String: String] = [:]
+    for (id, label) in labels {
+      unique[id] = counts[label, default: 0] > 1 ? "\(label) · \(id.prefix(8))" : label
+    }
+    return unique
   }
 
   private func time(_ milliseconds: Int64) -> String {
