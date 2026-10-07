@@ -188,7 +188,7 @@ struct ChangeStreamPageView: View {
           ForEach(model.sections) { section in
             Section {
               ForEach(section.items) { item in
-                itemView(item)
+                itemView(item, in: section)
                   .padding(.top, DesignTokens.Stream.itemGap)
               }
               Color.clear.frame(height: DesignTokens.Stream.groupGap)
@@ -199,6 +199,9 @@ struct ChangeStreamPageView: View {
                     geometry.frame(in: .scrollView).minY
                   } action: { minY in
                     model.headingMoved(section, minY: minY)
+                  }
+                  .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    model.taskHeadingMeasured(height: $0)
                   }
               }
             }
@@ -225,7 +228,7 @@ struct ChangeStreamPageView: View {
   }
 
   @ViewBuilder
-  private func itemView(_ item: FeedItem) -> some View {
+  private func itemView(_ item: FeedItem, in section: FeedSection) -> some View {
     switch item {
     case .file(let row):
       VStack(spacing: 0) {
@@ -233,11 +236,15 @@ struct ChangeStreamPageView: View {
           row: row,
           model: model,
           openIndicatorText: model.openIndicatorText(for: row),
+          headerOffset: model.fileHeaderOffset(for: row),
           content: model.content(for: row),
           emphasis: model.emphasis(for: row),
           isRetryable: model.isCardRetryable(row),
           retryTapped: { Task { await model.cardRetryTapped(row) } }
         )
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: {
+          model.cardMoved(row, in: section, frame: $0)
+        }
         .task(id: FeedCardTaskID(feedGeneration: model.feedGeneration, rowID: row.id)) { await model.cardAppeared(row) }
         .onDisappear { model.cardDisappeared(row) }
         ForEach(model.questionBars(for: row)) { bar in
@@ -398,6 +405,7 @@ private struct FileCardView: View {
   let row: FileChangeRow
   let model: ChangeStreamPageModel
   let openIndicatorText: String?
+  let headerOffset: CGFloat
   let content: CardContent
   let emphasis: CardEmphasis
   let isRetryable: Bool
@@ -405,8 +413,13 @@ private struct FileCardView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      header
-      Rectangle().fill(DesignTokens.Card.headerStroke).frame(height: 1)
+      VStack(spacing: 0) {
+        header
+        Rectangle().fill(DesignTokens.Card.headerStroke).frame(height: 1)
+      }
+      .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.fileHeaderMeasured(height: $0) }
+      .offset(y: headerOffset)
+      .zIndex(1)
       contentView
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, DesignTokens.Card.codeTopPadding)
