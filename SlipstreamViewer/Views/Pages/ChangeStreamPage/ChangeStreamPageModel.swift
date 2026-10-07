@@ -230,7 +230,11 @@ final class ChangeStreamPageModel: ViewModel {
     replyCollapsed()
     queuedQuestionNotice = nil
     askAgent = withDependencies(from: self) {
-      AskAgentPageModel(sessionID: selection.sessionID, context: selection.context)
+      AskAgentPageModel(
+        sessionID: selection.sessionID,
+        context: selection.context,
+        agentConnection: selectedSession?.agentConnection ?? .unreported
+      )
     }
   }
 
@@ -472,9 +476,17 @@ final class ChangeStreamPageModel: ViewModel {
       let descriptor = try await daemon.discover()
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
       guard generation == sessionsGeneration else { return }
-      sessions = IdentifiedArray(uniqueElements: summaries.map { SessionOption(id: $0.id, label: $0.id) })
+      sessions = IdentifiedArray(
+        uniqueElements: summaries.map { SessionOption(id: $0.id, label: $0.id, agentConnection: $0.agentConnection) }
+      )
       sessionsError = nil
       hasLoadedSessions = true
+      if let selectedID = selectedSession?.id, let listed = sessions[id: selectedID] {
+        selectedSession?.agentConnection = listed.agentConnection
+      }
+      if let composer = askAgent {
+        composer.agentConnectionChanged(sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil))
+      }
       if selectedSession == nil, sessions.count == 1 {
         sessionSelected(sessions[0].id)
       }
@@ -621,6 +633,8 @@ final class ChangeStreamPageModel: ViewModel {
         reply.threadUpdated(thread)
       }
       if follow == .following { scrollToLatestRequest += 1 }
+    case .agentConnection(let state):
+      watchedAgentConnectionReported(state)
     case .recordedWithoutRow:
       if event.type == "slipstream.capture.baseline.completed.v1", baselineCompletedSeq == nil {
         baselineCompletedSeq = event.seq
@@ -630,6 +644,16 @@ final class ChangeStreamPageModel: ViewModel {
     }
     lastAppliedSeq = event.seq
     return true
+  }
+
+  private func watchedAgentConnectionReported(_ reported: AgentConnection) {
+    guard let watched = selectedSession else { return }
+    if case .disconnected = watched.agentConnection { return }
+    selectedSession?.agentConnection = reported
+    sessions[id: watched.id]?.agentConnection = reported
+    if let composer = askAgent, composer.sessionID == watched.id {
+      composer.agentConnectionChanged(reported)
+    }
   }
 
   private func previousTurnCount(beforeApplying event: SlipstreamEvent) -> Int? {

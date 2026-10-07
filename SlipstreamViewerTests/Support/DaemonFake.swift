@@ -268,6 +268,18 @@ enum Fixture {
     frame(value, type: "slipstream.session.resumed.v1", data: ["session_id": session])
   }
 
+  static func agentConnection(_ value: Int, state: String, sessionID: String = session) -> StreamItem {
+    frame(
+      value,
+      type: "slipstream.agent.connection.v1",
+      data: [
+        "state": state,
+        "target": ["harness": "claude-code", "harness_session_id": "h-1", "worktree": "/tmp/project"],
+        "session_id": sessionID,
+      ]
+    )
+  }
+
   static func questionQueued(
     _ value: Int,
     id: String,

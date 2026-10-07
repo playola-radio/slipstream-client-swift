@@ -1064,14 +1064,14 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     defer { model.viewDisappeared() }
     let context = AskAgentPageTests.context
-    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context) }
+    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context, agentConnection: .connected) }
     model.askAgent = original
     original.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(original) }
     await Task.megaYield()
     let health = model.connection
     model.questionDismissed()
-    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context)
+    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context, agentConnection: .connected)
     newer.draftChanged("A different question")
     model.askAgent = newer
     resume.yield()
@@ -1088,7 +1088,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { _ in throw QuestionError.outcomeUnknown }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1110,7 +1110,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return try AskAgentPageTests.ack(request)
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(composer) }
@@ -1131,7 +1131,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1140,12 +1140,13 @@ extension ChangeStreamPageTests {
   }
 
   @Test func retainedComposerStaysSendableAfterWindowDisappearsAndReappears() async {
+    listSessions(.connected)
     let model = await connectedModel()
     defer { model.viewDisappeared() }
     let composer = withDependencies(from: model) {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     model.viewDisappeared()
@@ -1168,7 +1169,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         throw QuestionError.outcomeUnknown
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(composer) }
@@ -1204,7 +1205,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies(from: model) {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1227,7 +1228,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1733,5 +1734,133 @@ extension ChangeStreamPageTests {
     expectNoDifference(composer.context.lineStart, 2)
     expectNoDifference(composer.context.lineEnd, 3)
     expectNoDifference(model.highlightRect(row: row, block: blocks[0], width: 600), CGRect(x: 0, y: 44, width: 600, height: 88))
+  }
+}
+
+extension ChangeStreamPageTests {
+  func composer(
+    _ model: ChangeStreamPageModel, session: String = Fixture.session, agentConnection: AgentConnection
+  ) -> AskAgentPageModel {
+    let composer = withDependencies(from: model) {
+      AskAgentPageModel(sessionID: session, context: AskAgentPageTests.context, agentConnection: agentConnection)
+    }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    return composer
+  }
+
+  func listSessions(_ connection: AgentConnection, other: AgentConnection? = nil) {
+    var summaries = [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: connection)]
+    if let other {
+      summaries.append(SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false, agentConnection: other))
+    }
+    fake.setSessions(summaries)
+  }
+
+  @Test func sessionsCarryTheListedAgentConnection() async {
+    listSessions(.setupPending, other: .connected)
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .setupPending)
+    expectNoDifference(model.sessions[id: Fixture.otherSession]?.agentConnection, .connected)
+  }
+
+  @Test func aConnectionEventUpdatesTheWatchedSessionAndItsComposerWithoutAddingARow() async {
+    listSessions(.setupPending)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .setupPending)
+    #expect(!composer.canSubmit)
+    await send(Fixture.agentConnection(1, state: "connected"))
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .connected)
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+    #expect(model.sections.isEmpty)
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(1))
+  }
+
+  @Test func aConnectionEventDoesNotTouchAComposerBoundToAnotherCapture() async {
+    listSessions(.setupPending, other: .setupPending)
+    let model = await connectedModel()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, session: Fixture.otherSession, agentConnection: .setupPending)
+    await send(Fixture.agentConnection(1, state: "connected"))
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    expectNoDifference(composer.agentConnection, .setupPending)
+    expectNoDifference(composer.sessionID, Fixture.otherSession)
+    expectNoDifference(composer.draft, "Why?")
+  }
+
+  @Test func aConnectionEventNeverOverridesAListReportedDisconnect() async {
+    listSessions(.disconnected(reason: "capture_not_live"))
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .disconnected(reason: "capture_not_live"))
+    await send(Fixture.agentConnection(1, state: "setup_pending"), Fixture.agentConnection(2, state: "connected"))
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: "capture_not_live"))
+    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .disconnected(reason: "capture_not_live"))
+    expectNoDifference(composer.agentConnection, .disconnected(reason: "capture_not_live"))
+    #expect(!composer.canSubmit)
+  }
+
+  @Test func aConnectionEventReplacesAnUnreportedState() async {
+    listSessions(.unreported)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.agentConnection(1, state: "setup_pending"))
+    expectNoDifference(model.selectedSession?.agentConnection, .setupPending)
+  }
+
+  @Test func aSessionsRefreshPushesTheListedStateToTheOpenComposer() async {
+    listSessions(.setupPending)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .setupPending)
+    listSessions(.connected)
+    await model.refreshTapped()
+    expectNoDifference(composer.agentConnection, .connected)
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    #expect(composer.canSubmit)
+    listSessions(.disconnected(reason: "no_agent"))
+    await model.refreshTapped()
+    expectNoDifference(composer.agentConnection, .disconnected(reason: "no_agent"))
+    #expect(!composer.canSubmit)
+    expectNoDifference(composer.draft, "Why?")
+  }
+
+  @Test func aSessionsRefreshDisconnectsAComposerWhoseCaptureIsNoLongerListed() async {
+    listSessions(.connected, other: .connected)
+    let model = await connectedModel()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, session: Fixture.otherSession, agentConnection: .connected)
+    listSessions(.connected)
+    await model.refreshTapped()
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    expectNoDifference(composer.sessionID, Fixture.otherSession)
+    #expect(!composer.canSubmit)
+  }
+
+  @Test func openingTheComposerStartsFromTheSelectedSessionsState() async throws {
+    listSessions(.setupPending)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    model.sourceDragged(row: row, block: blocks[0], startY: 23, endY: 60, frame: CGRect(x: 20, y: 100, width: 600, height: 88))
+    model.sourceDragEnded()
+    let composer = try #require(model.askAgent)
+    expectNoDifference(composer.agentConnection, .setupPending)
+    await send(Fixture.agentConnection(2, state: "connected"))
+    expectNoDifference(composer.agentConnection, .connected)
   }
 }
