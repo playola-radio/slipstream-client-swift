@@ -128,10 +128,11 @@ final class DaemonFake: Sendable {
         }
       },
       sessions: { [self] _ in
+        let snapshot = state.withLock { $0.sessions }
         if let sessionsGate {
           for await _ in sessionsGate { break }
         }
-        return state.withLock { $0.sessions }
+        return snapshot
       },
       sessionStart: { [self] _, id in
         state.withLock { $0.sessionStartCallCount += 1 }

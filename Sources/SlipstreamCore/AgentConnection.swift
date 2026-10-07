@@ -1,5 +1,3 @@
-import Foundation
-
 public enum AgentConnection: Equatable, Sendable {
   case connected
   case setupPending

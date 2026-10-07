@@ -1749,8 +1749,10 @@ extension ChangeStreamPageTests {
     return composer
   }
 
-  func listSessions(_ connection: AgentConnection, other: AgentConnection? = nil) {
-    var summaries = [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: connection)]
+  func listSessions(_ connection: AgentConnection, durableSeq: Int = 0, other: AgentConnection? = nil) {
+    var summaries = [
+      SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(durableSeq), removed: false, agentConnection: connection)
+    ]
     if let other {
       summaries.append(SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false, agentConnection: other))
     }
@@ -1793,18 +1795,6 @@ extension ChangeStreamPageTests {
     expectNoDifference(composer.agentConnection, .setupPending)
     expectNoDifference(composer.sessionID, Fixture.otherSession)
     expectNoDifference(composer.draft, "Why?")
-  }
-
-  @Test func aConnectionEventNeverOverridesAListReportedDisconnect() async {
-    listSessions(.disconnected(reason: "capture_not_live"))
-    let model = await connectedModel()
-    defer { model.viewDisappeared() }
-    let composer = composer(model, agentConnection: .disconnected(reason: "capture_not_live"))
-    await send(Fixture.agentConnection(1, state: "setup_pending"), Fixture.agentConnection(2, state: "connected"))
-    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: "capture_not_live"))
-    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .disconnected(reason: "capture_not_live"))
-    expectNoDifference(composer.agentConnection, .disconnected(reason: "capture_not_live"))
-    #expect(!composer.canSubmit)
   }
 
   @Test func aConnectionEventReplacesAnUnreportedState() async {
@@ -1862,5 +1852,128 @@ extension ChangeStreamPageTests {
     expectNoDifference(composer.agentConnection, .setupPending)
     await send(Fixture.agentConnection(2, state: "connected"))
     expectNoDifference(composer.agentConnection, .connected)
+  }
+
+  @Test func aLateSessionsResponseNeverOverwritesNewerReadiness() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .setupPending)])
+    open.yield()
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .setupPending)
+    let refresh = Task { await model.refreshTapped() }
+    await Task.megaYield()
+    daemon.send(Fixture.agentConnection(1, state: "connected"))
+    await Task.megaYield()
+    open.yield()
+    await refresh.value
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .connected)
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+  }
+
+  @Test func replayingHistoryNeverDowngradesWhatTheSnapshotAlreadyCovers() async {
+    listSessions(.connected, durableSeq: 2)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    await send(Fixture.agentConnection(1, state: "setup_pending"), Fixture.agentConnection(2, state: "setup_pending"))
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(2))
+  }
+
+  @Test func aConnectionEventNewerThanAStartupDisconnectedSnapshotEnablesAsk() async {
+    listSessions(.disconnected(reason: "capture_not_live"), durableSeq: 2)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .disconnected(reason: "capture_not_live"))
+    await send(Fixture.edited(1), Fixture.edited(2), Fixture.agentConnection(3, state: "connected"))
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .connected)
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+  }
+
+  @Test func leavingLiveDisablesAskUntilAFreshSnapshotShowsADetach() async {
+    listSessions(.connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    await send(Fixture.agentConnection(1, state: "connected"))
+    fake.close()
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
+    expectNoDifference(model.sessions[id: Fixture.session]?.agentConnection, .disconnected(reason: nil))
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
+    listSessions(.disconnected(reason: "capture_not_live"), durableSeq: 1)
+    await clock.advance(by: .milliseconds(500))
+    await send(.heartbeat)
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: "capture_not_live"))
+    expectNoDifference(composer.agentConnection, .disconnected(reason: "capture_not_live"))
+    #expect(!composer.canSubmit)
+    expectNoDifference(composer.draft, "Why?")
+  }
+
+  @Test func reconnectingToAStillAttachedCaptureRestoresAsk() async {
+    listSessions(.connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    await send(Fixture.agentConnection(1, state: "connected"))
+    fake.close()
+    await Task.megaYield()
+    #expect(!composer.canSubmit)
+    listSessions(.connected, durableSeq: 1)
+    await clock.advance(by: .milliseconds(500))
+    await send(.heartbeat)
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+  }
+
+  @Test func aRemovedWatchedSessionDisablesAsk() async {
+    listSessions(.connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    fake.close(throwing: DaemonHTTPError.status(410, durableSeq: nil))
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
+  }
+
+  @Test func aRefreshThatDropsTheWatchedCaptureDisablesItsComposerAndReopeningStaysDisabled() async throws {
+    listSessions(.connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.agentConnection(1, state: "connected"))
+    let composer = composer(model, agentConnection: .connected)
+    fake.setSessions([])
+    await model.refreshTapped()
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
+    model.questionDismissed()
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(2))
+    await send(Fixture.fileChanged(2, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 2))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    model.sourceDragged(row: row, block: blocks[0], startY: 23, endY: 60, frame: CGRect(x: 20, y: 100, width: 600, height: 88))
+    model.sourceDragEnded()
+    let reopened = try #require(model.askAgent)
+    expectNoDifference(reopened.agentConnection, .disconnected(reason: nil))
+    #expect(!reopened.canSubmit)
   }
 }

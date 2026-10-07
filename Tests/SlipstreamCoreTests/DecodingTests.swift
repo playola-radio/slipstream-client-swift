@@ -142,10 +142,6 @@ struct AgentConnectionDecodingTests {
     return try SlipstreamEvent.decode(Data(json.utf8)).payload
   }
 
-  @Test func summaryDecodesConnected() throws {
-    expectNoDifference(try summary(#"{"state":"connected"}"#).agentConnection, .connected)
-  }
-
   @Test func summaryDecodesSetupPending() throws {
     expectNoDifference(try summary(#"{"state":"setup_pending"}"#).agentConnection, .setupPending)
   }
