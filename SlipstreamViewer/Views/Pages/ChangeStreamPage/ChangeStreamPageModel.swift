@@ -75,6 +75,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var needsReadinessRefresh = false
+  @ObservationIgnored private var awaitsFreshSnapshot = false
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
   @ObservationIgnored private var barFrames: [String: CGRect] = [:]
@@ -364,6 +365,7 @@ final class ChangeStreamPageModel: ViewModel {
   func sessionSelected(_ id: String) {
     guard let session = sessions[id: id], session.id != selectedSession?.id else { return }
     selectedSession = session
+    awaitsFreshSnapshot = false
     resetFeed()
     startWatching()
   }
@@ -374,6 +376,7 @@ final class ChangeStreamPageModel: ViewModel {
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
+    watchedFollowerLeftLive()
   }
 
   func compareFunctionsTapped() {
@@ -494,6 +497,7 @@ final class ChangeStreamPageModel: ViewModel {
       )
       sessionsError = nil
       hasLoadedSessions = true
+      awaitsFreshSnapshot = false
       if let selectedID = selectedSession?.id {
         if let listed = sessions[id: selectedID] {
           selectedSession?.agentConnection = listed.agentConnection
@@ -592,15 +596,15 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func followerExited(_ exit: FollowerExit, generation: Int) {
     guard generation == watchGeneration else { return }
+    if case .cancelled = exit { return }
+    watchedFollowerLeftLive()
     switch exit {
     case .cancelled:
       return
     case .disconnected:
       connection = .disconnected
-      watchedFollowerLeftLive()
     case .sessionRemoved:
       connection = .sessionRemoved
-      watchedFollowerLeftLive()
     case .cursorAhead(let durableSeq):
       let daemonPosition = durableSeq.map { "#\($0)" } ?? "an earlier change"
       connection = .halted("Daemon history ends at \(daemonPosition) but this feed is at #\(lastAppliedSeq)")
@@ -675,11 +679,14 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {
     guard let watched = selectedSession, seq > watched.readinessSeq else { return }
+    if awaitsFreshSnapshot, reported == .connected { return }
     watchedReadinessChanged(reported, seq: seq)
   }
 
   private func watchedFollowerLeftLive() {
     needsReadinessRefresh = true
+    awaitsFreshSnapshot = true
+    sessionsGeneration += 1
     guard let watched = selectedSession, watched.agentConnection != .unreported else { return }
     watchedReadinessChanged(.disconnected(reason: nil), seq: max(watched.readinessSeq, lastAppliedSeq))
   }
