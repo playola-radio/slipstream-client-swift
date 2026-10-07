@@ -286,6 +286,24 @@ struct ChangeStreamPageTests {
     #expect(model.sections.isEmpty)
   }
 
+  @Test func gitScopeOutageRemainsVisibleAndRecoveryDoesNotEraseIt() async {
+    let model = await connectedModel()
+    await send(Fixture.frame(1, type: "slipstream.capture.scope.v1", data: [
+      "session_id": Fixture.session, "policy": "git", "status": "active",
+    ]))
+    #expect(model.sections.isEmpty)
+    await send(Fixture.frame(2, type: "slipstream.capture.scope.v1", data: [
+      "session_id": Fixture.session, "policy": "git", "status": "unavailable",
+    ]))
+    await send(Fixture.frame(3, type: "slipstream.capture.scope.v1", data: [
+      "session_id": Fixture.session, "policy": "git", "status": "active",
+    ]))
+    expectNoDifference(model.sections.flatMap { Array($0.items) }, [
+      .marker(FeedMarker(id: Fixture.seq(2), text: "Capture gap — Git couldn't determine which files to capture (whole session)"))
+    ])
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(3))
+  }
+
   @Test func reconnectResumesAfterLastAppliedSeqWithRediscoveredDescriptor() async {
     let model = await connectedModel()
     await send(Fixture.edited(1), Fixture.edited(2))
@@ -1679,5 +1697,59 @@ extension ChangeStreamPageTests {
     #expect(reply.isFollowUpDisabled)
     await send(to: 1, Fixture.questionAnswered(7, id: secondFollowUp))
     #expect(!reply.isFollowUpDisabled)
+  }
+}
+
+extension ChangeStreamPageTests {
+  @Test func largerTextRescalesAnExistingSourceSelection() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(
+      span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange
+    ))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    let block = blocks[0]
+    model.sourceDragged(
+      row: row, block: block, startY: 23, endY: 60,
+      frame: CGRect(x: 20, y: 100, width: 600, height: 88)
+    )
+    model.sourceDragEnded()
+    let composer = try #require(model.askAgent)
+    expectNoDifference(composer.context.lineStart, 2)
+    expectNoDifference(composer.context.lineEnd, 3)
+
+    model.$fontSizeStep.withLock { $0 = 5 }
+    model.sourceBlockMoved(
+      row: row, block: block, frame: CGRect(x: 20, y: 100, width: 600, height: 176)
+    )
+
+    expectNoDifference(composer.context.lineStart, 2)
+    expectNoDifference(composer.context.lineEnd, 3)
+    expectNoDifference(model.highlightRect(row: row, block: block, width: 600), CGRect(x: 0, y: 44, width: 600, height: 88))
+    expectNoDifference(model.selectionFrame, CGRect(x: 20, y: 144, width: 600, height: 88))
+  }
+
+  @Test func largerTextScalesSourceRowsAndSelection() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.$fontSizeStep.withLock { $0 = 5 }
+    expectNoDifference(model.sourceLineHeight, 44)
+    expectNoDifference(model.sourceLineNumberWidth, 50)
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\nlast\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 4, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    model.sourceDragged(row: row, block: blocks[0], startY: 45, endY: 100, frame: CGRect(x: 20, y: 100, width: 600, height: 176))
+    model.sourceDragEnded()
+    let composer = try #require(model.askAgent)
+    expectNoDifference(composer.context.lineStart, 2)
+    expectNoDifference(composer.context.lineEnd, 3)
+    expectNoDifference(model.highlightRect(row: row, block: blocks[0], width: 600), CGRect(x: 0, y: 44, width: 600, height: 88))
   }
 }

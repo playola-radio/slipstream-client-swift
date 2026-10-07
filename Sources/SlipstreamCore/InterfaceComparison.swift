@@ -87,6 +87,7 @@ public struct InterfaceGap: Equatable, Sendable {
     case watcherError = "watcher-error"
     case restart
     case storage
+    case captureScopeUnavailable = "capture-scope-unavailable"
   }
 
   public var seq: Seq
@@ -464,8 +465,8 @@ extension InterfaceInventory: Decodable {
     unknownScopesComplete = try container.decode(Bool.self, forKey: .unknownScopesComplete)
     let exclusions = try container.decode([String].self, forKey: .policyExclusions)
     let builtIn = ["store-directory", ".git", "symlinks"]
-    guard exclusions == builtIn || exclusions == builtIn + ["ignore-rules"] else {
-      throw container.corrupt(.policyExclusions, "must be the built-in exclusions, optionally followed by ignore-rules")
+    guard exclusions == builtIn || exclusions == builtIn + ["ignore-rules"] || exclusions == builtIn + ["git-ignored"] else {
+      throw container.corrupt(.policyExclusions, "must be the built-in exclusions, optionally followed by git-ignored or the preview ignore-rules marker")
     }
   }
 }

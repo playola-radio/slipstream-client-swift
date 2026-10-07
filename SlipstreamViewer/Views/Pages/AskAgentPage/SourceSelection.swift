@@ -9,14 +9,15 @@ struct SourceSelection: Equatable {
   let context: QuestionContext
 
   static func make(
-    sessionID: String, row: FileChangeRow, block: CodeBlock, startY: CGFloat, endY: CGFloat
+    sessionID: String, row: FileChangeRow, block: CodeBlock, startY: CGFloat, endY: CGFloat,
+    lineHeight: CGFloat
   ) -> Self? {
     guard case .content(let sha, _) = row.after, !block.lines.isEmpty,
       startY.isFinite, endY.isFinite, startY >= 0,
-      startY < CGFloat(block.lines.count) * DesignTokens.Card.lineHeight
+      startY < CGFloat(block.lines.count) * lineHeight
     else { return nil }
-    let start = Int(startY / DesignTokens.Card.lineHeight)
-    let end = Int(max(0, min(CGFloat(block.lines.count - 1), floor(endY / DesignTokens.Card.lineHeight))))
+    let start = Int(startY / lineHeight)
+    let end = Int(max(0, min(CGFloat(block.lines.count - 1), floor(endY / lineHeight))))
     let lines = block.lines[min(start, end)...max(start, end)]
     guard let first = lines.first, let last = lines.last,
       lines.enumerated().allSatisfy({ $0.element.id == first.id + $0.offset })
@@ -28,10 +29,10 @@ struct SourceSelection: Equatable {
       firstBlockLine: block.lines[0].id, context: context)
   }
 
-  func rect(in blockFrame: CGRect) -> CGRect {
+  func rect(in blockFrame: CGRect, lineHeight: CGFloat) -> CGRect {
     CGRect(x: blockFrame.minX,
-      y: blockFrame.minY + CGFloat(context.lineStart - firstBlockLine) * DesignTokens.Card.lineHeight,
-      width: blockFrame.width, height: CGFloat(context.lineEnd - context.lineStart + 1) * DesignTokens.Card.lineHeight)
+      y: blockFrame.minY + CGFloat(context.lineStart - firstBlockLine) * lineHeight,
+      width: blockFrame.width, height: CGFloat(context.lineEnd - context.lineStart + 1) * lineHeight)
   }
 }
 

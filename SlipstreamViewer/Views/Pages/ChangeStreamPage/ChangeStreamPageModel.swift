@@ -19,6 +19,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   @ObservationIgnored @Shared(.readAnswers) var readAnswers
   @ObservationIgnored @Shared(.replyDrafts) var replyDrafts
+  @ObservationIgnored @Shared(.fontSizeStep) var fontSizeStep
 
   // MARK: - Initialization
 
@@ -194,6 +195,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var composerWidth: CGFloat { max(0, min(DesignTokens.Ask.width, viewport.width - 2 * DesignTokens.Ask.viewportInset)) }
+  var sourceLineHeight: CGFloat { DesignTokens.Card.lineHeight * FontSize.scale(step: fontSizeStep) }
+  var sourceLineNumberWidth: CGFloat { DesignTokens.Card.lineNumberWidth * FontSize.scale(step: fontSizeStep) }
   var showsSelectionConnector: Bool {
     sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && !isFeedHidden
       && !selectionFrame.intersection(feedViewport).isEmpty
@@ -202,7 +205,7 @@ final class ChangeStreamPageModel: ViewModel {
   func highlightRect(row: FileChangeRow, block: CodeBlock, width: CGFloat) -> CGRect? {
     guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
       selection.rowID == row.id, selection.blockID == block.id else { return nil }
-    return selection.rect(in: CGRect(x: 0, y: 0, width: width, height: 0))
+    return selection.rect(in: CGRect(x: 0, y: 0, width: width, height: 0), lineHeight: sourceLineHeight)
   }
 
   func feedViewportChanged(_ frame: CGRect) { feedViewport = frame }
@@ -214,10 +217,11 @@ final class ChangeStreamPageModel: ViewModel {
       case .code(let loadedBlocks) = content(for: row), loadedBlocks.contains(block),
       sections.contains(where: { $0.items[id: row.id] == .file(row) })
     else { return }
-    let selection = SourceSelection.make(sessionID: sessionID, row: row, block: block, startY: startY, endY: endY)
+    let selection = SourceSelection.make(
+      sessionID: sessionID, row: row, block: block, startY: startY, endY: endY, lineHeight: sourceLineHeight)
     if sourceSelection != selection { sourceSelection = selection }
     isSourceBlockVisible = true
-    let rect = selection?.rect(in: frame) ?? .zero
+    let rect = selection?.rect(in: frame, lineHeight: sourceLineHeight) ?? .zero
     if selectionFrame != rect { selectionFrame = rect }
   }
 
@@ -234,7 +238,7 @@ final class ChangeStreamPageModel: ViewModel {
     guard let selection = sourceSelection, selection.sessionID == selectedSession?.id,
       selection.rowID == row.id, selection.blockID == block.id else { return }
     isSourceBlockVisible = true
-    let rect = selection.rect(in: frame)
+    let rect = selection.rect(in: frame, lineHeight: sourceLineHeight)
     if selectionFrame != rect { selectionFrame = rect }
   }
 

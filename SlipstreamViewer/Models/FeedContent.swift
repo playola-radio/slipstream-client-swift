@@ -131,6 +131,7 @@ enum PlainWords {
     case "watcher-error": "the file watcher failed"
     case "restart": "the daemon restarted"
     case "storage": "storage failed"
+    case "capture-scope-unavailable": "Git couldn't determine which files to capture"
     default: fallback(reason).lowercased()
     }
   }

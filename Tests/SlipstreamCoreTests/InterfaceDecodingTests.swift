@@ -23,26 +23,26 @@ struct InterfaceCorpusTests {
     let comparisons = try InterfaceFixtures.successCaseNames().map { try InterfaceComparison.decode(InterfaceFixtures.expected($0)) }
     let files = comparisons.flatMap(\.files)
     let rows = files.flatMap { rowsOf($0.changes) }
-    expectNoDifference(comparisons.count, 67)
-    expectNoDifference(files.count, 67)
-    expectNoDifference(rows.count, 38)
+    expectNoDifference(comparisons.count, 69)
+    expectNoDifference(files.count, 69)
+    expectNoDifference(rows.count, 40)
     expectNoDifference(
       tally(comparisons.map { label($0.status) }),
       [
-        "partial": 17, "ready": 46, "skipped(cancelled)": 1, "skipped(overloaded)": 1, "skipped(scan-limit)": 1,
+        "partial": 17, "ready": 48, "skipped(cancelled)": 1, "skipped(overloaded)": 1, "skipped(scan-limit)": 1,
         "skipped(timeout)": 1,
       ]
     )
     expectNoDifference(
       tally(comparisons.map { $0.inventory == nil && $0.gaps == nil ? "notEvaluated" : "resolved" }),
-      ["notEvaluated": 4, "resolved": 63]
+      ["notEvaluated": 4, "resolved": 65]
     )
     expectNoDifference(
       tally(files.map { label($0.status).split(separator: "(").first.map(String.init) ?? "" }),
-      ["identical": 6, "incomplete": 6, "ready": 43, "skipped": 3, "unavailable": 8, "unsupported": 1]
+      ["identical": 6, "incomplete": 6, "ready": 45, "skipped": 3, "unavailable": 8, "unsupported": 1]
     )
-    expectNoDifference(tally(files.map { language($0.changes) }), ["-": 3, "swift/swift.v1": 24, "typescript/typescript.v2": 40])
-    expectNoDifference(tally(rows.map { kindName($0.kind) }), ["added": 6, "removed": 6, "signatureChanged": 26])
+    expectNoDifference(tally(files.map { language($0.changes) }), ["-": 3, "swift/swift.v1": 24, "typescript/typescript.v2": 42])
+    expectNoDifference(tally(rows.map { kindName($0.kind) }), ["added": 6, "removed": 6, "signatureChanged": 28])
     expectNoDifference(files.filter { $0.before == .unknownBoundary }.count, 2)
     expectNoDifference(files.filter { $0.after.gapRef != nil }.count, 1)
     expectNoDifference(rows.filter { $0.result == nil }.count, 1)

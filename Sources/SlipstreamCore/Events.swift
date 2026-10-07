@@ -185,6 +185,16 @@ extension SlipstreamEvent {
     case "slipstream.capture.gap.v1":
       let gap = try decoder.decode(Envelope<CaptureGapData>.self, from: data).data
       return .captureGap(CaptureGap(reason: gap.reason, scope: try gap.scope.scope))
+    case "slipstream.capture.scope.v1":
+      let scope = try decoder.decode(Envelope<CaptureScopeData>.self, from: data).data
+      switch (scope.policy, scope.status) {
+      case ("git", "active"), ("filesystem", "active"):
+        return .recordedWithoutRow
+      case ("git", "unavailable"):
+        return .captureGap(CaptureGap(reason: "capture-scope-unavailable", scope: .session))
+      default:
+        throw EventDecodingError(seq: nil, type: nil)
+      }
     case "slipstream.session.resumed.v1":
       _ = try decoder.decode(Envelope<SessionResumedData>.self, from: data)
       return .sessionResumed
@@ -284,6 +294,12 @@ extension SlipstreamEvent {
   private struct CaptureGapData: Decodable {
     var reason: String
     var scope: ScopeData
+  }
+
+  private struct CaptureScopeData: Decodable {
+    var session_id: String
+    var policy: String
+    var status: String
   }
 
   private struct ScopeData: Decodable {
