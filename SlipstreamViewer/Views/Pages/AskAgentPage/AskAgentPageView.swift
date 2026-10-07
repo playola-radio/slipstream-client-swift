@@ -169,6 +169,7 @@ private struct AskIcon: View {
 private struct QuestionEditor: NSViewRepresentable {
   let model: AskAgentPageModel
   var dismiss: () -> Void
+  @Environment(\.fontScale) private var fontScale
 
   func makeCoordinator() -> Coordinator { Coordinator(model: model, dismiss: dismiss) }
 
@@ -179,7 +180,6 @@ private struct QuestionEditor: NSViewRepresentable {
     let text = QuestionTextView()
     text.isRichText = false
     text.drawsBackground = false
-    text.font = NSFont(name: "Geist", size: DesignTokens.Ask.editorFontSize)
     text.textColor = NSColor(DesignTokens.Ask.editorText)
     text.insertionPointColor = NSColor(DesignTokens.Ask.editorText)
     text.textContainerInset = NSSize(width: DesignTokens.Ask.editorPadding, height: DesignTokens.Ask.editorPadding)
@@ -187,10 +187,8 @@ private struct QuestionEditor: NSViewRepresentable {
     text.textContainer?.widthTracksTextView = true
     text.isVerticallyResizable = true
     text.autoresizingMask = [.width]
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.minimumLineHeight = DesignTokens.Ask.editorLineHeight
-    paragraph.maximumLineHeight = DesignTokens.Ask.editorLineHeight
-    text.defaultParagraphStyle = paragraph
+    applyTypography(to: text)
+    context.coordinator.fontScale = fontScale
     text.setAccessibilityLabel("Question")
     text.delegate = context.coordinator
     scroll.documentView = text
@@ -201,6 +199,11 @@ private struct QuestionEditor: NSViewRepresentable {
     guard let text = scroll.documentView as? NSTextView else { return }
     if text.string != model.draft { text.string = model.draft }
     text.isEditable = !model.isEditingDisabled
+    if context.coordinator.fontScale != fontScale {
+      context.coordinator.fontScale = fontScale
+      applyTypography(to: text)
+      if text.window?.firstResponder === text { text.scrollRangeToVisible(text.selectedRange()) }
+    }
     if context.coordinator.caretRevision != model.caretRevision {
       context.coordinator.caretRevision = model.caretRevision
       text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
@@ -209,9 +212,24 @@ private struct QuestionEditor: NSViewRepresentable {
     }
   }
 
+  private func applyTypography(to text: NSTextView) {
+    let font = NSFont(name: "Geist", size: DesignTokens.Ask.editorFontSize * fontScale)
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.minimumLineHeight = DesignTokens.Ask.editorLineHeight * fontScale
+    paragraph.maximumLineHeight = DesignTokens.Ask.editorLineHeight * fontScale
+    text.font = font
+    text.defaultParagraphStyle = paragraph
+    text.typingAttributes[.paragraphStyle] = paragraph
+    if let font { text.typingAttributes[.font] = font }
+    if let storage = text.textStorage {
+      storage.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: storage.length))
+    }
+  }
+
   final class Coordinator: NSObject, NSTextViewDelegate {
     let model: AskAgentPageModel
     var caretRevision = 0
+    var fontScale: CGFloat = 1
     let dismiss: () -> Void
     init(model: AskAgentPageModel, dismiss: @escaping () -> Void) {
       self.model = model

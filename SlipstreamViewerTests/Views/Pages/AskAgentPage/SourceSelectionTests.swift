@@ -16,19 +16,27 @@ struct SourceSelectionTests {
   ], truncationText: "… truncated")
 
   @Test func reverseDragMapsOnlyActualContiguousSourceRows() {
-    let selected = SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 53, endY: 2)
+    let selected = SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 53, endY: 2, lineHeight: 22)
     expectNoDifference(selected?.context.lineStart, 7)
     expectNoDifference(selected?.context.lineEnd, 9)
     expectNoDifference(selected?.context.changeSeq, "12")
     expectNoDifference(selected?.context.snapshotSHA256, String(repeating: "a", count: 64))
-    #expect(SourceSelection.make(sessionID: "capture", row: row, block: block, startY: -1, endY: 20) == nil)
-    #expect(SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 66, endY: 20) == nil)
+    #expect(SourceSelection.make(sessionID: "capture", row: row, block: block, startY: -1, endY: 20, lineHeight: 22) == nil)
+    #expect(SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 66, endY: 20, lineHeight: 22) == nil)
     var disjoint = block
     disjoint.lines.remove(at: 1)
-    #expect(SourceSelection.make(sessionID: "capture", row: row, block: disjoint, startY: 1, endY: 30) == nil)
+    #expect(SourceSelection.make(sessionID: "capture", row: row, block: disjoint, startY: 1, endY: 30, lineHeight: 22) == nil)
     var absent = row
     absent.after = .absent
-    #expect(SourceSelection.make(sessionID: "capture", row: absent, block: block, startY: 1, endY: 30) == nil)
+    #expect(SourceSelection.make(sessionID: "capture", row: absent, block: block, startY: 1, endY: 30, lineHeight: 22) == nil)
+  }
+
+  @Test func largerTextMapsDragsWithTheScaledLineHeight() {
+    let selected = SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 45, endY: 100, lineHeight: 44)
+    expectNoDifference(selected?.context.lineStart, 8)
+    expectNoDifference(selected?.context.lineEnd, 9)
+    expectNoDifference(selected?.rect(in: CGRect(x: 0, y: 100, width: 600, height: 0), lineHeight: 44),
+      CGRect(x: 0, y: 144, width: 600, height: 88))
   }
 
   @Test func highlightedTextDoesNotChangeTheSelectedSource() {
@@ -36,8 +44,8 @@ struct SourceSelectionTests {
     highlighted.lines[0].changedRanges = [2..<6]
     highlighted.lines[2].removalOffsets = [3]
     expectNoDifference(
-      SourceSelection.make(sessionID: "capture", row: row, block: highlighted, startY: 1, endY: 60),
-      SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 1, endY: 60)
+      SourceSelection.make(sessionID: "capture", row: row, block: highlighted, startY: 1, endY: 60, lineHeight: 22),
+      SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 1, endY: 60, lineHeight: 22)
     )
   }
 
