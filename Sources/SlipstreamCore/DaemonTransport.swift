@@ -4,17 +4,33 @@ public struct SessionSummary: Equatable, Sendable, Decodable, Identifiable {
   public var id: String
   public var durableSeq: Seq
   public var removed: Bool
+  public var agentConnection: AgentConnection
 
-  public init(id: String, durableSeq: Seq, removed: Bool) {
+  public init(id: String, durableSeq: Seq, removed: Bool, agentConnection: AgentConnection = .unreported) {
     self.id = id
     self.durableSeq = durableSeq
     self.removed = removed
+    self.agentConnection = agentConnection
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    durableSeq = try container.decode(Seq.self, forKey: .durableSeq)
+    removed = try container.decode(Bool.self, forKey: .removed)
+    if container.contains(.agentConnection) {
+      let wire = try? container.decode(AgentConnectionWire.self, forKey: .agentConnection)
+      agentConnection = wire?.connection ?? .disconnected(reason: nil)
+    } else {
+      agentConnection = .unreported
+    }
   }
 
   private enum CodingKeys: String, CodingKey {
     case id
     case durableSeq = "durable_seq"
     case removed
+    case agentConnection = "agent_connection"
   }
 }
 

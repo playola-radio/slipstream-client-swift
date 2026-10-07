@@ -113,6 +113,7 @@ public enum EventPayload: Equatable, Sendable {
   case questionQueued(QuestionQueued)
   case questionDispatchAttempted(QuestionDispatchAttempted)
   case questionAnswered(QuestionAnswered)
+  case agentConnection(AgentConnection)
   case recordedWithoutRow
   case unsupported(type: String)
 }
@@ -215,6 +216,9 @@ extension SlipstreamEvent {
           answeredAtMs: answer.answered_at_ms
         )
       )
+    case "slipstream.agent.connection.v1":
+      let connection = try decoder.decode(Envelope<AgentConnectionWire>.self, from: data).data
+      return .agentConnection(AgentConnection(state: connection.state))
     case _ where rowlessTypes.contains(type):
       return .recordedWithoutRow
     default:

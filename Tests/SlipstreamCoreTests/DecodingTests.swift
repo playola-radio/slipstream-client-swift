@@ -129,6 +129,77 @@ struct EventDecodingTests {
   }
 }
 
+struct AgentConnectionDecodingTests {
+  private func summary(_ connection: String?) throws -> SessionSummary {
+    let field = connection.map { #","agent_connection":\#($0)"# } ?? ""
+    let json = #"{"id":"s1","durable_seq":"12","removed":false\#(field)}"#
+    return try JSONDecoder().decode(SessionSummary.self, from: Data(json.utf8))
+  }
+
+  private func connectionEvent(_ state: String) throws -> EventPayload {
+    let json =
+      #"{"specversion":"1.0","id":"9","source":"urn:slipstream:session:s1","type":"slipstream.agent.connection.v1","datacontenttype":"application/json","seq":"9","data":{"state":"\#(state)","target":{"harness":"codex","harness_session_id":"h1","worktree":"/tmp/wt"},"session_id":"s1"}}"#
+    return try SlipstreamEvent.decode(Data(json.utf8)).payload
+  }
+
+  @Test func summaryDecodesConnected() throws {
+    expectNoDifference(try summary(#"{"state":"connected"}"#).agentConnection, .connected)
+  }
+
+  @Test func summaryDecodesSetupPending() throws {
+    expectNoDifference(try summary(#"{"state":"setup_pending"}"#).agentConnection, .setupPending)
+  }
+
+  @Test func summaryDecodesDisconnectedWithReason() throws {
+    expectNoDifference(
+      try summary(#"{"state":"disconnected","reason":"capture_not_live"}"#).agentConnection,
+      .disconnected(reason: "capture_not_live")
+    )
+    expectNoDifference(
+      try summary(#"{"state":"disconnected","reason":"no_agent"}"#).agentConnection,
+      .disconnected(reason: "no_agent")
+    )
+  }
+
+  @Test func summaryDecodesDisconnectedWithoutReason() throws {
+    expectNoDifference(try summary(#"{"state":"disconnected"}"#).agentConnection, .disconnected(reason: nil))
+  }
+
+  @Test func summaryWithoutFieldIsUnreported() throws {
+    expectNoDifference(try summary(nil).agentConnection, .unreported)
+  }
+
+  @Test func summaryWithUnknownStateFailsClosed() throws {
+    expectNoDifference(try summary(#"{"state":"quantum"}"#).agentConnection, .disconnected(reason: "quantum"))
+  }
+
+  @Test func summaryKeepsOtherFields() throws {
+    expectNoDifference(
+      try summary(#"{"state":"connected"}"#),
+      SessionSummary(id: "s1", durableSeq: Seq("12")!, removed: false, agentConnection: .connected)
+    )
+  }
+
+  @Test func eventDecodesSetupPending() throws {
+    expectNoDifference(try connectionEvent("setup_pending"), .agentConnection(.setupPending))
+  }
+
+  @Test func eventDecodesConnected() throws {
+    expectNoDifference(try connectionEvent("connected"), .agentConnection(.connected))
+  }
+
+  @Test func eventWithOtherStateFailsClosed() throws {
+    expectNoDifference(try connectionEvent("quantum"), .agentConnection(.disconnected(reason: "quantum")))
+  }
+
+  @Test func malformedEventThrowsWithSeqAndType() throws {
+    let json = #"{"id":"9","seq":"9","type":"slipstream.agent.connection.v1","data":{"session_id":"s1"}}"#
+    #expect(throws: EventDecodingError(seq: "9", type: "slipstream.agent.connection.v1")) {
+      try SlipstreamEvent.decode(Data(json.utf8))
+    }
+  }
+}
+
 struct ClipsDecodingTests {
   @Test func readyWithMultipleClips() throws {
     expectNoDifference(
