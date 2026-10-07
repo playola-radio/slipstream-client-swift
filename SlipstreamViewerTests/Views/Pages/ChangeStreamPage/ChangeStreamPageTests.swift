@@ -326,6 +326,19 @@ struct ChangeStreamPageTests {
     #expect(model.retryButtonText == "Retry")
   }
 
+  @Test func reloadingRolledBackHistoryResetsTheReadinessWatermark() async {
+    listSessions(.disconnected(reason: "capture_not_live"))
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.agentConnection(2, state: "connected"))
+    fake.close(throwing: DaemonHTTPError.status(409, durableSeq: Fixture.seq(1)))
+    await Task.megaYield()
+    model.retryTapped()
+    await Task.megaYield()
+    await send(Fixture.agentConnection(1, state: "connected"))
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+  }
+
   @Test func removedSessionStops() async {
     let model = await connectedModel()
     fake.close(throwing: DaemonHTTPError.status(410, durableSeq: nil))
@@ -1797,6 +1810,18 @@ extension ChangeStreamPageTests {
     expectNoDifference(composer.draft, "Why?")
   }
 
+  @Test func switchingCapturesDisablesTheRetainedOutgoingComposer() async {
+    listSessions(.connected, other: .connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    let composer = composer(model, agentConnection: .connected)
+    model.sessionSelected(Fixture.otherSession)
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
+  }
+
   @Test func aConnectionEventReplacesAnUnreportedState() async {
     listSessions(.unreported)
     let model = await connectedModel()
@@ -2004,6 +2029,33 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     daemon.send(Fixture.agentConnection(4, state: "connected"))
     await Task.megaYield()
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+  }
+
+  @Test func aNewConnectedEventIsAppliedAfterTheFreshSnapshot() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
+    open.yield()
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    await Task.megaYield()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    daemon.send(Fixture.agentConnection(1, state: "connected"))
+    await Task.megaYield()
+    daemon.close()
+    await Task.megaYield()
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(1), removed: false, agentConnection: .setupPending)])
+    await clock.advance(by: .milliseconds(500))
+    daemon.send(.heartbeat)
+    await Task.megaYield()
+    daemon.send(Fixture.agentConnection(2, state: "connected"))
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
     expectNoDifference(composer.agentConnection, .connected)
     #expect(composer.canSubmit)
   }

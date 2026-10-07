@@ -136,9 +136,10 @@ struct AgentConnectionDecodingTests {
     return try JSONDecoder().decode(SessionSummary.self, from: Data(json.utf8))
   }
 
-  private func connectionEvent(_ state: String) throws -> EventPayload {
+  private func connectionEvent(_ state: String, reason: String? = nil) throws -> EventPayload {
+    let reasonField = reason.map { #","reason":\#($0.debugDescription)"# } ?? ""
     let json =
-      #"{"specversion":"1.0","id":"9","source":"urn:slipstream:session:s1","type":"slipstream.agent.connection.v1","datacontenttype":"application/json","seq":"9","data":{"state":"\#(state)","target":{"harness":"codex","harness_session_id":"h1","worktree":"/tmp/wt"},"session_id":"s1"}}"#
+      #"{"specversion":"1.0","id":"9","source":"urn:slipstream:session:s1","type":"slipstream.agent.connection.v1","datacontenttype":"application/json","seq":"9","data":{"state":"\#(state)"\#(reasonField),"target":{"harness":"codex","harness_session_id":"h1","worktree":"/tmp/wt"},"session_id":"s1"}}"#
     return try SlipstreamEvent.decode(Data(json.utf8)).payload
   }
 
@@ -182,6 +183,13 @@ struct AgentConnectionDecodingTests {
 
   @Test func eventDecodesConnected() throws {
     expectNoDifference(try connectionEvent("connected"), .agentConnection(.connected))
+  }
+
+  @Test func eventDecodesDisconnectedWithReason() throws {
+    expectNoDifference(
+      try connectionEvent("disconnected", reason: "no_agent"),
+      .agentConnection(.disconnected(reason: "no_agent"))
+    )
   }
 
   @Test func eventWithOtherStateFailsClosed() throws {

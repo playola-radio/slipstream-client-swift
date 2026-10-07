@@ -218,7 +218,7 @@ extension SlipstreamEvent {
       )
     case "slipstream.agent.connection.v1":
       let connection = try decoder.decode(Envelope<AgentConnectionWire>.self, from: data).data
-      return .agentConnection(AgentConnection(state: connection.state))
+      return .agentConnection(connection.connection)
     case _ where rowlessTypes.contains(type):
       return .recordedWithoutRow
     default:
