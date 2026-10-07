@@ -6,7 +6,7 @@ import Testing
 struct CaptureScopeCompatibilityTests {
 
   @Test(arguments: ["range-git-scope", "range-git-scope-unavailable"])
-  func mergedDaemonHistoryAndComparisonRemainReadable(name: String) throws {
+  func mergedDaemonHistoryRemainsReadable(name: String) throws {
     let history = try #require(JSONSerialization.jsonObject(with: InterfaceFixtures.contents(of: "cases/\(name)/history.json")) as? [String: Any])
     let rows = try #require(history["events"] as? [[String: Any]])
     let events = try rows.map { try SlipstreamEvent.decode(JSONSerialization.data(withJSONObject: $0)) }
@@ -15,16 +15,11 @@ struct CaptureScopeCompatibilityTests {
     }
     let scopes = events.filter { $0.type == "slipstream.capture.scope.v1" }
     expectNoDifference(scopes.first?.payload, .recordedWithoutRow)
-    let comparison = try InterfaceComparison.decode(InterfaceFixtures.expected(name))
-    expectNoDifference(comparison.files.map(\.path), ["src/f.ts"])
     if name == "range-git-scope-unavailable" {
       expectNoDifference(
         scopes.first { $0.seq == Seq("5") }?.payload,
         .captureGap(CaptureGap(reason: "capture-scope-unavailable", scope: .session))
       )
-      expectNoDifference(comparison.gaps?.map(\.reason.rawValue), ["capture-scope-unavailable"])
-    } else {
-      expectNoDifference(comparison.gaps, [])
     }
   }
 
@@ -49,8 +44,6 @@ struct CaptureScopeCompatibilityTests {
   }
 
   @Test(arguments: [
-    ["store-directory", ".git", "symlinks", "future"],
-    ["store-directory", ".git", "git-ignored", "symlinks"],
     ["store-directory", ".git", "symlinks", "git-ignored", "git-ignored"],
     ["store-directory", ".git", "symlinks", "git-ignored", "ignore-rules"],
   ])

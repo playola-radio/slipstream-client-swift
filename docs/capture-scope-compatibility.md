@@ -23,4 +23,3 @@ model test verifies the warning is visible and remains after scope recovery.
 The operational live check uses a disposable Git repository and the compiled
 merged daemon: baseline and live ignored files stay absent, a TypeScript change
 appears, and an authenticated comparison returns the `git-ignored` marker.
-It does not benchmark the daemon or change admission limits.
