@@ -373,6 +373,9 @@ final class ChangeStreamPageModel: ViewModel {
     pendingConnectedReadiness = nil
     resetFeed()
     startWatching()
+    if let composer = askAgent, composer.sessionID == session.id {
+      Task { [weak self] in await self?.loadSessions() }
+    }
   }
 
   func viewDisappeared() {

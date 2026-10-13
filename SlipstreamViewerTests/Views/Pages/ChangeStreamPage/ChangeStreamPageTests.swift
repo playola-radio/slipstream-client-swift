@@ -1822,6 +1822,25 @@ extension ChangeStreamPageTests {
     #expect(!composer.canSubmit)
   }
 
+  @Test func returningToTheComposersCaptureRefreshesItsReadiness() async {
+    listSessions(.connected, other: .connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    let composer = composer(model, agentConnection: .connected)
+
+    model.sessionSelected(Fixture.otherSession)
+    #expect(!composer.canSubmit)
+
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+    expectNoDifference(composer.draft, "Why?")
+  }
+
   @Test func aConnectionEventReplacesAnUnreportedState() async {
     listSessions(.unreported)
     let model = await connectedModel()
