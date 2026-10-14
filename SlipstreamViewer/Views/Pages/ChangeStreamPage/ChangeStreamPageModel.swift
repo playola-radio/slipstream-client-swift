@@ -724,6 +724,7 @@ final class ChangeStreamPageModel: ViewModel {
         )
       )
     case .sessionResumed:
+      sections.append(FeedSection(id: event.seq, heading: nil))
       append(.marker(FeedMarker(id: event.seq, text: "Recording resumed")))
       questionThreads.apply(event)
       openReplyUpdated()

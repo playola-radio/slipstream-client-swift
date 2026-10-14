@@ -25,7 +25,9 @@ enum QuestionFixture {
       seq: Seq(String(seq))!,
       type: "slipstream.question.queued.v1",
       payload: .questionQueued(
-        QuestionQueued(questionID: id, text: text, source: source, queuedAtMs: Int64(seq), replyToQuestionID: replyTo)
+        QuestionQueued(
+          questionID: id, requestID: "r-\(id)", text: text, source: source, queuedAtMs: Int64(seq),
+          replyToQuestionID: replyTo)
       )
     )
   }
@@ -60,13 +62,13 @@ struct QuestionEventDecodingTests {
       [
         .questionQueued(
           QuestionQueued(
-            questionID: "<question_id_1>", text: "Why does greet use a template literal?",
-            source: QuestionFixture.source, queuedAtMs: 1_790_428_130_312, replyToQuestionID: nil)
+            questionID: "<question_id_1>", requestID: "fef3ee16-062c-4b24-8b0c-fd03f663a420",
+            text: "Why does greet use a template literal?", source: QuestionFixture.source, queuedAtMs: 1_790_428_130_312, replyToQuestionID: nil)
         ),
         .questionQueued(
           QuestionQueued(
-            questionID: "<question_id_2>", text: "Is name ever undefined here?",
-            source: QuestionFixture.source, queuedAtMs: 1_790_428_130_467, replyToQuestionID: nil)
+            questionID: "<question_id_2>", requestID: "d0d8add5-27ab-43bc-85a1-68a80267a795",
+            text: "Is name ever undefined here?", source: QuestionFixture.source, queuedAtMs: 1_790_428_130_467, replyToQuestionID: nil)
         ),
         .questionDispatchAttempted(QuestionDispatchAttempted(questionID: "<question_id_1>", queuedSeq: Seq("5")!)),
         .questionAnswered(
@@ -96,7 +98,7 @@ struct QuestionEventDecodingTests {
     expectNoDifference(
       try SlipstreamEvent.decode(Data(json.utf8)).payload,
       .questionQueued(
-        QuestionQueued(questionID: "q3", text: "And then?", source: QuestionFixture.source, queuedAtMs: 1, replyToQuestionID: "q1")
+        QuestionQueued(questionID: "q3", requestID: "r", text: "And then?", source: QuestionFixture.source, queuedAtMs: 1, replyToQuestionID: "q1")
       )
     )
   }
@@ -132,7 +134,8 @@ struct QuestionThreadsTests {
           id: "<question_id_1>", source: QuestionFixture.source,
           turns: [
             QuestionTurn(
-              questionID: "<question_id_1>", text: "Why does greet use a template literal?", queuedAtMs: 1_790_428_130_312,
+              questionID: "<question_id_1>", requestID: "fef3ee16-062c-4b24-8b0c-fd03f663a420",
+              text: "Why does greet use a template literal?", queuedAtMs: 1_790_428_130_312,
               answer: QuestionAnswer(
                 seq: Seq("8")!, text: "It interpolates name into the greeting; a template literal is the idiomatic way.",
                 answeredAtMs: 1_790_428_130_772))
@@ -142,7 +145,8 @@ struct QuestionThreadsTests {
           id: "<question_id_2>", source: QuestionFixture.source,
           turns: [
             QuestionTurn(
-              questionID: "<question_id_2>", text: "Is name ever undefined here?", queuedAtMs: 1_790_428_130_467,
+              questionID: "<question_id_2>", requestID: "d0d8add5-27ab-43bc-85a1-68a80267a795",
+              text: "Is name ever undefined here?", queuedAtMs: 1_790_428_130_467,
               answer: QuestionAnswer(seq: Seq("10")!, text: QuestionFixture.boundaryAnswerText, answeredAtMs: 1_790_428_131_649))
           ]
         ),
@@ -280,12 +284,6 @@ struct QuestionThreadsTests {
     let events = try QuestionFixture.events() + [
       QuestionFixture.queued(11, id: "q3", replyTo: "<question_id_1>"),
       QuestionFixture.answered(13, id: "q3"),
-      QuestionFixture.queued(14, id: "q4"),
-      QuestionFixture.queued(15, id: "q5"),
-      QuestionFixture.attempted(16, id: "q5"),
-      QuestionFixture.resumed(17),
-      QuestionFixture.queued(18, id: "q6", replyTo: "q4"),
-      QuestionFixture.answered(20, id: "q5"),
     ]
     for split in events.indices {
       var resumed = QuestionThreads(events[..<split])

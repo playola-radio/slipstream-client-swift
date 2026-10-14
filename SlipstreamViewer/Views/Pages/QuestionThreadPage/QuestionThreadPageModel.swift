@@ -154,8 +154,8 @@ final class QuestionThreadPageModel: ViewModel {
   // MARK: - Private Helpers
 
   private var isRetainedRequestDropped: Bool {
-    guard let request = replyDraft.request, let latest = thread.turns.last else { return false }
-    return latest.status == .notDelivered && request.replyToQuestionID != latest.questionID
+    guard let request = replyDraft.request else { return false }
+    return thread.turns.contains { $0.requestID == request.requestID && $0.status == .notDelivered }
   }
 
   private func updateReplyDraft(_ body: (inout ReplyDraft) -> Void) {

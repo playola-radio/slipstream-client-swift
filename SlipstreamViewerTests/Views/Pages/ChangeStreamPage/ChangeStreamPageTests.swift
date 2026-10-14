@@ -255,7 +255,13 @@ struct ChangeStreamPageTests {
           id: Fixture.seq(5),
           heading: TaskHeading(number: "02", title: "Update checks"),
           items: [
-            .marker(FeedMarker(id: Fixture.seq(6), text: "Capture gap — the file watcher failed (src/)")),
+            .marker(FeedMarker(id: Fixture.seq(6), text: "Capture gap — the file watcher failed (src/)"))
+          ]
+        ),
+        FeedSection(
+          id: Fixture.seq(7),
+          heading: nil,
+          items: [
             .marker(FeedMarker(id: Fixture.seq(7), text: "Recording resumed")),
             .marker(FeedMarker(id: Fixture.seq(8), text: "Unsupported event: slipstream.future.thing.v1")),
           ]
@@ -275,6 +281,19 @@ struct ChangeStreamPageTests {
         .marker(FeedMarker(id: Fixture.seq(2), text: "Capture gap — nothing was recorded while capture was stopped (whole session)")),
       ]
     )
+  }
+
+  @Test func changesAfterAResumeAreNotFiledUnderThePreviousTask() async {
+    let model = await connectedModel()
+    await send(
+      Fixture.taskStarted(1, "Convert isActive"),
+      Fixture.edited(2),
+      Fixture.sessionResumed(3),
+      Fixture.restartGap(4),
+      Fixture.edited(5)
+    )
+    expectNoDifference(model.sections.map(\.heading?.title), ["Convert isActive", nil])
+    #expect(model.sections[1].items.ids == [Fixture.seq(3), Fixture.seq(4), Fixture.seq(5)])
   }
 
   @Test func duplicateSeqIsIgnored() async {
@@ -1132,7 +1151,7 @@ extension ChangeStreamPageTests {
     ]
     await send(
       Fixture.frame(1, type: "slipstream.question.queued.v1", data: [
-        "question_id": "q1", "text": "Why?", "context": context, "queued_at_ms": 1,
+        "question_id": "q1", "request_id": "r-q1", "text": "Why?", "context": context, "queued_at_ms": 1,
       ]),
       Fixture.frame(2, type: "slipstream.question.dispatch_attempted.v1", data: ["question_id": "q1", "queued_seq": "1"]),
       Fixture.frame(3, type: "slipstream.question.answered.v1", data: [

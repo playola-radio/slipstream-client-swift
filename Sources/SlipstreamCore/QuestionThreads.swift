@@ -20,15 +20,18 @@ public struct QuestionTurn: Equatable, Sendable {
   }
 
   public let questionID: String
+  public let requestID: String
   public let text: String
   public let queuedAtMs: Int64
   public var answer: QuestionAnswer?
   public var isDropped: Bool
 
   public init(
-    questionID: String, text: String, queuedAtMs: Int64, answer: QuestionAnswer? = nil, isDropped: Bool = false
+    questionID: String, requestID: String, text: String, queuedAtMs: Int64, answer: QuestionAnswer? = nil,
+    isDropped: Bool = false
   ) {
     self.questionID = questionID
+    self.requestID = requestID
     self.text = text
     self.queuedAtMs = queuedAtMs
     self.answer = answer
@@ -70,7 +73,9 @@ public struct QuestionThreads: Equatable, Sendable {
     switch event.payload {
     case .questionQueued(let question):
       guard rootByQuestionID[question.questionID] == nil else { return }
-      let turn = QuestionTurn(questionID: question.questionID, text: question.text, queuedAtMs: question.queuedAtMs)
+      let turn = QuestionTurn(
+        questionID: question.questionID, requestID: question.requestID, text: question.text,
+        queuedAtMs: question.queuedAtMs)
       if let parentID = question.replyToQuestionID {
         guard let rootID = rootByQuestionID[parentID] else { return }
         rootByQuestionID[question.questionID] = rootID

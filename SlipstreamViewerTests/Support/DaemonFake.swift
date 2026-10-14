@@ -303,6 +303,7 @@ enum Fixture {
   ) -> StreamItem {
     var data: [String: Any] = [
       "question_id": id,
+      "request_id": "r-\(id)",
       "text": text,
       "queued_at_ms": observedAtMs,
       "context": [

@@ -17,10 +17,11 @@ struct QuestionThreadPageTests {
 
   static let key = QuestionThreadKey(storeID: "store-a", sessionID: Fixture.session, rootQuestionID: "q1")
   static let answered = QuestionTurn(
-    questionID: "q1", text: "Why?", queuedAtMs: Fixture.observedAtMs,
+    questionID: "q1", requestID: "r-q1", text: "Why?", queuedAtMs: Fixture.observedAtMs,
     answer: QuestionAnswer(seq: Fixture.seq(3), text: "Because.", answeredAtMs: Fixture.observedAtMs))
-  static let waiting = QuestionTurn(questionID: "q2", text: "And then?", queuedAtMs: Fixture.observedAtMs)
-  static let notDelivered = QuestionTurn(questionID: "q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isDropped: true)
+  static let waiting = QuestionTurn(questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs)
+  static let notDelivered = QuestionTurn(
+    questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isDropped: true)
 
   static func source(lines: ClosedRange<Int> = 7...9) -> QuestionSource {
     QuestionSource(
@@ -110,7 +111,7 @@ struct QuestionThreadPageTests {
 
 extension QuestionThreadPageTests {
   static let followUp = QuestionTurn(
-    questionID: "q2", text: "And then?", queuedAtMs: Fixture.observedAtMs,
+    questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs,
     answer: QuestionAnswer(seq: Fixture.seq(5), text: "Then this.", answeredAtMs: Fixture.observedAtMs))
 
   static func thread(_ turns: [QuestionTurn]) -> QuestionThread {
@@ -143,10 +144,10 @@ extension QuestionThreadPageTests {
     model.draft = "Too soon"
     expectNoDifference(model.draft, "")
     let queuedID = "33333333-3333-4333-8333-333333333333"
-    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(questionID: queuedID, text: "And then?", queuedAtMs: 1)]))
+    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(questionID: queuedID, requestID: "r", text: "And then?", queuedAtMs: 1)]))
     #expect(model.isFollowUpDisabled)
     model.threadUpdated(Self.thread([Self.answered, QuestionTurn(
-      questionID: queuedID, text: "And then?", queuedAtMs: 1,
+      questionID: queuedID, requestID: "r", text: "And then?", queuedAtMs: 1,
       answer: QuestionAnswer(seq: Fixture.seq(7), text: "Then.", answeredAtMs: 2))]))
     #expect(!model.isFollowUpDisabled)
   }
@@ -161,12 +162,12 @@ extension QuestionThreadPageTests {
     model.draft = "And then?"
     let send = Task { await model.sendReplyTapped() }
     await Task.megaYield()
-    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(questionID: queuedID, text: "And then?", queuedAtMs: 1)]))
+    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(questionID: queuedID, requestID: "r", text: "And then?", queuedAtMs: 1)]))
     resume.yield()
     await send.value
     #expect(model.isFollowUpDisabled)
     model.threadUpdated(Self.thread([Self.answered, QuestionTurn(
-      questionID: queuedID, text: "And then?", queuedAtMs: 1,
+      questionID: queuedID, requestID: "r", text: "And then?", queuedAtMs: 1,
       answer: QuestionAnswer(seq: Fixture.seq(7), text: "Then.", answeredAtMs: 2))]))
     #expect(!model.isFollowUpDisabled)
   }
@@ -201,7 +202,8 @@ extension QuestionThreadPageTests {
     }
     model.draft = "And then?"
     await model.sendReplyTapped()
-    model.threadUpdated(Self.thread([Self.answered, Self.notDelivered]))
+    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(
+      questionID: "q2", requestID: requests.value[0].requestID, text: "And then?", queuedAtMs: 1, isDropped: true)]))
     expectNoDifference(model.uncertaintyNotice, nil)
     await model.sendReplyTapped()
     expectNoDifference(requests.value.map(\.requestID), [
@@ -219,6 +221,27 @@ extension QuestionThreadPageTests {
     }
     model.draft = "And then?"
     await model.sendReplyTapped()
+    #expect(model.uncertaintyNotice != nil)
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.count, 2)
+    expectNoDifference(requests.value[1], requests.value[0])
+  }
+
+  @Test func anUncertainReplyThatWasAnsweredIsReusedWhenAnotherWindowsLaterTurnWasDropped() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      throw QuestionError.outcomeUnknown
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    model.threadUpdated(Self.thread([
+      Self.answered,
+      QuestionTurn(
+        questionID: "q2", requestID: requests.value[0].requestID, text: "And then?", queuedAtMs: 1,
+        answer: QuestionAnswer(seq: Fixture.seq(7), text: "Then.", answeredAtMs: 2)),
+      QuestionTurn(questionID: "q3", requestID: "r-other-window", text: "Why?", queuedAtMs: 3, isDropped: true),
+    ]))
     #expect(model.uncertaintyNotice != nil)
     await model.sendReplyTapped()
     expectNoDifference(requests.value.count, 2)
@@ -257,7 +280,7 @@ extension QuestionThreadPageTests {
     model.draft = "And then?"
     await model.sendReplyTapped()
     model.threadUpdated(Self.thread([Self.answered, QuestionTurn(
-      questionID: "33333333-3333-4333-8333-333333333333", text: "And then?", queuedAtMs: 1,
+      questionID: "33333333-3333-4333-8333-333333333333", requestID: "r", text: "And then?", queuedAtMs: 1,
       answer: QuestionAnswer(seq: Fixture.seq(7), text: "Then.", answeredAtMs: 2))]))
     let retry = Task { await model.sendReplyTapped() }
     await Task.megaYield()
@@ -303,7 +326,7 @@ extension QuestionThreadPageTests {
   @Test func sentReplyEncodesItsParentOnTheWire() async throws {
     let parentID = "44444444-4444-4444-8444-444444444444"
     let parent = QuestionTurn(
-      questionID: parentID, text: "Why?", queuedAtMs: Fixture.observedAtMs,
+      questionID: parentID, requestID: "r", text: "Why?", queuedAtMs: Fixture.observedAtMs,
       answer: QuestionAnswer(seq: Fixture.seq(3), text: "Because.", answeredAtMs: Fixture.observedAtMs))
     let bodies = LockIsolated<[Data]>([])
     let model = makeModel([parent], uuid: UUIDGenerator { UUID(uuidString: "55555555-5555-4555-8555-555555555555")! }) { request in
