@@ -273,6 +273,10 @@ enum Fixture {
     )
   }
 
+  static func restartGap(_ value: Int) -> StreamItem {
+    frame(value, type: "slipstream.capture.gap.v1", data: ["session_id": session, "reason": "restart", "scope": ["kind": "session"]])
+  }
+
   static func sessionResumed(_ value: Int) -> StreamItem {
     frame(value, type: "slipstream.session.resumed.v1", data: ["session_id": session])
   }
@@ -308,6 +312,10 @@ enum Fixture {
     ]
     if let parentID { data["reply_to_question_id"] = parentID }
     return frame(value, type: "slipstream.question.queued.v1", data: data)
+  }
+
+  static func questionDispatchAttempted(_ value: Int, id: String, queuedSeq: Int) -> StreamItem {
+    frame(value, type: "slipstream.question.dispatch_attempted.v1", data: ["question_id": id, "queued_seq": String(queuedSeq)])
   }
 
   static func questionAnswered(_ value: Int, id: String, text: String = "Because.") -> StreamItem {

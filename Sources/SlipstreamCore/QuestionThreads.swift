@@ -16,21 +16,29 @@ public struct QuestionTurn: Equatable, Sendable {
   public enum Status: Equatable, Sendable {
     case waiting
     case answered
+    case notDelivered
   }
 
   public let questionID: String
   public let text: String
   public let queuedAtMs: Int64
   public var answer: QuestionAnswer?
+  public var isDropped: Bool
 
-  public init(questionID: String, text: String, queuedAtMs: Int64, answer: QuestionAnswer? = nil) {
+  public init(
+    questionID: String, text: String, queuedAtMs: Int64, answer: QuestionAnswer? = nil, isDropped: Bool = false
+  ) {
     self.questionID = questionID
     self.text = text
     self.queuedAtMs = queuedAtMs
     self.answer = answer
+    self.isDropped = isDropped
   }
 
-  public var status: Status { answer == nil ? .waiting : .answered }
+  public var status: Status {
+    if answer != nil { return .answered }
+    return isDropped ? .notDelivered : .waiting
+  }
 }
 
 public struct QuestionThread: Identifiable, Equatable, Sendable {
@@ -48,6 +56,7 @@ public struct QuestionThread: Identifiable, Equatable, Sendable {
 public struct QuestionThreads: Equatable, Sendable {
   public private(set) var threads: IdentifiedArrayOf<QuestionThread> = []
   private var rootByQuestionID: [String: String] = [:]
+  private var undispatchedQuestionIDs: Set<String> = []
 
   public init() {}
 
@@ -70,6 +79,17 @@ public struct QuestionThreads: Equatable, Sendable {
         rootByQuestionID[question.questionID] = question.questionID
         threads.append(QuestionThread(id: question.questionID, source: question.source, turns: [turn]))
       }
+      undispatchedQuestionIDs.insert(question.questionID)
+    case .questionDispatchAttempted(let attempt):
+      undispatchedQuestionIDs.remove(attempt.questionID)
+    case .sessionResumed:
+      for questionID in undispatchedQuestionIDs {
+        guard let rootID = rootByQuestionID[questionID],
+          let index = threads[id: rootID]?.turns.firstIndex(where: { $0.questionID == questionID })
+        else { continue }
+        threads[id: rootID]?.turns[index].isDropped = true
+      }
+      undispatchedQuestionIDs.removeAll()
     case .questionAnswered(let answer):
       guard
         let rootID = rootByQuestionID[answer.questionID],

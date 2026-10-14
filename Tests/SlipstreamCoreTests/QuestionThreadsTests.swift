@@ -30,6 +30,18 @@ enum QuestionFixture {
     )
   }
 
+  static func attempted(_ seq: Int, id: String) -> SlipstreamEvent {
+    SlipstreamEvent(
+      seq: Seq(String(seq))!,
+      type: "slipstream.question.dispatch_attempted.v1",
+      payload: .questionDispatchAttempted(QuestionDispatchAttempted(questionID: id, queuedSeq: Seq(String(seq - 1))!))
+    )
+  }
+
+  static func resumed(_ seq: Int) -> SlipstreamEvent {
+    SlipstreamEvent(seq: Seq(String(seq))!, type: "slipstream.session.resumed.v1", payload: .sessionResumed)
+  }
+
   static func answered(_ seq: Int, id: String, text: String = "Because.") -> SlipstreamEvent {
     SlipstreamEvent(
       seq: Seq(String(seq))!,
@@ -211,10 +223,69 @@ struct QuestionThreadsTests {
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.questionID), ["q1", "q2"])
   }
 
+  @Test func aQuestionNotYetDispatchedWhenRecordingResumesIsNotDelivered() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.resumed(2),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.notDelivered])
+  }
+
+  @Test func aQuestionDispatchedBeforeTheResumeKeepsWaitingAndCanStillBeAnswered() {
+    var threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.resumed(3),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.waiting])
+    threads.apply(QuestionFixture.answered(5, id: "q1"))
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
+  }
+
+  @Test func answeredTurnsStayAnsweredAcrossAResume() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.answered(3, id: "q1"),
+      QuestionFixture.resumed(4),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
+  }
+
+  @Test func onlyQuestionsQueuedBeforeTheLatestResumeAreNotDelivered() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.resumed(2),
+      QuestionFixture.queued(3, id: "q2"),
+      QuestionFixture.resumed(4),
+      QuestionFixture.queued(5, id: "q3"),
+    ])
+    expectNoDifference(threads.threads.map { $0.turns.map(\.status) }, [[.notDelivered], [.notDelivered], [.waiting]])
+  }
+
+  @Test func aFollowUpAfterAnUndeliveredTurnJoinsTheThreadAndWaits() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1", text: "First"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.answered(3, id: "q1"),
+      QuestionFixture.queued(4, id: "q2", text: "Second", replyTo: "q1"),
+      QuestionFixture.resumed(5),
+      QuestionFixture.queued(6, id: "q3", text: "Second again", replyTo: "q2"),
+    ])
+    expectNoDifference(threads.threads.ids, ["q1"])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered, .notDelivered, .waiting])
+  }
+
   @Test func liveFollowAfterAnyReplayedPrefixMatchesReplayFromZero() throws {
     let events = try QuestionFixture.events() + [
       QuestionFixture.queued(11, id: "q3", replyTo: "<question_id_1>"),
       QuestionFixture.answered(13, id: "q3"),
+      QuestionFixture.queued(14, id: "q4"),
+      QuestionFixture.queued(15, id: "q5"),
+      QuestionFixture.attempted(16, id: "q5"),
+      QuestionFixture.resumed(17),
+      QuestionFixture.queued(18, id: "q6", replyTo: "q4"),
+      QuestionFixture.answered(20, id: "q5"),
     ]
     for split in events.indices {
       var resumed = QuestionThreads(events[..<split])

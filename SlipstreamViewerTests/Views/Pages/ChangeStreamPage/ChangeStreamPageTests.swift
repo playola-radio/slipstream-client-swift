@@ -256,13 +256,25 @@ struct ChangeStreamPageTests {
           heading: TaskHeading(number: "02", title: "Update checks"),
           items: [
             .marker(FeedMarker(id: Fixture.seq(6), text: "Capture gap — the file watcher failed (src/)")),
-            .marker(FeedMarker(id: Fixture.seq(7), text: "Session resumed after the daemon restarted")),
+            .marker(FeedMarker(id: Fixture.seq(7), text: "Recording resumed")),
             .marker(FeedMarker(id: Fixture.seq(8), text: "Unsupported event: slipstream.future.thing.v1")),
           ]
         ),
       ]
     )
     #expect(model.newestFileID == Fixture.seq(4))
+  }
+
+  @Test func aResumeSaysRecordingResumedAndThatNothingWasRecordedWhileStopped() async {
+    let model = await connectedModel()
+    await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
+    expectNoDifference(
+      model.sections.flatMap(\.items),
+      [
+        .marker(FeedMarker(id: Fixture.seq(1), text: "Recording resumed")),
+        .marker(FeedMarker(id: Fixture.seq(2), text: "Capture gap — nothing was recorded while capture was stopped (whole session)")),
+      ]
+    )
   }
 
   @Test func duplicateSeqIsIgnored() async {
@@ -1418,6 +1430,30 @@ extension ChangeStreamPageTests {
     #expect(try bar(model, "q1").status == .answered)
   }
 
+  @Test func aQuestionQueuedBeforeARestartIsMarkedNotDeliveredAndCanBeAskedAgain() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    let reply = try open(model, "q1")
+    #expect(reply.isFollowUpDisabled)
+    await send(Fixture.sessionResumed(3))
+    expectNoDifference(try bar(model, "q1").status, .notDelivered)
+    expectNoDifference(try bar(model, "q1").statusText, "Not delivered")
+    expectNoDifference(reply.thread.turns.map(\.status), [.notDelivered])
+    #expect(!reply.isFollowUpDisabled)
+  }
+
+  @Test func aQuestionAlreadySentToTheAgentKeepsWaitingAfterARestart() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionDispatchAttempted(3, id: "q1", queuedSeq: 2),
+      Fixture.sessionResumed(4))
+    expectNoDifference(try bar(model, "q1").status, .waiting)
+  }
+
   @Test func anEarlierUnansweredFollowUpKeepsTheThreadWaiting() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
@@ -1993,6 +2029,42 @@ extension ChangeStreamPageTests {
     let callsBefore = fake.sessionsCallCount
     await send(Fixture.edited(1), Fixture.edited(2))
     expectNoDifference(model.footerText, "Recording ended")
+    expectNoDifference(fake.sessionsCallCount, callsBefore)
+  }
+
+  @Test func aResumeDisablesAskUntilTheAgentConnectsAgain() async {
+    listSessions(.connected)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    #expect(composer.canSubmit)
+    await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
+    await send(Fixture.agentConnection(3, state: "connected"))
+    expectNoDifference(composer.agentConnection, .connected)
+    #expect(composer.canSubmit)
+  }
+
+  @Test func aResumeRefreshesTheSessionsSoACaptureWithoutAnAgentStillShowsRecording() async {
+    listSessions(.connected)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    listSessions(.disconnected(reason: "no_agent"), durableSeq: 2)
+    let callsBefore = fake.sessionsCallCount
+    await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
+    expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: "no_agent"))
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Recording")
+  }
+
+  @Test func replayingAnOldResumeKeepsTheListedReadiness() async {
+    listSessions(.connected, durableSeq: 2)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    let callsBefore = fake.sessionsCallCount
+    await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
     expectNoDifference(fake.sessionsCallCount, callsBefore)
   }
 

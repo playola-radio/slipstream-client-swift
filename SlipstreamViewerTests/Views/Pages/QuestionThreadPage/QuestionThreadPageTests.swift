@@ -20,6 +20,7 @@ struct QuestionThreadPageTests {
     questionID: "q1", text: "Why?", queuedAtMs: Fixture.observedAtMs,
     answer: QuestionAnswer(seq: Fixture.seq(3), text: "Because.", answeredAtMs: Fixture.observedAtMs))
   static let waiting = QuestionTurn(questionID: "q2", text: "And then?", queuedAtMs: Fixture.observedAtMs)
+  static let notDelivered = QuestionTurn(questionID: "q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isDropped: true)
 
   static func source(lines: ClosedRange<Int> = 7...9) -> QuestionSource {
     QuestionSource(
@@ -78,6 +79,24 @@ struct QuestionThreadPageTests {
     #expect(!model.isFollowUpDisabled)
     model.draft = "Kept"
     expectNoDifference(model.draft, "Kept")
+  }
+
+  @Test func anUnansweredTurnSaysWhetherItIsWaitingOrWasNotDelivered() {
+    let model = makeModel([Self.answered, Self.waiting])
+    expectNoDifference(model.unansweredText(Self.waiting), "Waiting for the agent to answer…")
+    expectNoDifference(model.unansweredText(Self.notDelivered), "Not delivered — recording restarted. Ask again.")
+  }
+
+  @Test func aLatestTurnThatWasNotDeliveredCanBeAskedAgainAsANewFollowUp() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered, Self.notDelivered]) { request in
+      requests.withValue { $0.append(request) }
+      return try AskAgentPageTests.ack(request)
+    }
+    #expect(!model.isFollowUpDisabled)
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.replyToQuestionID), ["q2"])
   }
 
   @Test func displayingAnAnswerMarksOnlyThatAnswerRead() {

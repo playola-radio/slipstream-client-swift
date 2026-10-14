@@ -51,6 +51,7 @@ final class QuestionThreadPageModel: ViewModel {
   let title = "Talk to the agent"
   let closeText = "Close reply"
   let waitingText = "Waiting for the agent to answer…"
+  let notDeliveredText = "Not delivered — recording restarted. Ask again."
   let followUpPlaceholder = "Ask a follow-up…"
   let sendText = "Send reply"
   let errorTitle = "Reply not confirmed"
@@ -68,6 +69,10 @@ final class QuestionThreadPageModel: ViewModel {
     replyDraft.hasUncertainSubmission
       ? "An earlier reply may already be queued. Send it unchanged to reuse its request ID; editing sends a separate question."
       : nil
+  }
+
+  func unansweredText(_ turn: QuestionTurn) -> String {
+    turn.status == .notDelivered ? notDeliveredText : waitingText
   }
 
   func answerText(_ answer: QuestionAnswer) -> String {
@@ -89,7 +94,8 @@ final class QuestionThreadPageModel: ViewModel {
     let isAwaitingQueuedTurn = draft.queuedTurn.map { queued in
       !thread.turns.contains { $0.questionID == queued.questionID }
     } ?? false
-    return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn || thread.turns.last?.answer == nil
+    return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn
+      || (thread.turns.last?.status ?? .waiting) == .waiting
   }
 
   var canSendReply: Bool {

@@ -131,7 +131,7 @@ enum PlainWords {
     case "coalesced": "changes were coalesced"
     case "baseline-unreadable": "the starting version couldn't be read"
     case "watcher-error": "the file watcher failed"
-    case "restart": "the daemon restarted"
+    case "restart": "nothing was recorded while capture was stopped"
     case "storage": "storage failed"
     case "capture-scope-unavailable": "Git couldn't determine which files to capture"
     default: fallback(reason).lowercased()

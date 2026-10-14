@@ -724,27 +724,31 @@ final class ChangeStreamPageModel: ViewModel {
         )
       )
     case .sessionResumed:
-      append(.marker(FeedMarker(id: event.seq, text: "Session resumed after the daemon restarted")))
+      append(.marker(FeedMarker(id: event.seq, text: "Recording resumed")))
+      questionThreads.apply(event)
+      openReplyUpdated()
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
     case .questionQueued, .questionAnswered:
       let previousTurnCount = previousTurnCount(beforeApplying: event)
       questionThreads.apply(event)
       shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
-      if let reply, let thread = questionThreads.threads[id: reply.key.rootQuestionID] {
-        reply.threadUpdated(thread)
-      }
+      openReplyUpdated()
       if follow == .following { scrollToLatestRequest += 1 }
+    case .questionDispatchAttempted:
+      questionThreads.apply(event)
     case .agentConnection(let state):
       watchedAgentConnectionReported(state, seq: event.seq)
     case .recordedWithoutRow:
       if event.type == "slipstream.capture.baseline.completed.v1", baselineCompletedSeq == nil {
         baselineCompletedSeq = event.seq
       }
-    case .sessionStarted, .questionDispatchAttempted:
+    case .sessionStarted:
       break
     }
-    if watchedRecordingState == .ended, let watched = selectedSession, event.seq > watched.readinessSeq {
+    if watchedRecordingState == .ended || event.payload == .sessionResumed, let watched = selectedSession,
+      event.seq > watched.readinessSeq
+    {
       watchedReadinessChanged(.disconnected(reason: nil), seq: event.seq)
       Task { [weak self] in await self?.loadSessions() }
     }
@@ -806,6 +810,11 @@ final class ChangeStreamPageModel: ViewModel {
       .turns.count
   }
 
+  private func openReplyUpdated() {
+    guard let reply, let thread = questionThreads.threads[id: reply.key.rootQuestionID] else { return }
+    reply.threadUpdated(thread)
+  }
+
   private func shareQueuedFollowUp(_ event: SlipstreamEvent, previousTurnCount: Int?) {
     guard case .questionQueued(let question) = event.payload, question.replyToQuestionID != nil,
       let sessionID = selectedSession?.id,
@@ -864,7 +873,8 @@ final class ChangeStreamPageModel: ViewModel {
       return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
     }
     if hasUnread { return .newReply }
-    return thread.turns.contains { $0.answer == nil } ? .waiting : .answered
+    if thread.turns.contains(where: { $0.status == .waiting }) { return .waiting }
+    return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }
 
   private func resetFeed() {
