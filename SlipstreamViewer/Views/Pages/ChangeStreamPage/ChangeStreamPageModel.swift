@@ -76,7 +76,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var needsReadinessRefresh = false
   @ObservationIgnored private var awaitsFreshSnapshot = false
-  @ObservationIgnored private var pendingConnectedReadiness: (state: AgentConnection, seq: Seq)?
+  @ObservationIgnored private var pendingReadiness: (state: AgentConnection, seq: Seq)?
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
   @ObservationIgnored private var barFrames: [String: CGRect] = [:]
@@ -113,6 +113,10 @@ final class ChangeStreamPageModel: ViewModel {
     selectedSession?.label ?? "Choose a session"
   }
 
+  func sessionMenuText(for session: SessionOption) -> String {
+    Self.recordingState(of: session.agentConnection) == .recording ? "\(session.label) · Recording" : session.label
+  }
+
   var statusText: String {
     switch connection {
     case .idle: "Not connected"
@@ -128,11 +132,14 @@ final class ChangeStreamPageModel: ViewModel {
   var footerText: String {
     let captureText: String
     if connection == .live {
-      captureText = switch follow {
-      case .following: "Live · New changes appear below"
-      case .paused(0): "Paused · No new changes"
-      case .paused(1): "1 new change"
-      case .paused(let count): "\(count) new changes"
+      captureText = switch (watchedRecordingState, follow) {
+      case (.ended, .paused(1)): "Recording ended · 1 new change"
+      case (.ended, .paused(let count)) where count > 1: "Recording ended · \(count) new changes"
+      case (.ended, _): "Recording ended"
+      case (_, .following): "Live · New changes appear below"
+      case (_, .paused(0)): "Paused · No new changes"
+      case (_, .paused(1)): "1 new change"
+      case (_, .paused(let count)): "\(count) new changes"
       }
     } else {
       captureText = statusText
@@ -326,6 +333,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var footerColor: Color {
     guard connection == .live else { return statusColor }
+    if watchedRecordingState == .ended { return DesignTokens.Colors.paneSubtitle }
     return follow == .following ? DesignTokens.Colors.liveStatus : DesignTokens.Colors.jumpToLatest
   }
 
@@ -364,18 +372,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func sessionSelected(_ id: String) {
-    guard let session = sessions[id: id], session.id != selectedSession?.id else { return }
-    if let outgoing = selectedSession, let composer = askAgent, composer.sessionID == outgoing.id {
-      composer.agentConnectionChanged(.disconnected(reason: nil))
-    }
-    selectedSession = session
-    awaitsFreshSnapshot = false
-    pendingConnectedReadiness = nil
-    resetFeed()
-    startWatching()
-    if let composer = askAgent, composer.sessionID == session.id {
-      Task { [weak self] in await self?.loadSessions() }
-    }
+    guard select(id) else { return }
+    Task { [weak self] in await self?.loadSessions() }
   }
 
   func viewDisappeared() {
@@ -484,6 +482,19 @@ final class ChangeStreamPageModel: ViewModel {
     if follow == .following { scrollToLatestRequest += 1 }
   }
 
+  private func select(_ id: String) -> Bool {
+    guard let session = sessions[id: id], session.id != selectedSession?.id else { return false }
+    if let outgoing = selectedSession, let composer = askAgent, composer.sessionID == outgoing.id {
+      composer.agentConnectionChanged(.disconnected(reason: nil))
+    }
+    selectedSession = session
+    awaitsFreshSnapshot = false
+    pendingReadiness = nil
+    resetFeed()
+    startWatching()
+    return true
+  }
+
   private func loadSessions() async {
     sessionsGeneration += 1
     let generation = sessionsGeneration
@@ -510,8 +521,8 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
-      if let pending = pendingConnectedReadiness {
-        pendingConnectedReadiness = nil
+      if let pending = pendingReadiness {
+        pendingReadiness = nil
         if let listed = sessions[id: selectedSession?.id ?? ""], pending.seq > listed.readinessSeq {
           watchedReadinessChanged(pending.state, seq: pending.seq)
         }
@@ -525,10 +536,12 @@ final class ChangeStreamPageModel: ViewModel {
         }
       }
       if let composer = askAgent {
-        composer.agentConnectionChanged(sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil))
+        let isWatched = composer.sessionID == selectedSession?.id
+        composer.agentConnectionChanged(
+          isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
       }
       if selectedSession == nil, sessions.count == 1 {
-        sessionSelected(sessions[0].id)
+        _ = select(sessions[0].id)
       }
       await withTaskGroup(of: (String, SessionStarted?).self) { group in
         for summary in summaries {
@@ -691,15 +704,35 @@ final class ChangeStreamPageModel: ViewModel {
     case .sessionStarted, .questionDispatchAttempted:
       break
     }
+    if watchedRecordingState == .ended, let watched = selectedSession, event.seq > watched.readinessSeq {
+      watchedReadinessChanged(.disconnected(reason: nil), seq: event.seq)
+      Task { [weak self] in await self?.loadSessions() }
+    }
     lastAppliedSeq = event.seq
     return true
   }
 
+  private enum RecordingState {
+    case recording, ended, unknown
+  }
+
+  private var watchedRecordingState: RecordingState {
+    selectedSession.map { Self.recordingState(of: $0.agentConnection) } ?? .unknown
+  }
+
+  private static func recordingState(of connection: AgentConnection) -> RecordingState {
+    switch connection {
+    case .connected, .setupPending, .disconnected(reason: "no_agent"): .recording
+    case .disconnected(reason: "capture_not_live"): .ended
+    case .disconnected, .unreported: .unknown
+    }
+  }
+
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {
     guard let watched = selectedSession, seq > watched.readinessSeq else { return }
-    if awaitsFreshSnapshot, reported == .connected {
-      if pendingConnectedReadiness?.seq ?? .zero < seq {
-        pendingConnectedReadiness = (reported, seq)
+    if awaitsFreshSnapshot, Self.recordingState(of: reported) == .recording {
+      if pendingReadiness?.seq ?? .zero < seq {
+        pendingReadiness = (reported, seq)
       }
       return
     }
@@ -814,7 +847,7 @@ final class ChangeStreamPageModel: ViewModel {
     lastAppliedSeq = .zero
     follow = .following
     historyRolledBack = false
-    pendingConnectedReadiness = nil
+    pendingReadiness = nil
   }
 
   private func storeCardContent(_ content: CardContent, for id: Seq) {
