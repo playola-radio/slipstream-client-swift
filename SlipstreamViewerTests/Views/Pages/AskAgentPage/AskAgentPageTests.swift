@@ -114,6 +114,57 @@ struct AskAgentPageTests {
     expectNoDifference(model.draft, "Why?")
   }
 
+  @Test func aLateSuccessForADroppedQuestionDoesNotCloseTheDraft() async throws {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = model(send: { request in
+      requests.withValue { $0.append(request) }
+      for await _ in gate { break }
+      return try Self.ack(request)
+    })
+    model.draftChanged("Why?")
+    let send = Task { await model.askTapped() }
+    await Task.megaYield()
+    let request = try #require(requests.value.first)
+    model.questionsUpdated([
+      QuestionThread(
+        id: "question-1", source: QuestionSource(context: Self.context, selectedText: ""),
+        turns: [QuestionTurn(questionID: "question-1", requestID: request.requestID, text: request.text, queuedAtMs: 1, isDropped: true)]
+      )
+    ])
+    resume.yield()
+    #expect(await send.value == false)
+    #expect(!model.isSubmitting)
+    #expect(!model.isErrorPresented)
+    expectNoDifference(model.draft, "Why?")
+  }
+
+  @Test func aLateFailureForADroppedQuestionDoesNotShowAnError() async throws {
+    let (gate, resume) = AsyncStream<Void>.makeStream()
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = model(send: { request in
+      requests.withValue { $0.append(request) }
+      for await _ in gate { break }
+      throw QuestionError.outcomeUnknown
+    })
+    model.draftChanged("Why?")
+    let send = Task { await model.askTapped() }
+    await Task.megaYield()
+    let request = try #require(requests.value.first)
+    model.questionsUpdated([
+      QuestionThread(
+        id: "question-1", source: QuestionSource(context: Self.context, selectedText: ""),
+        turns: [QuestionTurn(questionID: "question-1", requestID: request.requestID, text: request.text, queuedAtMs: 1, isDropped: true)]
+      )
+    ])
+    resume.yield()
+    #expect(await send.value == false)
+    #expect(!model.isSubmitting)
+    #expect(!model.isErrorPresented)
+    #expect(!model.hasUncertainSubmission)
+    expectNoDifference(model.draft, "Why?")
+  }
+
   @Test func acknowledgmentConfirmsQueueOnly() async {
     let model = model(send: { try Self.ack($0) })
     model.draftChanged("Why?")

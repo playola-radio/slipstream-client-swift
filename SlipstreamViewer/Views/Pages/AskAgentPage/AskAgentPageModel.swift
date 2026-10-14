@@ -178,11 +178,11 @@ final class AskAgentPageModel: ViewModel {
     isSubmitting = true
     do {
       _ = try await questionClient.send(intent)
-      guard isActive, generation == operation else { return false }
+      guard isActive, generation == operation, request == intent else { return false }
       isSubmitting = false
       return true
     } catch {
-      guard isActive, generation == operation else { return false }
+      guard isActive, generation == operation, request == intent else { return false }
       isSubmitting = false
       if QuestionFailure.isOutcomeUnknown(error) { hasUncertainSubmission = true }
       showError(QuestionFailure.message(error, hasUncertainSubmission: hasUncertainSubmission))
@@ -201,6 +201,7 @@ final class AskAgentPageModel: ViewModel {
       })
     else { return }
     self.request = nil
+    isSubmitting = false
     hasUncertainSubmission = false
   }
 
