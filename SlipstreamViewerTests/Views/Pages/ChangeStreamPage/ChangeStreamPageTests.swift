@@ -1462,6 +1462,30 @@ extension ChangeStreamPageTests {
     #expect(!reply.isFollowUpDisabled)
   }
 
+  @Test func anUncertainQuestionThatARestartDroppedIsAskedAgainWithAFreshRequest() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let requests = LockIsolated<[String]>([])
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        requests.withValue { $0.append(request.requestID) }
+        if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    await send(
+      Fixture.questionQueued(1, id: "q1", requestID: requests.value[0]),
+      Fixture.sessionResumed(2),
+      Fixture.agentConnection(3, state: "connected"))
+    composer.isErrorPresented = false
+    await model.askQuestionTapped(composer)
+    expectNoDifference(requests.value, ["00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001"])
+  }
+
   @Test func aQuestionAlreadySentToTheAgentKeepsWaitingAfterARestart() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }

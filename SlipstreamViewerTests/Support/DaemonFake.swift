@@ -299,11 +299,12 @@ enum Fixture {
     text: String = "Why did this change?",
     changeSeq: Int = 1,
     path: String = "src/user.ts",
-    replyTo parentID: String? = nil
+    replyTo parentID: String? = nil,
+    requestID: String? = nil
   ) -> StreamItem {
     var data: [String: Any] = [
       "question_id": id,
-      "request_id": "r-\(id)",
+      "request_id": requestID ?? "r-\(id)",
       "text": text,
       "queued_at_ms": observedAtMs,
       "context": [

@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import IdentifiedCollections
 import SlipstreamCore
 import SwiftUI
 
@@ -191,6 +192,16 @@ final class AskAgentPageModel: ViewModel {
 
   func agentConnectionChanged(_ connection: AgentConnection) {
     agentConnection = connection
+  }
+
+  func questionsUpdated(_ threads: IdentifiedArrayOf<QuestionThread>) {
+    guard let request,
+      threads.contains(where: { thread in
+        thread.turns.contains { $0.requestID == request.requestID && $0.status == .notDelivered }
+      })
+    else { return }
+    self.request = nil
+    hasUncertainSubmission = false
   }
 
   func dismissed() {

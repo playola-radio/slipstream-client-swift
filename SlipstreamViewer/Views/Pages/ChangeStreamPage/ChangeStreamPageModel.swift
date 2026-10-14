@@ -728,6 +728,7 @@ final class ChangeStreamPageModel: ViewModel {
       append(.marker(FeedMarker(id: event.seq, text: "Recording resumed")))
       questionThreads.apply(event)
       openReplyUpdated()
+      askAgent?.questionsUpdated(questionThreads.threads)
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
     case .questionQueued, .questionAnswered:
