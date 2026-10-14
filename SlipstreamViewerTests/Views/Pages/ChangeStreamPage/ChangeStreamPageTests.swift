@@ -1841,6 +1841,21 @@ extension ChangeStreamPageTests {
     #expect(model.footerColor == DesignTokens.Colors.paneSubtitle)
   }
 
+  @Test func recordingEndedKeepsPausedUnreadChangeCounts() async {
+    listSessions(.disconnected(reason: "capture_not_live"))
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+
+    model.follow = .paused(newCount: 1)
+    expectNoDifference(model.footerText, "Recording ended · 1 new change")
+
+    model.follow = .paused(newCount: 2)
+    expectNoDifference(model.footerText, "Recording ended · 2 new changes")
+
+    model.follow = .paused(newCount: 0)
+    expectNoDifference(model.footerText, "Recording ended")
+  }
+
   @Test func footerKeepsTheLiveTextWhenTheWatchedSessionIsRecording() async {
     listSessions(.connected)
     let model = await liveModel()

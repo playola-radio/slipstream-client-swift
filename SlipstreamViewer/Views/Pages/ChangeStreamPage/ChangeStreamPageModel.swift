@@ -133,6 +133,8 @@ final class ChangeStreamPageModel: ViewModel {
     let captureText: String
     if connection == .live {
       captureText = switch (watchedRecordingState, follow) {
+      case (.ended, .paused(1)): "Recording ended · 1 new change"
+      case (.ended, .paused(let count)) where count > 1: "Recording ended · \(count) new changes"
       case (.ended, _): "Recording ended"
       case (_, .following): "Live · New changes appear below"
       case (_, .paused(0)): "Paused · No new changes"
