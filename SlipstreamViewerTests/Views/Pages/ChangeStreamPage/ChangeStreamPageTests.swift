@@ -2014,6 +2014,23 @@ extension ChangeStreamPageTests {
     model.sessionSelected(Fixture.otherSession)
     expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
     #expect(!composer.canSubmit)
+    await Task.megaYield()
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
+  }
+
+  @Test func refreshingAfterSwitchingCapturesKeepsTheOutgoingComposerDisabled() async {
+    listSessions(.connected, other: .connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    let composer = composer(model, agentConnection: .connected)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    await model.refreshTapped()
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
+    #expect(!composer.canSubmit)
   }
 
   @Test func returningToTheComposersCaptureRefreshesItsReadiness() async {

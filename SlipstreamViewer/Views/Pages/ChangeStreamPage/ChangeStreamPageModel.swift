@@ -534,7 +534,9 @@ final class ChangeStreamPageModel: ViewModel {
         }
       }
       if let composer = askAgent {
-        composer.agentConnectionChanged(sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil))
+        let isWatched = composer.sessionID == selectedSession?.id
+        composer.agentConnectionChanged(
+          isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
       }
       if selectedSession == nil, sessions.count == 1 {
         _ = select(sessions[0].id)
