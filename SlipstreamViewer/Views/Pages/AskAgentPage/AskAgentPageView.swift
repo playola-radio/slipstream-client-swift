@@ -23,6 +23,12 @@ struct AskAgentPageView: View {
           RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius)
             .strokeBorder(DesignTokens.Ask.stroke, lineWidth: DesignTokens.Ask.strokeWidth)
         }
+      if let text = model.agentConnectionText {
+        Text(text)
+          .font(DesignTokens.Ask.contextFont)
+          .foregroundStyle(DesignTokens.Ask.savedLabel)
+          .fixedSize(horizontal: false, vertical: true)
+      }
       HStack(spacing: DesignTokens.Ask.actionGap) {
         Text(model.contextText)
           .font(DesignTokens.Ask.contextFont)

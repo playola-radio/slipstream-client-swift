@@ -128,10 +128,11 @@ final class DaemonFake: Sendable {
         }
       },
       sessions: { [self] _ in
+        let snapshot = state.withLock { $0.sessions }
         if let sessionsGate {
           for await _ in sessionsGate { break }
         }
-        return state.withLock { $0.sessions }
+        return snapshot
       },
       sessionStart: { [self] _, id in
         state.withLock { $0.sessionStartCallCount += 1 }
@@ -266,6 +267,18 @@ enum Fixture {
 
   static func sessionResumed(_ value: Int) -> StreamItem {
     frame(value, type: "slipstream.session.resumed.v1", data: ["session_id": session])
+  }
+
+  static func agentConnection(_ value: Int, state: String, sessionID: String = session) -> StreamItem {
+    frame(
+      value,
+      type: "slipstream.agent.connection.v1",
+      data: [
+        "state": state,
+        "target": ["harness": "claude-code", "harness_session_id": "h-1", "worktree": "/tmp/project"],
+        "session_id": sessionID,
+      ]
+    )
   }
 
   static func questionQueued(
