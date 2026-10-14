@@ -192,6 +192,39 @@ extension QuestionThreadPageTests {
     expectNoDifference(requests.value[1].replyToQuestionID, "q1")
   }
 
+  @Test func anUncertainReplyThatARestartDroppedIsAskedAgainWithAFreshRequest() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    model.threadUpdated(Self.thread([Self.answered, Self.notDelivered]))
+    expectNoDifference(model.uncertaintyNotice, nil)
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.requestID), [
+      "00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001",
+    ])
+    expectNoDifference(requests.value.map(\.replyToQuestionID), ["q1", "q2"])
+    expectNoDifference(model.draft, "")
+  }
+
+  @Test func anUncertainAskAgainOfANotDeliveredTurnReusesItsRequest() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered, Self.notDelivered]) { request in
+      requests.withValue { $0.append(request) }
+      throw QuestionError.outcomeUnknown
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    #expect(model.uncertaintyNotice != nil)
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.count, 2)
+    expectNoDifference(requests.value[1], requests.value[0])
+  }
+
   @Test func editingAnUncertainReplySendsASeparateRequestToTheLatestTurn() async {
     let requests = LockIsolated<[QuestionRequest]>([])
     let model = makeModel([Self.answered]) { request in

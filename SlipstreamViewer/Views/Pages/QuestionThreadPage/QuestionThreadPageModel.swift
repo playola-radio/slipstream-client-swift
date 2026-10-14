@@ -66,7 +66,7 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   var uncertaintyNotice: String? {
-    replyDraft.hasUncertainSubmission
+    replyDraft.hasUncertainSubmission && !isRetainedRequestDropped
       ? "An earlier reply may already be queued. Send it unchanged to reuse its request ID; editing sends a separate question."
       : nil
   }
@@ -112,6 +112,12 @@ final class QuestionThreadPageModel: ViewModel {
 
   func sendReplyTapped() async {
     guard canSendReply, let parent = thread.turns.last else { return }
+    if isRetainedRequestDropped {
+      updateReplyDraft { draft in
+        draft.request = nil
+        draft.hasUncertainSubmission = false
+      }
+    }
     let intent = replyDraft.request ?? QuestionRequest(
       sessionID: key.sessionID, requestID: uuid().uuidString.lowercased(), text: draft,
       context: thread.source.context, replyToQuestionID: parent.questionID)
@@ -146,6 +152,11 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   // MARK: - Private Helpers
+
+  private var isRetainedRequestDropped: Bool {
+    guard let request = replyDraft.request, let latest = thread.turns.last else { return false }
+    return latest.status == .notDelivered && request.replyToQuestionID != latest.questionID
+  }
 
   private func updateReplyDraft(_ body: (inout ReplyDraft) -> Void) {
     $replyDrafts.withLock { drafts in
