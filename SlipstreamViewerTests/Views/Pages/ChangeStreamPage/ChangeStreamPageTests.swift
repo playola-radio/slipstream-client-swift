@@ -1041,6 +1041,19 @@ struct ChangeStreamPageTests {
     #expect(model.fileHeaderOffset(for: row) == 100)
   }
 
+  @Test func aFileNameRecalculatesWhenItsCardMovesBeforeItsHeightsAreMeasured() async throws {
+    let model = await connectedModel()
+    await send(Fixture.taskStarted(1, "Convert isActive"), Fixture.edited(2))
+    let section = try #require(model.sections.first)
+    let row = try #require(fileRow(model, 2))
+    model.cardMoved(row, in: section, frame: CGRect(x: 0, y: -60, width: 400, height: 300))
+    #expect(model.fileHeaderOffset(for: row) == 60)
+    model.taskHeadingMeasured(height: 40)
+    #expect(model.fileHeaderOffset(for: row) == 100)
+    model.fileHeaderMeasured(height: 30)
+    #expect(model.fileHeaderOffset(for: row) == 100)
+  }
+
   @Test func aStickyFileNameLeavesWithTheBottomOfItsCard() async throws {
     let model = await connectedModel()
     await send(Fixture.taskStarted(1, "Convert isActive"), Fixture.edited(2))

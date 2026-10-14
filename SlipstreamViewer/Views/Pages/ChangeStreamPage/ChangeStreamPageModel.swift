@@ -81,6 +81,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
   @ObservationIgnored private var barFrames: [String: CGRect] = [:]
+  @ObservationIgnored private var cardFrames: [Seq: (row: FileChangeRow, section: FeedSection, frame: CGRect)] = [:]
   @ObservationIgnored private var taskHeadingHeight: CGFloat = 0
   @ObservationIgnored private var fileHeaderHeight: CGFloat = 0
 
@@ -439,14 +440,21 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
-  func taskHeadingMeasured(height: CGFloat) { taskHeadingHeight = height }
-  func fileHeaderMeasured(height: CGFloat) { fileHeaderHeight = height }
+  func taskHeadingMeasured(height: CGFloat) {
+    guard taskHeadingHeight != height else { return }
+    taskHeadingHeight = height
+    recalculateFileHeaderOffsets()
+  }
+
+  func fileHeaderMeasured(height: CGFloat) {
+    guard fileHeaderHeight != height else { return }
+    fileHeaderHeight = height
+    recalculateFileHeaderOffsets()
+  }
 
   func cardMoved(_ row: FileChangeRow, in section: FeedSection, frame: CGRect) {
-    let stickyTop = section.heading == nil ? 0 : taskHeadingHeight
-    let offset = min(max(stickyTop - frame.minY, 0), max(frame.height - fileHeaderHeight, 0))
-    guard offset != fileHeaderOffset(for: row) else { return }
-    fileHeaderOffsets[row.id] = offset == 0 ? nil : offset
+    cardFrames[row.id] = (row, section, frame)
+    updateFileHeaderOffset(for: row, in: section, frame: frame)
   }
 
   func jumpToLatestTapped() {
@@ -479,10 +487,24 @@ final class ChangeStreamPageModel: ViewModel {
 
   func cardDisappeared(_ row: FileChangeRow) {
     visibleCards.remove(row.id)
+    cardFrames[row.id] = nil
     fileHeaderOffsets[row.id] = nil
   }
 
   // MARK: - Private Helpers
+
+  private func recalculateFileHeaderOffsets() {
+    for (row, section, frame) in cardFrames.values {
+      updateFileHeaderOffset(for: row, in: section, frame: frame)
+    }
+  }
+
+  private func updateFileHeaderOffset(for row: FileChangeRow, in section: FeedSection, frame: CGRect) {
+    let stickyTop = section.heading == nil ? 0 : taskHeadingHeight
+    let offset = min(max(stickyTop - frame.minY, 0), max(frame.height - fileHeaderHeight, 0))
+    guard offset != fileHeaderOffset(for: row) else { return }
+    fileHeaderOffsets[row.id] = offset == 0 ? nil : offset
+  }
 
   private func loadCardContent(_ row: FileChangeRow) async {
     guard let sessionID = selectedSession?.id else { return }
@@ -827,6 +849,7 @@ final class ChangeStreamPageModel: ViewModel {
     cardContents = [:]
     cardContentOrder = []
     cardLoadGenerations = [:]
+    cardFrames = [:]
     pinnedHeadings = []
     fileHeaderOffsets = [:]
     taskCount = 0
