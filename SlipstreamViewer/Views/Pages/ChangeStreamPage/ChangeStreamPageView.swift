@@ -290,7 +290,7 @@ struct ChangeStreamPageView: View {
     ToolbarItem(placement: .navigation) {
       Menu(model.sessionPickerTitle) {
         ForEach(model.sessions) { session in
-          Button(session.label) { model.sessionSelected(session.id) }
+          Button(model.sessionMenuText(for: session)) { model.sessionSelected(session.id) }
         }
       }
       .disabled(model.isSessionPickerDisabled)

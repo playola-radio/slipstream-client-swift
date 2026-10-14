@@ -1799,6 +1799,108 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.sessions[id: Fixture.otherSession]?.agentConnection, .connected)
   }
 
+  func liveModel() async -> ChangeStreamPageModel {
+    let model = await connectedModel()
+    await send(.heartbeat)
+    return model
+  }
+
+  func menuText(for connection: AgentConnection) async -> String? {
+    listSessions(connection)
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    return model.sessions.first.map { model.sessionMenuText(for: $0) }
+  }
+
+  @Test func menuMarksAConnectedSessionAsRecording() async {
+    let text = await menuText(for: .connected)
+    expectNoDifference(text, "\(Fixture.session) · Recording")
+  }
+
+  @Test func menuMarksASetupPendingSessionAsRecording() async {
+    let text = await menuText(for: .setupPending)
+    expectNoDifference(text, "\(Fixture.session) · Recording")
+  }
+
+  @Test func menuMarksASessionWithNoAgentAsRecording() async {
+    let text = await menuText(for: .disconnected(reason: "no_agent"))
+    expectNoDifference(text, "\(Fixture.session) · Recording")
+  }
+
+  @Test func menuDoesNotMarkASessionWhoseCaptureIsNotLive() async {
+    let text = await menuText(for: .disconnected(reason: "capture_not_live"))
+    expectNoDifference(text, Fixture.session)
+  }
+
+  @Test func menuDoesNotMarkAnUnreportedSession() async {
+    let text = await menuText(for: .unreported)
+    expectNoDifference(text, Fixture.session)
+  }
+
+  @Test func menuDoesNotMarkASessionWithAnUnknownReason() async {
+    let text = await menuText(for: .disconnected(reason: nil))
+    expectNoDifference(text, Fixture.session)
+  }
+
+  @Test func footerSaysRecordingEndedWhenTheWatchedCaptureIsNotLive() async {
+    listSessions(.disconnected(reason: "capture_not_live"))
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.footerText, "Recording ended")
+    #expect(model.footerColor == DesignTokens.Colors.paneSubtitle)
+  }
+
+  @Test func footerKeepsTheLiveTextWhenTheWatchedSessionIsRecording() async {
+    listSessions(.connected)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.footerText, "Live · New changes appear below")
+    #expect(model.footerColor == DesignTokens.Colors.liveStatus)
+  }
+
+  @Test func footerKeepsTheLiveTextWhenRecordingIsUnknown() async {
+    listSessions(.disconnected(reason: nil))
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.footerText, "Live · New changes appear below")
+  }
+
+  @Test func footerKeepsTheConnectionTroubleTextWhenTheCaptureIsNotLive() async {
+    listSessions(.disconnected(reason: "capture_not_live"))
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    fake.close()
+    await Task.megaYield()
+    expectNoDifference(model.footerText, "Reconnecting (attempt 1)")
+    #expect(model.footerColor == DesignTokens.Status.warning)
+  }
+
+  @Test func queuedQuestionNoticeStillFollowsRecordingEnded() async {
+    let model = makeModel()
+    model.selectedSession = SessionOption(
+      id: Fixture.session, label: "Current", agentConnection: .disconnected(reason: "capture_not_live"))
+    model.connection = .live
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    expectNoDifference(model.footerText, "Recording ended · Question queued (delivery not confirmed)")
+  }
+
+  @Test func aConnectionEventFlipsTheFooterBackFromRecordingEnded() async {
+    listSessions(.disconnected(reason: "capture_not_live"))
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.footerText, "Recording ended")
+    await send(Fixture.agentConnection(1, state: "connected"))
+    expectNoDifference(model.footerText, "Live · New changes appear below")
+    #expect(model.footerColor == DesignTokens.Colors.liveStatus)
+  }
+
   @Test func aConnectionEventUpdatesTheWatchedSessionAndItsComposerWithoutAddingARow() async {
     listSessions(.setupPending)
     let model = await connectedModel()

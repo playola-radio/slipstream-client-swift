@@ -113,6 +113,10 @@ final class ChangeStreamPageModel: ViewModel {
     selectedSession?.label ?? "Choose a session"
   }
 
+  func sessionMenuText(for session: SessionOption) -> String {
+    Self.recordingState(of: session.agentConnection) == .recording ? "\(session.label) · Recording" : session.label
+  }
+
   var statusText: String {
     switch connection {
     case .idle: "Not connected"
@@ -128,11 +132,12 @@ final class ChangeStreamPageModel: ViewModel {
   var footerText: String {
     let captureText: String
     if connection == .live {
-      captureText = switch follow {
-      case .following: "Live · New changes appear below"
-      case .paused(0): "Paused · No new changes"
-      case .paused(1): "1 new change"
-      case .paused(let count): "\(count) new changes"
+      captureText = switch (watchedRecordingState, follow) {
+      case (.ended, _): "Recording ended"
+      case (_, .following): "Live · New changes appear below"
+      case (_, .paused(0)): "Paused · No new changes"
+      case (_, .paused(1)): "1 new change"
+      case (_, .paused(let count)): "\(count) new changes"
       }
     } else {
       captureText = statusText
@@ -326,6 +331,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var footerColor: Color {
     guard connection == .live else { return statusColor }
+    if watchedRecordingState == .ended { return DesignTokens.Colors.paneSubtitle }
     return follow == .following ? DesignTokens.Colors.liveStatus : DesignTokens.Colors.jumpToLatest
   }
 
@@ -693,6 +699,22 @@ final class ChangeStreamPageModel: ViewModel {
     }
     lastAppliedSeq = event.seq
     return true
+  }
+
+  private enum RecordingState {
+    case recording, ended, unknown
+  }
+
+  private var watchedRecordingState: RecordingState {
+    selectedSession.map { Self.recordingState(of: $0.agentConnection) } ?? .unknown
+  }
+
+  private static func recordingState(of connection: AgentConnection) -> RecordingState {
+    switch connection {
+    case .connected, .setupPending, .disconnected(reason: "no_agent"): .recording
+    case .disconnected(reason: "capture_not_live"): .ended
+    case .disconnected, .unreported: .unknown
+    }
   }
 
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {
