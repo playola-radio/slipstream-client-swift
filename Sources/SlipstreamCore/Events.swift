@@ -66,13 +66,18 @@ public struct QuestionSource: Equatable, Sendable {
 
 public struct QuestionQueued: Equatable, Sendable {
   public var questionID: String
+  public var requestID: String
   public var text: String
   public var source: QuestionSource
   public var queuedAtMs: Int64
   public var replyToQuestionID: String?
 
-  public init(questionID: String, text: String, source: QuestionSource, queuedAtMs: Int64, replyToQuestionID: String?) {
+  public init(
+    questionID: String, requestID: String, text: String, source: QuestionSource, queuedAtMs: Int64,
+    replyToQuestionID: String?
+  ) {
     self.questionID = questionID
+    self.requestID = requestID
     self.text = text
     self.source = source
     self.queuedAtMs = queuedAtMs
@@ -204,6 +209,7 @@ extension SlipstreamEvent {
       return .questionQueued(
         QuestionQueued(
           questionID: queued.question_id,
+          requestID: queued.request_id,
           text: queued.text,
           source: queued.context.source,
           queuedAtMs: queued.queued_at_ms,
@@ -328,6 +334,7 @@ extension SlipstreamEvent {
 
   private struct QuestionQueuedData: Decodable {
     var question_id: String
+    var request_id: String
     var text: String
     var context: QuestionSourceData
     var queued_at_ms: Int64

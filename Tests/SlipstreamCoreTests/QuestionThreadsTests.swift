@@ -25,9 +25,23 @@ enum QuestionFixture {
       seq: Seq(String(seq))!,
       type: "slipstream.question.queued.v1",
       payload: .questionQueued(
-        QuestionQueued(questionID: id, text: text, source: source, queuedAtMs: Int64(seq), replyToQuestionID: replyTo)
+        QuestionQueued(
+          questionID: id, requestID: "r-\(id)", text: text, source: source, queuedAtMs: Int64(seq),
+          replyToQuestionID: replyTo)
       )
     )
+  }
+
+  static func attempted(_ seq: Int, id: String) -> SlipstreamEvent {
+    SlipstreamEvent(
+      seq: Seq(String(seq))!,
+      type: "slipstream.question.dispatch_attempted.v1",
+      payload: .questionDispatchAttempted(QuestionDispatchAttempted(questionID: id, queuedSeq: Seq(String(seq - 1))!))
+    )
+  }
+
+  static func resumed(_ seq: Int) -> SlipstreamEvent {
+    SlipstreamEvent(seq: Seq(String(seq))!, type: "slipstream.session.resumed.v1", payload: .sessionResumed)
   }
 
   static func answered(_ seq: Int, id: String, text: String = "Because.") -> SlipstreamEvent {
@@ -48,13 +62,13 @@ struct QuestionEventDecodingTests {
       [
         .questionQueued(
           QuestionQueued(
-            questionID: "<question_id_1>", text: "Why does greet use a template literal?",
-            source: QuestionFixture.source, queuedAtMs: 1_790_428_130_312, replyToQuestionID: nil)
+            questionID: "<question_id_1>", requestID: "fef3ee16-062c-4b24-8b0c-fd03f663a420",
+            text: "Why does greet use a template literal?", source: QuestionFixture.source, queuedAtMs: 1_790_428_130_312, replyToQuestionID: nil)
         ),
         .questionQueued(
           QuestionQueued(
-            questionID: "<question_id_2>", text: "Is name ever undefined here?",
-            source: QuestionFixture.source, queuedAtMs: 1_790_428_130_467, replyToQuestionID: nil)
+            questionID: "<question_id_2>", requestID: "d0d8add5-27ab-43bc-85a1-68a80267a795",
+            text: "Is name ever undefined here?", source: QuestionFixture.source, queuedAtMs: 1_790_428_130_467, replyToQuestionID: nil)
         ),
         .questionDispatchAttempted(QuestionDispatchAttempted(questionID: "<question_id_1>", queuedSeq: Seq("5")!)),
         .questionAnswered(
@@ -84,7 +98,7 @@ struct QuestionEventDecodingTests {
     expectNoDifference(
       try SlipstreamEvent.decode(Data(json.utf8)).payload,
       .questionQueued(
-        QuestionQueued(questionID: "q3", text: "And then?", source: QuestionFixture.source, queuedAtMs: 1, replyToQuestionID: "q1")
+        QuestionQueued(questionID: "q3", requestID: "r", text: "And then?", source: QuestionFixture.source, queuedAtMs: 1, replyToQuestionID: "q1")
       )
     )
   }
@@ -120,7 +134,8 @@ struct QuestionThreadsTests {
           id: "<question_id_1>", source: QuestionFixture.source,
           turns: [
             QuestionTurn(
-              questionID: "<question_id_1>", text: "Why does greet use a template literal?", queuedAtMs: 1_790_428_130_312,
+              questionID: "<question_id_1>", requestID: "fef3ee16-062c-4b24-8b0c-fd03f663a420",
+              text: "Why does greet use a template literal?", queuedAtMs: 1_790_428_130_312,
               answer: QuestionAnswer(
                 seq: Seq("8")!, text: "It interpolates name into the greeting; a template literal is the idiomatic way.",
                 answeredAtMs: 1_790_428_130_772))
@@ -130,7 +145,8 @@ struct QuestionThreadsTests {
           id: "<question_id_2>", source: QuestionFixture.source,
           turns: [
             QuestionTurn(
-              questionID: "<question_id_2>", text: "Is name ever undefined here?", queuedAtMs: 1_790_428_130_467,
+              questionID: "<question_id_2>", requestID: "d0d8add5-27ab-43bc-85a1-68a80267a795",
+              text: "Is name ever undefined here?", queuedAtMs: 1_790_428_130_467,
               answer: QuestionAnswer(seq: Seq("10")!, text: QuestionFixture.boundaryAnswerText, answeredAtMs: 1_790_428_131_649))
           ]
         ),
@@ -209,6 +225,59 @@ struct QuestionThreadsTests {
     ])
     expectNoDifference(threads.threads.ids, ["q1"])
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.questionID), ["q1", "q2"])
+  }
+
+  @Test func aQuestionNotYetDispatchedWhenRecordingResumesIsNotDelivered() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.resumed(2),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.notDelivered])
+  }
+
+  @Test func aQuestionDispatchedBeforeTheResumeKeepsWaitingAndCanStillBeAnswered() {
+    var threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.resumed(3),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.waiting])
+    threads.apply(QuestionFixture.answered(5, id: "q1"))
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
+  }
+
+  @Test func answeredTurnsStayAnsweredAcrossAResume() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.answered(3, id: "q1"),
+      QuestionFixture.resumed(4),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
+  }
+
+  @Test func onlyQuestionsQueuedBeforeTheLatestResumeAreNotDelivered() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.resumed(2),
+      QuestionFixture.queued(3, id: "q2"),
+      QuestionFixture.resumed(4),
+      QuestionFixture.queued(5, id: "q3"),
+    ])
+    expectNoDifference(threads.threads.map { $0.turns.map(\.status) }, [[.notDelivered], [.notDelivered], [.waiting]])
+  }
+
+  @Test func aFollowUpAfterAnUndeliveredTurnJoinsTheThreadAndWaits() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1", text: "First"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.answered(3, id: "q1"),
+      QuestionFixture.queued(4, id: "q2", text: "Second", replyTo: "q1"),
+      QuestionFixture.resumed(5),
+      QuestionFixture.queued(6, id: "q3", text: "Second again", replyTo: "q2"),
+    ])
+    expectNoDifference(threads.threads.ids, ["q1"])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered, .notDelivered, .waiting])
   }
 
   @Test func liveFollowAfterAnyReplayedPrefixMatchesReplayFromZero() throws {

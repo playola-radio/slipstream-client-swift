@@ -40,7 +40,7 @@ struct QuestionThreadPageView: View {
               }
           }
         } else {
-          Text(model.waitingText)
+          Text(model.unansweredText(turn))
             .font(DesignTokens.Reply.agentFont)
             .foregroundStyle(DesignTokens.Reply.waitingColor)
         }

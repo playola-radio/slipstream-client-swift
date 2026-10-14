@@ -280,7 +280,7 @@ enum DesignTokens {
     }
 
     static func accent(_ status: QuestionBarStatus) -> Color {
-      status == .waiting ? Color(hex: 0xD8BE89) : Color(hex: 0xC6E7FF)
+      status == .waiting || status == .notDelivered ? Color(hex: 0xD8BE89) : Color(hex: 0xC6E7FF)
     }
   }
 
