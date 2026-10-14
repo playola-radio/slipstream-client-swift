@@ -113,6 +113,7 @@ public enum EventPayload: Equatable, Sendable {
   case questionQueued(QuestionQueued)
   case questionDispatchAttempted(QuestionDispatchAttempted)
   case questionAnswered(QuestionAnswered)
+  case agentConnection(AgentConnection)
   case recordedWithoutRow
   case unsupported(type: String)
 }
@@ -185,6 +186,16 @@ extension SlipstreamEvent {
     case "slipstream.capture.gap.v1":
       let gap = try decoder.decode(Envelope<CaptureGapData>.self, from: data).data
       return .captureGap(CaptureGap(reason: gap.reason, scope: try gap.scope.scope))
+    case "slipstream.capture.scope.v1":
+      let scope = try decoder.decode(Envelope<CaptureScopeData>.self, from: data).data
+      switch (scope.policy, scope.status) {
+      case ("git", "active"), ("filesystem", "active"):
+        return .recordedWithoutRow
+      case ("git", "unavailable"):
+        return .captureGap(CaptureGap(reason: "capture-scope-unavailable", scope: .session))
+      default:
+        throw EventDecodingError(seq: nil, type: nil)
+      }
     case "slipstream.session.resumed.v1":
       _ = try decoder.decode(Envelope<SessionResumedData>.self, from: data)
       return .sessionResumed
@@ -215,6 +226,9 @@ extension SlipstreamEvent {
           answeredAtMs: answer.answered_at_ms
         )
       )
+    case "slipstream.agent.connection.v1":
+      let connection = try decoder.decode(Envelope<AgentConnectionWire>.self, from: data).data
+      return .agentConnection(connection.connection)
     case _ where rowlessTypes.contains(type):
       return .recordedWithoutRow
     default:
@@ -284,6 +298,12 @@ extension SlipstreamEvent {
   private struct CaptureGapData: Decodable {
     var reason: String
     var scope: ScopeData
+  }
+
+  private struct CaptureScopeData: Decodable {
+    var session_id: String
+    var policy: String
+    var status: String
   }
 
   private struct ScopeData: Decodable {

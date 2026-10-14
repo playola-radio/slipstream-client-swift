@@ -5,6 +5,8 @@ import SlipstreamCore
 struct SessionOption: Identifiable, Equatable, Sendable {
   var id: String
   var label: String
+  var agentConnection: AgentConnection = .unreported
+  var readinessSeq: Seq = .zero
 }
 
 enum ConnectionState: Equatable, Sendable {
@@ -131,6 +133,7 @@ enum PlainWords {
     case "watcher-error": "the file watcher failed"
     case "restart": "the daemon restarted"
     case "storage": "storage failed"
+    case "capture-scope-unavailable": "Git couldn't determine which files to capture"
     default: fallback(reason).lowercased()
     }
   }

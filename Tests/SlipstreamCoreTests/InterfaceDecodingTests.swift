@@ -4,6 +4,14 @@ import SlipstreamCore
 import Testing
 
 struct InterfaceCorpusTests {
+  @Test func decodesComparisonWithCaptureIgnoreRules() throws {
+    let original = try InterfaceFixtures.expected("ts-parameter-change")
+    let data = try edited("ts-parameter-change", [
+      (#"["store-directory",".git","symlinks"]"#, #"["store-directory",".git","symlinks","ignore-rules"]"#)
+    ])
+    expectNoDifference(try InterfaceComparison.decode(data), try InterfaceComparison.decode(original))
+  }
+
   @Test(arguments: try InterfaceFixtures.successCaseNames())
   func decodesAndAgreesWithTheRawFixture(caseName: String) throws {
     let data = try InterfaceFixtures.expected(caseName)
@@ -15,26 +23,26 @@ struct InterfaceCorpusTests {
     let comparisons = try InterfaceFixtures.successCaseNames().map { try InterfaceComparison.decode(InterfaceFixtures.expected($0)) }
     let files = comparisons.flatMap(\.files)
     let rows = files.flatMap { rowsOf($0.changes) }
-    expectNoDifference(comparisons.count, 67)
-    expectNoDifference(files.count, 67)
-    expectNoDifference(rows.count, 38)
+    expectNoDifference(comparisons.count, 69)
+    expectNoDifference(files.count, 69)
+    expectNoDifference(rows.count, 40)
     expectNoDifference(
       tally(comparisons.map { label($0.status) }),
       [
-        "partial": 17, "ready": 46, "skipped(cancelled)": 1, "skipped(overloaded)": 1, "skipped(scan-limit)": 1,
+        "partial": 17, "ready": 48, "skipped(cancelled)": 1, "skipped(overloaded)": 1, "skipped(scan-limit)": 1,
         "skipped(timeout)": 1,
       ]
     )
     expectNoDifference(
       tally(comparisons.map { $0.inventory == nil && $0.gaps == nil ? "notEvaluated" : "resolved" }),
-      ["notEvaluated": 4, "resolved": 63]
+      ["notEvaluated": 4, "resolved": 65]
     )
     expectNoDifference(
       tally(files.map { label($0.status).split(separator: "(").first.map(String.init) ?? "" }),
-      ["identical": 6, "incomplete": 6, "ready": 43, "skipped": 3, "unavailable": 8, "unsupported": 1]
+      ["identical": 6, "incomplete": 6, "ready": 45, "skipped": 3, "unavailable": 8, "unsupported": 1]
     )
-    expectNoDifference(tally(files.map { language($0.changes) }), ["-": 3, "swift/swift.v1": 24, "typescript/typescript.v2": 40])
-    expectNoDifference(tally(rows.map { kindName($0.kind) }), ["added": 6, "removed": 6, "signatureChanged": 26])
+    expectNoDifference(tally(files.map { language($0.changes) }), ["-": 3, "swift/swift.v1": 24, "typescript/typescript.v2": 42])
+    expectNoDifference(tally(rows.map { kindName($0.kind) }), ["added": 6, "removed": 6, "signatureChanged": 28])
     expectNoDifference(files.filter { $0.before == .unknownBoundary }.count, 2)
     expectNoDifference(files.filter { $0.after.gapRef != nil }.count, 1)
     expectNoDifference(rows.filter { $0.result == nil }.count, 1)
@@ -427,6 +435,8 @@ struct InterfaceSyntheticTests {
     Mutation("ts-parameter-change", "typescript function without a result slot", #""result":{"op":"equal","before":{"kind":"return","type":{"state":"written","text":"void"}},"after":{"kind":"return","type":{"state":"written","text":"void"}}}"#, #""result":null"#),
     Mutation("swift-labels-defaults-effects", "swift declaration without a result slot", #""result":{"op":"equal","before":{"kind":"return","type":{"state":"written","text":"Bool"}},"after":{"kind":"return","type":{"state":"written","text":"Bool"}}}"#, #""result":null"#),
     Mutation("ts-parameter-change", "policy exclusions not exact", #"["store-directory",".git","symlinks"]"#, #"[]"#),
+    Mutation("ts-parameter-change", "policy exclusions reordered", #"["store-directory",".git","symlinks"]"#, #"[".git","store-directory","symlinks"]"#),
+    Mutation("ts-parameter-change", "policy exclusions with an extra entry beyond ignore-rules", #"["store-directory",".git","symlinks"]"#, #"["store-directory",".git","symlinks","ignore-rules","node_modules"]"#),
     Mutation("ts-parameter-change", "added delta with a before side", #"{"op":"changed","before":{"position":0"#, #"{"op":"added","before":{"position":0"#),
     Mutation("ts-parameter-change", "added row with a before side", #""kind":"signatureChanged""#, #""kind":"added""#),
     Mutation("ts-parameter-change", "span runs backwards", #""byte_start":0,"byte_end":30}},"parameters""#, #""byte_start":31,"byte_end":30}},"parameters""#),
