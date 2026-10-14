@@ -286,6 +286,24 @@ struct ChangeStreamPageTests {
     #expect(model.sections.isEmpty)
   }
 
+  @Test func gitScopeOutageRemainsVisibleAndRecoveryDoesNotEraseIt() async {
+    let model = await connectedModel()
+    await send(Fixture.frame(1, type: "slipstream.capture.scope.v1", data: [
+      "session_id": Fixture.session, "policy": "git", "status": "active",
+    ]))
+    #expect(model.sections.isEmpty)
+    await send(Fixture.frame(2, type: "slipstream.capture.scope.v1", data: [
+      "session_id": Fixture.session, "policy": "git", "status": "unavailable",
+    ]))
+    await send(Fixture.frame(3, type: "slipstream.capture.scope.v1", data: [
+      "session_id": Fixture.session, "policy": "git", "status": "active",
+    ]))
+    expectNoDifference(model.sections.flatMap { Array($0.items) }, [
+      .marker(FeedMarker(id: Fixture.seq(2), text: "Capture gap — Git couldn't determine which files to capture (whole session)"))
+    ])
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(3))
+  }
+
   @Test func reconnectResumesAfterLastAppliedSeqWithRediscoveredDescriptor() async {
     let model = await connectedModel()
     await send(Fixture.edited(1), Fixture.edited(2))

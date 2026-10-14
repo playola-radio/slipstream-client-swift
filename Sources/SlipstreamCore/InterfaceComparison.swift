@@ -87,6 +87,7 @@ public struct InterfaceGap: Equatable, Sendable {
     case watcherError = "watcher-error"
     case restart
     case storage
+    case captureScopeUnavailable = "capture-scope-unavailable"
   }
 
   public var seq: Seq
@@ -462,8 +463,10 @@ extension InterfaceInventory: Decodable {
     baselineCompletedSeq = try container.decodeNullable(PositiveSeq.self, forKey: .baselineCompletedSeq)?.seq
     unknownScopes = try container.decode([String].self, forKey: .unknownScopes)
     unknownScopesComplete = try container.decode(Bool.self, forKey: .unknownScopesComplete)
-    guard try container.decode([String].self, forKey: .policyExclusions) == ["store-directory", ".git", "symlinks"] else {
-      throw container.corrupt(.policyExclusions, "must be exactly store-directory, .git, symlinks")
+    let exclusions = try container.decode([String].self, forKey: .policyExclusions)
+    let builtIn = ["store-directory", ".git", "symlinks"]
+    guard exclusions == builtIn || exclusions == builtIn + ["ignore-rules"] || exclusions == builtIn + ["git-ignored"] else {
+      throw container.corrupt(.policyExclusions, "must be the built-in exclusions, optionally followed by git-ignored or the preview ignore-rules marker")
     }
   }
 }

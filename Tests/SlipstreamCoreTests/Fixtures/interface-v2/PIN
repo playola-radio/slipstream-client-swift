@@ -1,4 +1,4 @@
-daemon-commit: 9110c6d768d6e2fd49fb3cb9626b65c589208d23
+daemon-commit: f3c076ee23d80ddf2ce44a9feed4d79f329128c0
 source: briankeane/slipstream contracts/interface/v2/
 manifest: every regular file below this directory except PIN itself, one "<sha256>  <path>" line each, sorted by path bytes
 update: replace this directory with contracts/interface/v2/ from the new approved commit, then regenerate the lines below with
@@ -50,6 +50,12 @@ ac55c20ad52d7fe482ea6d7998a0aee593b61843cfab2b4a7f1d81e9d13a7864  cases/range-ga
 0e4baed4cb047490e94ea0ae9db285d9abfaf37f93fba9f47e232779a69b2bb5  cases/range-gap-unchanged-hashes/expected.json
 acea875d89b0269097f21c48091970b1bd192e52c7bcbfb9e59e0e020b0c71ed  cases/range-gap-unchanged-hashes/history.json
 3f19dbe1b614d79f5219e36a8456f6bf22b983f6371960e808523a26067e1701  cases/range-gap-unchanged-hashes/request.txt
+3f6bdf2a2e280a409767024ab548b78b5fc2a1212bab37e6b5afe82f18a5b83d  cases/range-git-scope-unavailable/expected.json
+af24075543f9047be16b8026bae746a7441ddfe74e432f55a61a703f64cdf805  cases/range-git-scope-unavailable/history.json
+f1c5b8494b081ac2b4f138f7ea4db51c855e9e29ee668b9104186be2ed271920  cases/range-git-scope-unavailable/request.txt
+5ee7a155b197a5f3a7e47a63efc1d40aaa7eb2eb167ed232119981d93df861d4  cases/range-git-scope/expected.json
+55ed14237814bc745a33c976f01c5ede4b624886d3214ce7a7915529c7df9e54  cases/range-git-scope/history.json
+ac55c20ad52d7fe482ea6d7998a0aee593b61843cfab2b4a7f1d81e9d13a7864  cases/range-git-scope/request.txt
 7382edbbb48b1d83f6b7c9ff765da0422e4cb8680e1df47db549ff364622871f  cases/range-huge-seq/expected-error.json
 43150ed1a60fee9dedf52443053295e16c9904bf4355acfb10dd1a7606306ab6  cases/range-huge-seq/history.json
 4f73fd3ea8125e0620c6c87861585bf9f88904ca3cd10c09c16908ddc7484e82  cases/range-huge-seq/request.txt
@@ -218,4 +224,4 @@ da66b7761aff6beca326a97e72492292247a039df5296a9f572b1abaed07b24d  cases/ts-uncha
 19e917efe74d9e70e7c214183ec3a8552a2816720a10bbe1d4ac6e67b9e49399  cases/ts-unknown-boundary/expected.json
 faed3c2d62ac7f7b86d75c1dc278c693e71259f4e82c80e08d441c303adf4822  cases/ts-unknown-boundary/history.json
 70c17b8cbafdc23b6f81cdf243829b1ec0f200e1b5d915cd5f8c49f0854ca55d  cases/ts-unknown-boundary/request.txt
-d54c82e371d69c1d1b555df2670f13db4a1992c3d21ecd80206206b62b83b4ee  schema.json
+2d0fd93e75ee0828745c9fb783c6b51e7f7af19d487abdedfbca025687f993d3  schema.json
