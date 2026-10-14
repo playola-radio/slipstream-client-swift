@@ -76,7 +76,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var needsReadinessRefresh = false
   @ObservationIgnored private var awaitsFreshSnapshot = false
-  @ObservationIgnored private var pendingConnectedReadiness: (state: AgentConnection, seq: Seq)?
+  @ObservationIgnored private var pendingReadiness: (state: AgentConnection, seq: Seq)?
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
   @ObservationIgnored private var barFrames: [String: CGRect] = [:]
@@ -370,18 +370,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func sessionSelected(_ id: String) {
-    guard let session = sessions[id: id], session.id != selectedSession?.id else { return }
-    if let outgoing = selectedSession, let composer = askAgent, composer.sessionID == outgoing.id {
-      composer.agentConnectionChanged(.disconnected(reason: nil))
-    }
-    selectedSession = session
-    awaitsFreshSnapshot = false
-    pendingConnectedReadiness = nil
-    resetFeed()
-    startWatching()
-    if let composer = askAgent, composer.sessionID == session.id {
-      Task { [weak self] in await self?.loadSessions() }
-    }
+    guard select(id) else { return }
+    Task { [weak self] in await self?.loadSessions() }
   }
 
   func viewDisappeared() {
@@ -490,6 +480,19 @@ final class ChangeStreamPageModel: ViewModel {
     if follow == .following { scrollToLatestRequest += 1 }
   }
 
+  private func select(_ id: String) -> Bool {
+    guard let session = sessions[id: id], session.id != selectedSession?.id else { return false }
+    if let outgoing = selectedSession, let composer = askAgent, composer.sessionID == outgoing.id {
+      composer.agentConnectionChanged(.disconnected(reason: nil))
+    }
+    selectedSession = session
+    awaitsFreshSnapshot = false
+    pendingReadiness = nil
+    resetFeed()
+    startWatching()
+    return true
+  }
+
   private func loadSessions() async {
     sessionsGeneration += 1
     let generation = sessionsGeneration
@@ -516,8 +519,8 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
-      if let pending = pendingConnectedReadiness {
-        pendingConnectedReadiness = nil
+      if let pending = pendingReadiness {
+        pendingReadiness = nil
         if let listed = sessions[id: selectedSession?.id ?? ""], pending.seq > listed.readinessSeq {
           watchedReadinessChanged(pending.state, seq: pending.seq)
         }
@@ -534,7 +537,7 @@ final class ChangeStreamPageModel: ViewModel {
         composer.agentConnectionChanged(sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil))
       }
       if selectedSession == nil, sessions.count == 1 {
-        sessionSelected(sessions[0].id)
+        _ = select(sessions[0].id)
       }
       await withTaskGroup(of: (String, SessionStarted?).self) { group in
         for summary in summaries {
@@ -697,6 +700,10 @@ final class ChangeStreamPageModel: ViewModel {
     case .sessionStarted, .questionDispatchAttempted:
       break
     }
+    if watchedRecordingState == .ended, let watched = selectedSession, event.seq > watched.readinessSeq {
+      watchedReadinessChanged(.disconnected(reason: nil), seq: event.seq)
+      Task { [weak self] in await self?.loadSessions() }
+    }
     lastAppliedSeq = event.seq
     return true
   }
@@ -719,9 +726,9 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {
     guard let watched = selectedSession, seq > watched.readinessSeq else { return }
-    if awaitsFreshSnapshot, reported == .connected {
-      if pendingConnectedReadiness?.seq ?? .zero < seq {
-        pendingConnectedReadiness = (reported, seq)
+    if awaitsFreshSnapshot, Self.recordingState(of: reported) == .recording {
+      if pendingReadiness?.seq ?? .zero < seq {
+        pendingReadiness = (reported, seq)
       }
       return
     }
@@ -836,7 +843,7 @@ final class ChangeStreamPageModel: ViewModel {
     lastAppliedSeq = .zero
     follow = .following
     historyRolledBack = false
-    pendingConnectedReadiness = nil
+    pendingReadiness = nil
   }
 
   private func storeCardContent(_ content: CardContent, for id: Seq) {

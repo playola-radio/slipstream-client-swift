@@ -1805,42 +1805,32 @@ extension ChangeStreamPageTests {
     return model
   }
 
-  func menuText(for connection: AgentConnection) async -> String? {
-    listSessions(connection)
-    let model = makeModel()
-    await model.viewAppeared()
-    defer { model.viewDisappeared() }
-    return model.sessions.first.map { model.sessionMenuText(for: $0) }
+  func menuText(_ connection: AgentConnection) -> String {
+    makeModel().sessionMenuText(for: SessionOption(id: "a", label: "alpha", agentConnection: connection))
   }
 
-  @Test func menuMarksAConnectedSessionAsRecording() async {
-    let text = await menuText(for: .connected)
-    expectNoDifference(text, "\(Fixture.session) · Recording")
+  @Test func menuMarksAConnectedSessionAsRecording() {
+    expectNoDifference(menuText(.connected), "alpha · Recording")
   }
 
-  @Test func menuMarksASetupPendingSessionAsRecording() async {
-    let text = await menuText(for: .setupPending)
-    expectNoDifference(text, "\(Fixture.session) · Recording")
+  @Test func menuMarksASetupPendingSessionAsRecording() {
+    expectNoDifference(menuText(.setupPending), "alpha · Recording")
   }
 
-  @Test func menuMarksASessionWithNoAgentAsRecording() async {
-    let text = await menuText(for: .disconnected(reason: "no_agent"))
-    expectNoDifference(text, "\(Fixture.session) · Recording")
+  @Test func menuMarksASessionWithNoAgentAsRecording() {
+    expectNoDifference(menuText(.disconnected(reason: "no_agent")), "alpha · Recording")
   }
 
-  @Test func menuDoesNotMarkASessionWhoseCaptureIsNotLive() async {
-    let text = await menuText(for: .disconnected(reason: "capture_not_live"))
-    expectNoDifference(text, Fixture.session)
+  @Test func menuDoesNotMarkASessionWhoseCaptureIsNotLive() {
+    expectNoDifference(menuText(.disconnected(reason: "capture_not_live")), "alpha")
   }
 
-  @Test func menuDoesNotMarkAnUnreportedSession() async {
-    let text = await menuText(for: .unreported)
-    expectNoDifference(text, Fixture.session)
+  @Test func menuDoesNotMarkAnUnreportedSession() {
+    expectNoDifference(menuText(.unreported), "alpha")
   }
 
-  @Test func menuDoesNotMarkASessionWithAnUnknownReason() async {
-    let text = await menuText(for: .disconnected(reason: nil))
-    expectNoDifference(text, Fixture.session)
+  @Test func menuDoesNotMarkASessionWithAnUnknownReason() {
+    expectNoDifference(menuText(.disconnected(reason: nil)), "alpha")
   }
 
   @Test func footerSaysRecordingEndedWhenTheWatchedCaptureIsNotLive() async {
@@ -1899,6 +1889,90 @@ extension ChangeStreamPageTests {
     await send(Fixture.agentConnection(1, state: "connected"))
     expectNoDifference(model.footerText, "Live · New changes appear below")
     #expect(model.footerColor == DesignTokens.Colors.liveStatus)
+  }
+
+  @Test func returningToASessionWhoseCaptureStoppedRefreshesItsRecordingState() async {
+    listSessions(.connected, other: .connected)
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    listSessions(.disconnected(reason: "capture_not_live"), other: .connected)
+    let callsBefore = fake.sessionsCallCount
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    await send(.heartbeat)
+    expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
+    expectNoDifference(model.footerText, "Recording ended")
+    expectNoDifference(model.sessionMenuText(for: model.sessions[id: Fixture.session]!), "\(Fixture.session)")
+  }
+
+  @Test func changesBeyondTheListedPositionStopTheEndedClaimAndRefreshTheSessions() async {
+    listSessions(.disconnected(reason: "capture_not_live"), durableSeq: 2)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.footerText, "Recording ended")
+    listSessions(.connected, durableSeq: 3)
+    let callsBefore = fake.sessionsCallCount
+    await send(Fixture.edited(1), Fixture.edited(2), Fixture.edited(3))
+    expectNoDifference(model.footerText, "Live · New changes appear below")
+    expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
+    expectNoDifference(model.selectedSession?.agentConnection, .connected)
+  }
+
+  @Test func replayingTheStoppedSessionsHistoryKeepsRecordingEndedWithoutRefreshing() async {
+    listSessions(.disconnected(reason: "capture_not_live"), durableSeq: 2)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    let callsBefore = fake.sessionsCallCount
+    await send(Fixture.edited(1), Fixture.edited(2))
+    expectNoDifference(model.footerText, "Recording ended")
+    expectNoDifference(fake.sessionsCallCount, callsBefore)
+  }
+
+  func reconnectedWithAReplayedSetupPending(_ daemon: DaemonFake, gate open: AsyncStream<Void>.Continuation) async -> ChangeStreamPageModel {
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .disconnected(reason: "capture_not_live"))])
+    open.yield()
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    await Task.megaYield()
+    daemon.send(.heartbeat)
+    await Task.megaYield()
+    daemon.close()
+    await Task.megaYield()
+    await clock.advance(by: .milliseconds(500))
+    daemon.send(.heartbeat)
+    await Task.megaYield()
+    daemon.send(Fixture.agentConnection(1, state: "setup_pending"))
+    await Task.megaYield()
+    return model
+  }
+
+  @Test func aReplayedSetupPendingWaitsForTheFreshListingBeforeMarkingRecording() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    let model = await reconnectedWithAReplayedSetupPending(daemon, gate: open)
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), model.sessionPickerTitle)
+    open.yield()
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .setupPending)
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Recording")
+  }
+
+  @Test func aReplayedSetupPendingLeavesRecordingUnknownWhenTheRefreshFails() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    let model = await reconnectedWithAReplayedSetupPending(daemon, gate: open)
+    defer { model.viewDisappeared() }
+    daemon.setSessionsError(URLError(.cannotConnectToHost))
+    open.yield()
+    await Task.megaYield()
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), model.sessionPickerTitle)
   }
 
   @Test func aConnectionEventUpdatesTheWatchedSessionAndItsComposerWithoutAddingARow() async {
@@ -2162,10 +2236,11 @@ extension ChangeStreamPageTests {
     #expect(!composer.canSubmit)
     daemon.send(Fixture.agentConnection(3, state: "setup_pending"))
     await Task.megaYield()
-    expectNoDifference(composer.agentConnection, .setupPending)
+    expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(3), removed: false, agentConnection: .setupPending)])
     open.yield()
     await Task.megaYield()
+    expectNoDifference(composer.agentConnection, .setupPending)
     daemon.send(Fixture.agentConnection(4, state: "connected"))
     await Task.megaYield()
     expectNoDifference(composer.agentConnection, .connected)

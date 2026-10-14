@@ -26,6 +26,8 @@ final class DaemonFake: Sendable {
     var sessions: [SessionSummary] = []
     var starts: [String: SessionStarted] = [:]
     var sessionStartCallCount = 0
+    var sessionsCallCount = 0
+    var sessionsError: (any Error)?
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
@@ -76,6 +78,8 @@ final class DaemonFake: Sendable {
   }
 
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
+  var sessionsCallCount: Int { state.withLock { $0.sessionsCallCount } }
+  func setSessionsError(_ error: (any Error)?) { state.withLock { $0.sessionsError = error } }
   func setDiscoverError(_ error: (any Error)?) { state.withLock { $0.discoverError = error } }
   func setSessions(_ sessions: [SessionSummary], starts: [String: SessionStarted] = [:]) {
     state.withLock {
@@ -128,10 +132,14 @@ final class DaemonFake: Sendable {
         }
       },
       sessions: { [self] _ in
-        let snapshot = state.withLock { $0.sessions }
+        let snapshot = state.withLock { state in
+          state.sessionsCallCount += 1
+          return state.sessions
+        }
         if let sessionsGate {
           for await _ in sessionsGate { break }
         }
+        if let error = state.withLock({ $0.sessionsError }) { throw error }
         return snapshot
       },
       sessionStart: { [self] _, id in
