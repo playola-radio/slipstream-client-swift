@@ -1,0 +1,513 @@
+{
+  "type": "frame",
+  "id": "G5M93",
+  "x": 1340,
+  "y": 2840,
+  "name": "Stream picker · rename unavailable",
+  "width": 1200,
+  "height": 760,
+  "layout": "none",
+  "children": [
+    {
+      "id": "Q9o1VL",
+      "type": "ref",
+      "ref": "YiBPq",
+      "name": "Window",
+      "x": 0,
+      "y": 0,
+      "descendants": {
+        "yt7hy": {
+          "content": "louisville-v1 · started Oct 14 15:02"
+        }
+      }
+    },
+    {
+      "type": "frame",
+      "id": "TWQOK",
+      "x": 100,
+      "y": 46,
+      "name": "Picker menu",
+      "width": 520,
+      "fill": "#2A333DF2",
+      "cornerRadius": 8,
+      "stroke": "#4A5D6B",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#00000088",
+        "offset": {
+          "x": 0,
+          "y": 10
+        },
+        "blur": 30
+      },
+      "layout": "vertical",
+      "padding": 5,
+      "children": [
+        {
+          "type": "frame",
+          "id": "d7NB4",
+          "name": "Item · Billing cleanup · Recording",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "R0U1PO",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#E6F0F6"
+            },
+            {
+              "type": "text",
+              "id": "EUsHh",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "louisville-v1 · started Oct 14 15:02 · Recording",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "i9tst",
+          "name": "Item · Invoice totals refactor",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "E98Rlr",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "fUFyr",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "louisville-v1 · started Oct 13 11:20",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ivypi",
+          "name": "Item · Session resume handling",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "d6cPyj",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "yWHLv",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "louisville-v3 · started Oct 13 09:05",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ozaia",
+          "name": "Item · Docs pass · started Oct 12 09:14",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "QlQHH",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "cEzzw",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "docs-site · started Oct 12 09:14 · 8b21d0c4-2e6f-4a3b-91d7-0c5e3f8a6b12",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ysEwy",
+          "name": "Item · Docs pass · started Oct 13 16:40",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "LbKdZ",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "Ii1sz",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "docs-site · started Oct 12 09:14 · 3f9c1a2e-7b4d-4e1a-9c2f-5d8e6a1b0c3d",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "kdI4Q",
+          "name": "Item · louisville-v2 · started Oct 11 10:03",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "Jd6jV",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "rmtZD",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "louisville-v2 · started Oct 11 10:03",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "lM7x9",
+          "name": "Divider wrap",
+          "width": "fill_container",
+          "layout": "vertical",
+          "padding": [
+            5,
+            8
+          ],
+          "children": [
+            {
+              "type": "rectangle",
+              "id": "CbpA3",
+              "name": "Divider",
+              "fill": "#4A5D6B",
+              "width": "fill_container",
+              "height": 1
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "QJ71x",
+          "name": "Item · Rename Stream…",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "G0Da5u",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "uTPyB",
+              "name": "Label",
+              "fill": "#6B7C89",
+              "content": "Rename Stream…",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "wbncK",
+              "name": "flex",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "text",
+              "id": "AVpmZ",
+              "name": "Shortcut",
+              "fill": "#55646F",
+              "content": "⇧⌘R",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Oh7Ed",
+          "name": "Unavailable hint",
+          "width": "fill_container",
+          "padding": [
+            0,
+            8,
+            6,
+            26
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "Tvul5",
+              "name": "Hint",
+              "fill": "#8DA2B2",
+              "content": "Update Slipstream to rename streams",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "YkRJ5",
+      "x": 660,
+      "y": 70,
+      "name": "Annotations",
+      "width": 300,
+      "fill": "#0E1318E6",
+      "cornerRadius": 8,
+      "stroke": "#314351",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "layout": "vertical",
+      "gap": 10,
+      "padding": 16,
+      "children": [
+        {
+          "type": "text",
+          "id": "nrI4w",
+          "name": "Annotation title",
+          "fill": "#B2DEC9",
+          "content": "Older Slipstream (no names)",
+          "fontFamily": "Geist",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "y87WX",
+          "name": "Note · Named by you",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "a9Ho7",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "Every stream",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "RheOc",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "folder · start time",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "k2HXWe",
+          "name": "Note · Named by the agent",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "eyYq8",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "Same folder and start time",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "lXALT",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "stream ID added (today's rule)",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "horoF",
+          "name": "Note · Two streams named alike",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "EdWHG",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "Rename Stream…",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "o89zW",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "disabled, with an update hint",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "o63wvu",
+          "x": 16,
+          "y": 168,
+          "name": "Note · No name yet",
+          "enabled": false,
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "MXckH",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "No name yet",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "ozuYN",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "folder · start time",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
