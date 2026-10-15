@@ -15,3 +15,18 @@
 | Frame | Node ID | Status | Notes |
 |---|---|---|---|
 | Option A · tint plus deletion tick | — (HTML proposal) | Approved 2026-09-27 | `features/live-change-stream/exports/2026-09-27/`. Not in the canvas. |
+
+## Stream names
+
+Zone `XxvOh` ("10 · Stream names · rename streams"). Spec: `features/stream-names/spec.md`.
+
+| Frame | Node ID | Status | Notes |
+|---|---|---|---|
+| Stream window (component) | `YiBPq` | Component | Mock Change stream window used by every frame below. |
+| A1 · Picker menu open | `QS4AU` | Exploring | Direction A, chosen (D6). |
+| A2 · Rename sheet | `x7JKQ` | Exploring | Direction A, chosen (D6). |
+| B1 · Name in toolbar · hover | `lG7Sx` | Rejected | Direction B, not pursued. |
+| B2 · Editing in place | `mYXcU` | Rejected | Direction B, not pursued. |
+| Stream picker · menu open | `BNJ5S` | Approved 2026-10-14 | `exports/stream-picker--menu-open.png` |
+| Stream picker · rename unavailable | `G5M93` | Approved 2026-10-14 | `exports/stream-picker--rename-unavailable.png` |
+| Rename sheet · 8 states | `p60lo9`, `AHgJG`, `qeFrb`, `wpFbu`, `pmfs5`, `QAebu`, `RhnOw`, `QoKyQ` | Approved 2026-10-14 | `exports/rename-sheet--*.png` |

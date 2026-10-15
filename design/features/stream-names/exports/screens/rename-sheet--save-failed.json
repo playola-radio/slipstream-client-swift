@@ -1,0 +1,306 @@
+{
+  "type": "frame",
+  "id": "QoKyQ",
+  "x": 1340,
+  "y": 6230,
+  "name": "Rename sheet · save failed",
+  "width": 1200,
+  "height": 760,
+  "layout": "none",
+  "children": [
+    {
+      "id": "Djb7p",
+      "type": "ref",
+      "ref": "YiBPq",
+      "name": "Window",
+      "x": 0,
+      "y": 0,
+      "descendants": {
+        "yt7hy": {
+          "content": "Billing cleanup"
+        }
+      }
+    },
+    {
+      "type": "rectangle",
+      "cornerRadius": [
+        0,
+        0,
+        10,
+        10
+      ],
+      "id": "E3A6NK",
+      "x": 0,
+      "y": 52,
+      "name": "Dim",
+      "fill": "#0A0E1299",
+      "width": 1200,
+      "height": 708
+    },
+    {
+      "type": "frame",
+      "id": "hHLNT",
+      "x": 370,
+      "y": 52,
+      "name": "Rename sheet",
+      "width": 460,
+      "fill": "#232C35",
+      "cornerRadius": [
+        0,
+        0,
+        10,
+        10
+      ],
+      "stroke": "#4A5D6B",
+      "strokeWidth": {
+        "right": 1,
+        "bottom": 1,
+        "left": 1
+      },
+      "strokeAlignment": "inner",
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#000000A0",
+        "offset": {
+          "x": 0,
+          "y": 14
+        },
+        "blur": 36
+      },
+      "layout": "vertical",
+      "gap": 16,
+      "padding": [
+        20,
+        22
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "DFSQS",
+          "name": "Sheet header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 4,
+          "children": [
+            {
+              "type": "text",
+              "id": "v19Nf6",
+              "name": "Sheet title",
+              "fill": "#E0EBF1",
+              "content": "Rename stream",
+              "fontFamily": "Geist",
+              "fontSize": 15,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "NaTgu",
+              "name": "Sheet subtitle",
+              "fill": "#7D98AD",
+              "content": "louisville-v1 · started Oct 14 15:02",
+              "fontFamily": "Geist Mono",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "TcMXx",
+          "name": "Name field",
+          "width": "fill_container",
+          "fill": "#151B21",
+          "cornerRadius": 6,
+          "stroke": "#4B9CDA",
+          "strokeWidth": 2,
+          "strokeAlignment": "outer",
+          "padding": [
+            8,
+            10
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "zag4d",
+              "name": "Field text",
+              "fill": "#D9E7EF",
+              "content": "Billing and tax cleanup",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "rectangle",
+              "id": "L4EKFK",
+              "name": "Caret",
+              "fill": "#E0EBF1",
+              "width": 1,
+              "height": 16
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "X2ds4a",
+          "name": "Save failed banner",
+          "width": "fill_container",
+          "fill": "#3A2426",
+          "cornerRadius": 6,
+          "stroke": "#6E3A3D",
+          "strokeWidth": 1,
+          "strokeAlignment": "inner",
+          "gap": 8,
+          "padding": [
+            8,
+            10
+          ],
+          "children": [
+            {
+              "type": "icon",
+              "id": "yH9Kb",
+              "name": "Alert icon",
+              "width": 13,
+              "height": 13,
+              "icon": "triangle-alert",
+              "library": "lucide",
+              "fill": "#E5787A"
+            },
+            {
+              "type": "text",
+              "id": "D9QltG",
+              "name": "Banner text",
+              "fill": "#F0C9CA",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Couldn't save the name. Slipstream isn't responding. Your text is kept, so you can try again.",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "yfzr9",
+          "name": "Agent name row",
+          "width": "fill_container",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "lCXS0",
+              "name": "Bot icon",
+              "width": 13,
+              "height": 13,
+              "icon": "bot",
+              "library": "lucide",
+              "fill": "#83BDA4"
+            },
+            {
+              "type": "text",
+              "id": "N3W4i",
+              "name": "Agent name",
+              "fill": "#9FB3C2",
+              "content": "Agent's name: Invoice totals refactor",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "CvpvC",
+              "name": "flex",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "frame",
+              "id": "k28Hk",
+              "name": "Use agent's name",
+              "cornerRadius": 5,
+              "stroke": "#4A5D6B",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "padding": [
+                4,
+                8
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Hsy8C",
+                  "name": "Use label",
+                  "fill": "#A2CBE3",
+                  "content": "Use agent's name",
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "MISSU",
+          "name": "Buttons",
+          "width": "fill_container",
+          "gap": 10,
+          "justifyContent": "end",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "qUQD8",
+              "name": "Cancel",
+              "fill": "#34404B",
+              "cornerRadius": 6,
+              "padding": [
+                5,
+                14
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "muIRu",
+                  "name": "Cancel label",
+                  "fill": "#D9E7EF",
+                  "content": "Cancel",
+                  "fontFamily": "Geist",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "QhCq0",
+              "name": "Save",
+              "fill": "#2F7BC0",
+              "cornerRadius": 6,
+              "padding": [
+                5,
+                16
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "uPjzG",
+                  "name": "Save label",
+                  "fill": "#FFFFFF",
+                  "content": "Save",
+                  "fontFamily": "Geist",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
