@@ -30,3 +30,14 @@ Zone `XxvOh` ("10 · Stream names · rename streams"). Spec: `features/stream-na
 | Stream picker · menu open | `BNJ5S` | Approved 2026-10-14 | `exports/stream-picker--menu-open.png` |
 | Stream picker · rename unavailable | `G5M93` | Approved 2026-10-14 | `exports/stream-picker--rename-unavailable.png` |
 | Rename sheet · 8 states | `p60lo9`, `AHgJG`, `qeFrb`, `wpFbu`, `pmfs5`, `QAebu`, `RhnOw`, `QoKyQ` | Approved 2026-10-14 | `exports/rename-sheet--*.png` |
+
+## Capture states
+
+Zone `SP9Ol` ("12 · Capture states — is each workspace really recording?"). Spec: `features/capture-states/spec.md`.
+
+| Frame | Node ID | Status | Notes |
+|---|---|---|---|
+| Stream window (component) | `AyBoP` | Component | `CS · Window`, used by every change-stream frame below. |
+| Change stream · 34 capture and chat-link states | see `features/capture-states/screens.md` | Exploring | `exports/change-stream--*.png` |
+| Stream picker · menu open / state unavailable | `kIilE`, `eGE4q` | Exploring | `exports/stream-picker--*.png` |
+| Ask Agent · 6 gate states | `gETof`, `J7Gw4`, `y3rtsC`, `ssOml`, `TX08u`, `WCdUs` | Exploring | `exports/ask-agent--*.png` |
