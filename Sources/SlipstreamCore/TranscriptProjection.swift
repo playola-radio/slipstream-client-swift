@@ -53,6 +53,7 @@ public struct TranscriptProjection: Equatable, Sendable {
       }
     }
     if let turn { projection.closeHistoryTurn(turn) }
+    projection.stopRunningTools()
     return projection
   }
 
@@ -131,10 +132,7 @@ public struct TranscriptProjection: Equatable, Sendable {
   }
 
   private mutating func closeHistoryTurn(_ turn: HistoryTurn) {
-    guard let first = turn.first, let last = turn.last, let lastUUID = turn.lastUUID else {
-      stopRunningTools()
-      return
-    }
+    guard let first = turn.first, let last = turn.last, let lastUUID = turn.lastUUID else { return }
     endTurn(
       turn.isInterrupted ? .stopped : .completed,
       duration: .seconds(last.timeIntervalSince(first)),

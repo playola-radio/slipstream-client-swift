@@ -155,6 +155,29 @@ struct ClaudeLinesTests {
     expectNoDifference(decode(#"{"type":"control_request","request":7}"#), .gap)
   }
 
+  @Test func canUseToolWithoutInputIsGap() {
+    expectNoDifference(
+      decode(#"{"type":"control_request","request_id":"r","request":{"subtype":"can_use_tool"}}"#), .gap)
+  }
+
+  @Test func failedResultCarriesItsErrors() {
+    expectNoDifference(
+      decode(#"{"type":"result","subtype":"error_during_execution","duration_ms":9,"is_error":true,"errors":["a","b"]}"#),
+      .result(durationMs: 9, isError: true, text: "a\nb"))
+  }
+
+  @Test func unknownBlockWithUnexpectedFieldsKeepsItsSiblings() {
+    let line = decode(
+      #"{"type":"assistant","uuid":"x","message":{"content":[{"type":"novel","content":{"x":1},"text":7},{"type":"text","text":"hi"}]}}"#)
+    expectNoDifference(line, .assistant(uuid: "x", timestamp: nil, blocks: [.text("hi")]))
+  }
+
+  @Test func toolResultTextBlockWithoutTextIsGap() {
+    expectNoDifference(
+      decode(#"{"type":"user","uuid":"u","message":{"content":[{"type":"tool_result","tool_use_id":"t","content":[{"type":"text"}]}]}}"#),
+      .gap)
+  }
+
   @Test func unknownTypeIsIgnored() {
     expectNoDifference(decode(#"{"type":"rate_limit_event","x":1}"#), .ignored)
   }

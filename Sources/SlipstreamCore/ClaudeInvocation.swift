@@ -64,9 +64,7 @@ public enum ClaudeInvocation {
   }
 
   private static func line(_ value: JSONValue) -> Data {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.withoutEscapingSlashes]
-    var data = (try? encoder.encode(value)) ?? Data("{}".utf8)
+    var data = (try? JSONEncoder().encode(value)) ?? Data("{}".utf8)
     data.append(0x0A)
     return data
   }

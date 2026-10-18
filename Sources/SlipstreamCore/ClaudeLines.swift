@@ -32,19 +32,22 @@ extension AgentLine {
         let wire = try decoder.decode(AssistantWire.self, from: line)
         return .assistant(
           uuid: wire.uuid, timestamp: parseTimestamp(wire.timestamp),
-          blocks: try wire.message.content.blocks.compactMap(assistantBlock))
+          blocks: wire.message.content.blocks.compactMap(assistantBlock))
       case "user":
         let wire = try decoder.decode(UserWire.self, from: line)
-        let blocks = try wire.message.content.blocks.compactMap(userBlock)
+        let blocks = wire.message.content.blocks.compactMap(userBlock)
         let hasText = blocks.contains { if case .text = $0 { true } else { false } }
         return .user(
           uuid: wire.uuid, timestamp: parseTimestamp(wire.timestamp),
           isPrompt: wire.promptId != nil && hasText, blocks: blocks)
       case "result":
         let wire = try decoder.decode(ResultWire.self, from: line)
-        return .result(durationMs: wire.durationMs, isError: wire.isError, text: wire.result)
+        return .result(
+          durationMs: wire.durationMs, isError: wire.isError,
+          text: wire.result ?? wire.errors?.joined(separator: "\n"))
       case "control_request":
         let wire = try decoder.decode(ControlRequestWire.self, from: line)
+        if wire.request.subtype == "can_use_tool" && wire.request.input == nil { return .gap }
         return .controlRequest(requestID: wire.requestID, subtype: wire.request.subtype, input: wire.request.input)
       case "ai-title":
         return .title(try decoder.decode(TitleWire.self, from: line).aiTitle)
@@ -57,40 +60,26 @@ extension AgentLine {
   }
 }
 
-private struct MalformedBlock: Error {}
-
 private func parseTimestamp(_ string: String?) -> Date? {
   guard let string else { return nil }
   return (try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(string))
     ?? (try? Date.ISO8601FormatStyle().parse(string))
 }
 
-private func assistantBlock(_ block: BlockWire) throws -> AssistantBlock? {
-  switch block.type {
-  case "text":
-    guard let text = block.text else { throw MalformedBlock() }
-    return .text(text)
-  case "thinking":
-    guard let thinking = block.thinking else { throw MalformedBlock() }
-    return .thinking(thinking)
-  case "tool_use":
-    guard let id = block.id, let name = block.name else { throw MalformedBlock() }
-    return .toolUse(id: id, name: name, input: block.input ?? .object([:]))
-  default:
-    return nil
+private func assistantBlock(_ block: BlockWire) -> AssistantBlock? {
+  switch block {
+  case .text(let text): .text(text)
+  case .thinking(let thinking): .thinking(thinking)
+  case .toolUse(let id, let name, let input): .toolUse(id: id, name: name, input: input)
+  case .toolResult, .other: nil
   }
 }
 
-private func userBlock(_ block: BlockWire) throws -> UserBlock? {
-  switch block.type {
-  case "text":
-    guard let text = block.text else { throw MalformedBlock() }
-    return .text(text)
-  case "tool_result":
-    guard let toolUseID = block.toolUseID else { throw MalformedBlock() }
-    return .toolResult(toolUseID: toolUseID, text: block.content?.joinedText ?? "", isError: block.isError ?? false)
-  default:
-    return nil
+private func userBlock(_ block: BlockWire) -> UserBlock? {
+  switch block {
+  case .text(let text): .text(text)
+  case .toolResult(let toolUseID, let text, let isError): .toolResult(toolUseID: toolUseID, text: text, isError: isError)
+  case .thinking, .toolUse, .other: nil
   }
 }
 
@@ -131,26 +120,39 @@ private enum ContentWire: Decodable {
 
   var blocks: [BlockWire] {
     switch self {
-    case .text(let text): [BlockWire(type: "text", text: text)]
+    case .text(let text): [.text(text)]
     case .blocks(let blocks): blocks
     }
   }
 }
 
-private struct BlockWire: Decodable {
-  var type: String
-  var text: String?
-  var thinking: String?
-  var id: String?
-  var name: String?
-  var input: JSONValue?
-  var toolUseID: String?
-  var content: ToolResultContentWire?
-  var isError: Bool?
+private enum BlockWire: Decodable {
+  case text(String)
+  case thinking(String)
+  case toolUse(id: String, name: String, input: JSONValue)
+  case toolResult(toolUseID: String, text: String, isError: Bool)
+  case other
 
-  init(type: String, text: String) {
-    self.type = type
-    self.text = text
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    switch try container.decode(String.self, forKey: .type) {
+    case "text":
+      self = .text(try container.decode(String.self, forKey: .text))
+    case "thinking":
+      self = .thinking(try container.decode(String.self, forKey: .thinking))
+    case "tool_use":
+      self = .toolUse(
+        id: try container.decode(String.self, forKey: .id),
+        name: try container.decode(String.self, forKey: .name),
+        input: try container.decodeIfPresent(JSONValue.self, forKey: .input) ?? .object([:]))
+    case "tool_result":
+      self = .toolResult(
+        toolUseID: try container.decode(String.self, forKey: .toolUseID),
+        text: try container.decodeIfPresent(ToolResultContentWire.self, forKey: .content)?.joinedText ?? "",
+        isError: try container.decodeIfPresent(Bool.self, forKey: .isError) ?? false)
+    default:
+      self = .other
+    }
   }
 
   enum CodingKeys: String, CodingKey {
@@ -178,25 +180,35 @@ private enum ToolResultContentWire: Decodable {
     case .text(let text):
       text
     case .blocks(let blocks):
-      blocks.map { $0.type == "text" ? ($0.text ?? "") : "[\($0.type)]" }.joined(separator: "\n")
+      blocks.map(\.text).joined(separator: "\n")
     }
   }
 }
 
 private struct ResultBlockWire: Decodable {
-  var type: String
-  var text: String?
+  var text: String
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let type = try container.decode(String.self, forKey: .type)
+    text = type == "text" ? try container.decode(String.self, forKey: .text) : "[\(type)]"
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case type, text
+  }
 }
 
 private struct ResultWire: Decodable {
   var durationMs: Int
   var isError: Bool
   var result: String?
+  var errors: [String]?
 
   enum CodingKeys: String, CodingKey {
     case durationMs = "duration_ms"
     case isError = "is_error"
-    case result
+    case result, errors
   }
 }
 

@@ -18,12 +18,6 @@ private func toolUse(_ name: String, _ input: JSONValue, id: String = "toolu_1")
   .assistant(uuid: "a-\(id)", timestamp: nil, blocks: [.toolUse(id: id, name: name, input: input)])
 }
 
-private func toolResult(id: String = "toolu_1", text: String = "ok", isError: Bool = false) -> AgentLine {
-  .user(
-    uuid: "u-\(id)", timestamp: nil, isPrompt: false,
-    blocks: [.toolResult(toolUseID: id, text: text, isError: isError)])
-}
-
 private func kinds(_ projection: TranscriptProjection) -> [TranscriptItem.Kind] {
   projection.items.map(\.kind)
 }
@@ -67,7 +61,10 @@ struct TranscriptProjectionTests {
   @Test func failedToolResultMarksFailed() {
     var projection = TranscriptProjection()
     projection.apply(toolUse("Bash", .object(["command": .string("false")])))
-    projection.apply(toolResult(text: "exit 1", isError: true))
+    projection.apply(
+      .user(
+        uuid: "u-1", timestamp: nil, isPrompt: false,
+        blocks: [.toolResult(toolUseID: "toolu_1", text: "exit 1", isError: true)]))
     expectNoDifference(
       kinds(projection),
       [.toolCall(name: "Bash", target: "false", status: .failed, detail: "exit 1")]
@@ -163,6 +160,17 @@ struct TranscriptProjectionTests {
         .toolCall(name: "Bash", target: "sleep 100", status: .stopped, detail: nil),
         .turnFooter(ending: .stopped, duration: .seconds(4), time: t0.addingTimeInterval(4)),
       ]
+    )
+  }
+
+  @Test func historyStopsToolsWhenThePromptWasLost() {
+    let projection = TranscriptProjection.history([
+      .gap,
+      toolUse("Bash", .object(["command": .string("sleep 100")])),
+    ])
+    expectNoDifference(
+      kinds(projection),
+      [.gap, .toolCall(name: "Bash", target: "sleep 100", status: .stopped, detail: nil)]
     )
   }
 
