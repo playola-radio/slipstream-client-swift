@@ -1,0 +1,4 @@
+{"type":"control_response","response":{"subtype":"success","request_id":"int-1","response":{"still_queued":[]}}}
+{"type":"user","uuid":"u-9","message":{"role":"user","content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}
+{"type":"result","subtype":"error_during_execution","stop_reason":"tool_use","is_error":false,"duration_ms":5200}
+{"type":"system","subtype":"session_state_changed","state":"idle"}

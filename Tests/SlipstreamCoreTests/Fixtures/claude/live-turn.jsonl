@@ -1,0 +1,8 @@
+{"type":"system","subtype":"init","session_id":"4bad416c-1d04-4063-9e76-61ebb936ae06","model":"claude-opus-5-5","cwd":"/tmp/scratch"}
+{"type":"system","subtype":"session_state_changed","state":"running"}
+{"type":"assistant","uuid":"a-1","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Check the file first."},{"type":"tool_use","id":"toolu_01","name":"Bash","input":{"command":"cat a.txt"}}]}}
+{"type":"user","uuid":"u-1","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"hello\nworld"}]}}
+{"type":"assistant","uuid":"a-2","message":{"role":"assistant","content":[{"type":"text","text":"The file says hello."}]}}
+{"type":"assistant","uuid":"a-3","message":{"role":"assistant","content":[{"type":"text","text":"Anything else?"}]}}
+{"type":"result","subtype":"success","is_error":false,"duration_ms":41000,"result":"Anything else?","session_id":"4bad416c-1d04-4063-9e76-61ebb936ae06"}
+{"type":"system","subtype":"session_state_changed","state":"idle"}

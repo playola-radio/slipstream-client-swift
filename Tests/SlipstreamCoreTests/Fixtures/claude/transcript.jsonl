@@ -1,0 +1,13 @@
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-18T14:59:59.000Z"}
+{"type":"user","uuid":"t-u1","promptId":"pr-1","timestamp":"2026-10-18T15:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Fix the bug"}]}}
+{"type":"attachment","uuid":"t-att","timestamp":"2026-10-18T15:00:00.500Z","attachment":{"type":"skill_listing"}}
+{"type":"assistant","uuid":"t-a1","timestamp":"2026-10-18T15:00:02.500Z","message":{"role":"assistant","content":[{"type":"text","text":"Looking."},{"type":"tool_use","id":"toolu_10","name":"Read","input":{"file_path":"/tmp/scratch/a.txt"}}]}}
+{"type":"assistant","uuid":"t-side","isSidechain":true,"timestamp":"2026-10-18T15:00:02.600Z","message":{"role":"assistant","content":[{"type":"text","text":"subagent chatter"}]}}
+{"type":"user","uuid":"t-u2","timestamp":"2026-10-18T15:00:03.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_10","content":"hello"}]}}
+{"type":"assistant","uuid":"t-a2","timestamp":"2026-10-18T15:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Fixed."}]}}
+{"type":"ai-title","aiTitle":"Fix the bug"}
+{"type":"system","subtype":"turn_duration","uuid":"t-sys","timestamp":"2026-10-18T15:00:05.100Z"}
+{"type":"user","uuid":"t-u3","promptId":"pr-2","timestamp":"2026-10-18T15:01:00.000Z","message":{"role":"user","content":"Thanks"}}
+{"type":"assistant","uuid":"t-a3","timestamp":"2026-10-18T15:01:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"You're welcome."}]}}
+{"type":"cost-state","costUSD":0.01}
+{"type":"ai-title","aiTitle":"Bug fix chat"}
