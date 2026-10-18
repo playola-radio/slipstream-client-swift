@@ -118,6 +118,16 @@ struct TranscriptProjectionTests {
     expectNoDifference(projection.replyText(endingAt: "missing"), "")
   }
 
+  @Test func replyTextStopsAtAnUntimedHistoryTurnsPrompt() {
+    let projection = TranscriptProjection.history([
+      .user(uuid: "u1", timestamp: nil, isPrompt: true, blocks: [.text("first")]),
+      .assistant(uuid: "a1", timestamp: nil, blocks: [.text("earlier reply")]),
+      .user(uuid: "u2", timestamp: t0, isPrompt: true, blocks: [.text("second")]),
+      .assistant(uuid: "a2", timestamp: t0.addingTimeInterval(1), blocks: [.text("later reply")]),
+    ])
+    expectNoDifference(projection.replyText(endingAt: "a2#footer"), "later reply")
+  }
+
   @Test func historyFootersFromTimestamps() throws {
     let projection = TranscriptProjection.history(try fixtureLines("transcript"))
     let footers = projection.items.compactMap { item -> (String, TranscriptItem.Kind)? in

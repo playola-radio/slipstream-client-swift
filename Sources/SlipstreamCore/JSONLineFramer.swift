@@ -24,7 +24,7 @@ public struct JSONLineFramer: Sendable {
         finishLine(into: &framed)
       } else if !isDiscarding {
         buffer.append(byte)
-        if buffer.count > maxLineBytes {
+        if buffer.count > maxLineBytes + (buffer.last == Self.cr ? 1 : 0) {
           buffer.removeAll(keepingCapacity: true)
           isDiscarding = true
         }

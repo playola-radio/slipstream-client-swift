@@ -26,6 +26,7 @@ public struct TranscriptItem: Identifiable, Equatable, Sendable {
 public struct TranscriptProjection: Equatable, Sendable {
   public private(set) var items: [TranscriptItem]
   private var gapCount = 0
+  private var currentTurnStartIndex = 0
 
   public init() {
     items = []
@@ -102,6 +103,7 @@ public struct TranscriptProjection: Equatable, Sendable {
   public mutating func endTurn(_ ending: TurnEnding, duration: Duration, at time: Date, id: String) {
     stopRunningTools()
     items.append(TranscriptItem(id: id, kind: .turnFooter(ending: ending, duration: duration, time: time)))
+    currentTurnStartIndex = items.endIndex
   }
 
   public func replyText(endingAt footerID: String) -> String {
@@ -109,7 +111,7 @@ public struct TranscriptProjection: Equatable, Sendable {
     var replies: [String] = []
     for item in items[..<footerIndex].reversed() {
       switch item.kind {
-      case .turnFooter: return replies.reversed().joined(separator: "\n\n")
+      case .turnFooter, .userMessage: return replies.reversed().joined(separator: "\n\n")
       case .reply(let text): replies.append(text)
       default: break
       }
@@ -132,7 +134,11 @@ public struct TranscriptProjection: Equatable, Sendable {
   }
 
   private mutating func closeHistoryTurn(_ turn: HistoryTurn) {
-    guard let first = turn.first, let last = turn.last, let lastUUID = turn.lastUUID else { return }
+    guard let first = turn.first, let last = turn.last, let lastUUID = turn.lastUUID else {
+      stopRunningTools()
+      currentTurnStartIndex = items.endIndex
+      return
+    }
     endTurn(
       turn.isInterrupted ? .stopped : .completed,
       duration: .seconds(last.timeIntervalSince(first)),
@@ -150,7 +156,7 @@ public struct TranscriptProjection: Equatable, Sendable {
   }
 
   private mutating func stopRunningTools() {
-    for index in items.indices {
+    for index in currentTurnStartIndex..<items.endIndex {
       if case .toolCall(let name, let target, .running, let detail) = items[index].kind {
         items[index].kind = .toolCall(name: name, target: target, status: .stopped, detail: detail)
       }

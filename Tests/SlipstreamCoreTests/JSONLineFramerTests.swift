@@ -18,6 +18,11 @@ struct JSONLineFramerTests {
     expectNoDifference(framer.append(Data("x\r\n".utf8)), [.line(Data("x".utf8))])
   }
 
+  @Test func acceptsAnExactLimitLineEndingInCRLF() {
+    var framer = JSONLineFramer(maxLineBytes: 8)
+    expectNoDifference(framer.append(Data("12345678\r\n".utf8)), [.line(Data("12345678".utf8))])
+  }
+
   @Test func overLongLineBecomesOverflowAndNextLineParses() {
     var framer = JSONLineFramer(maxLineBytes: 8)
     var framed = framer.append(Data("0123456789".utf8))
