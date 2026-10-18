@@ -163,12 +163,15 @@ public struct TranscriptProjection: Equatable, Sendable {
 
   private static func target(of name: String, input: JSONValue) -> String? {
     guard case .object(let fields) = input else { return nil }
-    if case .string(let path)? = fields["file_path"] {
-      return URL(fileURLWithPath: path).lastPathComponent
-    }
-    if name == "Bash", case .string(let command)? = fields["command"] {
+    switch name {
+    case "Bash":
+      guard case .string(let command)? = fields["command"] else { return nil }
       return command
+    case "Read", "Write", "Edit", "MultiEdit":
+      guard case .string(let path)? = fields["file_path"] else { return nil }
+      return URL(fileURLWithPath: path).lastPathComponent
+    default:
+      return nil
     }
-    return nil
   }
 }

@@ -47,7 +47,7 @@ struct TranscriptProjectionTests {
     var projection = TranscriptProjection()
     projection.apply(toolUse("Edit", .object(["file_path": .string("/a/b/File.swift")]), id: "e"))
     projection.apply(toolUse("Bash", .object(["command": .string("swift test")]), id: "b"))
-    projection.apply(toolUse("Mystery", .object(["x": .number(1)]), id: "m"))
+    projection.apply(toolUse("Mystery", .object(["file_path": .string("/a/b/Other.swift")]), id: "m"))
     expectNoDifference(
       kinds(projection),
       [
