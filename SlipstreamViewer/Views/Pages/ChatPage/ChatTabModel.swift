@@ -104,7 +104,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   func send() async {
-    let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    let sentDraft = draft
+    let text = sentDraft.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !text.isEmpty, activeTurn == nil else { return }
     await awaitRetired()
     guard activeTurn == nil else { return }
@@ -128,7 +129,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       errorText = Self.sendFailedText
       return
     }
-    if draft == text { draft = "" }
+    if draft == sentDraft { draft = "" }
     if activeTurn?.id == turn.id {
       $record.withLock { $0.isWaiting = false }
     }

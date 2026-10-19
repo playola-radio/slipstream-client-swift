@@ -280,6 +280,16 @@ struct ChatPageTests {
     #expect(tab.draft == "")
   }
 
+  @Test func sendClearsDraftWithTrailingNewline() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "Hello\n")
+
+    #expect(model.selectedTab?.draft == "")
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Hello"))])
+  }
+
   @Test func editingDraftDuringWriteKeepsNewText() async throws {
     agent.hold(.writes)
     let model = makeModel(records: [record()])
