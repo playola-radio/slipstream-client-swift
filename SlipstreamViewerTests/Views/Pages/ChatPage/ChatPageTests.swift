@@ -510,6 +510,175 @@ struct ChatPageTests {
     #expect(model.selectedTab?.workingText == "Working 30s · last output 0s ago")
   }
 
+  // MARK: - Stop, Try again and model change
+
+  @Test func stopWritesInterruptAndEndsStopped() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    expectNoDifference(
+      agent.writes(0),
+      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.interrupt(requestID: UUID(2).uuidString))])
+    #expect(model.selectedTab?.isWorking == true)
+
+    await line(Line.result(durationMs: 12_000))
+    await clock.advance(by: .seconds(10))
+    await stop.value
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .stopped, duration: .seconds(12), time: Self.start))
+    #expect(tab.isWorking == false)
+    #expect(agent.shutdownCount == 0)
+  }
+
+  @Test func stopPressedResultWithIsErrorEndsStopped() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+
+    await line(Line.interruptedResult(durationMs: 12_000))
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .stopped, duration: .seconds(12), time: Self.start))
+    #expect(tab.errorText == nil)
+    await clock.advance(by: .seconds(10))
+    await stop.value
+  }
+
+  @Test func stopWithoutResultShutsDownAfterTenSeconds() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+
+    elapsed.setValue(9)
+    await clock.advance(by: .seconds(9))
+    #expect(agent.shutdownCount == 0)
+    #expect(model.selectedTab?.isWorking == true)
+
+    elapsed.setValue(10)
+    await clock.advance(by: .seconds(1))
+    await stop.value
+
+    let tab = try #require(model.selectedTab)
+    #expect(agent.shutdownCount == 1)
+    #expect(tab.isWorking == false)
+    #expect(tab.showsSpinner == false)
+    #expect(
+      tab.projection.items.last?.kind
+        == .turnFooter(ending: .stopped, duration: .seconds(10), time: Self.start.addingTimeInterval(10)))
+
+    agent.setTranscript(Self.saved, .found([]))
+    await send(model, "again")
+    expectNoDifference(agent.launches.last, launch(Self.saved, session: .resume(Self.saved)))
+  }
+
+  @Test func stopWhileLaunchingEndsStoppedAndLaunchesNothing() async throws {
+    agent.holdEnvironment()
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    #expect(tab.isWorking)
+
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    #expect(tab.isWorking == false)
+    agent.releaseEnvironment()
+    await stop.value
+    await sending.value
+    await Task.megaYield()
+
+    #expect(tab.isWorking == false)
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .stopped, duration: .zero, time: Self.start))
+    #expect(tab.errorText == nil)
+    #expect(agent.launches.isEmpty)
+    #expect(tab.draft == "hi")
+  }
+
+  @Test func exitAfterStopEndsStopped() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+
+    agent.exit(status: 130)
+    await Task.megaYield()
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .stopped, duration: .zero, time: Self.start))
+    #expect(tab.errorText == nil)
+    await clock.advance(by: .seconds(10))
+    await stop.value
+    #expect(agent.shutdownCount == 1)
+  }
+
+  @Test func tryAgainReloadsAndNeverResends() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    agent.exit(stderrTail: "boom")
+    await Task.megaYield()
+    let history: [AgentLine] = [
+      .user(uuid: "u1", timestamp: Self.start, isPrompt: true, blocks: [.text("hi")]),
+      .title("Saying hi"),
+    ]
+    agent.setTranscript(Self.saved, .found(history))
+
+    await model.tryAgainTapped()
+    await Task.megaYield()
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.errorText == nil)
+    expectNoDifference(tab.projection, .history(history))
+    #expect(tab.title == "Saying hi")
+    expectNoDifference(agent.launches.last, launch(Self.saved, session: .resume(Self.saved)))
+    expectNoDifference(agent.writes(1), [])
+  }
+
+  @Test func choiceChangeOnIdleTabRestartsWithNewFlags() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "one")
+    await line(Line.result())
+
+    await model.choiceSelected(model: "claude-sonnet-5-5", effort: .low)
+
+    expectNoDifference(model.records[id: Self.saved], record(model: "claude-sonnet-5-5", effort: .low))
+    #expect(agent.shutdowns(0) == 1)
+    #expect(model.selectedTab?.pickerText == "Sonnet 5.5 Low")
+
+    agent.setTranscript(Self.saved, .found([]))
+    await send(model, "two")
+    expectNoDifference(
+      agent.launches.last, launch(Self.saved, model: "claude-sonnet-5-5", effort: "low", session: .resume(Self.saved)))
+    #expect(agent.launches[1].arguments.contains("--resume=4bad416c-1d04-4063-9e76-61ebb936ae06"))
+  }
+
+  @Test func pickerDisabledWhileWorking() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    #expect(tab.pickerText == "Opus 5.5 High")
+    #expect(tab.isPickerEnabled)
+
+    await send(model, "hi")
+    #expect(tab.isPickerEnabled == false)
+    await model.choiceSelected(model: "claude-haiku-5-5", effort: .max)
+
+    expectNoDifference(model.records[id: Self.saved], record())
+    #expect(agent.shutdownCount == 0)
+  }
+
   // MARK: - Row text
 
   @Test func toolRowsChangeTenseWithStatus() async throws {

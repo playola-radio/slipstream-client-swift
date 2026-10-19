@@ -25,6 +25,8 @@ final class AgentFake: Sendable {
     var writes: [[Data]] = []
     var shutdowns: [Int] = []
     var writeError: (any Error)?
+    var isHoldingEnvironment = false
+    var heldResolves: [CheckedContinuation<Void, Never>] = []
   }
 
   private let state = Mutex(State())
@@ -40,6 +42,18 @@ final class AgentFake: Sendable {
   func setTranscript(_ id: UUID, _ lookup: TranscriptLookup) { state.withLock { $0.transcripts[id] = lookup } }
   func setUnreadable(_ id: UUID) { state.withLock { _ = $0.unreadable.insert(id) } }
   func setWriteError(_ error: (any Error)?) { state.withLock { $0.writeError = error } }
+
+  /// Makes environment lookups wait until `releaseEnvironment()`, like a slow login shell.
+  func holdEnvironment() { state.withLock { $0.isHoldingEnvironment = true } }
+
+  func releaseEnvironment() {
+    let held = state.withLock { state in
+      state.isHoldingEnvironment = false
+      defer { state.heldResolves = [] }
+      return state.heldResolves
+    }
+    for continuation in held { continuation.resume() }
+  }
 
   /// Sends to the most recent launch unless another is named.
   func send(_ event: AgentProcessEvent, to launch: Int? = nil) {
@@ -58,6 +72,13 @@ final class AgentFake: Sendable {
 
   var environmentClient: AgentEnvironmentClient {
     AgentEnvironmentClient(resolve: {
+      await withCheckedContinuation { continuation in
+        let isHeld = self.state.withLock { state in
+          if state.isHoldingEnvironment { state.heldResolves.append(continuation) }
+          return state.isHoldingEnvironment
+        }
+        if !isHeld { continuation.resume() }
+      }
       if let error = self.state.withLock({ $0.environmentError }) { throw error }
       return Self.environment
     })

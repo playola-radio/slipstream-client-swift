@@ -10,6 +10,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.agentProcess) var agentProcess
+  @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
   @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
@@ -38,6 +39,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   var isTitleBold: Bool { record.isWaiting }
   var showsSpinner: Bool { isWorking }
   var showsStop: Bool { isWorking }
+  var isPickerEnabled: Bool { !isWorking }
 
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
@@ -56,6 +58,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     let working = Self.durationText(seconds: now.timeIntervalSince(activeTurn.startedAt))
     let quiet = Self.durationText(seconds: now.timeIntervalSince(activeTurn.lastOutputAt))
     return "Working \(working) · last output \(quiet) ago"
+  }
+
+  var pickerText: String {
+    let model = ChatModelChoice.all.first { $0.id == record.model }?.name ?? record.model
+    return "\(model) \(record.effort.name)"
   }
 
   // MARK: - View Helpers
@@ -117,6 +124,43 @@ final class ChatTabModel: ViewModel, Identifiable {
     $record.withLock { $0.isWaiting = false }
   }
 
+  /// Asks Claude to stop, and gives up on it after the deadline.
+  func stop() async {
+    guard var turn = activeTurn, !turn.isStopPressed else { return }
+    turn.isStopPressed = true
+    activeTurn = turn
+    guard let handle else {
+      generation += 1
+      await endTurn(.stopped, duration: duration(of: turn))
+      return
+    }
+    try? await handle.write(ClaudeInvocation.interrupt(requestID: uuid().uuidString))
+    try? await clock.sleep(for: Self.stopDeadline)
+    guard activeTurn?.id == turn.id else { return }
+    await endTurn(.stopped, duration: duration(of: turn))
+    await shutdown()
+  }
+
+  /// Relaunches with `--resume` and reloads history. Nothing is resent.
+  func tryAgain() async {
+    guard !isWorking else { return }
+    errorText = nil
+    await shutdown()
+    await loadHistory()
+    guard errorText == nil, handle == nil, !isWorking else { return }
+    _ = await start()
+  }
+
+  /// The new choice applies from the next send.
+  func choiceSelected(model: String, effort: ChatEffort) async {
+    guard !isWorking else { return }
+    $record.withLock {
+      $0.model = model
+      $0.effort = effort
+    }
+    if handle != nil { await shutdown() }
+  }
+
   func clockTicked() {
     guard isWorking else { return }
     now = date.now
@@ -139,12 +183,14 @@ final class ChatTabModel: ViewModel, Identifiable {
     let id: UUID
     let startedAt: Date
     var lastOutputAt: Date
+    var isStopPressed = false
   }
 
   private struct Failure: Error {
     let message: String
   }
 
+  private static let stopDeadline = Duration.seconds(10)
   private static let newChatTitle = "New chat"
   private static let cantStartText = "Claude couldn't start"
   private static let unreadableText = "Couldn't read this chat's history from Claude"
@@ -196,10 +242,9 @@ final class ChatTabModel: ViewModel, Identifiable {
       let (_, lookup) = try await readTranscript()
       guard generation == self.generation else { return }
       needsHistory = false
-      if case .found(let lines) = lookup {
-        projection = .history(lines)
-        title = Self.title(lines)
-      }
+      let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
+      projection = .history(lines)
+      title = Self.title(lines)
     } catch {
       if generation == self.generation { errorText = error.message }
     }
@@ -241,9 +286,10 @@ final class ChatTabModel: ViewModel, Identifiable {
   private func received(_ line: AgentLine, from handle: AgentProcessHandle) async {
     switch line {
     case .result(let durationMs, let isError, let text):
-      guard activeTurn != nil else { return }
-      if isError { errorText = text ?? Self.turnFailedText }
-      await endTurn(isError ? .failed : .completed, duration: .milliseconds(durationMs))
+      guard let turn = activeTurn else { return }
+      let ending: TurnEnding = turn.isStopPressed ? .stopped : isError ? .failed : .completed
+      if ending == .failed { errorText = text ?? Self.turnFailedText }
+      await endTurn(ending, duration: .milliseconds(durationMs))
     case .controlRequest(let requestID, let subtype, let input):
       try? await handle.write(ClaudeInvocation.reply(requestID: requestID, subtype: subtype, input: input))
     default:
@@ -256,10 +302,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     generation += 1
     self.handle = nil
     follower = nil
-    if let turn = activeTurn {
+    if let turn = activeTurn, turn.isStopPressed {
+      await endTurn(.stopped, duration: duration(of: turn))
+    } else if let turn = activeTurn {
       let tail = stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
       errorText = tail.isEmpty ? Self.crashedText : "\(Self.crashedText)\n\(tail)"
-      await endTurn(.failed, duration: .seconds(date.now.timeIntervalSince(turn.startedAt)))
+      await endTurn(.failed, duration: duration(of: turn))
     }
     await handle.shutdown()
   }
@@ -270,6 +318,10 @@ final class ChatTabModel: ViewModel, Identifiable {
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
     await refreshTitle()
+  }
+
+  private func duration(of turn: ActiveTurn) -> Duration {
+    .seconds(date.now.timeIntervalSince(turn.startedAt))
   }
 
   private func refreshTitle() async {

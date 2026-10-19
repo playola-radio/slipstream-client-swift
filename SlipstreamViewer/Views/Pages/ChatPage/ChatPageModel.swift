@@ -119,6 +119,18 @@ final class ChatPageModel: ViewModel {
     await selectedTab?.send()
   }
 
+  func stopTapped() async {
+    await selectedTab?.stop()
+  }
+
+  func tryAgainTapped() async {
+    await selectedTab?.tryAgain()
+  }
+
+  func choiceSelected(model: String, effort: ChatEffort) async {
+    await selectedTab?.choiceSelected(model: model, effort: effort)
+  }
+
   // MARK: - Private Helpers
 
   private func addTab(in folder: String, model: String, effort: ChatEffort) {
