@@ -38,6 +38,15 @@ struct QuestionsTests {
     #expect(root["reply_to_question_id"] == nil)
   }
 
+  @Test func askNamesTheBindingGenerationOnlyWhenPresent() throws {
+    let ask = QuestionRequest(sessionID: Self.session, requestID: Self.requestID, text: "Why?",
+      context: Self.request.context, bindingGeneration: "3")
+    let json = try #require(JSONSerialization.jsonObject(with: ask.encoded()) as? [String: Any])
+    expectNoDifference(json["binding_generation"] as? String, "3")
+    let reply = try #require(JSONSerialization.jsonObject(with: Self.request.encoded()) as? [String: Any])
+    #expect(reply["binding_generation"] == nil)
+  }
+
   @Test func malformedParentNeverEncodes() {
     let followUp = QuestionRequest(sessionID: Self.session, requestID: Self.requestID, text: "And?",
       context: Self.request.context, replyToQuestionID: "q1")
