@@ -25,9 +25,11 @@ final class AgentFake: Sendable {
     var writes: [[Data]] = []
     var shutdowns: [Int] = []
     var writeError: (any Error)?
-    var isHoldingEnvironment = false
-    var heldResolves: [CheckedContinuation<Void, Never>] = []
+    var holding: Set<Hold> = []
+    var held: [Hold: [CheckedContinuation<Void, Never>]] = [:]
   }
+
+  enum Hold { case environment, launches, writes, shutdowns }
 
   private let state = Mutex(State())
 
@@ -43,16 +45,25 @@ final class AgentFake: Sendable {
   func setUnreadable(_ id: UUID) { state.withLock { _ = $0.unreadable.insert(id) } }
   func setWriteError(_ error: (any Error)?) { state.withLock { $0.writeError = error } }
 
-  /// Makes environment lookups wait until `releaseEnvironment()`, like a slow login shell.
-  func holdEnvironment() { state.withLock { $0.isHoldingEnvironment = true } }
+  /// Makes those calls wait until `release(_:)`, like a slow login shell or a full pipe.
+  func hold(_ hold: Hold) { state.withLock { _ = $0.holding.insert(hold) } }
 
-  func releaseEnvironment() {
+  func release(_ hold: Hold) {
     let held = state.withLock { state in
-      state.isHoldingEnvironment = false
-      defer { state.heldResolves = [] }
-      return state.heldResolves
+      state.holding.remove(hold)
+      return state.held.removeValue(forKey: hold) ?? []
     }
     for continuation in held { continuation.resume() }
+  }
+
+  private func wait(_ hold: Hold) async {
+    await withCheckedContinuation { continuation in
+      let isHeld = state.withLock { state in
+        if state.holding.contains(hold) { state.held[hold, default: []].append(continuation) }
+        return state.holding.contains(hold)
+      }
+      if !isHeld { continuation.resume() }
+    }
   }
 
   /// Sends to the most recent launch unless another is named.
@@ -72,13 +83,7 @@ final class AgentFake: Sendable {
 
   var environmentClient: AgentEnvironmentClient {
     AgentEnvironmentClient(resolve: {
-      await withCheckedContinuation { continuation in
-        let isHeld = self.state.withLock { state in
-          if state.isHoldingEnvironment { state.heldResolves.append(continuation) }
-          return state.isHoldingEnvironment
-        }
-        if !isHeld { continuation.resume() }
-      }
+      await self.wait(.environment)
       if let error = self.state.withLock({ $0.environmentError }) { throw error }
       return Self.environment
     })
@@ -97,6 +102,7 @@ final class AgentFake: Sendable {
 
   var processClient: AgentProcessClient {
     AgentProcessClient(launch: { launch in
+      await self.wait(.launches)
       let (events, continuation) = AsyncStream<AgentProcessEvent>.makeStream()
       let index = self.state.withLock { state in
         state.launches.append(launch)
@@ -108,6 +114,7 @@ final class AgentFake: Sendable {
       return AgentProcessHandle(
         events: events,
         write: { data in
+          await self.wait(.writes)
           try self.state.withLock { state in
             if let error = state.writeError { throw error }
             state.writes[index].append(data)
@@ -115,6 +122,7 @@ final class AgentFake: Sendable {
         },
         shutdown: {
           self.state.withLock { $0.shutdowns[index] += 1 }
+          await self.wait(.shutdowns)
           continuation.yield(.exited(status: 143, stderrTail: ""))
           continuation.finish()
         }

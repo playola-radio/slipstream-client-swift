@@ -49,6 +49,9 @@ final class ChatTabModel: ViewModel, Identifiable {
   private var needsHistory: Bool
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var follower: Task<Void, Never>?
+  @ObservationIgnored private var titleRefresh: Task<Void, Never>?
+  /// Shutdowns still running, so quitting can wait for every process to be gone.
+  @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
 
   // MARK: - Display Text
@@ -111,6 +114,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       return
     }
     guard let handle, activeTurn?.id == turn.id else { return }
+    let generation = generation
     do {
       try await handle.write(ClaudeInvocation.userMessage(text))
     } catch {
@@ -119,6 +123,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       errorText = Self.sendFailedText
       return
     }
+    guard generation == self.generation else { return }
     projection.userSent(text, id: uuid().uuidString)
     draft = ""
     $record.withLock { $0.isWaiting = false }
@@ -131,23 +136,31 @@ final class ChatTabModel: ViewModel, Identifiable {
     activeTurn = turn
     guard let handle else {
       generation += 1
-      await endTurn(.stopped, duration: duration(of: turn))
+      endTurn(.stopped, duration: duration(of: turn))
       return
     }
-    try? await handle.write(ClaudeInvocation.interrupt(requestID: uuid().uuidString))
+    // Not awaited: a write blocked on a full pipe must not hold back the deadline.
+    let interrupt = ClaudeInvocation.interrupt(requestID: uuid().uuidString)
+    Task { try? await handle.write(interrupt) }
     try? await clock.sleep(for: Self.stopDeadline)
     guard activeTurn?.id == turn.id else { return }
-    await endTurn(.stopped, duration: duration(of: turn))
-    await shutdown()
+    let duration = duration(of: turn)
+    follower?.cancel()
+    retireProcess()
+    await awaitRetired()
+    guard activeTurn?.id == turn.id else { return }
+    endTurn(.stopped, duration: duration)
   }
 
   /// Relaunches with `--resume` and reloads history. Nothing is resent.
   func tryAgain() async {
     guard !isWorking else { return }
     errorText = nil
-    await shutdown()
-    await loadHistory()
-    guard errorText == nil, handle == nil, !isWorking else { return }
+    follower?.cancel()
+    retireProcess()
+    let generation = generation
+    await awaitRetired()
+    guard generation == self.generation, await loadHistory(), handle == nil, !isWorking else { return }
     _ = await start()
   }
 
@@ -158,7 +171,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       $0.model = model
       $0.effort = effort
     }
-    if handle != nil { await shutdown() }
+    await shutdown()
+    await shown()
   }
 
   func clockTicked() {
@@ -169,12 +183,9 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Stops the process and waits for it to exit. Its late events are dropped.
   func shutdown() async {
     activeTurn = nil
-    generation += 1
     follower?.cancel()
-    follower = nil
-    let handle = handle
-    self.handle = nil
-    await handle?.shutdown()
+    retireProcess()
+    await awaitRetired()
   }
 
   // MARK: - Private Helpers
@@ -205,6 +216,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     do throws(Failure) {
       let (environment, lookup) = try await readTranscript()
       guard generation == self.generation else { return false }
+      if needsHistory { showHistory(lookup) }
       let session: ClaudeSessionStart = lookup == .notFound ? .new(id) : .resume(id)
       let launch = AgentLaunch(
         executable: environment.claudePath,
@@ -219,13 +231,13 @@ final class ChatTabModel: ViewModel, Identifiable {
         throw Failure(message: Self.cantStartText)
       }
       guard generation == self.generation else {
-        await handle.shutdown()
+        retire(handle)
         return false
       }
       self.handle = handle
       follower = Task { [weak self] in
         for await event in handle.events {
-          await self?.received(event, from: handle, generation: generation)
+          self?.received(event, from: handle, generation: generation)
         }
       }
       return true
@@ -235,18 +247,45 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  private func loadHistory() async {
+  /// True when the history was shown.
+  @discardableResult
+  private func loadHistory() async -> Bool {
     generation += 1
     let generation = generation
     do throws(Failure) {
       let (_, lookup) = try await readTranscript()
-      guard generation == self.generation else { return }
-      needsHistory = false
-      let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
-      projection = .history(lines)
-      title = Self.title(lines)
+      guard generation == self.generation else { return false }
+      showHistory(lookup)
+      return true
     } catch {
       if generation == self.generation { errorText = error.message }
+      return false
+    }
+  }
+
+  private func showHistory(_ lookup: TranscriptLookup) {
+    needsHistory = false
+    let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
+    projection = .history(lines)
+    title = Self.title(lines)
+  }
+
+  /// Drops the process: its late events are ignored, and its shutdown runs until done.
+  private func retireProcess() {
+    generation += 1
+    follower = nil
+    if let handle { retire(handle) }
+    handle = nil
+  }
+
+  private func retire(_ handle: AgentProcessHandle) {
+    retiring.append(Task { await handle.shutdown() })
+  }
+
+  private func awaitRetired() async {
+    while let task = retiring.first {
+      await task.value
+      retiring.removeAll { $0 == task }
     }
   }
 
@@ -264,17 +303,17 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  private func received(_ event: AgentProcessEvent, from handle: AgentProcessHandle, generation: Int) async {
+  private func received(_ event: AgentProcessEvent, from handle: AgentProcessHandle, generation: Int) {
     guard generation == self.generation else { return }
     switch event {
     case .line(let data):
       outputArrived()
-      await received(AgentLine.decode(data), from: handle)
+      received(AgentLine.decode(data), from: handle)
     case .overflow:
       outputArrived()
-      await received(.gap, from: handle)
+      received(.gap, from: handle)
     case .exited(_, let stderrTail):
-      await exited(handle, stderrTail: stderrTail)
+      exited(stderrTail: stderrTail)
     }
   }
 
@@ -283,49 +322,50 @@ final class ChatTabModel: ViewModel, Identifiable {
     activeTurn?.lastOutputAt = now
   }
 
-  private func received(_ line: AgentLine, from handle: AgentProcessHandle) async {
+  private func received(_ line: AgentLine, from handle: AgentProcessHandle) {
     switch line {
     case .result(let durationMs, let isError, let text):
       guard let turn = activeTurn else { return }
       let ending: TurnEnding = turn.isStopPressed ? .stopped : isError ? .failed : .completed
       if ending == .failed { errorText = text ?? Self.turnFailedText }
-      await endTurn(ending, duration: .milliseconds(durationMs))
+      endTurn(ending, duration: .milliseconds(durationMs))
     case .controlRequest(let requestID, let subtype, let input):
-      try? await handle.write(ClaudeInvocation.reply(requestID: requestID, subtype: subtype, input: input))
+      // Not awaited, so a full stdin pipe can't stall the lines behind this one.
+      let reply = ClaudeInvocation.reply(requestID: requestID, subtype: subtype, input: input)
+      Task { try? await handle.write(reply) }
     default:
       projection.apply(line)
     }
   }
 
   /// The process ended on its own. A turn still running fails; the next send relaunches.
-  private func exited(_ handle: AgentProcessHandle, stderrTail: String) async {
-    generation += 1
-    self.handle = nil
-    follower = nil
+  /// Runs inside the follower, so it retires the process without cancelling the follower.
+  private func exited(stderrTail: String) {
+    retireProcess()
     if let turn = activeTurn, turn.isStopPressed {
-      await endTurn(.stopped, duration: duration(of: turn))
+      endTurn(.stopped, duration: duration(of: turn))
     } else if let turn = activeTurn {
       let tail = stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
       errorText = tail.isEmpty ? Self.crashedText : "\(Self.crashedText)\n\(tail)"
-      await endTurn(.failed, duration: duration(of: turn))
+      endTurn(.failed, duration: duration(of: turn))
     }
-    await handle.shutdown()
   }
 
-  private func endTurn(_ ending: TurnEnding, duration: Duration) async {
+  private func endTurn(_ ending: TurnEnding, duration: Duration) {
     guard let turn = activeTurn else { return }
     activeTurn = nil
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
-    await refreshTitle()
+    titleRefresh?.cancel()
+    let generation = generation
+    titleRefresh = Task { [weak self] in await self?.refreshTitle(generation: generation) }
   }
 
   private func duration(of turn: ActiveTurn) -> Duration {
     .seconds(date.now.timeIntervalSince(turn.startedAt))
   }
 
-  private func refreshTitle() async {
-    let generation = generation
+  private func refreshTitle(generation: Int) async {
     guard
       case .found(let lines)? = try? await readTranscript().1,
       generation == self.generation

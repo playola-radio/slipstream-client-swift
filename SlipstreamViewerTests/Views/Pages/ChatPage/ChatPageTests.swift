@@ -45,7 +45,7 @@ struct ChatPageTests {
     ChatTabRecord(id: id, folder: folder, model: model, effort: effort, isWaiting: isWaiting)
   }
 
-  func launch(_ id: UUID, folder: String = "/w", model: String = "claude-opus-5-5", effort: String = "high", session: ClaudeSessionStart) -> AgentLaunch {
+  func launch(folder: String = "/w", model: String = "claude-opus-5-5", effort: String = "high", session: ClaudeSessionStart) -> AgentLaunch {
     AgentLaunch(
       executable: AgentFake.environment.claudePath,
       arguments: ClaudeInvocation.arguments(model: model, effort: effort, session: session),
@@ -156,7 +156,7 @@ struct ChatPageTests {
 
     await send(model, "hi")
 
-    expectNoDifference(agent.launches, [launch(Self.saved, session: .new(Self.saved))])
+    expectNoDifference(agent.launches, [launch(session: .new(Self.saved))])
     #expect(agent.launches[0].arguments.contains("--session-id=4bad416c-1d04-4063-9e76-61ebb936ae06"))
   }
 
@@ -178,7 +178,7 @@ struct ChatPageTests {
 
     await send(model, "And the tests")
 
-    expectNoDifference(agent.launches, [launch(Self.saved, session: .resume(Self.saved))])
+    expectNoDifference(agent.launches, [launch(session: .resume(Self.saved))])
   }
 
   @Test func historyLoadsOnceWhileProcessLives() async {
@@ -355,7 +355,7 @@ struct ChatPageTests {
 
     #expect(model.selectedTab?.errorText == nil)
     expectNoDifference(
-      agent.launches, [launch(Self.saved, session: .new(Self.saved)), launch(Self.saved, session: .resume(Self.saved))])
+      agent.launches, [launch(session: .new(Self.saved)), launch(session: .resume(Self.saved))])
     expectNoDifference(agent.writes(1), [json(ClaudeInvocation.userMessage("two"))])
   }
 
@@ -576,11 +576,11 @@ struct ChatPageTests {
 
     agent.setTranscript(Self.saved, .found([]))
     await send(model, "again")
-    expectNoDifference(agent.launches.last, launch(Self.saved, session: .resume(Self.saved)))
+    expectNoDifference(agent.launches.last, launch(session: .resume(Self.saved)))
   }
 
   @Test func stopWhileLaunchingEndsStoppedAndLaunchesNothing() async throws {
-    agent.holdEnvironment()
+    agent.hold(.environment)
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
     let tab = try #require(model.selectedTab)
@@ -592,7 +592,7 @@ struct ChatPageTests {
     let stop = Task { await model.stopTapped() }
     await Task.megaYield()
     #expect(tab.isWorking == false)
-    agent.releaseEnvironment()
+    agent.release(.environment)
     await stop.value
     await sending.value
     await Task.megaYield()
@@ -641,7 +641,7 @@ struct ChatPageTests {
     #expect(tab.errorText == nil)
     expectNoDifference(tab.projection, .history(history))
     #expect(tab.title == "Saying hi")
-    expectNoDifference(agent.launches.last, launch(Self.saved, session: .resume(Self.saved)))
+    expectNoDifference(agent.launches.last, launch(session: .resume(Self.saved)))
     expectNoDifference(agent.writes(1), [])
   }
 
@@ -660,7 +660,7 @@ struct ChatPageTests {
     agent.setTranscript(Self.saved, .found([]))
     await send(model, "two")
     expectNoDifference(
-      agent.launches.last, launch(Self.saved, model: "claude-sonnet-5-5", effort: "low", session: .resume(Self.saved)))
+      agent.launches.last, launch(model: "claude-sonnet-5-5", effort: "low", session: .resume(Self.saved)))
     #expect(agent.launches[1].arguments.contains("--resume=4bad416c-1d04-4063-9e76-61ebb936ae06"))
   }
 
@@ -745,6 +745,190 @@ struct ChatPageTests {
     #expect(model.visibleTabs.isEmpty)
     #expect(model.workingTabCount == 1)
     #expect(agent.shutdownCount == 0)
+  }
+
+  // MARK: - Races
+
+  @Test func stopWithBlockedWriteStillShutsDownAfterTenSeconds() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    agent.hold(.writes)
+
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    await clock.advance(by: .seconds(10))
+    await stop.value
+
+    #expect(model.selectedTab?.isWorking == false)
+    #expect(agent.shutdownCount == 1)
+    agent.release(.writes)
+  }
+
+  @Test func sendAfterStopDeadlineIsNotKilled() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+
+    agent.hold(.environment)
+    await clock.advance(by: .seconds(10))
+    await stop.value
+    let tab = try #require(model.selectedTab)
+    tab.draft = "again"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    agent.release(.environment)
+    await sending.value
+    await Task.megaYield()
+
+    #expect(tab.isWorking)
+    #expect(agent.shutdowns(0) == 1)
+    #expect(agent.shutdowns(1) == 0)
+  }
+
+  @Test func shutdownInProgressHoldsBackSend() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+
+    agent.hold(.shutdowns)
+    await clock.advance(by: .seconds(10))
+    let tab = try #require(model.selectedTab)
+    #expect(tab.isWorking)
+    await send(model, "again")
+    #expect(agent.launches.count == 1)
+
+    agent.release(.shutdowns)
+    await stop.value
+    #expect(tab.isWorking == false)
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .stopped, duration: .zero, time: Self.start))
+  }
+
+  @Test func closingDuringTryAgainLaunchesNothing() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    agent.exit()
+    await Task.megaYield()
+
+    agent.hold(.environment)
+    let retry = Task { await model.tryAgainTapped() }
+    await Task.megaYield()
+    await model.closeTabTapped(Self.saved)
+    agent.release(.environment)
+    await retry.value
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+  }
+
+  @Test func quitWaitsForShutdownAlreadyRunning() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    agent.hold(.shutdowns)
+    agent.exit()
+    await Task.megaYield()
+
+    let didQuit = LockIsolated(false)
+    let quit = Task {
+      await model.quitConfirmed()
+      didQuit.setValue(true)
+    }
+    await Task.megaYield()
+    #expect(didQuit.value == false)
+
+    agent.release(.shutdowns)
+    await quit.value
+    #expect(didQuit.value)
+    #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func writeFinishingAfterExitShowsNoBubble() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    agent.hold(.writes)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    agent.exit()
+    await Task.megaYield()
+    agent.release(.writes)
+    await sending.value
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind), [.turnFooter(ending: .failed, duration: .zero, time: Self.start)])
+    #expect(tab.draft == "hi")
+  }
+
+  @Test func choiceChangeDuringTryAgainLaunchUsesNewFlags() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "one")
+    agent.exit()
+    await Task.megaYield()
+    agent.setTranscript(Self.saved, .found([]))
+
+    agent.hold(.launches)
+    let retry = Task { await model.tryAgainTapped() }
+    await Task.megaYield()
+    await model.choiceSelected(model: "claude-sonnet-5-5", effort: .low)
+    agent.release(.launches)
+    await retry.value
+    await Task.megaYield()
+    #expect(agent.shutdowns(1) == 1)
+
+    await send(model, "two")
+    expectNoDifference(
+      agent.launches.last, launch(model: "claude-sonnet-5-5", effort: "low", session: .resume(Self.saved)))
+  }
+
+  @Test func titleRefreshDoesNotHoldBackNextTurn() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "one")
+    agent.hold(.environment)
+    await line(Line.result())
+
+    await send(model, "two")
+    await line(Line.result())
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.isWorking == false)
+    #expect(tab.projection.items.filter { if case .turnFooter = $0.kind { true } else { false } }.count == 2)
+    agent.release(.environment)
+  }
+
+  @Test func sendDuringFirstHistoryLoadKeepsHistory() async throws {
+    let history: [AgentLine] = [
+      .user(uuid: "u1", timestamp: Self.start, isPrompt: true, blocks: [.text("Fix the build")]),
+      .title("Fixing the build"),
+    ]
+    agent.setTranscript(Self.saved, .found(history))
+    agent.hold(.environment)
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let appearing = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    tab.draft = "more"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    agent.release(.environment)
+    await appearing.value
+    await sending.value
+
+    var expected = TranscriptProjection.history(history)
+    expected.userSent("more", id: UUID(1).uuidString)
+    expectNoDifference(tab.projection, expected)
+    #expect(tab.title == "Fixing the build")
   }
 
   // MARK: - Row text
