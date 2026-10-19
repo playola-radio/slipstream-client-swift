@@ -1,5 +1,5 @@
-import Dependencies
 import Darwin
+import Dependencies
 import Foundation
 
 struct AgentEnvironment: Equatable, Sendable {
@@ -185,7 +185,7 @@ extension AgentEnvironmentClient: DependencyKey {
       if ready > 0 {
         let count = read(descriptor, &buffer, buffer.count)
         if count < 0 && errno == EINTR { continue }
-        if count == 0 { break }
+        if count <= 0 { break }
         output.append(contentsOf: buffer[..<count])
       } else if ready == 0 && hasExited {
         return output
