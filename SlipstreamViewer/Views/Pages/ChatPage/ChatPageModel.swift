@@ -42,9 +42,19 @@ final class ChatPageModel: ViewModel {
     return visible.first { $0.id == selectedID } ?? visible.first
   }
 
+  /// Counts every folder's tabs, shown or not.
+  var workingTabCount: Int { tabs.filter(\.isWorking).count }
+
   // MARK: - Display Text
 
   var noWorkspaceText: String? { folder == nil ? emptyText : nil }
+
+  var quitAlertText: String? {
+    let count = workingTabCount
+    guard count > 0 else { return nil }
+    let tabs = count == 1 ? "1 tab" : "\(count) tabs"
+    return "Claude is still working in \(tabs). Quitting stops them. You can pick the conversations up again next time."
+  }
 
   // MARK: - View Helpers
 
@@ -129,6 +139,15 @@ final class ChatPageModel: ViewModel {
 
   func choiceSelected(model: String, effort: ChatEffort) async {
     await selectedTab?.choiceSelected(model: model, effort: effort)
+  }
+
+  /// Stops every agent and returns once they have all exited.
+  func quitConfirmed() async {
+    await withTaskGroup { group in
+      for tab in tabs {
+        group.addTask { await tab.shutdown() }
+      }
+    }
   }
 
   // MARK: - Private Helpers

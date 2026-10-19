@@ -679,6 +679,74 @@ struct ChatPageTests {
     #expect(agent.shutdownCount == 0)
   }
 
+  // MARK: - Close and quit
+
+  @Test func closingWorkingTabRemovesRecordThenShutsDown() async throws {
+    let model = makeModel(records: [record(), record(UUID(50))])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let tab = try #require(model.selectedTab)
+
+    agent.sendLine(Line.assistantText("a1", "late"))
+    await model.closeTabTapped(Self.saved)
+    await Task.megaYield()
+
+    expectNoDifference(model.records, [record(UUID(50))])
+    #expect(model.tabs.ids == [UUID(50)])
+    #expect(agent.shutdowns(0) == 1)
+    expectNoDifference(tab.projection.items, [TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("hi"))])
+    #expect(model.workingTabCount == 0)
+  }
+
+  @Test func quitAlertTextCountsWorkingTabsInAllFolders() async {
+    let model = makeModel(records: [record(folder: "/a"), record(UUID(50), folder: "/b")])
+    #expect(model.quitAlertText == nil)
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    await send(model, "one")
+    model.workspaceChanged(folder: "/b", emptyText: nil)
+    await send(model, "two")
+
+    #expect(model.workingTabCount == 2)
+    #expect(
+      model.quitAlertText
+        == "Claude is still working in 2 tabs. Quitting stops them. You can pick the conversations up again next time.")
+
+    await line(Line.result(), to: 1)
+    #expect(
+      model.quitAlertText
+        == "Claude is still working in 1 tab. Quitting stops them. You can pick the conversations up again next time.")
+
+    await line(Line.result(), to: 0)
+    #expect(model.quitAlertText == nil)
+  }
+
+  @Test func quitConfirmedShutsDownEverything() async {
+    let model = makeModel(records: [record(folder: "/a"), record(UUID(50), folder: "/b")])
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    await send(model, "one")
+    await line(Line.result())
+    model.workspaceChanged(folder: "/b", emptyText: nil)
+    await send(model, "two")
+
+    await model.quitConfirmed()
+
+    #expect(agent.shutdowns(0) == 1)
+    #expect(agent.shutdowns(1) == 1)
+    #expect(model.workingTabCount == 0)
+  }
+
+  @Test func hiddenFolderTabsStillCount() async {
+    let model = makeModel(records: [record(folder: "/a")])
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    await send(model, "hi")
+
+    model.workspaceChanged(folder: nil, emptyText: "Choose a capture session to watch its changes")
+
+    #expect(model.visibleTabs.isEmpty)
+    #expect(model.workingTabCount == 1)
+    #expect(agent.shutdownCount == 0)
+  }
+
   // MARK: - Row text
 
   @Test func toolRowsChangeTenseWithStatus() async throws {
