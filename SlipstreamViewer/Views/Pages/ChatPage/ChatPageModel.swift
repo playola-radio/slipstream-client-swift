@@ -162,7 +162,7 @@ final class ChatPageModel: ViewModel {
   }
 
   func closeShortcutPressed() async {
-    guard let id = selectedTab?.id else { return }
+    guard !isComparisonShown, let id = selectedTab?.id else { return }
     await closeTabTapped(id)
   }
 

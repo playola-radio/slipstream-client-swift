@@ -144,19 +144,35 @@ final class ChatTabModel: ViewModel, Identifiable {
       }
       let prose = joined.trimmingCharacters(in: .newlines)
       guard !prose.isEmpty else { return }
-      let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-      blocks.append(.prose((try? AttributedString(markdown: prose, options: options)) ?? AttributedString(prose)))
+      blocks.append(.prose(inlineMarkdown(prose)))
     }
+    // A fence closes only on a bare run of at least as many backticks as opened it.
+    var fence = 0
     for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-      if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      let ticks = trimmed.prefix { $0 == "`" }.count
+      if !isCode, ticks >= 3 {
         flush()
-        isCode.toggle()
+        isCode = true
+        fence = ticks
+      } else if isCode, ticks >= fence, ticks == trimmed.count {
+        flush()
+        isCode = false
       } else {
         lines.append(line)
       }
     }
     if isCode || !lines.isEmpty { flush() }
     return blocks
+  }
+
+  func rowMarkdown(for item: TranscriptItem) -> AttributedString {
+    Self.inlineMarkdown(rowText(for: item))
+  }
+
+  private static func inlineMarkdown(_ text: String) -> AttributedString {
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+    return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
   }
 
   // MARK: - Page Actions

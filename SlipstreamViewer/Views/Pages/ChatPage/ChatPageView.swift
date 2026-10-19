@@ -28,12 +28,6 @@ struct ChatPageView<Leading: View>: View {
     .overlay(alignment: .leading) {
       Rectangle().fill(DesignTokens.Chat.stroke).frame(width: 1)
     }
-    .background {
-      Button { Task { await model.closeShortcutPressed() } } label: { EmptyView() }
-        .keyboardShortcut("w")
-        .opacity(0)
-        .accessibilityHidden(true)
-    }
   }
 
   private var tabStrip: some View {
@@ -311,7 +305,7 @@ private struct ToolCallView: View {
           } else if let kind = tab.toolKind(for: item) {
             IconView(icon: DesignTokens.Chat.ToolCall.icon(kind))
           }
-          Text(MarkdownText.inline(tab.rowText(for: item), scale: fontScale))
+          Text(DesignTokens.Chat.Paragraph.styled(tab.rowMarkdown(for: item), scale: fontScale))
             .font(DesignTokens.Chat.ToolCall.verbFont)
             .foregroundStyle(DesignTokens.Chat.ToolCall.verbColor)
             .lineLimit(1)
@@ -336,11 +330,11 @@ private struct SpinnerView: View {
 
   var body: some View {
     Circle()
-      .trim(from: 0, to: 0.7)
+      .trim(from: 0, to: DesignTokens.Chat.Spinner.arc)
       .stroke(spinner.color, style: StrokeStyle(lineWidth: spinner.lineWidth, lineCap: .round))
       .frame(width: spinner.size, height: spinner.size)
       .rotationEffect(.degrees(isSpinning ? 360 : 0))
-      .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isSpinning)
+      .animation(.linear(duration: DesignTokens.Chat.Spinner.secondsPerTurn).repeatForever(autoreverses: false), value: isSpinning)
       .onAppear { isSpinning = true }
   }
 }

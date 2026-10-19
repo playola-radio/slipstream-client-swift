@@ -10,7 +10,7 @@ struct MarkdownText: View {
       ForEach(Array(ChatTabModel.markdownBlocks(text).enumerated()), id: \.offset) { _, block in
         switch block {
         case .prose(let prose):
-          Text(Self.styled(prose, scale: fontScale))
+          Text(DesignTokens.Chat.Paragraph.styled(prose, scale: fontScale))
             .font(DesignTokens.Chat.Paragraph.font)
             .foregroundStyle(DesignTokens.Chat.Paragraph.color)
             .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
@@ -31,20 +31,5 @@ struct MarkdownText: View {
         }
       }
     }
-  }
-
-  /// Inline `code` runs take the code font and colour; the rest keeps the view's font.
-  static func styled(_ text: AttributedString, scale: CGFloat) -> AttributedString {
-    var text = text
-    for run in text.runs where run.inlinePresentationIntent?.contains(.code) == true {
-      text[run.range].font = DesignTokens.Chat.Paragraph.inlineCodeFont.font(scale: scale)
-      text[run.range].foregroundColor = DesignTokens.Chat.Paragraph.inlineCodeColor
-    }
-    return text
-  }
-
-  static func inline(_ text: String, scale: CGFloat) -> AttributedString {
-    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-    return styled((try? AttributedString(markdown: text, options: options)) ?? AttributedString(text), scale: scale)
   }
 }

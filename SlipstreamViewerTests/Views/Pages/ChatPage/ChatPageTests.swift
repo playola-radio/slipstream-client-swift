@@ -857,6 +857,30 @@ struct ChatPageTests {
     #expect(tab.isWorking == false)
   }
 
+  @Test func sendWaitingOnShutdownWhenQuitLaunchesNothing() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    await line(Line.result())
+    agent.hold(.shutdowns)
+    agent.exit()
+    await Task.megaYield()
+
+    let tab = try #require(model.selectedTab)
+    tab.draft = "again"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    let quit = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    agent.release(.shutdowns)
+    await quit.value
+    await sending.value
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+    #expect(tab.isWorking == false)
+  }
+
   @Test func tryAgainAfterQuitLaunchesNothing() async {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -1324,6 +1348,18 @@ struct ChatPageTests {
     expectNoDifference(model.visibleTabs.map(\.id), [UUID(0)])
   }
 
+  /// With the comparison open the chat isn't on screen, so ⌘W has nothing to close.
+  @Test func closeShortcutWhileComparisonShownClosesNothing() async {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.newTabTapped()
+    model.comparisonVisibilityChanged(isShown: true)
+
+    await model.closeShortcutPressed()
+
+    expectNoDifference(model.visibleTabs.map(\.id), [UUID(0), UUID(1)])
+  }
+
   @Test func thinkingStartsOpenAndToolsStartClosed() async throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -1392,5 +1428,37 @@ struct ChatPageTests {
         .code("unclosed"),
       ])
     expectNoDifference(ChatTabModel.markdownBlocks("plain"), [.prose(AttributedString("plain"))])
+  }
+
+  @Test func longerFenceKeepsInnerFencesAsCode() {
+    let text = """
+      ````markdown
+      ```swift
+      let a = 1
+      ```
+      ````
+      ```
+      `tick` stays
+      ```
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .code("```swift\nlet a = 1\n```"),
+        .code("`tick` stays"),
+      ])
+  }
+
+  @Test func rowMarkdownParsesInlineCode() throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let tool = TranscriptItem(id: "t", kind: .toolCall(name: "Bash", target: "ls", status: .done, detail: nil))
+
+    let row = tab.rowMarkdown(for: tool)
+
+    let code = row.runs.filter { $0.inlinePresentationIntent?.contains(.code) == true }
+    expectNoDifference(code.map { String(row[$0.range].characters) }, ["ls"])
   }
 }

@@ -47,6 +47,12 @@ struct ChangeStreamPageView: View {
       model.chat.appActivityChanged(isActive: false)
     }
     .onDisappear { model.viewDisappeared() }
+    .background {
+      Button { Task { await model.chat.closeShortcutPressed() } } label: { EmptyView() }
+        .keyboardShortcut("w")
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
   }
 
   @ViewBuilder

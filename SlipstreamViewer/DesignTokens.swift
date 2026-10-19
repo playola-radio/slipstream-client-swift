@@ -525,6 +525,9 @@ enum DesignTokens {
       let size: CGFloat
       let lineWidth: CGFloat
       let color: Color
+
+      static let arc: CGFloat = 0.7
+      static let secondsPerTurn: TimeInterval = 1
     }
 
     static let fill = Color(hex: 0x12171D)
@@ -592,6 +595,16 @@ enum DesignTokens {
       static let lineSpacing: CGFloat = 14 * (1.65 - 1)
       static let inlineCodeFont: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
       static let inlineCodeColor = secondary
+
+      /// Inline `code` runs take the code font and colour; the rest keeps the view's font.
+      static func styled(_ text: AttributedString, scale: CGFloat) -> AttributedString {
+        var text = text
+        for run in text.runs where run.inlinePresentationIntent?.contains(.code) == true {
+          text[run.range].font = inlineCodeFont.font(scale: scale)
+          text[run.range].foregroundColor = inlineCodeColor
+        }
+        return text
+      }
     }
 
     /// Not drawn in the mockups; sized to sit with the tool targets.
@@ -629,8 +642,6 @@ enum DesignTokens {
       static let gap: CGFloat = 8
       static let verbFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
       static let verbColor = muted
-      static let targetFont = Paragraph.inlineCodeFont
-      static let targetColor = secondary
       static let detailFont = Paragraph.inlineCodeFont
       static let detailColor = muted
       static let spinner = Spinner(size: 11, lineWidth: 1.5, color: secondary)
