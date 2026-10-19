@@ -98,7 +98,7 @@ resumed tabs.
 | `userMessage(text)` | Grey right-aligned bubble |
 | `reply(text)` | Plain text (markdown) |
 | `thinking(text)` | Dim collapsible "Thinking" block, collapsed state in memory only |
-| `toolCall(id, name, target, status, detail?)` | Muted one-liner; `detail` is the tool result, shown when expanded. `status` is `running`, `done`, `failed` (`tool_result.is_error`) or `stopped` (the turn ended with no result for it); the verb's tense comes from it ("Running `…`" with a spinner, "Ran `…`", "Ran `…` · failed"). Target comes from the tool's main input (`Edit` + `file_path` → "Edited `File.swift`"; `Bash` + `command` → "Ran `…`"; unknown tools → the tool name) |
+| `toolCall(name, target, status, detail?)` | Muted one-liner; the item's own `id` is the tool-use id. `detail` is the tool result, shown when expanded. `status` is `running`, `done`, `failed` (`tool_result.is_error`) or `stopped` (the turn ended with no result for it); the verb's tense comes from it ("Running `…`" with a spinner, "Ran `…`", "Ran `…` · failed"). Target comes from the tool's main input (`Edit` + `file_path` → "Edited `File.swift`"; `Bash` + `command` → "Ran `…`"; unknown tools → the tool name) |
 | `turnFooter(ending, duration, time)` | "41s · 3:09 PM", copy (copies the turn's reply rows), "…"; a stopped turn reads "Stopped · 41s · 3:09 PM" |
 | `gap` | "Part of this conversation couldn't be shown". Failed-turn and can't-start messages are not rows; they show in the tab's error area with Try again |
 
