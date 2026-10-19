@@ -6,6 +6,7 @@ struct DaemonClient: Sendable {
   var storeID: String
   var discover: @Sendable () async throws -> DaemonDescriptor
   var sessions: @Sendable (DaemonDescriptor) async throws -> [SessionSummary]
+  var listCaptures: @Sendable (DaemonDescriptor) async throws -> CaptureList?
   var sessionStart: @Sendable (DaemonDescriptor, String) async throws -> SessionStarted?
   var follow: @Sendable (DaemonDescriptor, String, Seq) -> AsyncThrowingStream<StreamItem, any Error>
   var clips: @Sendable (DaemonDescriptor, String, Seq) async throws -> ClipsResponse
@@ -24,6 +25,7 @@ extension DaemonClient: DependencyKey {
       storeID: store.standardizedFileURL.path,
       discover: { try DescriptorDiscovery.discover(store: store) },
       sessions: { try await transport.sessions($0) },
+      listCaptures: { try await transport.captures($0) },
       sessionStart: { descriptor, sessionID in
         guard case .sessionStarted(let start) = try await transport.firstEvent(descriptor, sessionID: sessionID)?.payload
         else { return nil }
@@ -43,6 +45,7 @@ extension DaemonClient: DependencyKey {
       storeID: "test-store",
       discover: unimplemented("DaemonClient.discover"),
       sessions: unimplemented("DaemonClient.sessions", placeholder: []),
+      listCaptures: unimplemented("DaemonClient.listCaptures", placeholder: nil),
       sessionStart: unimplemented("DaemonClient.sessionStart", placeholder: nil),
       follow: unimplemented("DaemonClient.follow", placeholder: AsyncThrowingStream { $0.finish() }),
       clips: unimplemented("DaemonClient.clips"),
