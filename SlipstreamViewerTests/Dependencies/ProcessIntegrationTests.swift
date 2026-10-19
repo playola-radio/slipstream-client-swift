@@ -24,6 +24,7 @@ struct ProcessIntegrationTests {
     let handle = try await launchFake("stderr-then-exit")
 
     let events = try await collect(handle.events, until: \.isExit)
+    await handle.shutdown()
 
     guard case .exited(let status, let stderrTail) = events.last else {
       Issue.record("Expected an exit, got \(events)")
@@ -71,6 +72,7 @@ struct ProcessIntegrationTests {
     await #expect(throws: AgentProcessError.writeFailed(errno: EPIPE)) {
       try await handle.write(Data("{}\n".utf8))
     }
+    await handle.shutdown()
   }
 
   @Test func writeAfterShutdownThrows() async throws {
