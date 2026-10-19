@@ -5,9 +5,10 @@ import SwiftUI
 struct SlipstreamViewerApp: App {
   @State private var fontSize = FontSizeModel()
   @State private var chat = ChatPageModel()
+  @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   var body: some Scene {
-    WindowGroup {
+    Window("Slipstream", id: "main") {
       Group {
         if !isTesting {
           if let fixtureArgument = ProcessInfo.processInfo.arguments.first(where: {
@@ -27,6 +28,7 @@ struct SlipstreamViewerApp: App {
         }
       }
       .environment(\.fontScale, fontSize.scale)
+      .onAppear { appDelegate.chat = chat }
       .background {
         Button("Make Text Bigger") { fontSize.biggerTapped() }
           .keyboardShortcut("=")
