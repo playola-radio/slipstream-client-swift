@@ -323,14 +323,11 @@ extension AskAgentPageTests {
     expectNoDifference(sent.value.map(\.bindingGeneration), ["7"])
   }
 
-  @Test func aRelinkedChatRejectionSaysToRefreshAndTheRetryNamesTheNewLink() async {
+  @Test func aRelinkedChatRejectionSaysToRefreshAndTheComposerKeepsItsOriginalLink() async {
     let sent = LockIsolated<[QuestionRequest]>([])
     let model = model(send: { request in
       sent.withValue { $0.append(request) }
-      if request.bindingGeneration == "7" {
-        throw QuestionError.rejected(code: "STALE_BINDING", message: "relinked")
-      }
-      return try Self.ack(request)
+      throw QuestionError.rejected(code: "STALE_BINDING", message: "relinked")
     })
     model.draftChanged("Why?")
     #expect(!(await model.askTapped()))
@@ -338,9 +335,21 @@ extension AskAgentPageTests {
       model.errorMessage,
       "This workspace's chat was relinked after the app last checked. Refresh to see which chat is linked now, then ask again. Your draft is kept.")
     model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    #expect(!(await model.askTapped()))
+    expectNoDifference(sent.value.map(\.bindingGeneration), ["7", "7"])
+  }
+
+  @Test func aComposerOpenedBeforeAChatIsLinkedNamesTheFirstLinkItSees() async {
+    let sent = LockIsolated<[QuestionRequest]>([])
+    let model = model(captureStatus: Self.capture(binding: nil), send: { request in
+      sent.withValue { $0.append(request) }
+      return try Self.ack(request)
+    })
+    model.draftChanged("Why?")
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "9", state: .connected)))
     #expect(await model.askTapped())
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["7", "8"])
-    expectNoDifference(sent.value[0].requestID, sent.value[1].requestID)
+    expectNoDifference(sent.value.map(\.bindingGeneration), ["8"])
   }
 
   @Test func askingWhileNotConnectedSendsNothing() async {

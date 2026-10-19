@@ -151,6 +151,7 @@ struct CaptureStatus: Equatable, Sendable {
     case .available: break
     }
     guard let capture else { return .noChat }
+    if case .unknown = capture.state { return .unknown }
     if capture.state == .notRecording, capture.reason == "daemon-unavailable" { return .unknown }
     guard let binding = capture.binding else { return .noChat }
     return .bound(binding)

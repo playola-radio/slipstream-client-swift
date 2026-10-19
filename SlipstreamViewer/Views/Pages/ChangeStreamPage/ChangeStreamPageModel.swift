@@ -78,6 +78,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
+  @ObservationIgnored private var refreshGeneration = 0
+  @ObservationIgnored private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
   @ObservationIgnored private var awaitsFreshSnapshot = false
   @ObservationIgnored private var pendingReadiness: (state: AgentConnection, seq: Seq)?
@@ -387,6 +389,7 @@ final class ChangeStreamPageModel: ViewModel {
   // MARK: - User Actions
 
   func viewAppeared() async {
+    isShown = true
     if selectedSession != nil, watchTask?.isCancelled ?? true {
       startWatching()
     }
@@ -399,10 +402,15 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sessionSelected(_ id: String) {
     guard select(id) else { return }
-    Task { [weak self] in await self?.loadSessions() }
+    Task { [weak self] in
+      guard let self, isShown else { return }
+      await loadSessions()
+    }
   }
 
   func viewDisappeared() {
+    isShown = false
+    refreshGeneration += 1
     functionChanges?.viewDisappeared()
     replyCollapsed()
     watchTask?.cancel()
@@ -559,14 +567,19 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func loadSessions() async {
     sessionsGeneration += 1
+    refreshGeneration += 1
     let generation = sessionsGeneration
+    let refresh = refreshGeneration
     let daemon = daemon
     do {
       let descriptor = try await daemon.discover()
       async let captureReply = Self.captures(daemon, descriptor, date)
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
       let (captures, checkedAt) = await captureReply
-      guard generation == sessionsGeneration else { return }
+      guard generation == sessionsGeneration else {
+        if case .failure = captures, refresh == refreshGeneration { captureRefreshFailed() }
+        return
+      }
       let snapshot: [CaptureSummary]
       switch captures {
       case .success(let list?):
@@ -665,15 +678,22 @@ final class ChangeStreamPageModel: ViewModel {
         }
       }
     } catch {
-      guard generation == sessionsGeneration else { return }
+      guard generation == sessionsGeneration else {
+        if refresh == refreshGeneration { captureRefreshFailed() }
+        return
+      }
       sessions = []
-      captureAvailability = .failed
-      askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil))
+      captureRefreshFailed()
       hasLoadedSessions = true
       sessionsError = error is DescriptorError
         ? "The Slipstream daemon isn't running"
         : "Couldn't reach the Slipstream daemon"
     }
+  }
+
+  private func captureRefreshFailed() {
+    captureAvailability = .failed
+    askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil))
   }
 
   private func startWatching() {

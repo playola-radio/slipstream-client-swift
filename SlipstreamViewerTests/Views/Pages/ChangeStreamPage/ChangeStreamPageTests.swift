@@ -2124,6 +2124,47 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureCheckedText, "Checked 10:42:20")
   }
 
+  @Test func aRefreshThatFailsWhileTheFeedDropsStopsClaimingRecording() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
+    open.yield()
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    daemon.send(.heartbeat)
+    await Task.megaYield()
+    expectNoDifference(model.captureText, "Recording")
+    daemon.setCaptures(.failure(.status(500, durableSeq: nil)))
+    daemon.setSessionsError(DaemonHTTPError.status(500, durableSeq: nil))
+    let refresh = Task { await model.refreshTapped() }
+    await Task.megaYield()
+    daemon.close()
+    await Task.megaYield()
+    open.yield()
+    await refresh.value
+    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+  }
+
+  @Test func closingTheWindowBeforeASelectionRefreshRunsStartsNothing() async {
+    fake.setCaptures([
+      Fixture.capture(),
+      Fixture.capture(.queued, session: Fixture.otherSession, root: "/work/other", binding: nil),
+    ])
+    let model = makeModel()
+    await model.viewAppeared()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    model.viewDisappeared()
+    listSessions(.connected, other: .connected)
+    fake.setCaptures([Fixture.capture(), Fixture.capture(session: Fixture.otherSession, root: "/work/other")])
+    await Task.megaYield()
+    expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session])
+  }
+
   @Test func maintenanceStopsTheCaptureUntilARefreshShowsItRecording() async {
     fake.setCaptures([Fixture.capture(.stopped, reason: "maintenance")])
     let model = await liveModel()

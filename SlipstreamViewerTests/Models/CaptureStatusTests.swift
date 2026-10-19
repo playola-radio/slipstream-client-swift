@@ -200,6 +200,13 @@ struct CaptureStatusTests {
     expectNoDifference(status.chatDot, .unknown)
   }
 
+  @Test(arguments: [linked, nil] as [CaptureBinding?])
+  func chatTextIsUnknownWhenTheCaptureStateIsUnknown(binding: CaptureBinding?) {
+    let status = Self.status(.unknown("hibernating"), binding: binding)
+    expectNoDifference(status.chatText, "Chat-link state unknown")
+    expectNoDifference(status.chatDot, .unknown)
+  }
+
   @Test func askIsAllowedOnlyWhenRecordingLinkedAndReady() {
     #expect(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .connected) == nil)
   }

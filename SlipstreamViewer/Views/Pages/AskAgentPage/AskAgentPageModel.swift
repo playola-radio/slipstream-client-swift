@@ -20,6 +20,7 @@ final class AskAgentPageModel: ViewModel {
     self.context = context
     self.agentConnection = agentConnection
     self.captureStatus = captureStatus
+    bindingGeneration = captureStatus.capture?.binding?.generation
     super.init()
   }
 
@@ -44,6 +45,7 @@ final class AskAgentPageModel: ViewModel {
   var isErrorPresented = false
   private(set) var errorMessage = ""
   @ObservationIgnored private var request: QuestionRequest?
+  @ObservationIgnored private var bindingGeneration: String?
   @ObservationIgnored private var generation = 0
   private var isActive: Bool { generation == 0 }
   @ObservationIgnored private var hasLoadedPresets = false
@@ -161,7 +163,7 @@ final class AskAgentPageModel: ViewModel {
     let intent = QuestionRequest(
       sessionID: sessionID, requestID: request?.requestID ?? uuid().uuidString.lowercased(),
       text: request?.text ?? draft, context: context,
-      bindingGeneration: captureStatus.capture?.binding?.generation
+      bindingGeneration: bindingGeneration
     )
     request = intent
     let operation = generation
@@ -186,6 +188,7 @@ final class AskAgentPageModel: ViewModel {
 
   func captureChanged(_ status: CaptureStatus) {
     captureStatus = status
+    bindingGeneration = bindingGeneration ?? status.capture?.binding?.generation
   }
 
   func questionsUpdated(_ threads: IdentifiedArrayOf<QuestionThread>) {
