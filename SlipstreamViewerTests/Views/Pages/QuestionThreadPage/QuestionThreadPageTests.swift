@@ -41,7 +41,8 @@ struct QuestionThreadPageTests {
       $0.uuid = uuid ?? self.uuid
       $0.questionClient.send = send
     } operation: {
-      QuestionThreadPageModel(key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns))
+      QuestionThreadPageModel(
+        key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns), bindingGeneration: "7")
     }
   }
 
@@ -130,7 +131,8 @@ extension QuestionThreadPageTests {
     expectNoDifference(requests.value, [
       QuestionRequest(
         sessionID: Fixture.session, requestID: "00000000-0000-0000-0000-000000000000",
-        text: "Could this suspend an account?", context: Self.source().context, replyToQuestionID: "q2"),
+        text: "Could this suspend an account?", context: Self.source().context, replyToQuestionID: "q2",
+        bindingGeneration: "7"),
     ])
     expectNoDifference(model.draft, "")
     #expect(!model.isErrorPresented)

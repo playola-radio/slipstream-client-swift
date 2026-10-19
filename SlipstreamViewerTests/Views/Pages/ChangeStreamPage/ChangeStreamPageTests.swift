@@ -2148,6 +2148,28 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
   }
 
+  @Test func aCaptureStateThatArrivesWhileTheFeedDropsIsStillShown() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
+    open.yield()
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    daemon.send(.heartbeat)
+    await Task.megaYield()
+    daemon.setCaptures([Fixture.capture(.stopped, reason: "maintenance")])
+    let refresh = Task { await model.refreshTapped() }
+    await Task.megaYield()
+    daemon.close()
+    await Task.megaYield()
+    open.yield()
+    await refresh.value
+    expectNoDifference(model.captureText, "Stopped — maintenance in progress")
+  }
+
   @Test func closingTheWindowBeforeASelectionRefreshRunsStartsNothing() async {
     fake.setCaptures([
       Fixture.capture(),

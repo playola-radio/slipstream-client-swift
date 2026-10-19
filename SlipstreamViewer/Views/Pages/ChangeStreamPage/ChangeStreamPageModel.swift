@@ -310,7 +310,9 @@ final class ChangeStreamPageModel: ViewModel {
       let thread = questionThreads.threads[id: bar.id]
     else { return }
     let key = QuestionThreadKey(storeID: daemon.storeID, sessionID: sessionID, rootQuestionID: thread.id)
-    reply = withDependencies(from: self) { QuestionThreadPageModel(key: key, thread: thread) }
+    reply = withDependencies(from: self) {
+      QuestionThreadPageModel(key: key, thread: thread, bindingGeneration: selectedSession?.capture?.binding?.generation)
+    }
     replyBarFrame = barFrames[thread.id] ?? .zero
     isReplyBarVisible = barFrames[thread.id] != nil
   }
@@ -577,21 +579,10 @@ final class ChangeStreamPageModel: ViewModel {
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
       let (captures, checkedAt) = await captureReply
       guard generation == sessionsGeneration else {
-        if case .failure = captures, refresh == refreshGeneration { captureRefreshFailed() }
+        if refresh == refreshGeneration { capturesArrivedWithoutSessions(captures, checkedAt: checkedAt) }
         return
       }
-      let snapshot: [CaptureSummary]
-      switch captures {
-      case .success(let list?):
-        captureAvailability = .available(checkedAt: checkedAt)
-        snapshot = list.captures
-      case .success(nil):
-        captureAvailability = .unavailableFromReader
-        snapshot = []
-      case .failure:
-        captureAvailability = .failed
-        snapshot = []
-      }
+      let snapshot = captureResultArrived(captures, checkedAt: checkedAt)
       let capturesByID = Dictionary(snapshot.map { ($0.sessionID, $0) }, uniquingKeysWith: { first, _ in first })
       let previous = sessions
       let selected = selectedSession
@@ -688,6 +679,30 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = error is DescriptorError
         ? "The Slipstream daemon isn't running"
         : "Couldn't reach the Slipstream daemon"
+    }
+  }
+
+  private func captureResultArrived(_ result: Result<CaptureList?, any Error>, checkedAt: Date) -> [CaptureSummary] {
+    switch result {
+    case .success(let list?):
+      captureAvailability = .available(checkedAt: checkedAt)
+      return list.captures
+    case .success(nil):
+      captureAvailability = .unavailableFromReader
+      return []
+    case .failure:
+      captureAvailability = .failed
+      return []
+    }
+  }
+
+  private func capturesArrivedWithoutSessions(_ result: Result<CaptureList?, any Error>, checkedAt: Date) {
+    let snapshot = captureResultArrived(result, checkedAt: checkedAt)
+    let capturesByID = Dictionary(snapshot.map { ($0.sessionID, $0) }, uniquingKeysWith: { first, _ in first })
+    for id in sessions.ids { sessions[id: id]?.capture = capturesByID[id] }
+    if let selectedID = selectedSession?.id { selectedSession?.capture = capturesByID[selectedID] }
+    if let composer = askAgent {
+      composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: capturesByID[composer.sessionID]))
     }
   }
 

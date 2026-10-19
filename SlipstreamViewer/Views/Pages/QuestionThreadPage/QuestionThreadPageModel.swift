@@ -19,15 +19,17 @@ final class QuestionThreadPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(key: QuestionThreadKey, thread: QuestionThread) {
+  init(key: QuestionThreadKey, thread: QuestionThread, bindingGeneration: String?) {
     self.key = key
     self.thread = thread
+    self.bindingGeneration = bindingGeneration
     super.init()
   }
 
   // MARK: - Properties
 
   let key: QuestionThreadKey
+  private let bindingGeneration: String?
   private(set) var thread: QuestionThread
   private(set) var isDismissed = false
   var isErrorPresented = false
@@ -120,7 +122,7 @@ final class QuestionThreadPageModel: ViewModel {
     }
     let intent = replyDraft.request ?? QuestionRequest(
       sessionID: key.sessionID, requestID: uuid().uuidString.lowercased(), text: draft,
-      context: thread.source.context, replyToQuestionID: parent.questionID)
+      context: thread.source.context, replyToQuestionID: parent.questionID, bindingGeneration: bindingGeneration)
     updateReplyDraft { draft in
       draft.request = intent
       draft.isSubmitting = true
