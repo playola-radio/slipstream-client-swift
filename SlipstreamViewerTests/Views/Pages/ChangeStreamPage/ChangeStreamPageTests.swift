@@ -27,7 +27,8 @@ struct ChangeStreamPageTests {
 
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
-    isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil
+    isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
+    chat: ChatPageModel? = nil
   ) -> ChangeStreamPageModel {
     withDependencies {
       $0.defaultInMemoryStorage = storage ?? self.storage
@@ -37,7 +38,18 @@ struct ChangeStreamPageTests {
       $0.timeZone = TimeZone(identifier: "UTC")!
       $0.date = DateGenerator(now ?? { Fixture.checkedAt })
     } operation: {
-      ChangeStreamPageModel(isFunctionDemoVisible: isFunctionDemoVisible)
+      ChangeStreamPageModel(chat: chat ?? makeChat(), isFunctionDemoVisible: isFunctionDemoVisible)
+    }
+  }
+
+  func makeChat(records: [ChatTabRecord] = []) -> ChatPageModel {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+      $0.uuid = .incrementing
+    } operation: {
+      @Shared(.chatTabs) var stored
+      $stored.withLock { $0 = IdentifiedArray(uniqueElements: records) }
+      return ChatPageModel()
     }
   }
 
@@ -209,6 +221,139 @@ struct ChangeStreamPageTests {
     release.yield()
     await appeared.value
     #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+  }
+
+  @Test func selectingStreamTellsChatTheFolder() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = await connectedModel()
+    #expect(model.chat.folder == nil)
+    #expect(model.chat.noWorkspaceText == "Choose a capture session to watch its changes")
+
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+
+    #expect(model.chatEmptyText == nil)
+    #expect(model.chat.folder == ChangeStreamPageModel.normalizedFolder("/tmp/other"))
+    #expect(model.chat.noWorkspaceText == nil)
+    #expect(model.chat.visibleTabs.count == 1)
+  }
+
+  /// SwiftUI builds a page model on every App body pass and keeps only the first, so a
+  /// discarded one must not reset the shared chat.
+  @Test func buildingPageLeavesChatWorkspaceAlone() {
+    let chat = makeChat()
+    chat.workspaceChanged(folder: "/w", emptyText: nil)
+
+    _ = makeModel(chat: chat)
+
+    #expect(chat.folder == "/w")
+  }
+
+  @Test func chatTextWhileFolderUnknown() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel(daemon: daemon)
+
+    let appeared = Task { await model.viewAppeared() }
+    await daemon.waitForSessionStartCall(1)
+    await Task.megaYield()
+    #expect(model.chatEmptyText == "Finding this stream's folder…")
+    #expect(model.chat.noWorkspaceText == "Finding this stream's folder…")
+
+    release.yield()
+    await appeared.value
+    #expect(model.chatEmptyText == nil)
+    #expect(model.chat.folder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+  }
+
+  @Test func comparisonOpenTellsChat() async {
+    let model = await connectedModel()
+    await send(
+      Fixture.frame(1, type: "slipstream.capture.baseline.completed.v1", data: [:]),
+      Fixture.edited(2)
+    )
+
+    model.compareFunctionsTapped()
+    #expect(model.chat.isComparisonShown)
+
+    model.functionChangesClosed()
+    #expect(model.chat.isComparisonShown == false)
+
+    model.compareFunctionsTapped()
+    fake.setSessions([
+      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+      SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+    ])
+    await model.refreshTapped()
+    model.sessionSelected(Fixture.otherSession)
+    #expect(model.chat.isComparisonShown == false)
+  }
+
+  /// Closing the window mid-comparison and cancelling the quit brings back a fresh page.
+  @Test func reopenedPageTellsChatComparisonIsClosed() async {
+    let chat = makeChat()
+    chat.comparisonVisibilityChanged(isShown: true)
+    let model = makeModel(chat: chat)
+
+    await model.viewAppeared()
+
+    #expect(chat.isComparisonShown == false)
+  }
+
+  @Test func reopenedPageRestoresTheStreamForItsChatWorkspace() async {
+    let chat = makeChat()
+    let folder = ChangeStreamPageModel.normalizedFolder("/tmp/project")
+    chat.workspaceChanged(folder: folder, emptyText: nil)
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel(chat: chat)
+
+    await model.viewAppeared()
+
+    #expect(model.selectedSession?.id == Fixture.session)
+    #expect(chat.folder == folder)
+  }
+
+  @Test func pickerRowBoldWhenFolderWaiting() async throws {
+    let folder = ChangeStreamPageModel.normalizedFolder("/tmp/project")
+    let chat = makeChat(records: [
+      ChatTabRecord(id: UUID(50), folder: folder, model: "claude-opus-5-5", effort: .high, isWaiting: true)
+    ])
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel(chat: chat)
+    await model.viewAppeared()
+    await Task.megaYield()
+
+    let waiting = try #require(model.sessions[id: Fixture.session])
+    let other = try #require(model.sessions[id: Fixture.otherSession])
+    #expect(model.isBold(waiting))
+    #expect(model.isBold(other) == false)
   }
 
   @Test func folderIsNormalized() {

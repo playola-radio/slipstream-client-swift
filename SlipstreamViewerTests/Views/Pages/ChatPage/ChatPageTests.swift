@@ -20,6 +20,7 @@ struct ChatPageTests {
   let agent = AgentFake()
   let clock = TestClock()
   let elapsed = LockIsolated<TimeInterval>(0)
+  let copied = LockIsolated<[String]>([])
 
   func makeModel(records: [ChatTabRecord] = []) -> ChatPageModel {
     withDependencies {
@@ -31,6 +32,7 @@ struct ChatPageTests {
       $0.uuid = .incrementing
       $0.date = DateGenerator { [elapsed] in Self.start.addingTimeInterval(elapsed.value) }
       $0.timeZone = TimeZone(identifier: "UTC")!
+      $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
     } operation: {
       @Shared(.chatTabs) var stored
       $stored.withLock { $0 = IdentifiedArray(uniqueElements: records) }
@@ -808,6 +810,91 @@ struct ChatPageTests {
     #expect(model.workingTabCount == 0)
   }
 
+  @Test func sendWhileQuittingLaunchesNothing() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    await line(Line.result())
+    agent.hold(.shutdowns)
+    let quit = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    #expect(model.isMessageBoxEnabled == false)
+
+    let tab = try #require(model.selectedTab)
+    tab.draft = "again"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    agent.release(.shutdowns)
+    await quit.value
+    await sending.value
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+    #expect(agent.shutdownCount == 1)
+  }
+
+  @Test func sendWaitingOnShutdownWhenTabClosesLaunchesNothing() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    await line(Line.result())
+    agent.hold(.shutdowns)
+    agent.exit()
+    await Task.megaYield()
+
+    let tab = try #require(model.selectedTab)
+    tab.draft = "again"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    let closing = Task { await model.closeTabTapped(Self.saved) }
+    await Task.megaYield()
+    agent.release(.shutdowns)
+    await closing.value
+    await sending.value
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func sendWaitingOnShutdownWhenQuitLaunchesNothing() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    await line(Line.result())
+    agent.hold(.shutdowns)
+    agent.exit()
+    await Task.megaYield()
+
+    let tab = try #require(model.selectedTab)
+    tab.draft = "again"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    let quit = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    agent.release(.shutdowns)
+    await quit.value
+    await sending.value
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func tryAgainAfterQuitLaunchesNothing() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    agent.exit()
+    await Task.megaYield()
+
+    await model.quitConfirmed()
+    await model.tryAgainTapped()
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+  }
+
   @Test func hiddenFolderTabsStillCount() async {
     let model = makeModel(records: [record(folder: "/a")])
     model.workspaceChanged(folder: "/a", emptyText: nil)
@@ -1162,6 +1249,15 @@ struct ChatPageTests {
     #expect(tab.rowText(for: TranscriptItem(id: "g", kind: .gap)) == "Part of this conversation couldn't be shown")
   }
 
+  @Test func textRowsDropSurroundingBlankLines() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+
+    #expect(tab.rowText(for: TranscriptItem(id: "t", kind: .thinking("Plan it.\n\n"))) == "Plan it.")
+    #expect(tab.rowText(for: TranscriptItem(id: "u", kind: .userMessage("\nFix it\n"))) == "Fix it")
+  }
+
   @Test func footerRowsShowEndingDurationAndTime() async throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -1175,5 +1271,202 @@ struct ChatPageTests {
     #expect(footer(.completed, .milliseconds(72_900)) == "1m 12s · 3:09 PM")
     #expect(footer(.stopped, .seconds(41)) == "Stopped · 41s · 3:09 PM")
     #expect(footer(.failed, .seconds(41)) == "Failed · 41s · 3:09 PM")
+  }
+
+  // MARK: - Screen
+
+  @Test func messageBoxWithoutWorkspaceIsDisabled() {
+    let model = makeModel()
+    model.workspaceChanged(folder: nil, emptyText: "Choose a capture session to watch its changes")
+
+    model.draft = "lost"
+
+    #expect(model.isMessageBoxEnabled == false)
+    #expect(model.isPickerEnabled == false)
+    #expect(model.showsNewTabButton == false)
+    #expect(model.draft == "")
+    #expect(model.pickerText == "Opus 5.5 High")
+  }
+
+  @Test func messageBoxEditsSelectedTab() async throws {
+    let model = makeModel(records: [record(model: "claude-sonnet-5-5", effort: .low)])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+
+    model.draft = "hello"
+
+    #expect(tab.draft == "hello")
+    #expect(model.isMessageBoxEnabled)
+    #expect(model.isPickerEnabled)
+    #expect(model.showsNewTabButton)
+    #expect(model.pickerText == "Sonnet 5.5 Low")
+    #expect(model.showsStop == false)
+    await send(model, "hello")
+    #expect(model.showsStop)
+    #expect(model.isPickerEnabled == false)
+  }
+
+  @Test func onlySelectedTabIsSelected() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.newTabTapped()
+
+    expectNoDifference(model.visibleTabs.map(model.isSelected), [false, true])
+  }
+
+  @Test func hoveringTabShowsItsClose() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.newTabTapped()
+
+    model.tabHovered(UUID(0), isHovering: true)
+    expectNoDifference(model.visibleTabs.map(model.isHovered), [true, false])
+
+    model.tabHovered(UUID(1), isHovering: true)
+    model.tabHovered(UUID(0), isHovering: false)
+    expectNoDifference(model.visibleTabs.map(model.isHovered), [false, true])
+  }
+
+  @Test func modelChoiceKeepsEffort() async {
+    let model = makeModel(records: [record(effort: .low)])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await model.modelSelected("claude-haiku-5-5")
+    expectNoDifference(model.records, [record(model: "claude-haiku-5-5", effort: .low)])
+
+    await model.effortSelected(.max)
+    expectNoDifference(model.records, [record(model: "claude-haiku-5-5", effort: .max)])
+  }
+
+  @Test func closeShortcutClosesSelectedTab() async {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.newTabTapped()
+
+    await model.closeShortcutPressed()
+
+    expectNoDifference(model.visibleTabs.map(\.id), [UUID(0)])
+  }
+
+  /// With the comparison open the chat isn't on screen, so ⌘W has nothing to close.
+  @Test func closeShortcutWhileComparisonShownClosesNothing() async {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.newTabTapped()
+    model.comparisonVisibilityChanged(isShown: true)
+
+    await model.closeShortcutPressed()
+
+    expectNoDifference(model.visibleTabs.map(\.id), [UUID(0), UUID(1)])
+  }
+
+  @Test func thinkingStartsOpenAndToolsStartClosed() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let thinking = TranscriptItem(id: "th", kind: .thinking("Hmm"))
+    let tool = TranscriptItem(id: "t", kind: .toolCall(name: "Bash", target: "ls", status: .done, detail: "a.swift"))
+    #expect(tab.isExpanded(thinking))
+    #expect(tab.isExpanded(tool) == false)
+
+    tab.itemToggled(thinking)
+    tab.itemToggled(tool)
+
+    #expect(tab.isExpanded(thinking) == false)
+    #expect(tab.isExpanded(tool))
+    #expect(tab.detailText(for: tool) == "a.swift")
+    #expect(tab.detailText(for: thinking) == nil)
+  }
+
+  @Test func toolRowsShowTheirKindAndWhetherTheyRun() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let running = TranscriptItem(id: "r", kind: .toolCall(name: "Bash", target: "ls", status: .running, detail: nil))
+    let edited = TranscriptItem(id: "e", kind: .toolCall(name: "MultiEdit", target: "A.swift", status: .done, detail: nil))
+    let reply = TranscriptItem(id: "p", kind: .reply("Hi"))
+
+    expectNoDifference([running, edited, reply].map(tab.toolKind), [.run, .edit, nil])
+    expectNoDifference([running, edited, reply].map(tab.isRunning), [true, false, false])
+  }
+
+  @Test func copyCopiesTheTurnsReply() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    await line(Line.assistantText("a1", "First"))
+    await line(Line.assistantText("a2", "Second"))
+    await line(Line.result())
+    let tab = try #require(model.selectedTab)
+    let footer = try #require(tab.projection.items.last)
+
+    tab.copyTapped(footer)
+
+    expectNoDifference(copied.value, ["First\n\nSecond"])
+  }
+
+  @Test func fencedCodeSplitsFromProse() throws {
+    let text = """
+      Run **this**:
+      ```swift
+      let a = 1
+
+      let b = 2
+      ```
+      Then `check`.
+      ```
+      unclosed
+      """
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .prose(try AttributedString(markdown: "Run **this**:", options: options)),
+        .code("let a = 1\n\nlet b = 2"),
+        .prose(try AttributedString(markdown: "Then `check`.", options: options)),
+        .code("unclosed"),
+      ])
+    expectNoDifference(ChatTabModel.markdownBlocks("plain"), [.prose(AttributedString("plain"))])
+  }
+
+  @Test func inlineCodeWithThreeLeadingBackticksStaysProse() throws {
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```hello```"),
+      [.prose(try AttributedString(markdown: "```hello```", options: options))])
+  }
+
+  @Test func longerFenceKeepsInnerFencesAsCode() {
+    let text = """
+      ````markdown
+      ```swift
+      let a = 1
+      ```
+      ````
+      ```
+      `tick` stays
+      ```
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .code("```swift\nlet a = 1\n```"),
+        .code("`tick` stays"),
+      ])
+  }
+
+  @Test func rowMarkdownParsesInlineCode() throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let tool = TranscriptItem(id: "t", kind: .toolCall(name: "Bash", target: "ls", status: .done, detail: nil))
+
+    let row = tab.rowMarkdown(for: tool)
+
+    let code = row.runs.filter { $0.inlinePresentationIntent?.contains(.code) == true }
+    expectNoDifference(code.map { String(row[$0.range].characters) }, ["ls"])
   }
 }

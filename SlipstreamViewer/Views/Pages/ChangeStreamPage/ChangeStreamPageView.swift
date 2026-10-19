@@ -7,9 +7,9 @@ struct ChangeStreamPageView: View {
 
   private let bottomID = "feed-bottom"
 
-  init(functionChangesDemo: FunctionChangesFixtureModel? = nil) {
+  init(chat: ChatPageModel, functionChangesDemo: FunctionChangesFixtureModel? = nil) {
     _model = State(initialValue: ChangeStreamPageModel(
-      isFunctionDemoVisible: functionChangesDemo != nil))
+      chat: chat, isFunctionDemoVisible: functionChangesDemo != nil))
     _functionChangesDemo = State(initialValue: functionChangesDemo)
   }
 
@@ -18,7 +18,7 @@ struct ChangeStreamPageView: View {
       if !model.isFeedHidden {
         feedPane.frame(width: DesignTokens.FeedPane.width)
       }
-      fileViewer
+      detailPane
     }
     .frame(
       minWidth: functionChangesDemo == nil ? 1000 : DesignTokens.FunctionMap.demoWorkspaceMinWidth,
@@ -38,7 +38,21 @@ struct ChangeStreamPageView: View {
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
     .task { await model.viewAppeared() }
+    .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
+    .task { await model.chat.clockTask() }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+      model.chat.appActivityChanged(isActive: true)
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+      model.chat.appActivityChanged(isActive: false)
+    }
     .onDisappear { model.viewDisappeared() }
+    .background {
+      Button { Task { await model.chat.closeShortcutPressed() } } label: { EmptyView() }
+        .keyboardShortcut("w")
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
   }
 
   @ViewBuilder
@@ -123,7 +137,30 @@ struct ChangeStreamPageView: View {
     }
   }
 
-  private var fileViewer: some View {
+  @ViewBuilder
+  private var detailPane: some View {
+    if let functionChangesDemo {
+      fileViewer {
+        FunctionChangesFixtureView(model: functionChangesDemo)
+      }
+    } else if let functionChanges = model.functionChanges {
+      fileViewer {
+        FunctionChangesLiveView(model: functionChanges, close: { model.functionChangesClosed() })
+          .id(functionChanges)
+      }
+    } else {
+      ChatPageView(model: model.chat) {
+        if model.isFeedHidden {
+          Button(model.showFeedText) { model.showFeedTapped() }
+            .buttonStyle(.plain)
+            .font(DesignTokens.Chat.TabStrip.showFeedFont)
+            .foregroundStyle(DesignTokens.Chat.TabStrip.showFeedColor)
+        }
+      }
+    }
+  }
+
+  private func fileViewer(@ViewBuilder content: () -> some View) -> some View {
     VStack(alignment: .leading, spacing: DesignTokens.FileViewer.gap) {
       HStack {
         if model.isFeedHidden {
@@ -134,21 +171,8 @@ struct ChangeStreamPageView: View {
         }
       }
       .frame(height: DesignTokens.FileViewer.toolbarHeight)
-      if let functionChangesDemo {
-        FunctionChangesFixtureView(model: functionChangesDemo)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if let functionChanges = model.functionChanges {
-        FunctionChangesLiveView(model: functionChanges, close: { model.functionChangesClosed() })
-          .id(functionChanges)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else {
-        Text(model.fileViewerPlaceholderText)
-          .font(DesignTokens.Fonts.liveStatus)
-          .foregroundStyle(DesignTokens.Colors.paneSubtitle)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(DesignTokens.FileViewer.paneFill)
-          .border(DesignTokens.FileViewer.paneStroke)
-      }
+      content()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .padding(DesignTokens.FileViewer.padding)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -345,12 +369,21 @@ struct ChangeStreamPageView: View {
     }
   }
 
+  /// A system menu ignores Text modifiers, so the weight rides on the string.
+  private func menuTitle(_ text: String, isBold: Bool) -> AttributedString {
+    var title = AttributedString(text)
+    title.font = DesignTokens.StreamPicker.rowFont(isBold: isBold)
+    return title
+  }
+
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
       Menu(model.sessionPickerTitle) {
         ForEach(model.sessions) { session in
-          Button(model.sessionMenuText(for: session)) { model.sessionSelected(session.id) }
+          Button { model.sessionSelected(session.id) } label: {
+            Text(menuTitle(model.sessionMenuText(for: session), isBold: model.isBold(session)))
+          }
         }
       }
       .disabled(model.isSessionPickerDisabled)
@@ -372,7 +405,7 @@ private struct ScrollMetrics: Equatable {
   var visibleMaxY: Double
 }
 
-private struct IconView: View {
+struct IconView: View {
   let icon: DesignTokens.Icons.Icon
 
   var body: some View {
