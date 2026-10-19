@@ -50,7 +50,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var follower: Task<Void, Never>?
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
-  @ObservationIgnored private var starting: Task<Bool, Never>?
+  @ObservationIgnored private var starting: [Task<Bool, Never>] = []
   /// Shutdowns still running, so quitting can wait for every process to be gone.
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
@@ -210,17 +210,18 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let crashedText = "Claude stopped unexpectedly"
   private static let gapText = "Part of this conversation couldn't be shown"
 
-  /// Tracked, so a shutdown can wait for a launch that is still on its way.
+  /// Tracked, so a shutdown can wait for a launch that is still on its way. The generation is
+  /// taken before the task is scheduled, so a shutdown in between still invalidates it.
   private func start() async -> Bool {
-    let starting = Task { await launchProcess() }
-    self.starting = starting
-    defer { if self.starting == starting { self.starting = nil } }
-    return await starting.value
-  }
-
-  private func launchProcess() async -> Bool {
     generation += 1
     let generation = generation
+    let task = Task { await launchProcess(generation: generation) }
+    starting.append(task)
+    defer { starting.removeAll { $0 == task } }
+    return await task.value
+  }
+
+  private func launchProcess(generation: Int) async -> Bool {
     do throws(Failure) {
       let (environment, lookup) = try await readTranscript()
       guard generation == self.generation else { return false }
@@ -290,11 +291,18 @@ final class ChatTabModel: ViewModel, Identifiable {
     retiring.append(Task { await handle.shutdown() })
   }
 
+  /// A stale start retires its process before finishing, so starts are drained first.
   private func awaitRetired() async {
-    if let starting { _ = await starting.value }
-    while let task = retiring.first {
-      await task.value
-      retiring.removeAll { $0 == task }
+    while true {
+      if let task = starting.first {
+        _ = await task.value
+        starting.removeAll { $0 == task }
+      } else if let task = retiring.first {
+        await task.value
+        retiring.removeAll { $0 == task }
+      } else {
+        return
+      }
     }
   }
 

@@ -995,6 +995,52 @@ struct ChatPageTests {
     #expect(model.selectedTab?.title == "Second")
   }
 
+  @Test func quitWaitsForEveryLaunchStillOnItsWay() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    agent.hold(.launches)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "one"
+    let first = Task { await model.sendTapped() }
+    await Task.megaYield()
+    await model.stopTapped()
+    tab.draft = "two"
+    let second = Task { await model.sendTapped() }
+    await Task.megaYield()
+    agent.releaseLast(.launches)
+    await second.value
+
+    let didQuit = LockIsolated(false)
+    let quit = Task {
+      await model.quitConfirmed()
+      didQuit.setValue(true)
+    }
+    await Task.megaYield()
+    #expect(didQuit.value == false)
+
+    agent.release(.launches)
+    await quit.value
+    await first.value
+    #expect(agent.launches.count == 2)
+    #expect(agent.shutdownCount == 2)
+  }
+
+  @Test func closingBeforeQueuedStartRunsLaunchesNothingLive() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+
+    let sending = Task { await model.sendTapped() }
+    let closing = Task { await model.closeTabTapped(Self.saved) }
+    await closing.value
+    await sending.value
+    await Task.megaYield()
+
+    #expect(agent.shutdownCount == agent.launches.count)
+    #expect(tab.isWorking == false)
+  }
+
   // MARK: - Row text
 
   @Test func toolRowsChangeTenseWithStatus() async throws {
