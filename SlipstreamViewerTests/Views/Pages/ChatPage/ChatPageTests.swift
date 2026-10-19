@@ -1430,6 +1430,14 @@ struct ChatPageTests {
     expectNoDifference(ChatTabModel.markdownBlocks("plain"), [.prose(AttributedString("plain"))])
   }
 
+  @Test func inlineCodeWithThreeLeadingBackticksStaysProse() throws {
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```hello```"),
+      [.prose(try AttributedString(markdown: "```hello```", options: options))])
+  }
+
   @Test func longerFenceKeepsInnerFencesAsCode() {
     let text = """
       ````markdown

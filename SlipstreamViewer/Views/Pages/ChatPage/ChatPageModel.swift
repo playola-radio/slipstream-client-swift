@@ -62,6 +62,9 @@ final class ChatPageModel: ViewModel {
 
   let placeholderText = "Ask to make changes, @mention files, run /commands"
   let tryAgainText = "Try again"
+  let newTabAccessibilityLabel = "New chat"
+  let sendAccessibilityLabel = "Send message"
+  let stopAccessibilityLabel = "Stop reply"
   let quitAlertTitle = "Quit Slipstream?"
   let quitText = "Quit"
   let cancelText = "Cancel"

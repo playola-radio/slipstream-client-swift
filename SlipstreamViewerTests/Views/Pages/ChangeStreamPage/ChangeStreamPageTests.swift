@@ -311,6 +311,27 @@ struct ChangeStreamPageTests {
     #expect(chat.isComparisonShown == false)
   }
 
+  @Test func reopenedPageRestoresTheStreamForItsChatWorkspace() async {
+    let chat = makeChat()
+    let folder = ChangeStreamPageModel.normalizedFolder("/tmp/project")
+    chat.workspaceChanged(folder: folder, emptyText: nil)
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel(chat: chat)
+
+    await model.viewAppeared()
+
+    #expect(model.selectedSession?.id == Fixture.session)
+    #expect(chat.folder == folder)
+  }
+
   @Test func pickerRowBoldWhenFolderWaiting() async throws {
     let folder = ChangeStreamPageModel.normalizedFolder("/tmp/project")
     let chat = makeChat(records: [

@@ -551,6 +551,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func chatWorkspaceMayHaveChanged() {
+    guard selectedSession != nil || chat.folder == nil else { return }
     let workspace = ChatWorkspace(folder: selectedFolder, emptyText: chatEmptyText)
     guard workspace != chatWorkspace else { return }
     chatWorkspace = workspace
@@ -702,6 +703,10 @@ final class ChangeStreamPageModel: ViewModel {
             if selectedSession?.id == id { selectedSession?.label = label }
           }
         }
+      }
+      if selectedSession == nil, let folder = chat.folder,
+        let session = sessions.first(where: { $0.root == folder }) {
+        _ = select(session.id)
       }
     } catch {
       guard generation == sessionsGeneration else {

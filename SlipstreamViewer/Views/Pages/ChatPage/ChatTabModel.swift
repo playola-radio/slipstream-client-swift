@@ -68,6 +68,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   let thinkingText = "Thinking"
+  let closeAccessibilityLabel = "Close chat"
+  let copyAccessibilityLabel = "Copy reply"
 
   var pickerText: String {
     Self.pickerText(model: record.model, effort: record.effort)
@@ -151,7 +153,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
       let trimmed = line.trimmingCharacters(in: .whitespaces)
       let ticks = trimmed.prefix { $0 == "`" }.count
-      if !isCode, ticks >= 3 {
+      if !isCode, ticks >= 3, !trimmed.dropFirst(ticks).contains("`") {
         flush()
         isCode = true
         fence = ticks

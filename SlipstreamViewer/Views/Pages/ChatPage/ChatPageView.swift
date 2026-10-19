@@ -49,6 +49,7 @@ struct ChatPageView<Leading: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(model.newTabAccessibilityLabel)
           }
         }
       }
@@ -107,6 +108,7 @@ struct ChatPageView<Leading: View>: View {
                 in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Send.radius))
           }
           .buttonStyle(.plain)
+          .accessibilityLabel(model.stopAccessibilityLabel)
         } else {
           Button { Task { await model.sendTapped() } } label: {
             IconView(icon: DesignTokens.Chat.Send.arrow)
@@ -115,6 +117,7 @@ struct ChatPageView<Leading: View>: View {
                 in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Send.radius))
           }
           .buttonStyle(.plain)
+          .accessibilityLabel(model.sendAccessibilityLabel)
         }
       }
     }
@@ -145,29 +148,35 @@ private struct ChatTabView: View {
 
   var body: some View {
     HStack(spacing: DesignTokens.Chat.Tab.gap) {
-      if tab.showsSpinner {
-        SpinnerView(spinner: DesignTokens.Chat.Tab.spinner)
+      Button(action: selected) {
+        HStack(spacing: DesignTokens.Chat.Tab.gap) {
+          if tab.showsSpinner {
+            SpinnerView(spinner: DesignTokens.Chat.Tab.spinner)
+          }
+          Text(tab.title)
+            .font(DesignTokens.Chat.Tab.titleFont(isBold: tab.isTitleBold))
+            .foregroundStyle(DesignTokens.Chat.Tab.titleColor(isSelected: isSelected, isBold: tab.isTitleBold))
+            .lineLimit(1)
+        }
+        .padding(.horizontal, DesignTokens.Chat.Tab.horizontalPadding)
+        .frame(maxHeight: .infinity)
+        .background(DesignTokens.Chat.Tab.fill(isHovered: isHovered),
+          in: UnevenRoundedRectangle(topLeadingRadius: DesignTokens.Chat.Tab.hoverRadius,
+            topTrailingRadius: DesignTokens.Chat.Tab.hoverRadius))
+        .overlay(alignment: .bottom) {
+          Rectangle().fill(DesignTokens.Chat.Tab.underline(isSelected: isSelected))
+            .frame(height: DesignTokens.Chat.Tab.underlineWidth)
+        }
+        .contentShape(Rectangle())
       }
-      Text(tab.title)
-        .font(DesignTokens.Chat.Tab.titleFont(isBold: tab.isTitleBold))
-        .foregroundStyle(DesignTokens.Chat.Tab.titleColor(isSelected: isSelected, isBold: tab.isTitleBold))
-        .lineLimit(1)
+      .buttonStyle(.plain)
       if isHovered {
         Button(action: closed) { IconView(icon: DesignTokens.Chat.Tab.close) }
           .buttonStyle(.plain)
+          .accessibilityLabel(tab.closeAccessibilityLabel)
       }
     }
-    .padding(.horizontal, DesignTokens.Chat.Tab.horizontalPadding)
     .frame(maxHeight: .infinity)
-    .background(DesignTokens.Chat.Tab.fill(isHovered: isHovered),
-      in: UnevenRoundedRectangle(topLeadingRadius: DesignTokens.Chat.Tab.hoverRadius,
-        topTrailingRadius: DesignTokens.Chat.Tab.hoverRadius))
-    .overlay(alignment: .bottom) {
-      Rectangle().fill(DesignTokens.Chat.Tab.underline(isSelected: isSelected))
-        .frame(height: DesignTokens.Chat.Tab.underlineWidth)
-    }
-    .contentShape(Rectangle())
-    .onTapGesture(perform: selected)
     .onHover(perform: hovered)
   }
 }
@@ -179,7 +188,7 @@ private struct TranscriptView: View {
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: DesignTokens.Chat.Transcript.gap) {
+      LazyVStack(alignment: .leading, spacing: DesignTokens.Chat.Transcript.gap) {
         ForEach(tab.projection.items) { item in
           itemView(item)
         }
@@ -251,6 +260,7 @@ private struct TranscriptView: View {
           .foregroundStyle(DesignTokens.Chat.TurnFooter.color)
         Button { tab.copyTapped(item) } label: { IconView(icon: DesignTokens.Chat.TurnFooter.copy) }
           .buttonStyle(.plain)
+          .accessibilityLabel(tab.copyAccessibilityLabel)
         IconView(icon: DesignTokens.Chat.TurnFooter.more)
       }
     case .gap:
