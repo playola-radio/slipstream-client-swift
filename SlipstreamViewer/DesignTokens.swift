@@ -484,6 +484,36 @@ enum DesignTokens {
     static let gap: CGFloat = 8
   }
 
+  enum CaptureStrip {
+    static let fill = Color(hex: 0x1B222A)
+    static let stroke = Color(hex: 0x314351)
+    static let verticalPadding: CGFloat = 10
+    static let horizontalPadding: CGFloat = 20
+    static let gap: CGFloat = 6
+    static let rowGap: CGFloat = 8
+    static let dotSize: CGFloat = 7
+    static let labelWidth: CGFloat = 54
+    static let detailInset: CGFloat = 77
+    static let labelFont: FontToken = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+    static let labelColor = Color(hex: 0x7D98AD)
+    static let textFont: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let textColor = Color(hex: 0xDBE9F3)
+    static let checkedFont: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
+    static let checkedColor = Color(hex: 0x68879E)
+    static let detailFont: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let detailColor = Color(hex: 0x9EB7CB)
+
+    static func dot(_ dot: CaptureDot) -> Color {
+      switch dot {
+      case .recording: Color(hex: 0x83BDA4)
+      case .attention: Color(hex: 0xD8BE89)
+      case .unknown: Color(hex: 0xA4B4C3)
+      case .linked: Color(hex: 0xA4D5F1)
+      case .noChat: Color(hex: 0x68879E)
+      }
+    }
+  }
+
   enum Status {
     static let warning = Color.orange
     static let error = Color.red
