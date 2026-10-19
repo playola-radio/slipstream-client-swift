@@ -19,15 +19,17 @@ final class QuestionThreadPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(key: QuestionThreadKey, thread: QuestionThread) {
+  init(key: QuestionThreadKey, thread: QuestionThread, bindingGeneration: String?) {
     self.key = key
     self.thread = thread
+    self.bindingGeneration = bindingGeneration
     super.init()
   }
 
   // MARK: - Properties
 
   let key: QuestionThreadKey
+  private var bindingGeneration: String?
   private(set) var thread: QuestionThread
   private(set) var isDismissed = false
   var isErrorPresented = false
@@ -100,6 +102,7 @@ final class QuestionThreadPageModel: ViewModel {
 
   var canSendReply: Bool {
     !isFollowUpDisabled && thread.source.context.isValid && !QuestionRequest.trim(draft).isEmpty
+      && (replyDraft.request != nil || bindingGeneration != nil)
   }
 
   // MARK: - User Actions
@@ -120,7 +123,7 @@ final class QuestionThreadPageModel: ViewModel {
     }
     let intent = replyDraft.request ?? QuestionRequest(
       sessionID: key.sessionID, requestID: uuid().uuidString.lowercased(), text: draft,
-      context: thread.source.context, replyToQuestionID: parent.questionID)
+      context: thread.source.context, replyToQuestionID: parent.questionID, bindingGeneration: bindingGeneration)
     updateReplyDraft { draft in
       draft.request = intent
       draft.isSubmitting = true
@@ -145,6 +148,10 @@ final class QuestionThreadPageModel: ViewModel {
   func threadUpdated(_ thread: QuestionThread) {
     guard !isDismissed, thread.id == key.rootQuestionID else { return }
     self.thread = thread
+  }
+
+  func captureChanged(_ capture: CaptureSummary?) {
+    bindingGeneration = bindingGeneration ?? capture?.binding?.generation
   }
 
   func dismissed() {

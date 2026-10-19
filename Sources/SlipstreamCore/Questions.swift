@@ -35,15 +35,20 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
   public let text: String
   public let context: QuestionContext
   public let replyToQuestionID: String?
+  public let bindingGeneration: String?
   let v = 1
   let verb = "ask"
 
-  public init(sessionID: String, requestID: String, text: String, context: QuestionContext, replyToQuestionID: String? = nil) {
+  public init(
+    sessionID: String, requestID: String, text: String, context: QuestionContext, replyToQuestionID: String? = nil,
+    bindingGeneration: String? = nil
+  ) {
     self.sessionID = sessionID
     self.requestID = requestID
     self.text = text
     self.context = context
     self.replyToQuestionID = replyToQuestionID
+    self.bindingGeneration = bindingGeneration
   }
 
   public func encoded() throws -> Data {
@@ -78,6 +83,7 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
   enum CodingKeys: String, CodingKey {
     case v, verb, sessionID = "session_id", requestID = "request_id", text, context
     case replyToQuestionID = "reply_to_question_id"
+    case bindingGeneration = "binding_generation"
   }
 }
 

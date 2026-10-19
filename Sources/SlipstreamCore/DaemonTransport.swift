@@ -67,6 +67,17 @@ public final class DaemonTransport: Sendable {
     return try JSONDecoder().decode([SessionSummary].self, from: data)
   }
 
+  public func captures(_ descriptor: DaemonDescriptor) async throws -> CaptureList? {
+    let (data, response) = try await session.data(for: makeRequest(descriptor, path: "/v1/captures", query: []))
+    return try Self.captureList(data, response: response)
+  }
+
+  static func captureList(_ data: Data, response: URLResponse) throws -> CaptureList? {
+    if (response as? HTTPURLResponse)?.statusCode == 404 { return nil }
+    try check(response)
+    return try JSONDecoder().decode(CaptureList.self, from: data)
+  }
+
   public func firstEvent(_ descriptor: DaemonDescriptor, sessionID: String) async throws -> SlipstreamEvent? {
     let request = makeRequest(descriptor, path: "/v1/sessions/\(sessionID)/events", query: [URLQueryItem(name: "after", value: "0")])
     let (bytes, response) = try await session.bytes(for: request)

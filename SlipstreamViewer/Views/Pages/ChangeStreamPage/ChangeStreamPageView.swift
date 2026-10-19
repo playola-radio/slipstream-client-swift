@@ -102,6 +102,9 @@ struct ChangeStreamPageView: View {
   private var feedPane: some View {
     VStack(spacing: 0) {
       header
+      if model.isCaptureStripShown {
+        captureStrip
+      }
       if let emptyStateText = model.emptyStateText {
         Text(emptyStateText)
           .font(DesignTokens.Fonts.liveStatus)
@@ -110,7 +113,9 @@ struct ChangeStreamPageView: View {
       } else {
         feed
       }
-      footer
+      if model.isFooterShown {
+        footer
+      }
     }
     .background(DesignTokens.FeedPane.fill)
     .overlay(alignment: .trailing) {
@@ -179,6 +184,54 @@ struct ChangeStreamPageView: View {
     }
     .padding(.horizontal, DesignTokens.FeedPane.horizontalPadding)
     .frame(height: DesignTokens.FeedPane.headerHeight)
+  }
+
+  private var captureStrip: some View {
+    VStack(alignment: .leading, spacing: DesignTokens.CaptureStrip.gap) {
+      captureStripRow(label: model.captureStripLabel, dot: model.captureDotColor, text: model.captureText) {
+        if let checked = model.captureCheckedText {
+          Text(checked)
+            .font(DesignTokens.CaptureStrip.checkedFont)
+            .foregroundStyle(DesignTokens.CaptureStrip.checkedColor)
+        }
+      }
+      if let detail = model.captureDetailText {
+        Text(detail)
+          .font(DesignTokens.CaptureStrip.detailFont)
+          .foregroundStyle(DesignTokens.CaptureStrip.detailColor)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.leading, DesignTokens.CaptureStrip.detailInset)
+      }
+      captureStripRow(label: model.chatStripLabel, dot: model.chatDotColor, text: model.chatLinkText) {}
+    }
+    .padding(.vertical, DesignTokens.CaptureStrip.verticalPadding)
+    .padding(.horizontal, DesignTokens.CaptureStrip.horizontalPadding)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(DesignTokens.CaptureStrip.fill)
+    .overlay(alignment: .top) {
+      Rectangle().fill(DesignTokens.CaptureStrip.stroke).frame(height: 1)
+    }
+    .overlay(alignment: .bottom) {
+      Rectangle().fill(DesignTokens.CaptureStrip.stroke).frame(height: 1)
+    }
+  }
+
+  private func captureStripRow(
+    label: String, dot: Color, text: String?, @ViewBuilder trailing: () -> some View
+  ) -> some View {
+    HStack(spacing: DesignTokens.CaptureStrip.rowGap) {
+      Circle().fill(dot).frame(width: DesignTokens.CaptureStrip.dotSize, height: DesignTokens.CaptureStrip.dotSize)
+      Text(label)
+        .font(DesignTokens.CaptureStrip.labelFont)
+        .foregroundStyle(DesignTokens.CaptureStrip.labelColor)
+        .frame(width: DesignTokens.CaptureStrip.labelWidth, alignment: .leading)
+      Text(text ?? "")
+        .font(DesignTokens.CaptureStrip.textFont)
+        .foregroundStyle(DesignTokens.CaptureStrip.textColor)
+        .fixedSize(horizontal: false, vertical: true)
+      Spacer(minLength: 0)
+      trailing()
+    }
   }
 
   private var feed: some View {

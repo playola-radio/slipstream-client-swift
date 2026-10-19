@@ -11,15 +11,23 @@ import Testing
 struct AskAgentPageTests {
   static let context = QuestionContext(changeSeq: "12", path: "user.ts", snapshotSHA256: String(repeating: "a", count: 64), lineStart: 7, lineEnd: 9)
   static let session = "11111111-1111-4111-8111-111111111111"
+  static func capture(
+    _ state: CaptureState = .recording, binding: CaptureBinding? = CaptureBinding(generation: "7", state: .connected)
+  ) -> CaptureStatus {
+    CaptureStatus(
+      availability: .available(checkedAt: Date(timeIntervalSince1970: 0)),
+      capture: CaptureSummary(sessionID: session, root: "/work/nairobi", state: state, binding: binding))
+  }
 
-  func model(agentConnection: AgentConnection = .connected, add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
+  func model(agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
     withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = send
       $0.savedQuestions.load = { [] }
       $0.savedQuestions.add = add
     } operation: {
-      AskAgentPageModel(sessionID: Self.session, context: Self.context, agentConnection: agentConnection)
+      AskAgentPageModel(
+        sessionID: Self.session, context: Self.context, agentConnection: agentConnection, captureStatus: captureStatus)
     }
   }
 
@@ -204,7 +212,8 @@ extension AskAgentPageTests {
         return ["Already saved"]
       }
       $0.savedQuestions.add = { [$0] }
-    } operation: { AskAgentPageModel(sessionID: Self.session, context: Self.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(
+      sessionID: Self.session, context: Self.context, agentConnection: .connected, captureStatus: Self.capture()) }
     let load = Task { await model.viewAppeared() }
     await Task.megaYield()
     model.addQuestionTapped()
@@ -226,7 +235,8 @@ extension AskAgentPageTests {
         store.withValue { $0.append(text) }
         return store.value
       }
-    } operation: { AskAgentPageModel(sessionID: Self.session, context: Self.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(
+      sessionID: Self.session, context: Self.context, agentConnection: .connected, captureStatus: Self.capture()) }
     await model.viewAppeared()
     model.addQuestionTapped()
     model.newPreset = "From window B"
@@ -240,7 +250,8 @@ extension AskAgentPageTests {
   @Test func preferenceFailureHasItsOwnTitleAndDoesNotPromiseReopeningWillRepairData() async {
     let model = withDependencies {
       $0.savedQuestions.load = { throw CocoaError(.fileReadCorruptFile) }
-    } operation: { AskAgentPageModel(sessionID: Self.session, context: Self.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(
+      sessionID: Self.session, context: Self.context, agentConnection: .connected, captureStatus: Self.capture()) }
     await model.viewAppeared()
     expectNoDifference(model.errorTitle, "Saved questions unavailable")
     #expect(!model.errorMessage.contains("reopening"))
@@ -250,30 +261,26 @@ extension AskAgentPageTests {
 }
 
 extension AskAgentPageTests {
-  nonisolated static let notConnectedTexts: [(AgentConnection, String)] = [
-    (.setupPending, "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."),
-    (.disconnected(reason: "capture_not_live"), "This capture is no longer recording, so its agent can't receive questions."),
-    (.disconnected(reason: "no_agent"), "No agent chat is connected to this capture. Run `slipstream attach` inside the agent chat to connect one."),
-    (.disconnected(reason: "something_new"), "The agent for this capture isn't connected, so questions are disabled."),
-    (.disconnected(reason: nil), "The agent for this capture isn't connected, so questions are disabled."),
-    (.unreported, "This Slipstream daemon doesn't report whether an agent is connected, so questions are disabled. Update Slipstream."),
-  ]
+  static let waitingText = "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
 
-  @Test(arguments: notConnectedTexts)
-  func askIsDisabledWithAnExplanationUnlessTheAgentIsConnected(state: AgentConnection, text: String) {
+  @Test(arguments: [
+    AgentConnection.setupPending, .disconnected(reason: "capture_not_live"), .disconnected(reason: "no_agent"),
+    .disconnected(reason: nil), .unreported,
+  ])
+  func askWaitsForSetupUntilTheLinkedChatIsReady(state: AgentConnection) {
     let model = model(agentConnection: state)
     model.draftChanged("Why?")
     #expect(!model.canSubmit)
-    expectNoDifference(model.agentConnectionText, text)
+    expectNoDifference(model.askNoticeText, Self.waitingText)
     expectNoDifference(model.draft, "Why?")
   }
 
-  @Test func askIsEnabledWhenConnectedAndTheDraftIsNotEmpty() {
+  @Test func askIsEnabledWhenRecordingLinkedAndReady() {
     let model = model(agentConnection: .connected)
     #expect(!model.canSubmit)
     model.draftChanged("Why?")
     #expect(model.canSubmit)
-    #expect(model.agentConnectionText == nil)
+    #expect(model.askNoticeText == nil)
   }
 
   @Test func connectingKeepsTheDraftAndEnablesAsk() {
@@ -282,18 +289,67 @@ extension AskAgentPageTests {
     #expect(!model.canSubmit)
     model.agentConnectionChanged(.connected)
     #expect(model.canSubmit)
-    #expect(model.agentConnectionText == nil)
+    #expect(model.askNoticeText == nil)
     expectNoDifference(model.draft, "Why?")
   }
 
-  @Test func losingTheConnectionDisablesAskAgainAndKeepsTheDraft() {
+  @Test func aCaptureThatStopsRecordingDisablesAskAndKeepsTheDraft() {
     let model = model(agentConnection: .connected)
     model.draftChanged("Why?")
-    model.agentConnectionChanged(.disconnected(reason: "capture_not_live"))
+    model.captureChanged(Self.capture(.stopped))
     #expect(!model.canSubmit)
-    expectNoDifference(model.agentConnectionText, "This capture is no longer recording, so its agent can't receive questions.")
+    expectNoDifference(model.askNoticeText, "This workspace isn't recording, so its chat can't receive questions.")
     expectNoDifference(model.draft, "Why?")
     expectNoDifference(model.sessionID, Self.session)
+  }
+
+  @Test func aConnectedRuntimeDoesNotEnableAskWithoutALinkedChat() {
+    let model = model(agentConnection: .connected, captureStatus: Self.capture(binding: nil))
+    model.draftChanged("Why?")
+    #expect(!model.canSubmit)
+    expectNoDifference(
+      model.askNoticeText,
+      "No agent chat is linked to this workspace. Run `slipstream attach` inside the agent chat to link one.")
+  }
+
+  @Test func askNamesTheLinkedChatsBindingGeneration() async {
+    let sent = LockIsolated<[QuestionRequest]>([])
+    let model = model(send: { request in
+      sent.withValue { $0.append(request) }
+      return try Self.ack(request)
+    })
+    model.draftChanged("Why?")
+    #expect(await model.askTapped())
+    expectNoDifference(sent.value.map(\.bindingGeneration), ["7"])
+  }
+
+  @Test func aRelinkedChatRejectionSaysToRefreshAndTheComposerKeepsItsOriginalLink() async {
+    let sent = LockIsolated<[QuestionRequest]>([])
+    let model = model(send: { request in
+      sent.withValue { $0.append(request) }
+      throw QuestionError.rejected(code: "STALE_BINDING", message: "relinked")
+    })
+    model.draftChanged("Why?")
+    #expect(!(await model.askTapped()))
+    expectNoDifference(
+      model.errorMessage,
+      "This workspace's chat was relinked after the app last checked. Refresh to see which chat is linked now, then ask again. Your draft is kept.")
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    #expect(!(await model.askTapped()))
+    expectNoDifference(sent.value.map(\.bindingGeneration), ["7", "7"])
+  }
+
+  @Test func aComposerOpenedBeforeAChatIsLinkedNamesTheFirstLinkItSees() async {
+    let sent = LockIsolated<[QuestionRequest]>([])
+    let model = model(captureStatus: Self.capture(binding: nil), send: { request in
+      sent.withValue { $0.append(request) }
+      return try Self.ack(request)
+    })
+    model.draftChanged("Why?")
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "9", state: .connected)))
+    #expect(await model.askTapped())
+    expectNoDifference(sent.value.map(\.bindingGeneration), ["8"])
   }
 
   @Test func askingWhileNotConnectedSendsNothing() async {

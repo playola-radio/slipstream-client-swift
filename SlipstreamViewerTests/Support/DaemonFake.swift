@@ -15,6 +15,12 @@ struct FollowRequest: Equatable {
 final class DaemonFake: Sendable {
   typealias Connection = AsyncThrowingStream<StreamItem, any Error>.Continuation
 
+  enum CapturesReply: Sendable {
+    case list(CaptureList)
+    case notFound
+    case failure(DaemonHTTPError)
+  }
+
   enum InterfaceReply: Sendable {
     case page(InterfaceComparison)
     case failure(DaemonHTTPError)
@@ -29,6 +35,8 @@ final class DaemonFake: Sendable {
     var sessionStartError: (any Error)?
     var sessionsCallCount = 0
     var sessionsError: (any Error)?
+    var captures: CapturesReply = .list(CaptureList(captures: []))
+    var capturesCallCount = 0
     var follows: [FollowRequest] = []
     var connections: [Connection] = []
     var clips: [Seq: ClipsResponse] = [:]
@@ -81,6 +89,9 @@ final class DaemonFake: Sendable {
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
   var sessionsCallCount: Int { state.withLock { $0.sessionsCallCount } }
   func setSessionsError(_ error: (any Error)?) { state.withLock { $0.sessionsError = error } }
+  var capturesCallCount: Int { state.withLock { $0.capturesCallCount } }
+  func setCaptures(_ captures: [CaptureSummary]) { setCaptures(.list(CaptureList(captures: captures))) }
+  func setCaptures(_ reply: CapturesReply) { state.withLock { $0.captures = reply } }
   func setSessionStartError(_ error: (any Error)?) { state.withLock { $0.sessionStartError = error } }
   func setDiscoverError(_ error: (any Error)?) { state.withLock { $0.discoverError = error } }
   func setSessions(_ sessions: [SessionSummary], starts: [String: SessionStarted] = [:]) {
@@ -143,6 +154,17 @@ final class DaemonFake: Sendable {
         }
         if let error = state.withLock({ $0.sessionsError }) { throw error }
         return snapshot
+      },
+      listCaptures: { [self] _ in
+        let reply = state.withLock { state in
+          state.capturesCallCount += 1
+          return state.captures
+        }
+        switch reply {
+        case .list(let list): return list
+        case .notFound: return nil
+        case .failure(let error): throw error
+        }
       },
       sessionStart: { [self] _, id in
         state.withLock { $0.sessionStartCallCount += 1 }
@@ -218,6 +240,14 @@ enum Fixture {
   static let shaA = String(repeating: "a", count: 64)
   static let shaB = String(repeating: "b", count: 64)
   static let observedAtMs: Int64 = 1_790_246_538_000
+  static let checkedAt = Date(timeIntervalSince1970: 1_790_246_540)
+
+  static func capture(
+    _ state: CaptureState = .recording, reason: String? = nil, session: String = session,
+    root: String = "/tmp/project", binding: CaptureBinding? = CaptureBinding(generation: "7", state: .connected)
+  ) -> CaptureSummary {
+    CaptureSummary(sessionID: session, root: root, state: state, reason: reason, binding: binding)
+  }
 
   static func seq(_ value: Int) -> Seq {
     Seq(String(value))!
