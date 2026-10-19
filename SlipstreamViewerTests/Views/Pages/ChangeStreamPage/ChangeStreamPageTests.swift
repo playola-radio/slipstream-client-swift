@@ -27,7 +27,7 @@ struct ChangeStreamPageTests {
 
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
-    isFunctionDemoVisible: Bool = false
+    isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil
   ) -> ChangeStreamPageModel {
     withDependencies {
       $0.defaultInMemoryStorage = storage ?? self.storage
@@ -35,7 +35,7 @@ struct ChangeStreamPageTests {
       $0.continuousClock = clock
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
       $0.timeZone = TimeZone(identifier: "UTC")!
-      $0.date.now = Fixture.checkedAt
+      $0.date = DateGenerator(now ?? { Fixture.checkedAt })
     } operation: {
       ChangeStreamPageModel(isFunctionDemoVisible: isFunctionDemoVisible)
     }
@@ -2093,6 +2093,35 @@ extension ChangeStreamPageTests {
     await send(Fixture.edited(1))
     #expect(model.sections.isEmpty)
     expectNoDifference(model.connection, .idle)
+  }
+
+  @Test func aWorkspaceThatLosesItsHistoryStopsBeingFollowed() async {
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    #expect(!model.sections.isEmpty)
+    fake.setSessions([])
+    await model.refreshTapped()
+    await Task.megaYield()
+    await send(Fixture.edited(2))
+    #expect(model.sections.isEmpty)
+    expectNoDifference(model.connection, .idle)
+  }
+
+  @Test func theCheckedTimeIsWhenTheCaptureStateArrived() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    let now = LockIsolated(Fixture.checkedAt)
+    let model = makeModel(daemon: daemon, now: { now.value })
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    now.setValue(Fixture.checkedAt.addingTimeInterval(100))
+    open.yield()
+    await appeared.value
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.captureCheckedText, "Checked 10:42:20")
   }
 
   @Test func maintenanceStopsTheCaptureUntilARefreshShowsItRecording() async {

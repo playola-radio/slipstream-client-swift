@@ -563,14 +563,14 @@ final class ChangeStreamPageModel: ViewModel {
     let daemon = daemon
     do {
       let descriptor = try await daemon.discover()
-      async let captureReply = Self.captures(daemon, descriptor)
+      async let captureReply = Self.captures(daemon, descriptor, date)
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
-      let captures = await captureReply
+      let (captures, checkedAt) = await captureReply
       guard generation == sessionsGeneration else { return }
       let snapshot: [CaptureSummary]
       switch captures {
       case .success(let list?):
-        captureAvailability = .available(checkedAt: date.now)
+        captureAvailability = .available(checkedAt: checkedAt)
         snapshot = list.captures
       case .success(nil):
         captureAvailability = .unavailableFromReader
@@ -618,7 +618,7 @@ final class ChangeStreamPageModel: ViewModel {
       }
       if let selectedID = selectedSession?.id {
         if let listed = sessions[id: selectedID] {
-          let gainedHistory = selectedSession?.hasHistory == false && listed.hasHistory
+          let historyChanged = selectedSession?.hasHistory != listed.hasHistory
           selectedSession?.agentConnection = listed.agentConnection
           selectedSession?.readinessSeq = listed.readinessSeq
           selectedSession?.capture = listed.capture
@@ -627,7 +627,10 @@ final class ChangeStreamPageModel: ViewModel {
             selectedSession?.label = listed.label
             selectedSession?.root = listed.root
           }
-          if gainedHistory { startWatching() }
+          if historyChanged {
+            if !listed.hasHistory { resetFeed() }
+            startWatching()
+          }
         } else {
           selectedSession?.agentConnection = .disconnected(reason: nil)
           selectedSession?.capture = nil
@@ -833,9 +836,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private static func captures(
-    _ daemon: DaemonClient, _ descriptor: DaemonDescriptor
-  ) async -> Result<CaptureList?, any Error> {
-    do { return .success(try await daemon.listCaptures(descriptor)) } catch { return .failure(error) }
+    _ daemon: DaemonClient, _ descriptor: DaemonDescriptor, _ date: DateGenerator
+  ) async -> (Result<CaptureList?, any Error>, Date) {
+    do { return (.success(try await daemon.listCaptures(descriptor)), date.now) } catch { return (.failure(error), date.now) }
   }
 
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {
