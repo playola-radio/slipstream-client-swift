@@ -22,6 +22,7 @@ struct ChangeStreamPageTests {
   init() {
     fake = DaemonFake()
     fake.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)], starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    fake.setCaptures([Fixture.capture()])
   }
 
   func makeModel(
@@ -34,6 +35,7 @@ struct ChangeStreamPageTests {
       $0.continuousClock = clock
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
       $0.timeZone = TimeZone(identifier: "UTC")!
+      $0.date.now = Fixture.checkedAt
     } operation: {
       ChangeStreamPageModel(isFunctionDemoVisible: isFunctionDemoVisible)
     }
@@ -66,6 +68,7 @@ struct ChangeStreamPageTests {
   // MARK: - Sessions
 
   @Test func sessionsAreLabelledByRootAndStartTimeAndRemovedOnesHidden() async {
+    fake.setCaptures([])
     fake.setSessions(
       [
         SessionSummary(id: "a", durableSeq: .zero, removed: false),
@@ -88,6 +91,7 @@ struct ChangeStreamPageTests {
   }
 
   @Test func capturesOfTheSameFolderAreToldApartByStartTime() async {
+    fake.setCaptures([])
     fake.setSessions(
       [
         SessionSummary(id: "a", durableSeq: .zero, removed: false),
@@ -129,6 +133,7 @@ struct ChangeStreamPageTests {
   }
 
   @Test func capturesStartedInTheSameSecondAreToldApartByID() async {
+    fake.setCaptures([])
     fake.setSessions(
       [
         SessionSummary(id: "11111111-aaaa", durableSeq: .zero, removed: false),
@@ -156,6 +161,7 @@ struct ChangeStreamPageTests {
   @Test func closingTheWindowDuringSessionDiscoveryStartsNothing() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
     let model = makeModel(daemon: daemon)
     let appeared = Task { await model.viewAppeared() }
@@ -246,6 +252,7 @@ struct ChangeStreamPageTests {
   }
 
   @Test func refreshPicksUpNewSessions() async {
+    fake.setCaptures([])
     fake.setSessions([])
     let model = makeModel()
     await model.viewAppeared()
@@ -296,7 +303,7 @@ struct ChangeStreamPageTests {
           id: Fixture.seq(7),
           heading: nil,
           items: [
-            .marker(FeedMarker(id: Fixture.seq(7), text: "Recording resumed")),
+            .marker(FeedMarker(id: Fixture.seq(7), text: "Capture restarting")),
             .marker(FeedMarker(id: Fixture.seq(8), text: "Unsupported event: slipstream.future.thing.v1")),
           ]
         ),
@@ -305,13 +312,13 @@ struct ChangeStreamPageTests {
     #expect(model.newestFileID == Fixture.seq(4))
   }
 
-  @Test func aResumeSaysRecordingResumedAndThatNothingWasRecordedWhileStopped() async {
+  @Test func aResumeSaysTheCaptureIsRestartingAndThatNothingWasRecordedWhileStopped() async {
     let model = await connectedModel()
     await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
     expectNoDifference(
       model.sections.flatMap(\.items),
       [
-        .marker(FeedMarker(id: Fixture.seq(1), text: "Recording resumed")),
+        .marker(FeedMarker(id: Fixture.seq(1), text: "Capture restarting")),
         .marker(FeedMarker(id: Fixture.seq(2), text: "Capture gap — nothing was recorded while capture was stopped (whole session)")),
       ]
     )
@@ -475,7 +482,7 @@ struct ChangeStreamPageTests {
     #expect(model.footerColor == DesignTokens.Status.warning)
     await clock.advance(by: .milliseconds(500))
     await send(Fixture.edited(1), Fixture.edited(2))
-    #expect(model.footerText == "Live · New changes appear below")
+    #expect(model.footerText == "Connected · New changes appear below")
   }
 
   @Test func silentConnectionIsTreatedAsDead() async {
@@ -973,7 +980,7 @@ struct ChangeStreamPageTests {
   @Test func userScrollAwayPausesAndCountsNewCards() async {
     let model = await connectedModel()
     await send(Fixture.edited(1))
-    #expect(model.footerText == "Live · New changes appear below")
+    #expect(model.footerText == "Connected · New changes appear below")
     model.scrollPhaseChanged(.interacting)
     model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
     #expect(model.footerText == "Paused · No new changes")
@@ -1208,14 +1215,14 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     defer { model.viewDisappeared() }
     let context = AskAgentPageTests.context
-    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context, agentConnection: .connected) }
+    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = original
     original.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(original) }
     await Task.megaYield()
     let health = model.connection
     model.questionDismissed()
-    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context, agentConnection: .connected)
+    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture())
     newer.draftChanged("A different question")
     model.askAgent = newer
     resume.yield()
@@ -1232,7 +1239,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { _ in throw QuestionError.outcomeUnknown }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1254,7 +1261,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return try AskAgentPageTests.ack(request)
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(composer) }
@@ -1275,12 +1282,12 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
     expectNoDifference(model.connection, .live)
-    expectNoDifference(model.footerText, "Live · New changes appear below · Question queued (delivery not confirmed)")
+    expectNoDifference(model.footerText, "Connected · New changes appear below · Question queued (delivery not confirmed)")
   }
 
   @Test func retainedComposerStaysSendableAfterWindowDisappearsAndReappears() async {
@@ -1290,7 +1297,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies(from: model) {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     model.viewDisappeared()
@@ -1313,7 +1320,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         throw QuestionError.outcomeUnknown
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(composer) }
@@ -1349,7 +1356,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies(from: model) {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1372,13 +1379,13 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
     #expect(model.askAgent == nil)
     expectNoDifference(model.footerText,
-      "Live · New changes appear below · Question queued for project (delivery not confirmed)")
+      "Connected · New changes appear below · Question queued for project (delivery not confirmed)")
   }
 
   @Test func selectionConnectorUsesVisibleSourceAndHidesWhenBlockDisappears() async throws {
@@ -1507,7 +1514,7 @@ extension ChangeStreamPageTests {
         if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
         return try AskAgentPageTests.ack(request)
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
+    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture()) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1934,7 +1941,9 @@ extension ChangeStreamPageTests {
     _ model: ChangeStreamPageModel, session: String = Fixture.session, agentConnection: AgentConnection
   ) -> AskAgentPageModel {
     let composer = withDependencies(from: model) {
-      AskAgentPageModel(sessionID: session, context: AskAgentPageTests.context, agentConnection: agentConnection)
+      AskAgentPageModel(
+        sessionID: session, context: AskAgentPageTests.context, agentConnection: agentConnection,
+        captureStatus: model.selectedCaptureStatus ?? AskAgentPageTests.capture())
     }
     model.askAgent = composer
     composer.draftChanged("Why?")
@@ -1966,109 +1975,82 @@ extension ChangeStreamPageTests {
     return model
   }
 
-  func menuText(_ connection: AgentConnection) -> String {
-    makeModel().sessionMenuText(for: SessionOption(id: "a", label: "alpha", agentConnection: connection))
-  }
-
-  @Test func menuMarksAConnectedSessionAsRecording() {
-    expectNoDifference(menuText(.connected), "alpha · Recording")
-  }
-
-  @Test func menuMarksASetupPendingSessionAsRecording() {
-    expectNoDifference(menuText(.setupPending), "alpha · Recording")
-  }
-
-  @Test func menuMarksASessionWithNoAgentAsRecording() {
-    expectNoDifference(menuText(.disconnected(reason: "no_agent")), "alpha · Recording")
-  }
-
-  @Test func menuDoesNotMarkASessionWhoseCaptureIsNotLive() {
-    expectNoDifference(menuText(.disconnected(reason: "capture_not_live")), "alpha")
-  }
-
-  @Test func menuDoesNotMarkAnUnreportedSession() {
-    expectNoDifference(menuText(.unreported), "alpha")
-  }
-
-  @Test func menuDoesNotMarkASessionWithAnUnknownReason() {
-    expectNoDifference(menuText(.disconnected(reason: nil)), "alpha")
-  }
-
-  @Test func footerSaysRecordingEndedWhenTheWatchedCaptureIsNotLive() async {
-    listSessions(.disconnected(reason: "capture_not_live"))
+  @Test func theCaptureStripReadsTheDaemonsSnapshot() async {
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.footerText, "Recording ended")
-    #expect(model.footerColor == DesignTokens.Colors.paneSubtitle)
+    #expect(model.isCaptureStripShown)
+    expectNoDifference(model.captureText, "Recording")
+    expectNoDifference(model.captureCheckedText, "Checked 10:42:20")
+    expectNoDifference(model.chatLinkText, "Linked — changes are possibly the agent's")
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Recording")
+    expectNoDifference(model.footerText, "Connected · New changes appear below")
   }
 
-  @Test func recordingEndedKeepsPausedUnreadChangeCounts() async {
-    listSessions(.disconnected(reason: "capture_not_live"))
-    let model = await liveModel()
+  @Test func theMenuNamesEachWorkspacesCaptureState() async {
+    let model = await connectedModel()
     defer { model.viewDisappeared() }
-
-    model.follow = .paused(newCount: 1)
-    expectNoDifference(model.footerText, "Recording ended · 1 new change")
-
-    model.follow = .paused(newCount: 2)
-    expectNoDifference(model.footerText, "Recording ended · 2 new changes")
-
-    model.follow = .paused(newCount: 0)
-    expectNoDifference(model.footerText, "Recording ended")
+    let captures: [CaptureSummary?] = [
+      Fixture.capture(), Fixture.capture(.queued), Fixture.capture(.baselining),
+      Fixture.capture(.stopped, reason: "maintenance"),
+      Fixture.capture(.notRecording, reason: "capture-limit-reached"),
+      Fixture.capture(.notRecording, reason: "storage-unavailable"),
+      Fixture.capture(.unknown("paused")), nil,
+    ]
+    expectNoDifference(
+      captures.map { model.sessionMenuText(for: SessionOption(id: "a", label: "alpha", capture: $0)) },
+      [
+        "alpha · Recording", "alpha · Queued", "alpha · Preparing", "alpha · Stopped",
+        "alpha · Waiting for a free slot", "alpha · Not recording", "alpha · State unknown", "alpha · Not captured",
+      ]
+    )
   }
 
-  @Test func footerKeepsTheLiveTextWhenTheWatchedSessionIsRecording() async {
+  @Test(arguments: [CaptureState.queued, .baselining, .stopped, .notRecording, .unknown("paused")])
+  func aConnectedAgentNeverMakesANonRecordingCaptureReadRecording(_ state: CaptureState) async {
     listSessions(.connected)
+    fake.setCaptures([Fixture.capture(state)])
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.footerText, "Live · New changes appear below")
-    #expect(model.footerColor == DesignTokens.Colors.liveStatus)
+    let composer = composer(model, agentConnection: .connected)
+    #expect(model.captureText?.hasPrefix("Recording") == false)
+    #expect(!model.sessionMenuText(for: model.selectedSession!).hasSuffix("Recording"))
+    #expect(!model.footerText.contains("Recording"))
+    #expect(!composer.canSubmit)
   }
 
-  @Test func footerKeepsTheLiveTextWhenRecordingIsUnknown() async {
-    listSessions(.disconnected(reason: nil))
+  @Test func aReaderWithoutTheCapturesEndpointShowsTheStateAsUnknown() async {
+    fake.setCaptures(.notFound)
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.footerText, "Live · New changes appear below")
+    expectNoDifference(model.captureText, "Capture state unavailable from this reader")
+    expectNoDifference(model.chatLinkText, "Chat-link state unknown")
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · State unknown")
+    #expect(model.captureCheckedText == nil)
+    #expect(model.isFooterShown)
   }
 
-  @Test func footerKeepsTheConnectionTroubleTextWhenTheCaptureIsNotLive() async {
-    listSessions(.disconnected(reason: "capture_not_live"))
+  @Test func aFailedCapturesRequestShowsTheStateAsUnknownWhileTheFeedStillLoads() async {
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    fake.close()
-    await Task.megaYield()
-    expectNoDifference(model.footerText, "Reconnecting (attempt 1)")
-    #expect(model.footerColor == DesignTokens.Status.warning)
+    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+    expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session])
   }
 
-  @Test func queuedQuestionNoticeStillFollowsRecordingEnded() async {
-    let model = makeModel()
-    model.selectedSession = SessionOption(
-      id: Fixture.session, label: "Current", agentConnection: .disconnected(reason: "capture_not_live"))
-    model.connection = .live
-    let composer = withDependencies {
-      $0.uuid = .incrementing
-      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected) }
-    model.askAgent = composer
-    composer.draftChanged("Why?")
-    await model.askQuestionTapped(composer)
-    expectNoDifference(model.footerText, "Recording ended · Question queued (delivery not confirmed)")
-  }
-
-  @Test func aConnectionEventFlipsTheFooterBackFromRecordingEnded() async {
-    listSessions(.disconnected(reason: "capture_not_live"))
+  @Test func aFailedRefreshStopsClaimingTheLastCheckedState() async {
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.footerText, "Recording ended")
-    await send(Fixture.agentConnection(1, state: "connected"))
-    expectNoDifference(model.footerText, "Live · New changes appear below")
-    #expect(model.footerColor == DesignTokens.Colors.liveStatus)
+    fake.setSessionsError(URLError(.cannotConnectToHost))
+    await model.refreshTapped()
+    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+    #expect(model.captureCheckedText == nil)
   }
 
-  @Test func returningToASessionWhoseCaptureStoppedRefreshesItsRecordingState() async {
-    listSessions(.connected, other: .connected)
+  @Test func theSeventeenthWorkspaceWaitsForAFreeSlotThenRecords() async {
+    fake.setCaptures([
+      Fixture.capture(),
+      Fixture.capture(.notRecording, reason: "capture-limit-reached", session: Fixture.otherSession, root: "/work/seventeenth", binding: nil),
+    ])
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
@@ -2076,36 +2058,151 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
-    listSessions(.disconnected(reason: "capture_not_live"), other: .connected)
-    let callsBefore = fake.sessionsCallCount
-    model.sessionSelected(Fixture.session)
+    expectNoDifference(model.sessionPickerTitle, "seventeenth")
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "seventeenth · Waiting for a free slot")
+    expectNoDifference(model.captureText, "Not recording — waiting for a free capture slot")
+    expectNoDifference(
+      model.captureDetailText,
+      "Every capture slot is in use. This workspace starts on its own, oldest first, when one frees up. Refresh to check again.")
+    expectNoDifference(model.chatLinkText, "No chat linked")
+    expectNoDifference(model.emptyStateText, "No change history is available yet. Refresh to check again.")
+    #expect(!model.isFooterShown)
+    expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session])
+
+    listSessions(.connected, other: .connected)
+    fake.setCaptures([Fixture.capture(), Fixture.capture(session: Fixture.otherSession, root: "/work/seventeenth")])
+    await model.refreshTapped()
     await Task.megaYield()
-    await send(.heartbeat)
-    expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
-    expectNoDifference(model.footerText, "Recording ended")
-    expectNoDifference(model.sessionMenuText(for: model.sessions[id: Fixture.session]!), "\(Fixture.session)")
+    expectNoDifference(model.captureText, "Recording")
+    #expect(model.isFooterShown)
+    expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session, Fixture.otherSession])
   }
 
-  @Test func changesBeyondTheListedPositionStopTheEndedClaimAndRefreshTheSessions() async {
+  @Test func choosingAWorkspaceWithoutHistoryStopsFollowingThePreviousOne() async {
+    fake.setCaptures([
+      Fixture.capture(),
+      Fixture.capture(.queued, session: Fixture.otherSession, root: "/work/other", binding: nil),
+    ])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    await send(Fixture.edited(1))
+    #expect(model.sections.isEmpty)
+    expectNoDifference(model.connection, .idle)
+  }
+
+  @Test func maintenanceStopsTheCaptureUntilARefreshShowsItRecording() async {
+    fake.setCaptures([Fixture.capture(.stopped, reason: "maintenance")])
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.captureText, "Stopped — maintenance in progress")
+    expectNoDifference(
+      model.captureDetailText,
+      "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again.")
+    fake.setCaptures([Fixture.capture()])
+    await model.refreshTapped()
+    expectNoDifference(model.captureText, "Recording")
+    #expect(model.captureDetailText == nil)
+  }
+
+  @Test func aStorageOutageWhileRecordingReadsNotRecording() async {
+    fake.setCaptures([Fixture.capture(.notRecording, reason: "storage-unavailable")])
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.captureText, "Not recording — storage unavailable")
+  }
+
+  @Test func aRestartedCaptureReadsQueuedWhileItsChatWaitsForSetup() async {
+    listSessions(.connected)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    let composer = composer(model, agentConnection: .connected)
+    #expect(composer.canSubmit)
+    listSessions(.disconnected(reason: "no_agent"), durableSeq: 2)
+    fake.setCaptures([Fixture.capture(.queued, binding: CaptureBinding(generation: "7", state: .setupPending))])
+    let callsBefore = fake.capturesCallCount
+    await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
+    await Task.megaYield()
+    expectNoDifference(fake.capturesCallCount, callsBefore + 1)
+    expectNoDifference(model.captureText, "Queued — not recording yet")
+    expectNoDifference(model.chatLinkText, "Waiting for setup — the chat hasn't confirmed it can answer yet")
+    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Queued")
+    #expect(!composer.canSubmit)
+  }
+
+  @Test func eachWorkspacesQuestionReachesItsOwnChat() async throws {
+    listSessions(.connected, other: .connected)
+    fake.setCaptures([
+      Fixture.capture(binding: CaptureBinding(generation: "7", state: .connected)),
+      Fixture.capture(session: Fixture.otherSession, root: "/work/other", binding: CaptureBinding(generation: "9", state: .connected)),
+    ])
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        requests.withValue { $0.append(request) }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: { makeModel() }
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    for session in [Fixture.session, Fixture.otherSession] {
+      model.sessionSelected(session)
+      await Task.megaYield()
+      await send(to: fake.follows.count - 1, .heartbeat)
+      let composer = withDependencies(from: model) {
+        AskAgentPageModel(
+          sessionID: session, context: AskAgentPageTests.context, agentConnection: .connected,
+          captureStatus: model.selectedCaptureStatus!)
+      }
+      model.askAgent = composer
+      composer.draftChanged("Why?")
+      await model.askQuestionTapped(composer)
+    }
+    expectNoDifference(
+      requests.value.map { [$0.sessionID, $0.bindingGeneration] },
+      [[Fixture.session, "7"], [Fixture.otherSession, "9"]])
+  }
+
+  @Test func returningToAStoppedWorkspaceRefreshesItsCaptureState() async {
+    listSessions(.connected, other: .connected)
+    fake.setCaptures([Fixture.capture(), Fixture.capture(session: Fixture.otherSession)])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    fake.setCaptures([Fixture.capture(.stopped, reason: "detached"), Fixture.capture(session: Fixture.otherSession)])
+    let callsBefore = fake.capturesCallCount
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    expectNoDifference(fake.capturesCallCount, callsBefore + 1)
+    expectNoDifference(model.captureText, "Stopped — capture detached")
+  }
+
+  @Test func changesBeyondTheListedPositionOfAnEndedCaptureRefreshTheSessions() async {
     listSessions(.disconnected(reason: "capture_not_live"), durableSeq: 2)
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.footerText, "Recording ended")
     listSessions(.connected, durableSeq: 3)
     let callsBefore = fake.sessionsCallCount
     await send(Fixture.edited(1), Fixture.edited(2), Fixture.edited(3))
-    expectNoDifference(model.footerText, "Live · New changes appear below")
     expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
     expectNoDifference(model.selectedSession?.agentConnection, .connected)
   }
 
-  @Test func replayingTheStoppedSessionsHistoryKeepsRecordingEndedWithoutRefreshing() async {
+  @Test func replayingAnEndedCapturesHistoryDoesNotRefresh() async {
     listSessions(.disconnected(reason: "capture_not_live"), durableSeq: 2)
     let model = await liveModel()
     defer { model.viewDisappeared() }
     let callsBefore = fake.sessionsCallCount
     await send(Fixture.edited(1), Fixture.edited(2))
-    expectNoDifference(model.footerText, "Recording ended")
     expectNoDifference(fake.sessionsCallCount, callsBefore)
   }
 
@@ -2121,18 +2218,6 @@ extension ChangeStreamPageTests {
     await send(Fixture.agentConnection(3, state: "connected"))
     expectNoDifference(composer.agentConnection, .connected)
     #expect(composer.canSubmit)
-  }
-
-  @Test func aResumeRefreshesTheSessionsSoACaptureWithoutAnAgentStillShowsRecording() async {
-    listSessions(.connected)
-    let model = await liveModel()
-    defer { model.viewDisappeared() }
-    listSessions(.disconnected(reason: "no_agent"), durableSeq: 2)
-    let callsBefore = fake.sessionsCallCount
-    await send(Fixture.sessionResumed(1), Fixture.restartGap(2))
-    expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
-    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: "no_agent"))
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Recording")
   }
 
   @Test func replayingAnOldResumeKeepsTheListedReadiness() async {
@@ -2163,28 +2248,29 @@ extension ChangeStreamPageTests {
     return model
   }
 
-  @Test func aReplayedSetupPendingWaitsForTheFreshListingBeforeMarkingRecording() async {
+  @Test func aReplayedSetupPendingWaitsForTheFreshListing() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     let model = await reconnectedWithAReplayedSetupPending(daemon, gate: open)
     defer { model.viewDisappeared() }
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), model.sessionPickerTitle)
+    expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
     open.yield()
     await Task.megaYield()
     expectNoDifference(model.selectedSession?.agentConnection, .setupPending)
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Recording")
   }
 
-  @Test func aReplayedSetupPendingLeavesRecordingUnknownWhenTheRefreshFails() async {
+  @Test func aReplayedSetupPendingStaysUnconfirmedWhenTheRefreshFails() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     let model = await reconnectedWithAReplayedSetupPending(daemon, gate: open)
     defer { model.viewDisappeared() }
     daemon.setSessionsError(URLError(.cannotConnectToHost))
     open.yield()
     await Task.megaYield()
     expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), model.sessionPickerTitle)
+    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
   }
 
   @Test func aConnectionEventUpdatesTheWatchedSessionAndItsComposerWithoutAddingARow() async {
@@ -2324,6 +2410,7 @@ extension ChangeStreamPageTests {
   @Test func aLateSessionsResponseNeverOverwritesNewerReadiness() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .setupPending)])
     open.yield()
     let model = makeModel(daemon: daemon)
@@ -2410,6 +2497,7 @@ extension ChangeStreamPageTests {
   @Test func aSnapshotRequestedBeforeLeavingLiveCannotReEnableAsk() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
     open.yield()
     let model = makeModel(daemon: daemon)
@@ -2443,6 +2531,7 @@ extension ChangeStreamPageTests {
   @Test func aReplayedConnectedEventCannotReEnableAskBeforeAFreshSnapshotApplies() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
     open.yield()
     let model = makeModel(daemon: daemon)
@@ -2479,6 +2568,7 @@ extension ChangeStreamPageTests {
   @Test func aNewConnectedEventIsAppliedAfterTheFreshSnapshot() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
     open.yield()
     let model = makeModel(daemon: daemon)
@@ -2535,6 +2625,7 @@ extension ChangeStreamPageTests {
     await send(Fixture.agentConnection(1, state: "connected"))
     let composer = composer(model, agentConnection: .connected)
     fake.setSessions([])
+    fake.setCaptures([])
     await model.refreshTapped()
     expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
     expectNoDifference(composer.agentConnection, .disconnected(reason: nil))

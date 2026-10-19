@@ -8,6 +8,8 @@ struct SessionOption: Identifiable, Equatable, Sendable {
   var agentConnection: AgentConnection = .unreported
   var readinessSeq: Seq = .zero
   var root: String?
+  var capture: CaptureSummary?
+  var hasHistory = true
 }
 
 enum ConnectionState: Equatable, Sendable {

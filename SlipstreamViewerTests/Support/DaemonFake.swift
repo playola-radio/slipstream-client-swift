@@ -240,6 +240,14 @@ enum Fixture {
   static let shaA = String(repeating: "a", count: 64)
   static let shaB = String(repeating: "b", count: 64)
   static let observedAtMs: Int64 = 1_790_246_538_000
+  static let checkedAt = Date(timeIntervalSince1970: 1_790_246_540)
+
+  static func capture(
+    _ state: CaptureState = .recording, reason: String? = nil, session: String = session,
+    root: String = "/tmp/project", binding: CaptureBinding? = CaptureBinding(generation: "7", state: .connected)
+  ) -> CaptureSummary {
+    CaptureSummary(sessionID: session, root: root, state: state, reason: reason, binding: binding)
+  }
 
   static func seq(_ value: Int) -> Seq {
     Seq(String(value))!

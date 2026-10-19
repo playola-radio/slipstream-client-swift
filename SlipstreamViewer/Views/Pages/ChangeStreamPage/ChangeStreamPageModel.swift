@@ -12,6 +12,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   @ObservationIgnored @Dependency(\.daemon) var daemon
   @ObservationIgnored @Dependency(\.continuousClock) var clock
+  @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @Dependency(\.withRandomNumberGenerator) var withRandomNumberGenerator
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
 
@@ -51,6 +52,7 @@ final class ChangeStreamPageModel: ViewModel {
   var hasLoadedSessions = false
   var sessionsError: String?
   var selectedSession: SessionOption?
+  private(set) var captureAvailability = CaptureAvailability.loading
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
   private(set) var functionChanges: FunctionChangesLiveModel?
@@ -100,6 +102,8 @@ final class ChangeStreamPageModel: ViewModel {
   let hideFeedText = "Hide feed"
   let showFeedText = "◧  Activity"
   let fileViewerPlaceholderText = "Open a change to see its file here"
+  let captureStripLabel = "CAPTURE"
+  let chatStripLabel = "CHAT"
 
   var retryButtonText: String {
     historyRolledBack ? "Reload from start" : "Retry"
@@ -119,8 +123,17 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func sessionMenuText(for session: SessionOption) -> String {
-    Self.recordingState(of: session.agentConnection) == .recording ? "\(session.label) · Recording" : session.label
+    captureStatus(of: session).pickerSuffix.map { "\(session.label) · \($0)" } ?? session.label
   }
+
+  var selectedCaptureStatus: CaptureStatus? {
+    selectedSession.map(captureStatus(of:))
+  }
+
+  var captureText: String? { selectedCaptureStatus?.captureText }
+  var captureDetailText: String? { selectedCaptureStatus?.detailText(timeZone: timeZone) }
+  var captureCheckedText: String? { selectedCaptureStatus?.checkedText(timeZone: timeZone) }
+  var chatLinkText: String? { selectedCaptureStatus?.chatText }
 
   var statusText: String {
     switch connection {
@@ -137,14 +150,11 @@ final class ChangeStreamPageModel: ViewModel {
   var footerText: String {
     let captureText: String
     if connection == .live {
-      captureText = switch (watchedRecordingState, follow) {
-      case (.ended, .paused(1)): "Recording ended · 1 new change"
-      case (.ended, .paused(let count)) where count > 1: "Recording ended · \(count) new changes"
-      case (.ended, _): "Recording ended"
-      case (_, .following): "Live · New changes appear below"
-      case (_, .paused(0)): "Paused · No new changes"
-      case (_, .paused(1)): "1 new change"
-      case (_, .paused(let count)): "\(count) new changes"
+      captureText = switch follow {
+      case .following: "Connected · New changes appear below"
+      case .paused(0): "Paused · No new changes"
+      case .paused(1): "1 new change"
+      case .paused(let count): "\(count) new changes"
       }
     } else {
       captureText = statusText
@@ -158,10 +168,16 @@ final class ChangeStreamPageModel: ViewModel {
     if selectedSession == nil {
       return sessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
+    if selectedSession?.hasHistory == false { return "No change history is available yet. Refresh to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
   }
 
   // MARK: - View Helpers
+
+  var isCaptureStripShown: Bool { selectedSession != nil }
+  var isFooterShown: Bool { selectedSession?.hasHistory ?? true }
+  var captureDotColor: Color { DesignTokens.CaptureStrip.dot(selectedCaptureStatus?.captureDot ?? .unknown) }
+  var chatDotColor: Color { DesignTokens.CaptureStrip.dot(selectedCaptureStatus?.chatDot ?? .unknown) }
 
   var questionPlacement: QuestionPlacement {
     let visibleSelection = selectionFrame.intersection(feedViewport)
@@ -248,7 +264,9 @@ final class ChangeStreamPageModel: ViewModel {
       AskAgentPageModel(
         sessionID: selection.sessionID,
         context: selection.context,
-        agentConnection: selectedSession?.agentConnection ?? .unreported
+        agentConnection: selectedSession?.agentConnection ?? .unreported,
+        captureStatus: sessions[id: selection.sessionID].map(captureStatus(of:))
+          ?? CaptureStatus(availability: captureAvailability, capture: nil)
       )
     }
   }
@@ -338,7 +356,6 @@ final class ChangeStreamPageModel: ViewModel {
 
   var footerColor: Color {
     guard connection == .live else { return statusColor }
-    if watchedRecordingState == .ended { return DesignTokens.Colors.paneSubtitle }
     return follow == .following ? DesignTokens.Colors.liveStatus : DesignTokens.Colors.jumpToLatest
   }
 
@@ -546,15 +563,30 @@ final class ChangeStreamPageModel: ViewModel {
     let daemon = daemon
     do {
       let descriptor = try await daemon.discover()
+      async let captureReply = Self.captures(daemon, descriptor)
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
+      let captures = await captureReply
       guard generation == sessionsGeneration else { return }
+      let snapshot: [CaptureSummary]
+      switch captures {
+      case .success(let list?):
+        captureAvailability = .available(checkedAt: date.now)
+        snapshot = list.captures
+      case .success(nil):
+        captureAvailability = .unavailableFromReader
+        snapshot = []
+      case .failure:
+        captureAvailability = .failed
+        snapshot = []
+      }
+      let capturesByID = Dictionary(snapshot.map { ($0.sessionID, $0) }, uniquingKeysWith: { first, _ in first })
       let previous = sessions
       let selected = selectedSession
       sessions = IdentifiedArray(
         uniqueElements: summaries.map { summary in
           var option = SessionOption(
             id: summary.id, label: summary.id, agentConnection: summary.agentConnection,
-            readinessSeq: summary.durableSeq)
+            readinessSeq: summary.durableSeq, capture: capturesByID[summary.id])
           let known = selected?.id == summary.id ? selected : previous[id: summary.id]
           option.root = known?.root
           if let known, known.readinessSeq > summary.durableSeq {
@@ -564,6 +596,17 @@ final class ChangeStreamPageModel: ViewModel {
           return option
         }
       )
+      let listedIDs = Set(summaries.map(\.id))
+      let captureOnly = snapshot.filter { !listedIDs.contains($0.sessionID) }
+      let captureLabels = Self.uniqueLabels(captureOnly.map {
+        (id: $0.sessionID, label: URL(fileURLWithPath: $0.root).lastPathComponent)
+      })
+      for capture in captureOnly {
+        sessions.append(
+          SessionOption(
+            id: capture.sessionID, label: captureLabels[capture.sessionID] ?? capture.sessionID,
+            root: Self.normalizedFolder(capture.root), capture: capture, hasHistory: false))
+      }
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
@@ -575,16 +618,26 @@ final class ChangeStreamPageModel: ViewModel {
       }
       if let selectedID = selectedSession?.id {
         if let listed = sessions[id: selectedID] {
+          let gainedHistory = selectedSession?.hasHistory == false && listed.hasHistory
           selectedSession?.agentConnection = listed.agentConnection
           selectedSession?.readinessSeq = listed.readinessSeq
+          selectedSession?.capture = listed.capture
+          selectedSession?.hasHistory = listed.hasHistory
+          if !listed.hasHistory {
+            selectedSession?.label = listed.label
+            selectedSession?.root = listed.root
+          }
+          if gainedHistory { startWatching() }
         } else {
           selectedSession?.agentConnection = .disconnected(reason: nil)
+          selectedSession?.capture = nil
         }
       }
       if let composer = askAgent {
         let isWatched = composer.sessionID == selectedSession?.id
         composer.agentConnectionChanged(
           isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
+        composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture))
       }
       if selectedSession == nil, sessions.count == 1 {
         _ = select(sessions[0].id)
@@ -611,6 +664,8 @@ final class ChangeStreamPageModel: ViewModel {
     } catch {
       guard generation == sessionsGeneration else { return }
       sessions = []
+      captureAvailability = .failed
+      askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil))
       hasLoadedSessions = true
       sessionsError = error is DescriptorError
         ? "The Slipstream daemon isn't running"
@@ -619,9 +674,12 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func startWatching() {
-    guard let sessionID = selectedSession?.id else { return }
     watchTask?.cancel()
     watchGeneration += 1
+    guard let sessionID = selectedSession?.id, selectedSession?.hasHistory == true else {
+      connection = .idle
+      return
+    }
     let generation = watchGeneration
     connection = .connecting
     let after = lastAppliedSeq
@@ -736,7 +794,7 @@ final class ChangeStreamPageModel: ViewModel {
       )
     case .sessionResumed:
       sections.append(FeedSection(id: event.seq, heading: nil))
-      append(.marker(FeedMarker(id: event.seq, text: "Recording resumed")))
+      append(.marker(FeedMarker(id: event.seq, text: "Capture restarting")))
       questionThreads.apply(event)
       openReplyUpdated()
       askAgent?.questionsUpdated(questionThreads.threads)
@@ -759,7 +817,8 @@ final class ChangeStreamPageModel: ViewModel {
     case .sessionStarted:
       break
     }
-    if watchedRecordingState == .ended || event.payload == .sessionResumed, let watched = selectedSession,
+    if selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") || event.payload == .sessionResumed,
+      let watched = selectedSession,
       event.seq > watched.readinessSeq
     {
       watchedReadinessChanged(.disconnected(reason: nil), seq: event.seq)
@@ -769,25 +828,23 @@ final class ChangeStreamPageModel: ViewModel {
     return true
   }
 
-  private enum RecordingState {
-    case recording, ended, unknown
+  private func captureStatus(of session: SessionOption) -> CaptureStatus {
+    CaptureStatus(availability: captureAvailability, capture: session.capture)
   }
 
-  private var watchedRecordingState: RecordingState {
-    selectedSession.map { Self.recordingState(of: $0.agentConnection) } ?? .unknown
-  }
-
-  private static func recordingState(of connection: AgentConnection) -> RecordingState {
-    switch connection {
-    case .connected, .setupPending, .disconnected(reason: "no_agent"): .recording
-    case .disconnected(reason: "capture_not_live"): .ended
-    case .disconnected, .unreported: .unknown
-    }
+  private static func captures(
+    _ daemon: DaemonClient, _ descriptor: DaemonDescriptor
+  ) async -> Result<CaptureList?, any Error> {
+    do { return .success(try await daemon.listCaptures(descriptor)) } catch { return .failure(error) }
   }
 
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {
     guard let watched = selectedSession, seq > watched.readinessSeq else { return }
-    if awaitsFreshSnapshot, Self.recordingState(of: reported) == .recording {
+    let isLiveReadiness = switch reported {
+    case .connected, .setupPending, .disconnected(reason: "no_agent"): true
+    default: false
+    }
+    if awaitsFreshSnapshot, isLiveReadiness {
       if pendingReadiness?.seq ?? .zero < seq {
         pendingReadiness = (reported, seq)
       }
@@ -857,7 +914,11 @@ final class ChangeStreamPageModel: ViewModel {
       let started = formatter.string(from: Date(timeIntervalSince1970: Double(start.startedAtMs) / 1000))
       return "\(start.root) · started \(started)"
     }
-    let counts = Dictionary(labels.values.map { ($0, 1) }, uniquingKeysWith: +)
+    return Self.uniqueLabels(labels.map { (id: $0.key, label: $0.value) })
+  }
+
+  private static func uniqueLabels(_ labels: [(id: String, label: String)]) -> [String: String] {
+    let counts = Dictionary(labels.map { ($0.label, 1) }, uniquingKeysWith: +)
     var unique: [String: String] = [:]
     for (id, label) in labels {
       unique[id] = counts[label, default: 0] > 1 ? "\(label) · \(id)" : label

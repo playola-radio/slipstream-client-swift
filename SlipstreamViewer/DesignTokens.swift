@@ -188,6 +188,7 @@ enum DesignTokens {
   }
 
   enum Ask {
+    static func sendOpacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.4 }
     static let width: CGFloat = 640
     static let fill = Color(hex: 0x202B35)
     static let stroke = Color(hex: 0x83C7F0)

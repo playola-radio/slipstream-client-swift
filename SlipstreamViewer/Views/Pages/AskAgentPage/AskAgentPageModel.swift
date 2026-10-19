@@ -15,10 +15,11 @@ final class AskAgentPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(sessionID: String, context: QuestionContext, agentConnection: AgentConnection) {
+  init(sessionID: String, context: QuestionContext, agentConnection: AgentConnection, captureStatus: CaptureStatus) {
     self.sessionID = sessionID
     self.context = context
     self.agentConnection = agentConnection
+    self.captureStatus = captureStatus
     super.init()
   }
 
@@ -28,6 +29,7 @@ final class AskAgentPageModel: ViewModel {
   let sessionID: String
   let context: QuestionContext
   private(set) var agentConnection: AgentConnection
+  private(set) var captureStatus: CaptureStatus
   private(set) var draft = ""
   private(set) var customQuestions: [String] = []
   private(set) var selectedPreset = defaults[0]
@@ -62,26 +64,12 @@ final class AskAgentPageModel: ViewModel {
   var contextText: String { "\(context.path) · Lines \(context.lineStart)–\(context.lineEnd)" }
   var options: [String] { Self.defaults + customQuestions }
 
-  var agentConnectionText: String? {
-    switch agentConnection {
-    case .connected: nil
-    case .setupPending:
-      "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
-    case .disconnected(reason: "capture_not_live"):
-      "This capture is no longer recording, so its agent can't receive questions."
-    case .disconnected(reason: "no_agent"):
-      "No agent chat is connected to this capture. Run `slipstream attach` inside the agent chat to connect one."
-    case .disconnected:
-      "The agent for this capture isn't connected, so questions are disabled."
-    case .unreported:
-      "This Slipstream daemon doesn't report whether an agent is connected, so questions are disabled. Update Slipstream."
-    }
-  }
+  var askNoticeText: String? { captureStatus.askNotice(agentConnection: agentConnection) }
 
   // MARK: - View Helpers
 
   var canSubmit: Bool {
-    isActive && !isSubmitting && context.isValid && agentConnection == .connected && !QuestionRequest.trim(draft).isEmpty
+    isActive && !isSubmitting && context.isValid && askNoticeText == nil && !QuestionRequest.trim(draft).isEmpty
   }
   var canSavePreset: Bool { presetsLoaded && !isSavingPreset && !QuestionRequest.trim(newPreset).isEmpty }
   var dropdownIcon: String { isMenuOpen ? "ChevronUp" : "ChevronDown" }
@@ -170,8 +158,10 @@ final class AskAgentPageModel: ViewModel {
 
   func askTapped() async -> Bool {
     guard canSubmit else { return false }
-    let intent = request ?? QuestionRequest(
-      sessionID: sessionID, requestID: uuid().uuidString.lowercased(), text: draft, context: context
+    let intent = QuestionRequest(
+      sessionID: sessionID, requestID: request?.requestID ?? uuid().uuidString.lowercased(),
+      text: request?.text ?? draft, context: context,
+      bindingGeneration: captureStatus.capture?.binding?.generation
     )
     request = intent
     let operation = generation
@@ -192,6 +182,10 @@ final class AskAgentPageModel: ViewModel {
 
   func agentConnectionChanged(_ connection: AgentConnection) {
     agentConnection = connection
+  }
+
+  func captureChanged(_ status: CaptureStatus) {
+    captureStatus = status
   }
 
   func questionsUpdated(_ threads: IdentifiedArrayOf<QuestionThread>) {

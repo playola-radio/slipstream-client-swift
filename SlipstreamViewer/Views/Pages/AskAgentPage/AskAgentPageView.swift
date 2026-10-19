@@ -23,7 +23,7 @@ struct AskAgentPageView: View {
           RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius)
             .strokeBorder(DesignTokens.Ask.stroke, lineWidth: DesignTokens.Ask.strokeWidth)
         }
-      if let text = model.agentConnectionText {
+      if let text = model.askNoticeText {
         Text(text)
           .font(DesignTokens.Ask.contextFont)
           .foregroundStyle(DesignTokens.Ask.savedLabel)
@@ -51,6 +51,7 @@ struct AskAgentPageView: View {
           .background(DesignTokens.Ask.sendFill, in: RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius))
         }
         .disabled(!model.canSubmit)
+        .opacity(DesignTokens.Ask.sendOpacity(isEnabled: model.canSubmit))
       }
       savedQuestions
     }
