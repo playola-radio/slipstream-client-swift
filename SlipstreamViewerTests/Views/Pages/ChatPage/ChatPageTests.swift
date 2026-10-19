@@ -276,4 +276,282 @@ struct ChatPageTests {
     #expect(agent.launches.count == 1)
     expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("one")), json(ClaudeInvocation.userMessage("two"))])
   }
+
+  // MARK: - Turns
+
+  @Test func resultEndsTurnOnce() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.viewAppeared()
+    await send(model, "hi")
+    let loadsBeforeResult = agent.loads.count
+    agent.setTranscript(Self.saved, .found([.title("Saying hi")]))
+    elapsed.setValue(41)
+
+    await line(Line.result(durationMs: 41_000))
+    await line(Line.idle)
+    await line(Line.result())
+
+    let tab = try #require(model.selectedTab)
+    expectNoDifference(
+      tab.projection.items,
+      [
+        TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("hi")),
+        TranscriptItem(
+          id: UUID(0).uuidString,
+          kind: .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start.addingTimeInterval(41))),
+      ])
+    #expect(tab.isWorking == false)
+    #expect(tab.workingText == nil)
+    #expect(tab.title == "Saying hi")
+    #expect(agent.loads.count == loadsBeforeResult + 1)
+  }
+
+  @Test func errorResultFailsWithItsText() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    await line(Line.result(isError: true, text: "Model not found"))
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.errorText == "Model not found")
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .failed, duration: .seconds(41), time: Self.start))
+  }
+
+  @Test func exitBeforeResultFailsOnce() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    elapsed.setValue(5)
+
+    agent.exit(status: 1, stderrTail: "Error: out of memory\n")
+    await Task.megaYield()
+
+    let tab = try #require(model.selectedTab)
+    expectNoDifference(
+      tab.projection.items,
+      [
+        TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("hi")),
+        TranscriptItem(
+          id: UUID(0).uuidString,
+          kind: .turnFooter(ending: .failed, duration: .seconds(5), time: Self.start.addingTimeInterval(5))),
+      ])
+    #expect(tab.errorText == "Claude stopped unexpectedly\nError: out of memory")
+    #expect(tab.isWorking == false)
+    #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func exitWhileIdleRelaunchesOnNextSend() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "one")
+    await line(Line.result())
+    agent.setTranscript(Self.saved, .found([]))
+
+    agent.exit()
+    await Task.megaYield()
+    await send(model, "two")
+
+    #expect(model.selectedTab?.errorText == nil)
+    expectNoDifference(
+      agent.launches, [launch(Self.saved, session: .new(Self.saved)), launch(Self.saved, session: .resume(Self.saved))])
+    expectNoDifference(agent.writes(1), [json(ClaudeInvocation.userMessage("two"))])
+  }
+
+  @Test func staleGenerationLinesIgnored() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    let tab = try #require(model.selectedTab)
+
+    agent.sendLine(Line.assistantText("a1", "late"))
+    await tab.shutdown()
+    await Task.megaYield()
+
+    expectNoDifference(tab.projection.items, [TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("hi"))])
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func canUseToolIsAnswered() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    await line(Line.canUseTool("req-1"))
+
+    expectNoDifference(
+      agent.writes(0),
+      [
+        json(ClaudeInvocation.userMessage("hi")),
+        json(ClaudeInvocation.reply(requestID: "req-1", subtype: "can_use_tool", input: .object(["command": .string("ls")]))),
+      ])
+  }
+
+  // MARK: - Waiting
+
+  @Test func turnEndingOffScreenMarksWaiting() async {
+    let model = makeModel(records: [record(folder: "/a")])
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    await send(model, "hi")
+
+    model.workspaceChanged(folder: "/b", emptyText: nil)
+    await line(Line.result())
+
+    #expect(model.records[id: Self.saved]?.isWaiting == true)
+    #expect(model.isWaiting(folder: "/a"))
+    #expect(model.isWaiting(folder: "/b") == false)
+    #expect(agent.shutdownCount == 0)
+  }
+
+  @Test func turnEndingOnScreenDoesNotMarkWaiting() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    await line(Line.result())
+
+    #expect(model.records[id: Self.saved]?.isWaiting == false)
+  }
+
+  @Test func turnEndingInOtherTabMarksWaiting() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    await model.newTabTapped()
+    await line(Line.result())
+
+    #expect(model.records[id: Self.saved]?.isWaiting == true)
+  }
+
+  @Test func turnEndingWhileAppInactiveMarksWaiting() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    model.appActivityChanged(isActive: false)
+    await line(Line.result())
+
+    #expect(model.records[id: Self.saved]?.isWaiting == true)
+  }
+
+  @Test func turnEndingUnderComparisonMarksWaiting() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    model.comparisonVisibilityChanged(isShown: true)
+    await line(Line.result())
+
+    #expect(model.records[id: Self.saved]?.isWaiting == true)
+  }
+
+  @Test func turnEndingAfterReturningIsNotWaiting() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    model.appActivityChanged(isActive: false)
+    model.comparisonVisibilityChanged(isShown: true)
+
+    model.appActivityChanged(isActive: true)
+    model.comparisonVisibilityChanged(isShown: false)
+    await line(Line.result())
+
+    #expect(model.records[id: Self.saved]?.isWaiting == false)
+  }
+
+  @Test func selectingWaitingTabKeepsItBold() async throws {
+    let model = makeModel(records: [record(isWaiting: true), record(UUID(50))])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.tabSelected(UUID(50))
+
+    await model.tabSelected(Self.saved)
+
+    let tab = try #require(model.selectedTab)
+    #expect(tab.isTitleBold)
+    #expect(model.tabs[id: UUID(50)]?.isTitleBold == false)
+  }
+
+  // MARK: - Working line
+
+  @Test func workingLineTicks() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let clockTask = Task { await model.clockTask() }
+    await Task.megaYield()
+    await send(model, "hi")
+    let tab = try #require(model.selectedTab)
+    #expect(tab.showsSpinner)
+    #expect(tab.showsStop)
+
+    elapsed.setValue(69)
+    await line(Line.assistantText("a1", "Looking"))
+    elapsed.setValue(72)
+    await clock.advance(by: .seconds(72))
+    #expect(tab.workingText == "Working 1m 12s · last output 3s ago")
+
+    elapsed.setValue(73)
+    await clock.advance(by: .seconds(1))
+    #expect(tab.workingText == "Working 1m 13s · last output 4s ago")
+
+    clockTask.cancel()
+    await clockTask.value
+  }
+
+  @Test func ignoredLinesCountAsOutput() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+
+    elapsed.setValue(30)
+    await line(#"{"type":"rate_limit_event"}"#)
+
+    #expect(model.selectedTab?.workingText == "Working 30s · last output 0s ago")
+  }
+
+  // MARK: - Row text
+
+  @Test func toolRowsChangeTenseWithStatus() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    func tool(_ name: String, _ target: String?, _ status: ToolStatus) -> String {
+      tab.rowText(for: TranscriptItem(id: "t", kind: .toolCall(name: name, target: target, status: status, detail: nil)))
+    }
+
+    #expect(tool("Bash", "swift test", .running) == "Running `swift test`")
+    #expect(tool("Bash", "swift test", .done) == "Ran `swift test`")
+    #expect(tool("Bash", "swift test", .failed) == "Ran `swift test` · failed")
+    #expect(tool("Bash", "swift test", .stopped) == "Ran `swift test` · stopped")
+    #expect(tool("Edit", "File.swift", .done) == "Edited `File.swift`")
+    #expect(tool("Write", "File.swift", .running) == "Editing `File.swift`")
+    #expect(tool("Read", "File.swift", .done) == "Read `File.swift`")
+    #expect(tool("Grep", nil, .done) == "Used `Grep`")
+  }
+
+  @Test func otherRowsShowTheirText() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+
+    #expect(tab.rowText(for: TranscriptItem(id: "u", kind: .userMessage("Fix it"))) == "Fix it")
+    #expect(tab.rowText(for: TranscriptItem(id: "r", kind: .reply("Fixed."))) == "Fixed.")
+    #expect(tab.rowText(for: TranscriptItem(id: "g", kind: .gap)) == "Part of this conversation couldn't be shown")
+  }
+
+  @Test func footerRowsShowEndingDurationAndTime() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let threeOhNine = Date(timeIntervalSince1970: 1_760_022_540)
+    func footer(_ ending: TurnEnding, _ duration: Duration) -> String {
+      tab.rowText(for: TranscriptItem(id: "f", kind: .turnFooter(ending: ending, duration: duration, time: threeOhNine)))
+    }
+
+    #expect(footer(.completed, .seconds(41)) == "41s · 3:09 PM")
+    #expect(footer(.completed, .milliseconds(72_900)) == "1m 12s · 3:09 PM")
+    #expect(footer(.stopped, .seconds(41)) == "Stopped · 41s · 3:09 PM")
+    #expect(footer(.failed, .seconds(41)) == "Failed · 41s · 3:09 PM")
+  }
 }

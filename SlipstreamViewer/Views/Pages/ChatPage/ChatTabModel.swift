@@ -12,6 +12,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored @Dependency(\.agentProcess) var agentProcess
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
   @ObservationIgnored @Dependency(\.date) var date
+  @ObservationIgnored @Dependency(\.timeZone) var timeZone
   @ObservationIgnored @Dependency(\.uuid) var uuid
 
   // MARK: - Shared State
@@ -34,15 +35,55 @@ final class ChatTabModel: ViewModel, Identifiable {
   var draft = ""
   var errorText: String?
   var isWorking: Bool { activeTurn != nil }
+  var isTitleBold: Bool { record.isWaiting }
+  var showsSpinner: Bool { isWorking }
+  var showsStop: Bool { isWorking }
 
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
 
   private var activeTurn: ActiveTurn?
+  private var now = Date.distantPast
   private var needsHistory: Bool
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var follower: Task<Void, Never>?
   @ObservationIgnored private var generation = 0
+
+  // MARK: - Display Text
+
+  var workingText: String? {
+    guard let activeTurn else { return nil }
+    let working = Self.durationText(seconds: now.timeIntervalSince(activeTurn.startedAt))
+    let quiet = Self.durationText(seconds: now.timeIntervalSince(activeTurn.lastOutputAt))
+    return "Working \(working) · last output \(quiet) ago"
+  }
+
+  // MARK: - View Helpers
+
+  func rowText(for item: TranscriptItem) -> String {
+    switch item.kind {
+    case .userMessage(let text), .reply(let text), .thinking(let text):
+      return text
+    case .toolCall(let name, let target, let status, _):
+      let (running, ran) = Self.verbs(name)
+      let subject = "`\(target ?? name)`"
+      switch status {
+      case .running: return "\(running) \(subject)"
+      case .done: return "\(ran) \(subject)"
+      case .failed: return "\(ran) \(subject) · failed"
+      case .stopped: return "\(ran) \(subject) · stopped"
+      }
+    case .turnFooter(let ending, let duration, let time):
+      let text = "\(Self.durationText(seconds: Double(duration.components.seconds))) · \(timeText(time))"
+      switch ending {
+      case .completed: return text
+      case .failed: return "Failed · \(text)"
+      case .stopped: return "Stopped · \(text)"
+      }
+    case .gap:
+      return Self.gapText
+    }
+  }
 
   // MARK: - Page Actions
 
@@ -55,7 +96,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !text.isEmpty, activeTurn == nil else { return }
     errorText = nil
-    let turn = ActiveTurn(id: uuid(), startedAt: date.now)
+    now = date.now
+    let turn = ActiveTurn(id: uuid(), startedAt: now, lastOutputAt: now)
     activeTurn = turn
     if handle == nil, await !start() {
       if activeTurn?.id == turn.id { activeTurn = nil }
@@ -75,6 +117,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     $record.withLock { $0.isWaiting = false }
   }
 
+  func clockTicked() {
+    guard isWorking else { return }
+    now = date.now
+  }
+
   /// Stops the process and waits for it to exit. Its late events are dropped.
   func shutdown() async {
     activeTurn = nil
@@ -91,6 +138,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   private struct ActiveTurn {
     let id: UUID
     let startedAt: Date
+    var lastOutputAt: Date
   }
 
   private struct Failure: Error {
@@ -102,6 +150,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let unreadableText = "Couldn't read this chat's history from Claude"
   private static let sendFailedText = "Couldn't send your message to Claude"
   private static let turnFailedText = "Claude couldn't finish this turn"
+  private static let crashedText = "Claude stopped unexpectedly"
+  private static let gapText = "Part of this conversation couldn't be shown"
 
   private func start() async -> Bool {
     generation += 1
@@ -129,7 +179,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       self.handle = handle
       follower = Task { [weak self] in
         for await event in handle.events {
-          await self?.received(event, generation: generation)
+          await self?.received(event, from: handle, generation: generation)
         }
       }
       return true
@@ -169,24 +219,49 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  private func received(_ event: AgentProcessEvent, generation: Int) async {
+  private func received(_ event: AgentProcessEvent, from handle: AgentProcessHandle, generation: Int) async {
     guard generation == self.generation else { return }
     switch event {
-    case .line(let data): await received(AgentLine.decode(data))
-    case .overflow: await received(.gap)
-    case .exited: break
+    case .line(let data):
+      outputArrived()
+      await received(AgentLine.decode(data), from: handle)
+    case .overflow:
+      outputArrived()
+      await received(.gap, from: handle)
+    case .exited(_, let stderrTail):
+      await exited(handle, stderrTail: stderrTail)
     }
   }
 
-  private func received(_ line: AgentLine) async {
+  private func outputArrived() {
+    now = date.now
+    activeTurn?.lastOutputAt = now
+  }
+
+  private func received(_ line: AgentLine, from handle: AgentProcessHandle) async {
     switch line {
     case .result(let durationMs, let isError, let text):
       guard activeTurn != nil else { return }
       if isError { errorText = text ?? Self.turnFailedText }
       await endTurn(isError ? .failed : .completed, duration: .milliseconds(durationMs))
+    case .controlRequest(let requestID, let subtype, let input):
+      try? await handle.write(ClaudeInvocation.reply(requestID: requestID, subtype: subtype, input: input))
     default:
       projection.apply(line)
     }
+  }
+
+  /// The process ended on its own. A turn still running fails; the next send relaunches.
+  private func exited(_ handle: AgentProcessHandle, stderrTail: String) async {
+    generation += 1
+    self.handle = nil
+    follower = nil
+    if let turn = activeTurn {
+      let tail = stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
+      errorText = tail.isEmpty ? Self.crashedText : "\(Self.crashedText)\n\(tail)"
+      await endTurn(.failed, duration: .seconds(date.now.timeIntervalSince(turn.startedAt)))
+    }
+    await handle.shutdown()
   }
 
   private func endTurn(_ ending: TurnEnding, duration: Duration) async {
@@ -194,6 +269,38 @@ final class ChatTabModel: ViewModel, Identifiable {
     activeTurn = nil
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
+    await refreshTitle()
+  }
+
+  private func refreshTitle() async {
+    let generation = generation
+    guard
+      case .found(let lines)? = try? await readTranscript().1,
+      generation == self.generation
+    else { return }
+    title = Self.title(lines)
+  }
+
+  private func timeText(_ time: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "h:mm a"
+    return formatter.string(from: time)
+  }
+
+  private static func durationText(seconds: TimeInterval) -> String {
+    let total = max(0, Int(seconds))
+    return total < 60 ? "\(total)s" : "\(total / 60)m \(total % 60)s"
+  }
+
+  private static func verbs(_ tool: String) -> (running: String, ran: String) {
+    switch tool {
+    case "Bash": ("Running", "Ran")
+    case "Read": ("Reading", "Read")
+    case "Edit", "MultiEdit", "Write": ("Editing", "Edited")
+    default: ("Using", "Used")
+    }
   }
 
   private static func title(_ lines: [AgentLine]) -> String {

@@ -8,6 +8,7 @@ import Sharing
 final class ChatPageModel: ViewModel {
   // MARK: - Dependencies
 
+  @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.uuid) var uuid
 
   // MARK: - Shared State
@@ -27,6 +28,8 @@ final class ChatPageModel: ViewModel {
   var folder: String?
   private var emptyText: String?
   private var selectedTabIDs: [String: UUID] = [:]
+  private var isAppActive = true
+  private var isComparisonShown = false
 
   var visibleTabs: [ChatTabModel] {
     guard let folder else { return [] }
@@ -55,6 +58,21 @@ final class ChatPageModel: ViewModel {
   /// `selectedTab` changes.
   func viewAppeared() async {
     await selectedTab?.shown()
+  }
+
+  /// Ticks every working tab's clock once a second. Runs for the page's lifetime.
+  func clockTask() async {
+    while (try? await clock.sleep(for: .seconds(1))) != nil {
+      for tab in tabs { tab.clockTicked() }
+    }
+  }
+
+  func appActivityChanged(isActive: Bool) {
+    isAppActive = isActive
+  }
+
+  func comparisonVisibilityChanged(isShown: Bool) {
+    isComparisonShown = isShown
   }
 
   func workspaceChanged(folder: String?, emptyText: String?) {
@@ -115,6 +133,13 @@ final class ChatPageModel: ViewModel {
     let tab = withDependencies(from: self) {
       ChatTabModel(record: record, needsHistory: needsHistory)
     }
+    tab.onTurnEnded = { [weak self] in self?.turnEnded(id) }
     tabs.append(tab)
+  }
+
+  /// A turn that ends while its tab isn't on screen leaves the tab waiting.
+  private func turnEnded(_ id: UUID) {
+    guard !isAppActive || isComparisonShown || selectedTab?.id != id else { return }
+    $records.withLock { $0[id: id]?.isWaiting = true }
   }
 }
