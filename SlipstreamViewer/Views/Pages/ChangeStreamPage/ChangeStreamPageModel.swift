@@ -413,6 +413,7 @@ final class ChangeStreamPageModel: ViewModel {
   func viewAppeared() async {
     isShown = true
     chatWorkspaceMayHaveChanged()
+    chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
     if selectedSession != nil, watchTask?.isCancelled ?? true {
       startWatching()
     }

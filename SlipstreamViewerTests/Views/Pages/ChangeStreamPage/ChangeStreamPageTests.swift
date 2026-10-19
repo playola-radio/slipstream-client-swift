@@ -300,6 +300,17 @@ struct ChangeStreamPageTests {
     #expect(model.chat.isComparisonShown == false)
   }
 
+  /// Closing the window mid-comparison and cancelling the quit brings back a fresh page.
+  @Test func reopenedPageTellsChatComparisonIsClosed() async {
+    let chat = makeChat()
+    chat.comparisonVisibilityChanged(isShown: true)
+    let model = makeModel(chat: chat)
+
+    await model.viewAppeared()
+
+    #expect(chat.isComparisonShown == false)
+  }
+
   @Test func pickerRowBoldWhenFolderWaiting() async throws {
     let folder = ChangeStreamPageModel.normalizedFolder("/tmp/project")
     let chat = makeChat(records: [
