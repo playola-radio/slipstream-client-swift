@@ -77,8 +77,8 @@ private final class AgentProcess: Sendable {
   private let stdout: FileHandle
   private let stderr: FileHandle
   private let output = Mutex(Output())
-  private let exited = OneShot<Int32>()
-  private let finished = OneShot<Void>()
+  private let exited = OneShot()
+  private let finished = OneShot()
   private let isShuttingDown = Mutex(false)
 
   private struct Output {
@@ -90,9 +90,8 @@ private final class AgentProcess: Sendable {
   }
 
   init(_ launch: AgentLaunch) throws {
-    let stdinPipe = try Self.makePipe()
-    let stdoutPipe = try Self.makePipe()
-    let stderrPipe = try Self.makePipe()
+    let pipes = try Self.makePipes(3)
+    let (stdinPipe, stdoutPipe, stderrPipe) = (pipes[0], pipes[1], pipes[2])
     let parentEnds = [stdinPipe.write, stdoutPipe.read, stderrPipe.read]
     let childEnds = [stdinPipe.read, stdoutPipe.write, stderrPipe.write]
     defer { childEnds.forEach { close($0) } }
@@ -135,13 +134,13 @@ private final class AgentProcess: Sendable {
       // process dies.
       Task { await input.close() }
       kill(-pid, SIGTERM)
-      await exited.value(timeout: Self.terminationGrace)
+      await exited.wait(timeout: Self.terminationGrace)
       kill(-pid, SIGKILL)
-      await exited.value()
+      await exited.wait()
       var status: Int32 = 0
       while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
     }
-    await finished.value()
+    await finished.wait()
   }
 
   private func stdoutReceived(_ chunk: Data) {
@@ -183,10 +182,9 @@ private final class AgentProcess: Sendable {
       output.status = exitStatus
       if output.openPipes == 0 { finish(&output) }
     }
-    exited.fulfill(exitStatus)
+    exited.fulfill()
+    // The handlers stay installed so the pipes still close once whatever holds them dies.
     DispatchQueue.global().asyncAfter(deadline: .now() + Self.outputGrace) { [self] in
-      stdout.readabilityHandler = nil
-      stderr.readabilityHandler = nil
       output.withLock { finish(&$0) }
     }
   }
@@ -196,7 +194,7 @@ private final class AgentProcess: Sendable {
     output.isFinished = true
     continuation.yield(.exited(status: status, stderrTail: Self.decodeTail(output.stderrTail)))
     continuation.finish()
-    finished.fulfill(())
+    finished.fulfill()
   }
 
   /// Drops UTF-8 continuation bytes left at the front by the ring cut.
@@ -204,47 +202,61 @@ private final class AgentProcess: Sendable {
     String(decoding: tail.drop(while: { $0 & 0xC0 == 0x80 }), as: UTF8.self)
   }
 
-  private static func makePipe() throws -> (read: Int32, write: Int32) {
-    var descriptors: [Int32] = [0, 0]
-    guard pipe(&descriptors) == 0 else { throw AgentProcessError.launchFailed(errno: errno) }
-    for descriptor in descriptors { _ = fcntl(descriptor, F_SETFD, FD_CLOEXEC) }
-    return (descriptors[0], descriptors[1])
+  private static func makePipes(_ count: Int) throws -> [(read: Int32, write: Int32)] {
+    var pipes: [(read: Int32, write: Int32)] = []
+    for _ in 0..<count {
+      var descriptors: [Int32] = [0, 0]
+      guard pipe(&descriptors) == 0 else {
+        let code = errno
+        pipes.forEach { close($0.read); close($0.write) }
+        throw AgentProcessError.launchFailed(errno: code)
+      }
+      for descriptor in descriptors { _ = fcntl(descriptor, F_SETFD, FD_CLOEXEC) }
+      pipes.append((descriptors[0], descriptors[1]))
+    }
+    return pipes
   }
 
   private static func spawn(
     _ launch: AgentLaunch, stdin: Int32, stdout: Int32, stderr: Int32
   ) throws -> pid_t {
     var actions: posix_spawn_file_actions_t?
-    posix_spawn_file_actions_init(&actions)
+    try check(posix_spawn_file_actions_init(&actions))
     defer { posix_spawn_file_actions_destroy(&actions) }
-    posix_spawn_file_actions_adddup2(&actions, stdin, STDIN_FILENO)
-    posix_spawn_file_actions_adddup2(&actions, stdout, STDOUT_FILENO)
-    posix_spawn_file_actions_adddup2(&actions, stderr, STDERR_FILENO)
-    posix_spawn_file_actions_addchdir_np(&actions, launch.directory)
+    try check(posix_spawn_file_actions_adddup2(&actions, stdin, STDIN_FILENO))
+    try check(posix_spawn_file_actions_adddup2(&actions, stdout, STDOUT_FILENO))
+    try check(posix_spawn_file_actions_adddup2(&actions, stderr, STDERR_FILENO))
+    try check(posix_spawn_file_actions_addchdir_np(&actions, launch.directory))
 
     var attributes: posix_spawnattr_t?
-    posix_spawnattr_init(&attributes)
+    try check(posix_spawnattr_init(&attributes))
     defer { posix_spawnattr_destroy(&attributes) }
-    posix_spawnattr_setflags(
-      &attributes,
-      Int16(POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK)
+    try check(
+      posix_spawnattr_setflags(
+        &attributes,
+        Int16(POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK)
+      )
     )
-    posix_spawnattr_setpgroup(&attributes, 0)
+    try check(posix_spawnattr_setpgroup(&attributes, 0))
     var allSignals = sigset_t()
     sigfillset(&allSignals)
-    posix_spawnattr_setsigdefault(&attributes, &allSignals)
+    try check(posix_spawnattr_setsigdefault(&attributes, &allSignals))
     var noSignals = sigset_t()
     sigemptyset(&noSignals)
-    posix_spawnattr_setsigmask(&attributes, &noSignals)
+    try check(posix_spawnattr_setsigmask(&attributes, &noSignals))
 
     let argv = ([launch.executable] + launch.arguments).map { strdup($0) } + [nil]
     let envp = launch.environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
     defer { (argv + envp).forEach { free($0) } }
 
     var pid: pid_t = 0
-    let result = posix_spawn(&pid, launch.executable, &actions, &attributes, argv, envp)
-    guard result == 0 else { throw AgentProcessError.launchFailed(errno: result) }
+    try check(posix_spawn(&pid, launch.executable, &actions, &attributes, argv, envp))
     return pid
+  }
+
+  /// The `posix_spawn` family returns an error number instead of setting `errno`.
+  private static func check(_ result: Int32) throws {
+    guard result == 0 else { throw AgentProcessError.launchFailed(errno: result) }
   }
 }
 
@@ -292,38 +304,37 @@ private actor AgentProcessInput {
   }
 }
 
-/// A value set once, which any number of callers can wait for.
-private final class OneShot<Value: Sendable>: Sendable {
+/// Fires once; any number of callers can wait for it.
+private final class OneShot: Sendable {
   private struct State {
-    var value: Value?
-    var waiters: [UUID: CheckedContinuation<Value?, Never>] = [:]
+    var hasFired = false
+    var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
   }
 
   private let state = Mutex(State())
 
-  func fulfill(_ value: Value) {
+  func fulfill() {
     let waiters = state.withLock { state in
-      state.value = value
+      state.hasFired = true
       defer { state.waiters = [:] }
       return state.waiters.values
     }
-    waiters.forEach { $0.resume(returning: value) }
+    waiters.forEach { $0.resume() }
   }
 
-  /// Returns nil if `timeout` seconds pass first.
-  @discardableResult
-  func value(timeout: TimeInterval? = nil) async -> Value? {
+  /// Also returns if `timeout` seconds pass first.
+  func wait(timeout: TimeInterval? = nil) async {
     let id = UUID()
-    return await withCheckedContinuation { continuation in
-      let value = state.withLock { state in
-        if state.value == nil { state.waiters[id] = continuation }
-        return state.value
+    await withCheckedContinuation { continuation in
+      let hasFired = state.withLock { state in
+        if !state.hasFired { state.waiters[id] = continuation }
+        return state.hasFired
       }
-      if let value {
-        continuation.resume(returning: value)
+      if hasFired {
+        continuation.resume()
       } else if let timeout {
         DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [self] in
-          state.withLock { $0.waiters.removeValue(forKey: id) }?.resume(returning: nil)
+          state.withLock { $0.waiters.removeValue(forKey: id) }?.resume()
         }
       }
     }

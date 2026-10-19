@@ -56,6 +56,20 @@ struct TranscriptClientTests {
     }
   }
 
+  @Test func unsearchableConfigFolderThrows() async throws {
+    let configDirectory = try makeConfigDirectory()
+    try makeProject("-tmp-a", in: configDirectory)
+    try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: configDirectory.path)
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: configDirectory.path)
+      try? FileManager.default.removeItem(at: configDirectory)
+    }
+
+    await #expect(throws: (any Error).self) {
+      try await TranscriptClient.liveValue.load(configDirectory, sessionID)
+    }
+  }
+
   @Test func unsearchableProjectFolderThrows() async throws {
     let configDirectory = try makeConfigDirectory()
     let project = try makeProject("-tmp-a", in: configDirectory)

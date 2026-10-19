@@ -16,10 +16,9 @@ extension TranscriptClient {
   /// project folder avoids depending on how the folder name is encoded.
   private static func transcriptFile(in configDirectory: URL, sessionID: UUID) throws -> URL? {
     let projects = configDirectory.appending(path: "projects")
-    guard FileManager.default.fileExists(atPath: projects.path) else { return nil }
+    guard try exists(projects) else { return nil }
     let fileName = "\(sessionID.uuidString.lowercased()).jsonl"
     return try FileManager.default.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil)
-      .sorted { $0.path < $1.path }
       .map { $0.appending(path: fileName) }
       .first(where: exists)
   }
