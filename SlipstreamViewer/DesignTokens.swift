@@ -515,6 +515,193 @@ enum DesignTokens {
     }
   }
 
+  enum Chat {
+    struct Spinner {
+      let size: CGFloat
+      let lineWidth: CGFloat
+      let color: Color
+    }
+
+    static let fill = Color(hex: 0x12171D)
+    static let stroke = Color(hex: 0x2A3640)
+
+    private static let primary = Color(hex: 0xE6EDF3)
+    private static let secondary = Color(hex: 0x8B9AA6)
+    private static let muted = Color(hex: 0x5E6C78)
+    private static let accent = Color(hex: 0x6CB6FF)
+
+    enum TabStrip {
+      static let height: CGFloat = 40
+      static let gap: CGFloat = 4
+      static let horizontalPadding: CGFloat = 16
+      static let showFeedFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let showFeedColor = secondary
+    }
+
+    enum Tab {
+      static let horizontalPadding: CGFloat = 14
+      static let gap: CGFloat = 8
+      static let underlineWidth: CGFloat = 2
+      static let hoverRadius: CGFloat = 6
+      static let close = Icons.Icon(assetName: "X", size: 12, color: secondary)
+      static let spinner = Spinner(size: 11, lineWidth: 1.5, color: accent)
+
+      static func underline(isSelected: Bool) -> Color { isSelected ? accent : .clear }
+
+      static func fill(isHovered: Bool) -> Color { isHovered ? Color(hex: 0x1C232B) : .clear }
+
+      static func titleFont(isBold: Bool) -> FontToken {
+        variableFont(family: geistFamily, size: 12.5, weight: isBold ? 700 : 400)
+      }
+
+      static func titleColor(isSelected: Bool, isBold: Bool) -> Color {
+        isSelected || isBold ? primary : secondary
+      }
+    }
+
+    enum NewTab {
+      static let horizontalPadding: CGFloat = 10
+      static let plus = Icons.Icon(assetName: "Plus", size: 14, color: secondary)
+    }
+
+    enum Transcript {
+      static let gap: CGFloat = 14
+      static let topPadding: CGFloat = 20
+      static let horizontalPadding: CGFloat = 48
+      static let bottomPadding: CGFloat = 12
+      static let noWorkspaceFont: FontToken = variableFont(family: geistFamily, size: 14, weight: 400)
+      static let noWorkspaceColor = muted
+    }
+
+    enum Bubble {
+      static let fill = Color(hex: 0x232C36)
+      static let verticalPadding: CGFloat = 10
+      static let horizontalPadding: CGFloat = 16
+      static let radius: CGFloat = 8
+      static let maxWidth: CGFloat = 520
+    }
+
+    enum Paragraph {
+      static let font: FontToken = variableFont(family: geistFamily, size: 14, weight: 400)
+      static let color = primary
+      static let lineSpacing: CGFloat = 14 * (1.65 - 1)
+      static let inlineCodeFont: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
+      static let inlineCodeColor = secondary
+    }
+
+    /// Not drawn in the mockups; sized to sit with the tool targets.
+    enum CodeBlock {
+      static let font: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400, codeLigatures: true)
+      static let color = primary
+      static let fill = Bubble.fill
+      static let padding: CGFloat = 12
+      static let radius: CGFloat = 6
+    }
+
+    enum TurnFooter {
+      static let gap: CGFloat = 12
+      static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let color = muted
+      static let copy = Icons.Icon(assetName: "Copy", size: 13, color: muted)
+      static let more = Icons.Icon(assetName: "Ellipsis", size: 13, color: muted)
+    }
+
+    enum Thinking {
+      static let gap: CGFloat = 8
+      static let icon = Icons.Icon(assetName: "Brain", size: 13, color: secondary)
+      static let labelFont: FontToken = variableFont(family: geistFamily, size: 13, weight: 400)
+      static let labelColor = secondary
+      static let bodyFont: FontToken = variableFont(family: geistFamily, size: 13.5, weight: 400)
+      static let bodyColor = muted
+      static let bodyLineSpacing: CGFloat = 13.5 * (1.65 - 1)
+
+      static func chevron(isExpanded: Bool) -> Icons.Icon {
+        Icons.Icon(assetName: isExpanded ? "ChevronDown" : "ChevronRight", size: 12, color: muted)
+      }
+    }
+
+    enum ToolCall {
+      static let gap: CGFloat = 8
+      static let verbFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let verbColor = muted
+      static let targetFont = Paragraph.inlineCodeFont
+      static let targetColor = secondary
+      static let detailFont = Paragraph.inlineCodeFont
+      static let detailColor = muted
+      static let spinner = Spinner(size: 11, lineWidth: 1.5, color: secondary)
+
+      static func chevron(isExpanded: Bool) -> Icons.Icon {
+        Icons.Icon(assetName: isExpanded ? "ChevronDown" : "ChevronRight", size: 12, color: muted)
+      }
+    }
+
+    enum WorkingStatus {
+      static let gap: CGFloat = 8
+      static let topPadding: CGFloat = 4
+      static let font = ToolCall.verbFont
+      static let color = secondary
+      static let spinner = Spinner(size: 12, lineWidth: 1.6, color: accent)
+    }
+
+    enum StartError {
+      static let fill = Color(hex: 0x2A2220)
+      static let stroke = Color(hex: 0x5C3B32)
+      static let gap: CGFloat = 10
+      static let headerGap: CGFloat = 8
+      static let verticalPadding: CGFloat = 14
+      static let horizontalPadding: CGFloat = 16
+      static let radius: CGFloat = 8
+      static let alert = Icons.Icon(assetName: "CircleAlert", size: 15, color: Color(hex: 0xF0A070))
+      static let titleFont: FontToken = variableFont(family: geistFamily, size: 14, weight: 600)
+      static let titleColor = primary
+      static let tryAgainFill = Color(hex: 0x2F3A45)
+      static let tryAgainVerticalPadding: CGFloat = 6
+      static let tryAgainHorizontalPadding: CGFloat = 12
+      static let tryAgainRadius: CGFloat = 6
+      static let tryAgainFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 500)
+      static let tryAgainColor = primary
+    }
+
+    enum MessageBox {
+      static let areaHorizontalPadding: CGFloat = 24
+      static let areaBottomPadding: CGFloat = 20
+      static let fill = FeedPane.fill
+      static let stroke = Chat.stroke
+      static let strokeWidth: CGFloat = 1
+      static let topPadding: CGFloat = 14
+      static let horizontalPadding: CGFloat = 16
+      static let bottomPadding: CGFloat = 12
+      static let radius: CGFloat = 10
+      static let height: CGFloat = 120
+      static let font = Paragraph.font
+      static let color = primary
+
+      static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.55 }
+
+      static func placeholderColor(isEnabled: Bool) -> Color {
+        isEnabled ? muted : Color(hex: 0x3E4954)
+      }
+    }
+
+    enum AgentPicker {
+      static let gap: CGFloat = 6
+      static let font: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 500)
+      static let color = primary
+      static let chevron = Icons.Icon(assetName: "ChevronDown", size: 12, color: secondary)
+    }
+
+    enum Send {
+      static let fill = StartError.tryAgainFill
+      static let radius: CGFloat = 6
+      static let size: CGFloat = 26
+      static let arrow = Icons.Icon(assetName: "ArrowUp", size: 14, color: secondary)
+      static let stopFill = primary
+      static let stopSquareFill = Chat.fill
+      static let stopSquareSize: CGFloat = 9
+      static let stopSquareRadius: CGFloat = 1.5
+    }
+  }
+
   enum Status {
     static let warning = Color.orange
     static let error = Color.red
