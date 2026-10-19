@@ -1225,6 +1225,15 @@ struct ChatPageTests {
     #expect(tab.rowText(for: TranscriptItem(id: "g", kind: .gap)) == "Part of this conversation couldn't be shown")
   }
 
+  @Test func textRowsDropSurroundingBlankLines() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+
+    #expect(tab.rowText(for: TranscriptItem(id: "t", kind: .thinking("Plan it.\n\n"))) == "Plan it.")
+    #expect(tab.rowText(for: TranscriptItem(id: "u", kind: .userMessage("\nFix it\n"))) == "Fix it")
+  }
+
   @Test func footerRowsShowEndingDurationAndTime() async throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)

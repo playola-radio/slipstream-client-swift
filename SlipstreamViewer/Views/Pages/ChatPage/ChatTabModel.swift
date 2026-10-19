@@ -83,7 +83,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   func rowText(for item: TranscriptItem) -> String {
     switch item.kind {
     case .userMessage(let text), .reply(let text), .thinking(let text):
-      return text
+      return text.trimmingCharacters(in: .newlines)
     case .toolCall(let name, let target, let status, _):
       let (running, ran) = Self.verbs(Self.toolKind(name))
       let subject = "`\(target ?? name)`"
