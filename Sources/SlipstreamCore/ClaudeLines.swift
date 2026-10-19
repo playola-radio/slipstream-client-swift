@@ -25,7 +25,7 @@ extension AgentLine {
   public static func decode(_ line: Data) -> AgentLine {
     let decoder = JSONDecoder()
     guard let envelope = try? decoder.decode(Envelope.self, from: line) else { return .gap }
-    if envelope.isSidechain == true { return .ignored }
+    if envelope.isSidechain == true || envelope.isMeta == true { return .ignored }
     do {
       switch envelope.type {
       case "assistant":
@@ -77,15 +77,31 @@ private func assistantBlock(_ block: BlockWire) -> AssistantBlock? {
 
 private func userBlock(_ block: BlockWire) -> UserBlock? {
   switch block {
-  case .text(let text): .text(text)
+  case .text(let text): .text(typedCommand(text))
   case .toolResult(let toolUseID, let text, let isError): .toolResult(toolUseID: toolUseID, text: text, isError: isError)
   case .thinking, .toolUse, .other: nil
   }
 }
 
+/// A slash command is saved as `<command-name>/x</command-name>` (plus message and args tags);
+/// show it as the user typed it.
+private func typedCommand(_ text: String) -> String {
+  guard text.hasPrefix("<command-"), let name = tagContent("command-name", in: text) else { return text }
+  let arguments = tagContent("command-args", in: text) ?? ""
+  return arguments.isEmpty ? name : "\(name) \(arguments)"
+}
+
+private func tagContent(_ tag: String, in text: String) -> String? {
+  guard let open = text.range(of: "<\(tag)>"),
+    let close = text.range(of: "</\(tag)>", range: open.upperBound..<text.endIndex)
+  else { return nil }
+  return String(text[open.upperBound..<close.lowerBound])
+}
+
 private struct Envelope: Decodable {
   var type: String?
   var isSidechain: Bool?
+  var isMeta: Bool?
 }
 
 private struct AssistantWire: Decodable {

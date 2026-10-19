@@ -52,7 +52,9 @@ struct ClaudeLinesTests {
         .user(
           uuid: "u-9", timestamp: nil, isPrompt: false,
           blocks: [.text("[Request interrupted by user for tool use]")]),
-        .result(durationMs: 5200, isError: false, text: nil),
+        .result(
+          durationMs: 5200, isError: true,
+          text: "[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"),
         .ignored,
       ]
     )
@@ -116,6 +118,35 @@ struct ClaudeLinesTests {
       .user(
         uuid: "t-u3", timestamp: Date(timeIntervalSince1970: 1_792_335_660), isPrompt: true,
         blocks: [.text("Thanks")]))
+  }
+
+  @Test func metaUserLinesAreIgnored() {
+    expectNoDifference(
+      decode(
+        #"{"type":"user","uuid":"m","promptId":"p","isMeta":true,"timestamp":"2026-10-18T15:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /tmp/s"}]}}"#
+      ),
+      .ignored)
+  }
+
+  @Test func slashCommandPromptShowsTheCommandTyped() {
+    expectNoDifference(
+      [
+        decode(
+          #"{"type":"user","uuid":"c1","promptId":"p","message":{"role":"user","content":"<command-message>probe-echo</command-message>\n<command-name>/probe-echo</command-name>"}}"#
+        ),
+        decode(
+          #"{"type":"user","uuid":"c2","promptId":"p","message":{"role":"user","content":"<command-name>/context</command-name>\n            <command-message>context</command-message>\n            <command-args></command-args>"}}"#
+        ),
+        decode(
+          #"{"type":"user","uuid":"c3","promptId":"p","message":{"role":"user","content":"<command-message>review</command-message>\n<command-name>/review</command-name>\n<command-args>the diff</command-args>"}}"#
+        ),
+      ],
+      [
+        .user(uuid: "c1", timestamp: nil, isPrompt: true, blocks: [.text("/probe-echo")]),
+        .user(uuid: "c2", timestamp: nil, isPrompt: true, blocks: [.text("/context")]),
+        .user(uuid: "c3", timestamp: nil, isPrompt: true, blocks: [.text("/review the diff")]),
+      ]
+    )
   }
 
   @Test func fractionalSecondsAreKept() {
