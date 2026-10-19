@@ -1041,6 +1041,31 @@ struct ChatPageTests {
     #expect(tab.isWorking == false)
   }
 
+  @Test func stopDeadlineIgnoresEarlierStaleLaunch() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    agent.hold(.launches)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "one"
+    let first = Task { await model.sendTapped() }
+    await Task.megaYield()
+    await model.stopTapped()
+    tab.draft = "two"
+    let second = Task { await model.sendTapped() }
+    await Task.megaYield()
+    agent.releaseLast(.launches)
+    await second.value
+
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    await clock.advance(by: .seconds(10))
+    await stop.value
+
+    #expect(tab.isWorking == false)
+    agent.release(.launches)
+    await first.value
+  }
+
   // MARK: - Row text
 
   @Test func toolRowsChangeTenseWithStatus() async throws {

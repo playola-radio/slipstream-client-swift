@@ -146,8 +146,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     guard activeTurn?.id == turn.id else { return }
     let duration = duration(of: turn)
     follower?.cancel()
-    retireProcess()
-    await awaitRetired()
+    // Only this process: a stale launch from an earlier turn mustn't hold up this footer.
+    await retireProcess()?.value
     guard activeTurn?.id == turn.id else { return }
     endTurn(.stopped, duration: duration)
   }
@@ -280,15 +280,19 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   /// Drops the process: its late events are ignored, and its shutdown runs until done.
-  private func retireProcess() {
+  @discardableResult
+  private func retireProcess() -> Task<Void, Never>? {
     generation += 1
     follower = nil
-    if let handle { retire(handle) }
-    handle = nil
+    defer { handle = nil }
+    return handle.map(retire)
   }
 
-  private func retire(_ handle: AgentProcessHandle) {
-    retiring.append(Task { await handle.shutdown() })
+  @discardableResult
+  private func retire(_ handle: AgentProcessHandle) -> Task<Void, Never> {
+    let task = Task { await handle.shutdown() }
+    retiring.append(task)
+    return task
   }
 
   /// A stale start retires its process before finishing, so starts are drained first.
