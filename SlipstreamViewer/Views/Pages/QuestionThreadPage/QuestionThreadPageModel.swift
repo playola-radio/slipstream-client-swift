@@ -151,7 +151,7 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   func captureChanged(_ capture: CaptureSummary?) {
-    bindingGeneration = capture?.binding?.generation
+    bindingGeneration = bindingGeneration ?? capture?.binding?.generation
   }
 
   func dismissed() {

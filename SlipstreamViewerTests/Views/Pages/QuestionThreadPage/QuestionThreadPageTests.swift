@@ -118,6 +118,19 @@ struct QuestionThreadPageTests {
     expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
   }
 
+  @Test func anOpenReplyKeepsTheChatLinkItKnewWhenTheWorkspaceIsRelinked() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.captureChanged(Fixture.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    model.captureChanged(nil)
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.bindingGeneration), ["7"])
+  }
+
   @Test func displayingAnAnswerMarksOnlyThatAnswerRead() {
     let model = makeModel([Self.answered, Self.waiting])
     model.answerDisplayed(Fixture.seq(99))
