@@ -8,7 +8,7 @@ struct SlipstreamViewerApp: App {
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   var body: some Scene {
-    Window("Slipstream", id: "main") {
+    Window("Slipstream", id: Self.windowID) {
       Group {
         if !isTesting {
           if let fixtureArgument = ProcessInfo.processInfo.arguments.first(where: {
@@ -28,7 +28,7 @@ struct SlipstreamViewerApp: App {
         }
       }
       .environment(\.fontScale, fontSize.scale)
-      .onAppear { appDelegate.chat = chat }
+      .modifier(QuitFlowHandoff(chat: chat, appDelegate: appDelegate, windowID: Self.windowID))
       .background {
         Button("Make Text Bigger") { fontSize.biggerTapped() }
           .keyboardShortcut("=")
@@ -38,5 +38,22 @@ struct SlipstreamViewerApp: App {
     }
     .windowToolbarStyle(.unified)
     .commands { FontSizeCommands(model: fontSize) }
+  }
+
+  private static let windowID = "main"
+}
+
+/// Gives the quit flow the chat, and a way back to the window when closing it is cancelled.
+private struct QuitFlowHandoff: ViewModifier {
+  let chat: ChatPageModel
+  let appDelegate: AppDelegate
+  let windowID: String
+  @Environment(\.openWindow) private var openWindow
+
+  func body(content: Content) -> some View {
+    content.onAppear {
+      appDelegate.chat = chat
+      appDelegate.reopenWindow = { openWindow(id: windowID) }
+    }
   }
 }

@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   var chat: ChatPageModel?
+  var reopenWindow: () -> Void = {}
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     true
@@ -17,7 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       alert.informativeText = quitAlertText
       alert.addButton(withTitle: chat.quitText)
       alert.addButton(withTitle: chat.cancelText)
-      guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+      guard alert.runModal() == .alertFirstButtonReturn else {
+        // Closing the window asks too, and by then it is already gone.
+        reopenWindow()
+        return .terminateCancel
+      }
     }
     Task {
       await chat.quitConfirmed()
