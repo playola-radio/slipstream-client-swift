@@ -7,6 +7,15 @@ import Testing
 @testable import SlipstreamViewer
 
 struct ProcessIntegrationTests {
+  @Test func timeoutReturnsWhenOperationIgnoresCancellation() async throws {
+    let blocker = AsyncGate()
+
+    await #expect(throws: TimedOut.self) {
+      try await withTimeout(.milliseconds(10)) { await blocker.wait() }
+    }
+    await blocker.open()
+  }
+
   @Test func echoesWrittenLines() async throws {
     let handle = try await launchFake("echo")
 
@@ -89,6 +98,19 @@ private final class BundleToken {}
 
 private struct TimedOut: Error {}
 
+private actor AsyncGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  func wait() async {
+    await withCheckedContinuation { continuation = $0 }
+  }
+
+  func open() {
+    continuation?.resume()
+    continuation = nil
+  }
+}
+
 private func launchFake(_ mode: String) async throws -> AgentProcessHandle {
   let script = try #require(Bundle(for: BundleToken.self).path(forResource: "fake-claude", ofType: "sh"))
   return try await AgentProcessClient.liveValue.launch(
@@ -104,14 +126,27 @@ private func launchFake(_ mode: String) async throws -> AgentProcessHandle {
 private func withTimeout<T: Sendable>(
   _ limit: Duration = .seconds(5), _ operation: @escaping @Sendable () async throws -> T
 ) async throws -> T {
-  try await withThrowingTaskGroup(of: T.self) { group in
-    group.addTask { try await operation() }
-    group.addTask {
-      try await Task.sleep(for: limit)
-      throw TimedOut()
+  try await withCheckedThrowingContinuation { continuation in
+    let resumed = LockIsolated(false)
+    let finish: @Sendable (Result<T, any Error>) -> Void = { result in
+      guard resumed.withValue({ didResume in
+        guard !didResume else { return false }
+        didResume = true
+        return true
+      }) else { return }
+      continuation.resume(with: result)
     }
-    defer { group.cancelAll() }
-    return try await group.next()!
+    Task {
+      do {
+        finish(.success(try await operation()))
+      } catch {
+        finish(.failure(error))
+      }
+    }
+    Task {
+      try? await ContinuousClock().sleep(for: limit)
+      finish(.failure(TimedOut()))
+    }
   }
 }
 

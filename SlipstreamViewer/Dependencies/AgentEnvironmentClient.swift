@@ -1,4 +1,5 @@
 import Dependencies
+import Darwin
 import Foundation
 
 struct AgentEnvironment: Equatable, Sendable {
@@ -61,6 +62,17 @@ extension AgentEnvironmentClient {
     return home.appending(path: ".claude")
   }
 
+  static func loginShell(environment: [String: String], passwordDatabaseShell: String?) -> String {
+    if let shell = environment["SHELL"], !shell.isEmpty { return shell }
+    if let passwordDatabaseShell, !passwordDatabaseShell.isEmpty { return passwordDatabaseShell }
+    return "/bin/zsh"
+  }
+
+  private static func passwordDatabaseShell() -> String? {
+    guard let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell else { return nil }
+    return String(cString: shell)
+  }
+
   private static func versionComponents(_ version: String) -> [Int]? {
     guard let token = version.split(separator: " ").first else { return nil }
     let components = token.split(separator: ".").map { Int($0) }
@@ -102,7 +114,10 @@ extension AgentEnvironmentClient: DependencyKey {
   private static let timeout: TimeInterval = 10
 
   @Sendable private static func loadFromLoginShell() async throws -> AgentEnvironment {
-    let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+    let shell = loginShell(
+      environment: ProcessInfo.processInfo.environment,
+      passwordDatabaseShell: passwordDatabaseShell()
+    )
     let marker = "SLIPSTREAM-ENV-\(UUID().uuidString)"
     guard
       let output = try await captureOutput(
@@ -134,19 +149,19 @@ extension AgentEnvironmentClient: DependencyKey {
   /// Runs a command and returns its stdout, or nil if it doesn't finish within the timeout.
   /// Stops reading once the command has exited and its output is drained, so a background
   /// job started by the user's shell profile can't hold the pipe open.
-  private static func captureOutput(
-    _ executable: String, _ arguments: [String], environment: [String: String]?
+  static func captureOutput(
+    _ executable: String, _ arguments: [String], environment: [String: String]?, timeout: TimeInterval = timeout
   ) async throws -> Data? {
     try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global().async {
         continuation.resume(
-          with: Result { try captureOutputBlocking(executable, arguments, environment: environment) })
+          with: Result { try captureOutputBlocking(executable, arguments, environment: environment, timeout: timeout) })
       }
     }
   }
 
   private static func captureOutputBlocking(
-    _ executable: String, _ arguments: [String], environment: [String: String]?
+    _ executable: String, _ arguments: [String], environment: [String: String]?, timeout: TimeInterval
   ) throws -> Data? {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: executable)
@@ -170,12 +185,14 @@ extension AgentEnvironmentClient: DependencyKey {
       if ready > 0 {
         let count = read(descriptor, &buffer, buffer.count)
         if count < 0 && errno == EINTR { continue }
-        if count <= 0 { return output }
+        if count == 0 { break }
         output.append(contentsOf: buffer[..<count])
       } else if ready == 0 && hasExited {
         return output
       }
     }
+    while process.isRunning && Date.now < deadline { usleep(10_000) }
+    if !process.isRunning { return output }
     // An interactive shell ignores SIGTERM.
     kill(process.processIdentifier, SIGKILL)
     process.waitUntilExit()

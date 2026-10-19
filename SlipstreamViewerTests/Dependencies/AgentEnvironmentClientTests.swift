@@ -69,6 +69,35 @@ struct AgentEnvironmentClientTests {
     )
   }
 
+  @Test func usesPasswordDatabaseShellWhenEnvironmentShellIsMissing() {
+    expectNoDifference(
+      AgentEnvironmentClient.loginShell(environment: [:], passwordDatabaseShell: "/bin/bash"),
+      "/bin/bash"
+    )
+    expectNoDifference(
+      AgentEnvironmentClient.loginShell(environment: ["SHELL": ""], passwordDatabaseShell: "/usr/local/bin/fish"),
+      "/usr/local/bin/fish"
+    )
+  }
+
+  @Test func fallsBackToZshWhenNoLoginShellIsAvailable() {
+    expectNoDifference(
+      AgentEnvironmentClient.loginShell(environment: [:], passwordDatabaseShell: nil),
+      "/bin/zsh"
+    )
+  }
+
+  @Test func waitsForCommandExitAfterOutputCloses() async throws {
+    let output = try await AgentEnvironmentClient.captureOutput(
+      "/bin/sh",
+      ["-c", "exec 1>&-; while :; do :; done"],
+      environment: nil,
+      timeout: 0.1
+    )
+
+    expectNoDifference(output, nil)
+  }
+
   @Test func cachesSuccessButNotFailure() async throws {
     let environment = AgentEnvironment(
       claudePath: "/bin/claude", variables: [:], configDirectory: URL(fileURLWithPath: "/c"))
