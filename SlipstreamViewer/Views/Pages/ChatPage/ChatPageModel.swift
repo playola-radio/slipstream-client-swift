@@ -28,8 +28,10 @@ final class ChatPageModel: ViewModel {
   var folder: String?
   private var emptyText: String?
   private var selectedTabIDs: [String: UUID] = [:]
+  private(set) var isQuitting = false
+  private(set) var isComparisonShown = false
   private var isAppActive = true
-  private var isComparisonShown = false
+  private var hoveredTabID: UUID?
 
   var visibleTabs: [ChatTabModel] {
     guard let folder else { return [] }
@@ -45,9 +47,30 @@ final class ChatPageModel: ViewModel {
   /// Counts every folder's tabs, shown or not.
   var workingTabCount: Int { tabs.filter(\.isWorking).count }
 
+  /// The message box edits the shown tab's draft; with no tab there is nothing to edit.
+  var draft: String {
+    get { selectedTab?.draft ?? "" }
+    set { selectedTab?.draft = newValue }
+  }
+
+  var isMessageBoxEnabled: Bool { selectedTab != nil && !isQuitting }
+  var isPickerEnabled: Bool { isMessageBoxEnabled && selectedTab?.isPickerEnabled == true }
+  var showsStop: Bool { selectedTab?.showsStop ?? false }
+  var showsNewTabButton: Bool { folder != nil }
+
   // MARK: - Display Text
 
+  let placeholderText = "Ask to make changes, @mention files, run /commands"
+  let tryAgainText = "Try again"
+  let quitText = "Quit"
+  let cancelText = "Cancel"
+
   var noWorkspaceText: String? { folder == nil ? emptyText : nil }
+
+  var pickerText: String {
+    selectedTab?.pickerText
+      ?? ChatTabModel.pickerText(model: ChatModelChoice.defaultModel, effort: ChatModelChoice.defaultEffort)
+  }
 
   var quitAlertText: String? {
     let count = workingTabCount
@@ -61,6 +84,10 @@ final class ChatPageModel: ViewModel {
   func isWaiting(folder: String) -> Bool {
     records.contains { $0.folder == folder && $0.isWaiting }
   }
+
+  func isSelected(_ tab: ChatTabModel) -> Bool { selectedTab?.id == tab.id }
+
+  func isHovered(_ tab: ChatTabModel) -> Bool { hoveredTabID == tab.id }
 
   // MARK: - User Actions
 
@@ -93,6 +120,14 @@ final class ChatPageModel: ViewModel {
     }
   }
 
+  func tabHovered(_ id: UUID, isHovering: Bool) {
+    if isHovering {
+      hoveredTabID = id
+    } else if hoveredTabID == id {
+      hoveredTabID = nil
+    }
+  }
+
   func newTabTapped() async {
     guard let folder else { return }
     let current = selectedTab?.record
@@ -121,11 +156,17 @@ final class ChatPageModel: ViewModel {
     if visibleTabs.isEmpty {
       addTab(in: folder, model: tab.record.model, effort: tab.record.effort)
     }
-    await tab.shutdown()
+    await tab.close()
     tabs[id: id] = nil
   }
 
+  func closeShortcutPressed() async {
+    guard let id = selectedTab?.id else { return }
+    await closeTabTapped(id)
+  }
+
   func sendTapped() async {
+    guard !isQuitting else { return }
     await selectedTab?.send()
   }
 
@@ -134,6 +175,7 @@ final class ChatPageModel: ViewModel {
   }
 
   func tryAgainTapped() async {
+    guard !isQuitting else { return }
     await selectedTab?.tryAgain()
   }
 
@@ -141,11 +183,22 @@ final class ChatPageModel: ViewModel {
     await selectedTab?.choiceSelected(model: model, effort: effort)
   }
 
-  /// Stops every agent and returns once they have all exited.
+  func modelSelected(_ model: String) async {
+    guard let tab = selectedTab else { return }
+    await tab.choiceSelected(model: model, effort: tab.record.effort)
+  }
+
+  func effortSelected(_ effort: ChatEffort) async {
+    guard let tab = selectedTab else { return }
+    await tab.choiceSelected(model: tab.record.model, effort: effort)
+  }
+
+  /// Stops every agent and returns once they have all exited. Nothing can be sent after this.
   func quitConfirmed() async {
+    isQuitting = true
     await withTaskGroup { group in
       for tab in tabs {
-        group.addTask { await tab.shutdown() }
+        group.addTask { await tab.close() }
       }
     }
   }

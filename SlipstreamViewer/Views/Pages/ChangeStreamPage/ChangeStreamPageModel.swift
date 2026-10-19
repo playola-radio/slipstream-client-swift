@@ -24,14 +24,18 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(isFunctionDemoVisible: Bool = false) {
+  init(chat: ChatPageModel, isFunctionDemoVisible: Bool = false) {
+    self.chat = chat
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
+    chatWorkspaceMayHaveChanged()
   }
 
   // MARK: - Properties
 
   static let cardContentLimit = 64
+
+  let chat: ChatPageModel
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -48,14 +52,19 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var viewport = CGRect.zero
   private(set) var composerSize = CGSize(width: DesignTokens.Ask.width, height: 396)
 
-  var sessions: IdentifiedArrayOf<SessionOption> = []
-  var hasLoadedSessions = false
-  var sessionsError: String?
-  var selectedSession: SessionOption?
+  var sessions: IdentifiedArrayOf<SessionOption> = [] { didSet { chatWorkspaceMayHaveChanged() } }
+  var hasLoadedSessions = false { didSet { chatWorkspaceMayHaveChanged() } }
+  var sessionsError: String? { didSet { chatWorkspaceMayHaveChanged() } }
+  var selectedSession: SessionOption? { didSet { chatWorkspaceMayHaveChanged() } }
   private(set) var captureAvailability = CaptureAvailability.loading
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
-  private(set) var functionChanges: FunctionChangesLiveModel?
+  private(set) var functionChanges: FunctionChangesLiveModel? {
+    didSet {
+      guard (oldValue == nil) != (functionChanges == nil) else { return }
+      chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
+    }
+  }
   var connection: ConnectionState = .idle
   var sections: IdentifiedArrayOf<FeedSection> = []
   private(set) var feedGeneration = 0
@@ -89,6 +98,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var cardFrames: [Seq: (row: FileChangeRow, section: FeedSection, frame: CGRect)] = [:]
   @ObservationIgnored private var taskHeadingHeight: CGFloat = 0
   @ObservationIgnored private var fileHeaderHeight: CGFloat = 0
+  @ObservationIgnored private var chatWorkspace: ChatWorkspace?
 
   // MARK: - Display Text
 
@@ -103,7 +113,6 @@ final class ChangeStreamPageModel: ViewModel {
   let jumpToLatestText = "Jump to latest ↓"
   let hideFeedText = "Hide feed"
   let showFeedText = "◧  Activity"
-  let fileViewerPlaceholderText = "Open a change to see its file here"
   let captureStripLabel = "CAPTURE"
   let chatStripLabel = "CHAT"
 
@@ -122,6 +131,10 @@ final class ChangeStreamPageModel: ViewModel {
 
   var sessionPickerTitle: String {
     selectedSession?.label ?? "Choose a session"
+  }
+
+  func isBold(_ session: SessionOption) -> Bool {
+    session.root.map(chat.isWaiting) ?? false
   }
 
   func sessionMenuText(for session: SessionOption) -> String {
@@ -172,6 +185,14 @@ final class ChangeStreamPageModel: ViewModel {
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Refresh to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
+  }
+
+  /// What the chat shows while it has no folder. A selected stream's folder arrives with its
+  /// start record, so until then the feed's own text doesn't apply.
+  var chatEmptyText: String? {
+    if selectedFolder != nil { return nil }
+    if selectedSession == nil { return emptyStateText }
+    return "Finding this stream's folder…"
   }
 
   // MARK: - View Helpers
@@ -521,6 +542,18 @@ final class ChangeStreamPageModel: ViewModel {
 
   static func normalizedFolder(_ root: String) -> String {
     URL(fileURLWithPath: root).standardizedFileURL.resolvingSymlinksInPath().path
+  }
+
+  private struct ChatWorkspace: Equatable {
+    var folder: String?
+    var emptyText: String?
+  }
+
+  private func chatWorkspaceMayHaveChanged() {
+    let workspace = ChatWorkspace(folder: selectedFolder, emptyText: chatEmptyText)
+    guard workspace != chatWorkspace else { return }
+    chatWorkspace = workspace
+    chat.workspaceChanged(folder: workspace.folder, emptyText: workspace.emptyText)
   }
 
   private func recalculateFileHeaderOffsets() {

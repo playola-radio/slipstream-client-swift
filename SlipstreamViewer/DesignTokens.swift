@@ -406,8 +406,6 @@ enum DesignTokens {
     static let padding: CGFloat = 12
     static let gap: CGFloat = 8
     static let toolbarHeight: CGFloat = 34
-    static let paneFill = Color(hex: 0x151B22)
-    static let paneStroke = Color(hex: 0x34414D)
   }
 
   enum Stream {
@@ -629,6 +627,16 @@ enum DesignTokens {
       static let detailFont = Paragraph.inlineCodeFont
       static let detailColor = muted
       static let spinner = Spinner(size: 11, lineWidth: 1.5, color: secondary)
+
+      static func icon(_ kind: ChatToolKind) -> Icons.Icon {
+        let assetName = switch kind {
+        case .edit: "Pencil"
+        case .run: "Terminal"
+        case .read: "FileText"
+        case .other: "Wrench"
+        }
+        return Icons.Icon(assetName: assetName, size: 13, color: muted)
+      }
 
       static func chevron(isExpanded: Bool) -> Icons.Icon {
         Icons.Icon(assetName: isExpanded ? "ChevronDown" : "ChevronRight", size: 12, color: muted)

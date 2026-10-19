@@ -13,6 +13,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
   @ObservationIgnored @Dependency(\.date) var date
+  @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
   @ObservationIgnored @Dependency(\.uuid) var uuid
 
@@ -45,6 +46,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored var onTurnEnded: () -> Void = {}
 
   private var activeTurn: ActiveTurn?
+  private var toggledItemIDs: Set<String> = []
+  private var isClosed = false
   private var now = Date.distantPast
   private var needsHistory: Bool
   @ObservationIgnored private var handle: AgentProcessHandle?
@@ -64,9 +67,15 @@ final class ChatTabModel: ViewModel, Identifiable {
     return "Working \(working) · last output \(quiet) ago"
   }
 
+  let thinkingText = "Thinking"
+
   var pickerText: String {
-    let model = ChatModelChoice.all.first { $0.id == record.model }?.name ?? record.model
-    return "\(model) \(record.effort.name)"
+    Self.pickerText(model: record.model, effort: record.effort)
+  }
+
+  static func pickerText(model: String, effort: ChatEffort) -> String {
+    let name = ChatModelChoice.all.first { $0.id == model }?.name ?? model
+    return "\(name) \(effort.name)"
   }
 
   // MARK: - View Helpers
@@ -76,7 +85,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .userMessage(let text), .reply(let text), .thinking(let text):
       return text
     case .toolCall(let name, let target, let status, _):
-      let (running, ran) = Self.verbs(name)
+      let (running, ran) = Self.verbs(Self.toolKind(name))
       let subject = "`\(target ?? name)`"
       switch status {
       case .running: return "\(running) \(subject)"
@@ -96,6 +105,60 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
+  func detailText(for item: TranscriptItem) -> String? {
+    guard case .toolCall(_, _, _, let detail) = item.kind else { return nil }
+    return detail
+  }
+
+  func toolKind(for item: TranscriptItem) -> ChatToolKind? {
+    guard case .toolCall(let name, _, _, _) = item.kind else { return nil }
+    return Self.toolKind(name)
+  }
+
+  func isRunning(_ item: TranscriptItem) -> Bool {
+    if case .toolCall(_, _, .running, _) = item.kind { true } else { false }
+  }
+
+  /// Thinking starts open and tool calls start closed.
+  func isExpanded(_ item: TranscriptItem) -> Bool {
+    let startsOpen = if case .thinking = item.kind { true } else { false }
+    return startsOpen != toggledItemIDs.contains(item.id)
+  }
+
+  enum MarkdownBlock: Equatable {
+    case prose(AttributedString)
+    case code(String)
+  }
+
+  /// Fenced code blocks come out whole; the prose between them gets inline markdown only.
+  static func markdownBlocks(_ text: String) -> [MarkdownBlock] {
+    var blocks: [MarkdownBlock] = []
+    var lines: [Substring] = []
+    var isCode = false
+    func flush() {
+      defer { lines = [] }
+      let joined = lines.joined(separator: "\n")
+      if isCode {
+        blocks.append(.code(joined))
+        return
+      }
+      let prose = joined.trimmingCharacters(in: .newlines)
+      guard !prose.isEmpty else { return }
+      let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+      blocks.append(.prose((try? AttributedString(markdown: prose, options: options)) ?? AttributedString(prose)))
+    }
+    for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+      if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+        flush()
+        isCode.toggle()
+      } else {
+        lines.append(line)
+      }
+    }
+    if isCode || !lines.isEmpty { flush() }
+    return blocks
+  }
+
   // MARK: - Page Actions
 
   func shown() async {
@@ -108,7 +171,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     let text = sentDraft.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !text.isEmpty, activeTurn == nil else { return }
     await awaitRetired()
-    guard activeTurn == nil else { return }
+    guard activeTurn == nil, !isClosed else { return }
     errorText = nil
     now = date.now
     let turn = ActiveTurn(id: uuid(), startedAt: now, lastOutputAt: now)
@@ -181,9 +244,23 @@ final class ChatTabModel: ViewModel, Identifiable {
     await shown()
   }
 
+  func itemToggled(_ item: TranscriptItem) {
+    if toggledItemIDs.remove(item.id) == nil { toggledItemIDs.insert(item.id) }
+  }
+
+  func copyTapped(_ footer: TranscriptItem) {
+    pasteboard.copy(projection.replyText(endingAt: footer.id))
+  }
+
   func clockTicked() {
     guard isWorking else { return }
     now = date.now
+  }
+
+  /// Shuts down for good: a send still waiting on an earlier shutdown launches nothing.
+  func close() async {
+    isClosed = true
+    await shutdown()
   }
 
   /// Stops the process and waits for it to exit. Its late events are dropped.
@@ -414,12 +491,21 @@ final class ChatTabModel: ViewModel, Identifiable {
     return total < 60 ? "\(total)s" : "\(total / 60)m \(total % 60)s"
   }
 
-  private static func verbs(_ tool: String) -> (running: String, ran: String) {
+  private static func toolKind(_ tool: String) -> ChatToolKind {
     switch tool {
-    case "Bash": ("Running", "Ran")
-    case "Read": ("Reading", "Read")
-    case "Edit", "MultiEdit", "Write": ("Editing", "Edited")
-    default: ("Using", "Used")
+    case "Bash": .run
+    case "Read": .read
+    case "Edit", "MultiEdit", "Write": .edit
+    default: .other
+    }
+  }
+
+  private static func verbs(_ kind: ChatToolKind) -> (running: String, ran: String) {
+    switch kind {
+    case .run: ("Running", "Ran")
+    case .read: ("Reading", "Read")
+    case .edit: ("Editing", "Edited")
+    case .other: ("Using", "Used")
     }
   }
 
@@ -429,4 +515,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     return newChatTitle
   }
+}
+
+enum ChatToolKind: Equatable {
+  case edit, run, read, other
 }
