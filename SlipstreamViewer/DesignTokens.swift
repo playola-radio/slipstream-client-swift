@@ -413,6 +413,13 @@ enum DesignTokens {
     static let itemGap: CGFloat = 24
   }
 
+  enum StreamPicker {
+    /// The menu is a system menu, so a waiting stream is the system font in bold.
+    static func rowFont(isBold: Bool) -> Font {
+      isBold ? .body.bold() : .body
+    }
+  }
+
   enum TaskHeading {
     static let fill = Color(hex: 0x24313B)
     static let stroke = Color(hex: 0x526B7B)

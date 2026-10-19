@@ -363,12 +363,21 @@ struct ChangeStreamPageView: View {
     }
   }
 
+  /// A system menu ignores Text modifiers, so the weight rides on the string.
+  private func menuTitle(_ text: String, isBold: Bool) -> AttributedString {
+    var title = AttributedString(text)
+    title.font = DesignTokens.StreamPicker.rowFont(isBold: isBold)
+    return title
+  }
+
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
       Menu(model.sessionPickerTitle) {
         ForEach(model.sessions) { session in
-          Button(model.sessionMenuText(for: session)) { model.sessionSelected(session.id) }
+          Button { model.sessionSelected(session.id) } label: {
+            Text(menuTitle(model.sessionMenuText(for: session), isBold: model.isBold(session)))
+          }
         }
       }
       .disabled(model.isSessionPickerDisabled)
