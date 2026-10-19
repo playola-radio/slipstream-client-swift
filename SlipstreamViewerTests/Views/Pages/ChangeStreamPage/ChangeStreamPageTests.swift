@@ -2170,6 +2170,32 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureText, "Stopped — maintenance in progress")
   }
 
+  @Test func aCaptureOnlyWorkspaceThatArrivesWhileTheFeedDropsIsAddedToThePicker() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, agentConnection: .connected)])
+    open.yield()
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    daemon.send(.heartbeat)
+    await Task.megaYield()
+    daemon.setCaptures([
+      Fixture.capture(),
+      Fixture.capture(.queued, session: Fixture.otherSession, root: "/work/other", binding: nil),
+    ])
+    let refresh = Task { await model.refreshTapped() }
+    await Task.megaYield()
+    daemon.close()
+    await Task.megaYield()
+    open.yield()
+    await refresh.value
+    expectNoDifference(model.sessions.ids, [Fixture.session, Fixture.otherSession])
+    expectNoDifference(model.sessions[id: Fixture.otherSession]?.hasHistory, false)
+  }
+
   @Test func closingTheWindowBeforeASelectionRefreshRunsStartsNothing() async {
     fake.setCaptures([
       Fixture.capture(),
@@ -2287,6 +2313,18 @@ extension ChangeStreamPageTests {
     await send(Fixture.edited(1), Fixture.edited(2), Fixture.edited(3))
     expectNoDifference(fake.sessionsCallCount, callsBefore + 1)
     expectNoDifference(model.selectedSession?.agentConnection, .connected)
+  }
+
+  @Test func aCaptureStoppedReportRefreshesTheCaptureSnapshot() async {
+    listSessions(.connected)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    fake.setCaptures([Fixture.capture(.stopped, reason: "maintenance")])
+    let callsBefore = fake.capturesCallCount
+    await send(Fixture.agentConnection(1, state: "capture_not_live"))
+    await Task.megaYield()
+    expectNoDifference(fake.capturesCallCount, callsBefore + 1)
+    expectNoDifference(model.captureText, "Stopped — maintenance in progress")
   }
 
   @Test func replayingAnEndedCapturesHistoryDoesNotRefresh() async {

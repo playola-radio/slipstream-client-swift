@@ -33,6 +33,7 @@ struct QuestionThreadPageTests {
 
   func makeModel(
     _ turns: [QuestionTurn], source: QuestionSource = source(), timeZone: String = "UTC", uuid: UUIDGenerator? = nil,
+    bindingGeneration: String? = "7",
     send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }
   ) -> QuestionThreadPageModel {
     withDependencies {
@@ -42,7 +43,7 @@ struct QuestionThreadPageTests {
       $0.questionClient.send = send
     } operation: {
       QuestionThreadPageModel(
-        key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns), bindingGeneration: "7")
+        key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns), bindingGeneration: bindingGeneration)
     }
   }
 
@@ -99,6 +100,22 @@ struct QuestionThreadPageTests {
     model.draft = "And then?"
     await model.sendReplyTapped()
     expectNoDifference(requests.value.map(\.replyToQuestionID), ["q2"])
+  }
+
+  @Test func aNewReplyRequiresAKnownBindingGeneration() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered], bindingGeneration: nil) { request in
+      requests.withValue { $0.append(request) }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.draft = "And then?"
+    #expect(!model.canSendReply)
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value, [])
+    model.captureChanged(Fixture.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    #expect(model.canSendReply)
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
   }
 
   @Test func displayingAnAnswerMarksOnlyThatAnswerRead() {

@@ -640,6 +640,7 @@ final class ChangeStreamPageModel: ViewModel {
           selectedSession?.capture = nil
         }
       }
+      reply?.captureChanged(selectedSession?.capture)
       if let composer = askAgent {
         let isWatched = composer.sessionID == selectedSession?.id
         composer.agentConnectionChanged(
@@ -700,7 +701,18 @@ final class ChangeStreamPageModel: ViewModel {
     let snapshot = captureResultArrived(result, checkedAt: checkedAt)
     let capturesByID = Dictionary(snapshot.map { ($0.sessionID, $0) }, uniquingKeysWith: { first, _ in first })
     for id in sessions.ids { sessions[id: id]?.capture = capturesByID[id] }
+    let captureOnly = snapshot.filter { sessions[id: $0.sessionID] == nil }
+    let labels = Self.uniqueLabels(captureOnly.map {
+      (id: $0.sessionID, label: URL(fileURLWithPath: $0.root).lastPathComponent)
+    })
+    for capture in captureOnly {
+      sessions.append(
+        SessionOption(
+          id: capture.sessionID, label: labels[capture.sessionID] ?? capture.sessionID,
+          root: Self.normalizedFolder(capture.root), capture: capture, hasHistory: false))
+    }
     if let selectedID = selectedSession?.id { selectedSession?.capture = capturesByID[selectedID] }
+    reply?.captureChanged(selectedSession?.capture)
     if let composer = askAgent {
       composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: capturesByID[composer.sessionID]))
     }
@@ -708,6 +720,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func captureRefreshFailed() {
     captureAvailability = .failed
+    reply?.captureChanged(nil)
     askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil))
   }
 
@@ -800,6 +813,16 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func apply(_ event: SlipstreamEvent, generation: Int) -> Bool {
     guard generation == watchGeneration else { return false }
+    let isReadinessEvent: Bool
+    if case .agentConnection = event.payload {
+      isReadinessEvent = true
+    } else {
+      isReadinessEvent = false
+    }
+    let shouldRefreshCaptureSnapshot = event.seq > (selectedSession?.readinessSeq ?? .zero)
+      && ((selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
+        || event.payload == .sessionResumed
+        || event.payload == .agentConnection(.disconnected(reason: "capture_not_live")))
     switch event.payload {
     case .fileChanged(let change):
       append(
@@ -855,10 +878,7 @@ final class ChangeStreamPageModel: ViewModel {
     case .sessionStarted:
       break
     }
-    if selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") || event.payload == .sessionResumed,
-      let watched = selectedSession,
-      event.seq > watched.readinessSeq
-    {
+    if shouldRefreshCaptureSnapshot, selectedSession != nil {
       watchedReadinessChanged(.disconnected(reason: nil), seq: event.seq)
       Task { [weak self] in await self?.loadSessions() }
     }
