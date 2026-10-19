@@ -62,6 +62,11 @@ public struct TranscriptProjection: Equatable, Sendable {
     items.append(TranscriptItem(id: id, kind: .userMessage(text)))
   }
 
+  public mutating func removeUserMessage(id: String) {
+    guard let index = items.lastIndex(where: { $0.id == id }) else { return }
+    items.remove(at: index)
+  }
+
   public mutating func apply(_ line: AgentLine) {
     switch line {
     case .assistant(let uuid, _, let blocks):

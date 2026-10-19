@@ -256,6 +256,46 @@ struct ChatPageTests {
     #expect(model.records[id: Self.saved]?.isWaiting == true)
   }
 
+  @Test func replyArrivingDuringWriteStaysAfterPromptAndClearsSentDraft() async throws {
+    agent.hold(.writes)
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "Hello"
+
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    await line(Line.assistantText("a1", "Hi"))
+    await line(Line.result())
+    agent.release(.writes)
+    await sending.value
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("Hello"),
+        .reply("Hi"),
+        .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start),
+      ])
+    #expect(tab.draft == "")
+  }
+
+  @Test func editingDraftDuringWriteKeepsNewText() async throws {
+    agent.hold(.writes)
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "first"
+
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    tab.draft = "new draft"
+    agent.release(.writes)
+    await sending.value
+
+    #expect(tab.draft == "new draft")
+  }
+
   @Test func emptyDraftSendsNothing() async {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -664,6 +704,29 @@ struct ChatPageTests {
     #expect(agent.launches[1].arguments.contains("--resume=4bad416c-1d04-4063-9e76-61ebb936ae06"))
   }
 
+  @Test func sendAfterChoiceWaitsForOldShutdown() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "one")
+    await line(Line.result())
+    agent.hold(.shutdowns)
+
+    let choosing = Task { await model.choiceSelected(model: "claude-sonnet-5-5", effort: .low) }
+    await Task.megaYield()
+    let tab = model.selectedTab
+    tab?.draft = "two"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    #expect(agent.launches.count == 1)
+    agent.release(.shutdowns)
+    await choosing.value
+    await sending.value
+
+    #expect(agent.shutdowns(0) == 1)
+    #expect(agent.launches.count == 2)
+  }
+
   @Test func pickerDisabledWhileWorking() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -848,7 +911,7 @@ struct ChatPageTests {
     #expect(agent.shutdowns(0) == 1)
   }
 
-  @Test func writeFinishingAfterExitShowsNoBubble() async throws {
+  @Test func writeFinishingAfterExitKeepsPromptAndClearsSentDraft() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
     agent.hold(.writes)
@@ -863,8 +926,9 @@ struct ChatPageTests {
     await sending.value
 
     expectNoDifference(
-      tab.projection.items.map(\.kind), [.turnFooter(ending: .failed, duration: .zero, time: Self.start)])
-    #expect(tab.draft == "hi")
+      tab.projection.items.map(\.kind),
+      [.userMessage("hi"), .turnFooter(ending: .failed, duration: .zero, time: Self.start)])
+    #expect(tab.draft == "")
   }
 
   @Test func choiceChangeDuringTryAgainLaunchUsesNewFlags() async throws {
@@ -957,7 +1021,7 @@ struct ChatPageTests {
     #expect(tab.isWorking == false)
   }
 
-  @Test func writeFinishingAfterResultShowsNoBubbleAndKeepsWaiting() async throws {
+  @Test func writeFinishingAfterResultKeepsPromptAndWaiting() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
     model.appActivityChanged(isActive: false)
@@ -972,7 +1036,8 @@ struct ChatPageTests {
     await sending.value
 
     expectNoDifference(
-      tab.projection.items.map(\.kind), [.turnFooter(ending: .completed, duration: .seconds(3), time: Self.start)])
+      tab.projection.items.map(\.kind),
+      [.userMessage("hi"), .turnFooter(ending: .completed, duration: .seconds(3), time: Self.start)])
     #expect(model.records[id: Self.saved]?.isWaiting == true)
   }
 
@@ -995,7 +1060,7 @@ struct ChatPageTests {
     #expect(model.selectedTab?.title == "Second")
   }
 
-  @Test func quitWaitsForEveryLaunchStillOnItsWay() async throws {
+  @Test func quitShutsDownEveryProcessAfterSerializedStarts() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
     agent.hold(.launches)
@@ -1007,19 +1072,10 @@ struct ChatPageTests {
     tab.draft = "two"
     let second = Task { await model.sendTapped() }
     await Task.megaYield()
-    agent.releaseLast(.launches)
+    agent.release(.launches)
     await second.value
 
-    let didQuit = LockIsolated(false)
-    let quit = Task {
-      await model.quitConfirmed()
-      didQuit.setValue(true)
-    }
-    await Task.megaYield()
-    #expect(didQuit.value == false)
-
-    agent.release(.launches)
-    await quit.value
+    await model.quitConfirmed()
     await first.value
     #expect(agent.launches.count == 2)
     #expect(agent.shutdownCount == 2)
@@ -1053,7 +1109,7 @@ struct ChatPageTests {
     tab.draft = "two"
     let second = Task { await model.sendTapped() }
     await Task.megaYield()
-    agent.releaseLast(.launches)
+    agent.release(.launches)
     await second.value
 
     let stop = Task { await model.stopTapped() }

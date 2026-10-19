@@ -106,6 +106,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   func send() async {
     let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !text.isEmpty, activeTurn == nil else { return }
+    await awaitRetired()
+    guard activeTurn == nil else { return }
     errorText = nil
     now = date.now
     let turn = ActiveTurn(id: uuid(), startedAt: now, lastOutputAt: now)
@@ -115,18 +117,21 @@ final class ChatTabModel: ViewModel, Identifiable {
       return
     }
     guard let handle, activeTurn?.id == turn.id else { return }
+    let itemID = uuid().uuidString
+    projection.userSent(text, id: itemID)
     do {
       try await handle.write(ClaudeInvocation.userMessage(text))
     } catch {
+      projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn.id else { return }
       activeTurn = nil
       errorText = Self.sendFailedText
       return
     }
-    guard activeTurn?.id == turn.id else { return }
-    projection.userSent(text, id: uuid().uuidString)
-    draft = ""
-    $record.withLock { $0.isWaiting = false }
+    if draft == text { draft = "" }
+    if activeTurn?.id == turn.id {
+      $record.withLock { $0.isWaiting = false }
+    }
   }
 
   /// Asks Claude to stop, and gives up on it after the deadline.
