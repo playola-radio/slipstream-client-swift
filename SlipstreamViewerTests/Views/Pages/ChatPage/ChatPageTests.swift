@@ -878,8 +878,10 @@ struct ChatPageTests {
     agent.hold(.launches)
     let retry = Task { await model.tryAgainTapped() }
     await Task.megaYield()
-    await model.choiceSelected(model: "claude-sonnet-5-5", effort: .low)
+    let choosing = Task { await model.choiceSelected(model: "claude-sonnet-5-5", effort: .low) }
+    await Task.megaYield()
     agent.release(.launches)
+    await choosing.value
     await retry.value
     await Task.megaYield()
     #expect(agent.shutdowns(1) == 1)
@@ -929,6 +931,68 @@ struct ChatPageTests {
     expected.userSent("more", id: UUID(1).uuidString)
     expectNoDifference(tab.projection, expected)
     #expect(tab.title == "Fixing the build")
+  }
+
+  @Test func quitWaitsForLaunchStillOnItsWay() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    agent.hold(.launches)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    let didQuit = LockIsolated(false)
+    let quit = Task {
+      await model.quitConfirmed()
+      didQuit.setValue(true)
+    }
+    await Task.megaYield()
+    #expect(didQuit.value == false)
+
+    agent.release(.launches)
+    await quit.value
+    await sending.value
+    #expect(agent.shutdowns(0) == 1)
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func writeFinishingAfterResultShowsNoBubbleAndKeepsWaiting() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    model.appActivityChanged(isActive: false)
+    agent.hold(.writes)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    await line(Line.result(durationMs: 3_000))
+    agent.release(.writes)
+    await sending.value
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind), [.turnFooter(ending: .completed, duration: .seconds(3), time: Self.start)])
+    #expect(model.records[id: Self.saved]?.isWaiting == true)
+  }
+
+  @Test func olderTitleRefreshNeverOverwritesNewerTitle() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "one")
+    agent.hold(.environment)
+    await line(Line.result())
+    await send(model, "two")
+    await line(Line.result())
+
+    agent.setTranscript(Self.saved, .found([.title("Second")]))
+    agent.releaseLast(.environment)
+    await Task.megaYield()
+    agent.setTranscript(Self.saved, .found([.title("First")]))
+    agent.release(.environment)
+    await Task.megaYield()
+
+    #expect(model.selectedTab?.title == "Second")
   }
 
   // MARK: - Row text

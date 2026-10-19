@@ -56,6 +56,12 @@ final class AgentFake: Sendable {
     for continuation in held { continuation.resume() }
   }
 
+  /// Lets only the most recent held call through.
+  func releaseLast(_ hold: Hold) {
+    let continuation = state.withLock { $0.held[hold]?.popLast() }
+    continuation?.resume()
+  }
+
   private func wait(_ hold: Hold) async {
     await withCheckedContinuation { continuation in
       let isHeld = state.withLock { state in

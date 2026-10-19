@@ -50,6 +50,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var follower: Task<Void, Never>?
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
+  @ObservationIgnored private var starting: Task<Bool, Never>?
   /// Shutdowns still running, so quitting can wait for every process to be gone.
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
@@ -114,7 +115,6 @@ final class ChatTabModel: ViewModel, Identifiable {
       return
     }
     guard let handle, activeTurn?.id == turn.id else { return }
-    let generation = generation
     do {
       try await handle.write(ClaudeInvocation.userMessage(text))
     } catch {
@@ -123,7 +123,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       errorText = Self.sendFailedText
       return
     }
-    guard generation == self.generation else { return }
+    guard activeTurn?.id == turn.id else { return }
     projection.userSent(text, id: uuid().uuidString)
     draft = ""
     $record.withLock { $0.isWaiting = false }
@@ -210,7 +210,15 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let crashedText = "Claude stopped unexpectedly"
   private static let gapText = "Part of this conversation couldn't be shown"
 
+  /// Tracked, so a shutdown can wait for a launch that is still on its way.
   private func start() async -> Bool {
+    let starting = Task { await launchProcess() }
+    self.starting = starting
+    defer { if self.starting == starting { self.starting = nil } }
+    return await starting.value
+  }
+
+  private func launchProcess() async -> Bool {
     generation += 1
     let generation = generation
     do throws(Failure) {
@@ -283,6 +291,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   private func awaitRetired() async {
+    if let starting { _ = await starting.value }
     while let task = retiring.first {
       await task.value
       retiring.removeAll { $0 == task }
@@ -368,6 +377,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   private func refreshTitle(generation: Int) async {
     guard
       case .found(let lines)? = try? await readTranscript().1,
+      !Task.isCancelled,
       generation == self.generation
     else { return }
     title = Self.title(lines)
