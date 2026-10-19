@@ -246,6 +246,17 @@ struct ChangeStreamPageTests {
     #expect(model.chat.visibleTabs.count == 1)
   }
 
+  /// SwiftUI builds a page model on every App body pass and keeps only the first, so a
+  /// discarded one must not reset the shared chat.
+  @Test func buildingPageLeavesChatWorkspaceAlone() {
+    let chat = makeChat()
+    chat.workspaceChanged(folder: "/w", emptyText: nil)
+
+    _ = makeModel(chat: chat)
+
+    #expect(chat.folder == "/w")
+  }
+
   @Test func chatTextWhileFolderUnknown() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
@@ -253,7 +264,6 @@ struct ChangeStreamPageTests {
       [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
       starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
     let model = makeModel(daemon: daemon)
-    #expect(model.chat.noWorkspaceText == "Looking for capture sessions…")
 
     let appeared = Task { await model.viewAppeared() }
     await daemon.waitForSessionStartCall(1)

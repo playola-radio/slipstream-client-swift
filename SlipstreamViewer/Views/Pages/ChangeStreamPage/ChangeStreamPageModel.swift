@@ -28,7 +28,6 @@ final class ChangeStreamPageModel: ViewModel {
     self.chat = chat
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
-    chatWorkspaceMayHaveChanged()
   }
 
   // MARK: - Properties
@@ -413,6 +412,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func viewAppeared() async {
     isShown = true
+    chatWorkspaceMayHaveChanged()
     if selectedSession != nil, watchTask?.isCancelled ?? true {
       startWatching()
     }
