@@ -59,9 +59,12 @@ extension DependencyValues {
 
 /// A child process in its own process group, so shutdown reaches everything it started.
 ///
-/// `.exited` is the last event. It is sent once the process is reaped and both output pipes
-/// have closed, or `outputGrace` after reaping if something the process left behind still holds
+/// `.exited` is the last event. It is sent once the process has exited and both output pipes
+/// have closed, or `outputGrace` after the exit if something the process left behind still holds
 /// a pipe open.
+///
+/// The exited process stays a zombie until `shutdown` reaps it, so its pid, and with it the
+/// process group id, can't be reused by an unrelated process while shutdown is signalling.
 private final class AgentProcess: Sendable {
   static let terminationGrace = 3.0
   static let outputGrace = 1.0
@@ -74,7 +77,7 @@ private final class AgentProcess: Sendable {
   private let stdout: FileHandle
   private let stderr: FileHandle
   private let output = Mutex(Output())
-  private let reaped = OneShot<Int32>()
+  private let exited = OneShot<Int32>()
   private let finished = OneShot<Void>()
   private let isShuttingDown = Mutex(false)
 
@@ -115,12 +118,13 @@ private final class AgentProcess: Sendable {
       let chunk = handle.availableData
       if chunk.isEmpty { pipeClosed(handle) } else { stderrReceived(chunk) }
     }
-    Thread.detachNewThread { [self] in reap() }
+    Thread.detachNewThread { [self] in waitForExit() }
   }
 
   /// Closes stdin and sends SIGTERM to the process group, then SIGKILL after
-  /// `terminationGrace` (always, to catch children that outlived the leader). Returns once
-  /// `.exited` has been sent. Safe to call more than once.
+  /// `terminationGrace` (always, to catch children that outlived the leader), and reaps the
+  /// process. Returns once `.exited` has been sent. Call it when done with the handle, even after
+  /// `.exited`. Safe to call more than once.
   func shutdown() async {
     let isFirst = isShuttingDown.withLock { started in
       defer { started = true }
@@ -131,8 +135,11 @@ private final class AgentProcess: Sendable {
       // process dies.
       Task { await input.close() }
       kill(-pid, SIGTERM)
-      _ = await reaped.value(timeout: Self.terminationGrace)
+      await exited.value(timeout: Self.terminationGrace)
       kill(-pid, SIGKILL)
+      await exited.value()
+      var status: Int32 = 0
+      while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
     }
     await finished.value()
   }
@@ -167,15 +174,16 @@ private final class AgentProcess: Sendable {
     }
   }
 
-  private func reap() {
-    var status: Int32 = 0
-    while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
-    let exitStatus = Self.exitStatus(status)
+  /// Waits without reaping (`WNOWAIT`); `shutdown` reaps.
+  private func waitForExit() {
+    var info = siginfo_t()
+    while waitid(P_PID, id_t(pid), &info, WEXITED | WNOWAIT) == -1 && errno == EINTR {}
+    let exitStatus = info.si_code == CLD_EXITED ? info.si_status : 128 + info.si_status
     output.withLock { output in
       output.status = exitStatus
       if output.openPipes == 0 { finish(&output) }
     }
-    reaped.fulfill(exitStatus)
+    exited.fulfill(exitStatus)
     DispatchQueue.global().asyncAfter(deadline: .now() + Self.outputGrace) { [self] in
       stdout.readabilityHandler = nil
       stderr.readabilityHandler = nil
@@ -194,11 +202,6 @@ private final class AgentProcess: Sendable {
   /// Drops UTF-8 continuation bytes left at the front by the ring cut.
   private static func decodeTail(_ tail: Data) -> String {
     String(decoding: tail.drop(while: { $0 & 0xC0 == 0x80 }), as: UTF8.self)
-  }
-
-  private static func exitStatus(_ status: Int32) -> Int32 {
-    let signal = status & 0x7F
-    return signal == 0 ? (status >> 8) & 0xFF : 128 + signal
   }
 
   private static func makePipe() throws -> (read: Int32, write: Int32) {
@@ -255,6 +258,10 @@ private actor AgentProcessInput {
 
   init(descriptor: Int32) {
     self.descriptor = descriptor
+  }
+
+  deinit {
+    if let descriptor { Darwin.close(descriptor) }
   }
 
   func write(_ data: Data) throws {

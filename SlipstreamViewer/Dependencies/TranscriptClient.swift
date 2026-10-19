@@ -21,7 +21,17 @@ extension TranscriptClient {
     return try FileManager.default.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil)
       .sorted { $0.path < $1.path }
       .map { $0.appending(path: fileName) }
-      .first { FileManager.default.fileExists(atPath: $0.path) }
+      .first(where: exists)
+  }
+
+  /// Unlike `FileManager.fileExists`, a folder that can't be searched throws instead of
+  /// looking empty.
+  private static func exists(_ file: URL) throws -> Bool {
+    var info = stat()
+    if stat(file.path, &info) == 0 { return true }
+    let code = errno
+    if code == ENOENT || code == ENOTDIR { return false }
+    throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
   }
 
   private static func decode(_ data: Data) -> [AgentLine] {

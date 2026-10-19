@@ -176,7 +176,9 @@ extension AgentEnvironmentClient: DependencyKey {
         return output
       }
     }
-    process.terminate()
+    // An interactive shell ignores SIGTERM.
+    kill(process.processIdentifier, SIGKILL)
+    process.waitUntilExit()
     return nil
   }
 }
