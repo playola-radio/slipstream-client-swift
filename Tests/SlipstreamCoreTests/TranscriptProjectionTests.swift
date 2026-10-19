@@ -84,6 +84,23 @@ struct TranscriptProjectionTests {
     )
   }
 
+  @Test func removingFailedPromptAfterExitKeepsFutureTurnsSafe() {
+    var projection = TranscriptProjection()
+    projection.userSent("prompt", id: "prompt")
+    projection.endTurn(.failed, duration: .seconds(1), at: t0, id: "first-footer")
+    projection.removeUserMessage(id: "prompt")
+
+    projection.endTurn(.stopped, duration: .seconds(1), at: t0, id: "second-footer")
+
+    expectNoDifference(
+      projection.items,
+      [
+        TranscriptItem(id: "first-footer", kind: .turnFooter(ending: .failed, duration: .seconds(1), time: t0)),
+        TranscriptItem(id: "second-footer", kind: .turnFooter(ending: .stopped, duration: .seconds(1), time: t0)),
+      ]
+    )
+  }
+
   @Test func interruptMarkerIsNotABubble() throws {
     var projection = TranscriptProjection()
     for line in try fixtureLines("live-interrupt") { projection.apply(line) }

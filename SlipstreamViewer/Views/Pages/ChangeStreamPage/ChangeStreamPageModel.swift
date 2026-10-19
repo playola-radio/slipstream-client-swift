@@ -51,6 +51,7 @@ final class ChangeStreamPageModel: ViewModel {
   var hasLoadedSessions = false
   var sessionsError: String?
   var selectedSession: SessionOption?
+  var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
   private(set) var functionChanges: FunctionChangesLiveModel?
   var connection: ConnectionState = .idle
@@ -491,6 +492,10 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Private Helpers
 
+  static func normalizedFolder(_ root: String) -> String {
+    URL(fileURLWithPath: root).standardizedFileURL.resolvingSymlinksInPath().path
+  }
+
   private func recalculateFileHeaderOffsets() {
     for (row, section, frame) in cardFrames.values {
       updateFileHeaderOffset(for: row, in: section, frame: frame)
@@ -551,6 +556,7 @@ final class ChangeStreamPageModel: ViewModel {
             id: summary.id, label: summary.id, agentConnection: summary.agentConnection,
             readinessSeq: summary.durableSeq)
           let known = selected?.id == summary.id ? selected : previous[id: summary.id]
+          option.root = known?.root
           if let known, known.readinessSeq > summary.durableSeq {
             option.agentConnection = known.agentConnection
             option.readinessSeq = known.readinessSeq
@@ -591,6 +597,11 @@ final class ChangeStreamPageModel: ViewModel {
         for await (id, start) in group {
           starts[id] = start
           guard generation == sessionsGeneration else { return }
+          if let start {
+            let root = Self.normalizedFolder(start.root)
+            sessions[id: id]?.root = root
+            if selectedSession?.id == id { selectedSession?.root = root }
+          }
           for (id, label) in sessionLabels(starts) {
             sessions[id: id]?.label = label
             if selectedSession?.id == id { selectedSession?.label = label }
