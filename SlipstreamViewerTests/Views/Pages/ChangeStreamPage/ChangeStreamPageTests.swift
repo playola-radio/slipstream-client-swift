@@ -79,7 +79,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       model.sessions,
       [
-        SessionOption(id: "a", label: "/work/alpha · started Oct 3 14:18:10"),
+        SessionOption(id: "a", label: "/work/alpha · started Oct 3 14:18:10", root: "/work/alpha"),
         SessionOption(id: "c", label: "c"),
       ]
     )
@@ -173,6 +173,40 @@ struct ChangeStreamPageTests {
     expectNoDifference(fake.follows, [FollowRequest(token: "token-1", sessionID: Fixture.session, cursor: .zero)])
     #expect(model.statusText == "Connecting…")
     #expect(model.emptyStateText == "Waiting for changes…")
+  }
+
+  @Test func selectedFolderComesFromStartRecord() async {
+    let model = await connectedModel()
+    #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+  }
+
+  @Test func rootSurvivesRefreshThatFailsStartFetch() async {
+    let model = await connectedModel()
+    fake.setSessionStartError(URLError(.networkConnectionLost))
+    await model.refreshTapped()
+    #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+    #expect(model.sessions[id: Fixture.session]?.root == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+  }
+
+  @Test func rootIsNilUntilStartLoads() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel(daemon: daemon)
+    let appeared = Task { await model.viewAppeared() }
+    await daemon.waitForSessionStartCall(1)
+    await Task.megaYield()
+    #expect(model.selectedSession != nil)
+    #expect(model.selectedFolder == nil)
+    release.yield()
+    await appeared.value
+    #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+  }
+
+  @Test func folderIsNormalized() {
+    #expect(ChangeStreamPageModel.normalizedFolder("/work/./alpha/../alpha/") == "/work/alpha")
   }
 
   @Test func compareFunctionsFreezesRecordedBaselineAndCurrentFeedHead() async {

@@ -7,6 +7,7 @@ struct SessionOption: Identifiable, Equatable, Sendable {
   var label: String
   var agentConnection: AgentConnection = .unreported
   var readinessSeq: Seq = .zero
+  var root: String?
 }
 
 enum ConnectionState: Equatable, Sendable {

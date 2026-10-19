@@ -26,6 +26,7 @@ final class DaemonFake: Sendable {
     var sessions: [SessionSummary] = []
     var starts: [String: SessionStarted] = [:]
     var sessionStartCallCount = 0
+    var sessionStartError: (any Error)?
     var sessionsCallCount = 0
     var sessionsError: (any Error)?
     var follows: [FollowRequest] = []
@@ -80,6 +81,7 @@ final class DaemonFake: Sendable {
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
   var sessionsCallCount: Int { state.withLock { $0.sessionsCallCount } }
   func setSessionsError(_ error: (any Error)?) { state.withLock { $0.sessionsError = error } }
+  func setSessionStartError(_ error: (any Error)?) { state.withLock { $0.sessionStartError = error } }
   func setDiscoverError(_ error: (any Error)?) { state.withLock { $0.discoverError = error } }
   func setSessions(_ sessions: [SessionSummary], starts: [String: SessionStarted] = [:]) {
     state.withLock {
@@ -147,7 +149,10 @@ final class DaemonFake: Sendable {
         if let gate = sessionStartGates[id] {
           for await _ in gate { break }
         }
-        return state.withLock { $0.starts[id] }
+        return try state.withLock { state in
+          if let error = state.sessionStartError { throw error }
+          return state.starts[id]
+        }
       },
       follow: { [self] descriptor, sessionID, cursor in
         let (stream, continuation) = AsyncThrowingStream<StreamItem, any Error>.makeStream()
