@@ -110,9 +110,28 @@ chats can't be driven from outside, so the client runs the chat agent itself. Th
 
 - Markdown rendering approach (no markdown dependency exists yet). Builder's call, to be
   settled in the plan.
-- Whether `/commands` and `@file` mentions typed in the message box are expanded by the CLI
-  in this mode. They are sent as plain text either way; the plan's first task probes it, and
-  if they don't work the placeholder drops those words.
+- ~~Whether `/commands` and `@file` mentions typed in the message box are expanded by the CLI
+  in this mode.~~ **Settled by the Task 4 probe** (claude 2.1.293, the exact invocation
+  above, a scratch git folder, 2026-10-18): both work when sent as plain text, so the
+  placeholder keeps its words.
+  - `@a.txt …` attaches the file: the transcript gains an `attachment` line of type `file`
+    and the reply quoted the file without a tool call.
+  - A project skill (`/probe-echo`) runs. The transcript saves the prompt as
+    `<command-message>…</command-message>\n<command-name>/probe-echo</command-name>` (plus
+    `<command-args>` when given), followed by an `isMeta: true` user line carrying the skill
+    body, both with `promptId`. The decoder now skips `isMeta` lines and shows command tags
+    as the command typed (`/probe-echo`).
+  - A built-in local command (`/context`) answers on stdout with an `assistant` line and a
+    `result` with `num_turns: 0`. Its transcript has only the command line and a
+    `system`/`local_command` line, so in history it shows as the bubble with no reply.
+  - Fixture check against the real output: `ai-title` (`aiTitle`, `sessionId`) and the
+    `control_request` `can_use_tool` shape (`request.input`, plus `tool_name` and
+    `tool_use_id`, seen with `--permission-mode=default`) match. An interrupted turn's
+    `result` is `error_during_execution` with **`is_error: true`**, no `result` key and an
+    `errors` array holding a diagnostic string, so a Stop-pressed turn must end as stopped
+    before `is_error` is looked at. A failed API call (unknown model) is `subtype: success`,
+    `is_error: true`, with the error in `result`. `session_state_changed` also has a
+    `requires_action` state (ignored).
 - Codex invocation and fork support (next slice).
 
 ## Existing contracts

@@ -71,7 +71,11 @@ targets:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - SlipstreamViewerTests
+      - path: SlipstreamViewerTests
+        excludes:
+          - Support/fake-claude.sh
+      - path: SlipstreamViewerTests/Support/fake-claude.sh
+        buildPhase: resources
     dependencies:
       - target: SlipstreamViewer
       - package: swift-dependencies

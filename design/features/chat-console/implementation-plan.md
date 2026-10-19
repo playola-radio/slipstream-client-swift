@@ -586,5 +586,5 @@ Chat model tests (Tasks 8–11) live in `SlipstreamViewerTests/Views/Pages/ChatP
 
 ## Unresolved questions
 
-- `/commands` and `@mentions` passthrough: settled by Task 4 Step 1 before PR D.
+- ~~`/commands` and `@mentions` passthrough~~: settled by Task 4 Step 1 — both work, the placeholder stays (spec "Open questions").
 - A second app copy (`open -n`) and agents left over after an app crash: accepted risks (spec review #2, #6), not built.
