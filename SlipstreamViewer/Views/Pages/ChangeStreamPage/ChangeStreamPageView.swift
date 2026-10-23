@@ -380,10 +380,14 @@ struct ChangeStreamPageView: View {
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
       Menu(model.sessionPickerTitle) {
-        ForEach(model.sessions) { session in
+        ForEach(model.pickerSessions) { session in
           Button { model.sessionSelected(session.id) } label: {
             Text(menuTitle(model.sessionMenuText(for: session), isBold: model.isBold(session)))
           }
+        }
+        if let inactiveSessionsToggleText = model.inactiveSessionsToggleText {
+          Divider()
+          Button(inactiveSessionsToggleText) { model.inactiveSessionsToggleTapped() }
         }
       }
       .disabled(model.isSessionPickerDisabled)

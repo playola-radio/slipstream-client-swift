@@ -79,6 +79,16 @@ struct CaptureStatus: Equatable, Sendable {
     }
   }
 
+  var isInactive: Bool {
+    guard case .available = availability else { return false }
+    guard let capture else { return true }
+    switch capture.state {
+    case .stopped: return true
+    case .notRecording: return capture.reason != "capture-limit-reached"
+    case .recording, .baselining, .queued, .unknown: return false
+    }
+  }
+
   var captureDot: CaptureDot {
     guard case .available = availability, let capture else { return .unknown }
     switch capture.state {

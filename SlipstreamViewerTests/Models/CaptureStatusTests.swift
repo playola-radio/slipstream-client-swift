@@ -133,6 +133,26 @@ struct CaptureStatusTests {
       CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil).pickerSuffix, "Not captured")
   }
 
+  @Test(arguments: [
+    (CaptureState.recording, nil, false),
+    (.baselining, nil, false),
+    (.queued, nil, false),
+    (.notRecording, "capture-limit-reached", false),
+    (.unknown("hibernating"), nil, false),
+    (.stopped, "archived", true),
+    (.notRecording, "root-missing", true),
+  ] as [(CaptureState, String?, Bool)])
+  func onlyCapturesThatCannotRecordOnTheirOwnAreInactive(state: CaptureState, reason: String?, isInactive: Bool) {
+    #expect(Self.status(state, reason: reason).isInactive == isInactive)
+  }
+
+  @Test func aWorkspaceIsInactiveWithoutACaptureOnlyWhenTheStateWasRead() {
+    #expect(CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil).isInactive)
+    #expect(!CaptureStatus(availability: .loading, capture: nil).isInactive)
+    #expect(!CaptureStatus(availability: .failed, capture: nil).isInactive)
+    #expect(!CaptureStatus(availability: .unavailableFromReader, capture: nil).isInactive)
+  }
+
   @Test func captureDots() {
     expectNoDifference(Self.status(.recording).captureDot, .recording)
     for status in [

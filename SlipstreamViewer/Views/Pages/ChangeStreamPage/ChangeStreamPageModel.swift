@@ -55,6 +55,7 @@ final class ChangeStreamPageModel: ViewModel {
   var hasLoadedSessions = false { didSet { chatWorkspaceMayHaveChanged() } }
   var sessionsError: String? { didSet { chatWorkspaceMayHaveChanged() } }
   var selectedSession: SessionOption? { didSet { chatWorkspaceMayHaveChanged() } }
+  var isShowingInactiveSessions = false
   private(set) var captureAvailability = CaptureAvailability.loading
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
@@ -130,6 +131,15 @@ final class ChangeStreamPageModel: ViewModel {
 
   var sessionPickerTitle: String {
     selectedSession?.label ?? "Choose a session"
+  }
+
+  var inactiveSessionsToggleText: String? {
+    if isShowingInactiveSessions { return hiddenInactiveSessionCount > 0 ? "Hide inactive sessions" : nil }
+    switch hiddenInactiveSessionCount {
+    case 0: return nil
+    case 1: return "Show 1 inactive session"
+    case let count: return "Show \(count) inactive sessions"
+    }
   }
 
   func isBold(_ session: SessionOption) -> Bool {
@@ -354,6 +364,10 @@ final class ChangeStreamPageModel: ViewModel {
     questionDismissed()
   }
 
+  var pickerSessions: IdentifiedArrayOf<SessionOption> {
+    isShowingInactiveSessions ? sessions : sessions.filter { !isHideable($0) }
+  }
+
   var isSessionPickerDisabled: Bool {
     sessions.isEmpty
   }
@@ -422,6 +436,10 @@ final class ChangeStreamPageModel: ViewModel {
 
   func refreshTapped() async {
     await loadSessions()
+  }
+
+  func inactiveSessionsToggleTapped() {
+    isShowingInactiveSessions.toggle()
   }
 
   func sessionSelected(_ id: String) {
@@ -927,6 +945,14 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func captureStatus(of session: SessionOption) -> CaptureStatus {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
+  }
+
+  private var hiddenInactiveSessionCount: Int {
+    sessions.filter(isHideable).count
+  }
+
+  private func isHideable(_ session: SessionOption) -> Bool {
+    session.id != selectedSession?.id && captureStatus(of: session).isInactive
   }
 
   private static func captures(
