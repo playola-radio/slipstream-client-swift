@@ -292,6 +292,24 @@ struct ChatPageTests {
     expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Hello"))])
   }
 
+  @Test func multilineDraftWaitsForSendAndWritesOnce() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "First line\nSecond line"
+
+    #expect(agent.launches.isEmpty)
+    expectNoDifference(tab.projection.items, [])
+
+    await model.sendTapped()
+
+    expectNoDifference(
+      tab.projection.items,
+      [TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("First line\nSecond line"))])
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("First line\nSecond line"))])
+    #expect(tab.draft == "")
+  }
+
   @Test func editingDraftDuringWriteKeepsNewText() async throws {
     agent.hold(.writes)
     let model = makeModel(records: [record()])
