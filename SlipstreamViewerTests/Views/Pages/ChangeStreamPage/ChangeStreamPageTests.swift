@@ -2150,6 +2150,64 @@ extension ChangeStreamPageTests {
     )
   }
 
+  func listThreeSessionsWithOneRecording() {
+    fake.setSessions([
+      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+      SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      SessionSummary(id: "uncaptured", durableSeq: .zero, removed: false),
+    ])
+    fake.setCaptures([
+      Fixture.capture(),
+      Fixture.capture(.stopped, reason: "archived", session: Fixture.otherSession, root: "/work/old", binding: nil),
+    ])
+  }
+
+  @Test func thePickerHidesInactiveWorkspacesBehindAToggle() async {
+    listThreeSessionsWithOneRecording()
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session])
+    expectNoDifference(model.inactiveSessionsToggleText, "Show 2 inactive sessions")
+
+    model.inactiveSessionsToggleTapped()
+    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
+    expectNoDifference(model.inactiveSessionsToggleText, "Hide inactive sessions")
+
+    model.inactiveSessionsToggleTapped()
+    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session])
+  }
+
+  @Test func theWatchedWorkspaceStaysInThePickerWhenItStops() async {
+    listThreeSessionsWithOneRecording()
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.inactiveSessionsToggleTapped()
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    model.inactiveSessionsToggleTapped()
+    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session, Fixture.otherSession])
+    expectNoDifference(model.inactiveSessionsToggleText, "Show 1 inactive session")
+  }
+
+  @Test func thePickerHasNoToggleWhenEveryWorkspaceIsActive() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session])
+    #expect(model.inactiveSessionsToggleText == nil)
+  }
+
+  @Test func thePickerHidesNothingWhenCaptureStateIsUnknown() async {
+    listThreeSessionsWithOneRecording()
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
+    #expect(model.inactiveSessionsToggleText == nil)
+  }
+
   @Test(arguments: [CaptureState.queued, .baselining, .stopped, .notRecording, .unknown("paused")])
   func aConnectedAgentNeverMakesANonRecordingCaptureReadRecording(_ state: CaptureState) async {
     listSessions(.connected)
