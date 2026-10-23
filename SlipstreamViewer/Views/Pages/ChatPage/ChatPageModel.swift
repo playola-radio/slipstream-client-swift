@@ -89,6 +89,10 @@ final class ChatPageModel: ViewModel {
     records.contains { $0.folder == folder && $0.isWaiting }
   }
 
+  func hasWorkingTab(in folder: String) -> Bool {
+    records.contains { $0.folder == folder && tabs[id: $0.id]?.isWorking == true }
+  }
+
   func isSelected(_ tab: ChatTabModel) -> Bool { selectedTab?.id == tab.id }
 
   func isHovered(_ tab: ChatTabModel) -> Bool { hoveredTabID == tab.id }
@@ -205,6 +209,21 @@ final class ChatPageModel: ViewModel {
         group.addTask { await tab.close() }
       }
     }
+  }
+
+  /// Stops and forgets every tab in `folder`, without opening a new one, and returns once
+  /// their agents have all exited.
+  func closeTabs(in folder: String) async {
+    let ids = records.filter { $0.folder == folder }.map(\.id)
+    let closing = ids.compactMap { tabs[id: $0] }
+    $records.withLock { $0.removeAll { $0.folder == folder } }
+    selectedTabIDs[folder] = nil
+    await withTaskGroup { group in
+      for tab in closing {
+        group.addTask { await tab.close() }
+      }
+    }
+    for id in ids { tabs[id: id] = nil }
   }
 
   // MARK: - Private Helpers

@@ -810,6 +810,38 @@ struct ChatPageTests {
     #expect(model.workingTabCount == 0)
   }
 
+  @Test func closeTabsInFolderStopsEveryAgentAndLeavesNoTab() async {
+    let model = makeModel(records: [
+      record(UUID(60), folder: "/b"), record(folder: "/a"), record(UUID(50), folder: "/a"),
+    ])
+    model.workspaceChanged(folder: "/b", emptyText: nil)
+    await send(model, "b")
+    await line(Line.result(), to: 0)
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    await send(model, "one")
+    await line(Line.result(), to: 1)
+    await model.tabSelected(UUID(50))
+    await send(model, "two")
+
+    await model.closeTabs(in: "/a")
+
+    expectNoDifference(model.records, [record(UUID(60), folder: "/b")])
+    #expect(model.tabs.ids == [UUID(60)])
+    #expect(model.selectedTab == nil)
+    #expect(agent.shutdowns(0) == 0)
+    #expect(agent.shutdowns(1) == 1)
+    #expect(agent.shutdowns(2) == 1)
+  }
+
+  @Test func hasWorkingTabOnlyCountsThatFolder() async {
+    let model = makeModel(records: [record(folder: "/a"), record(UUID(50), folder: "/b")])
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    await send(model, "one")
+
+    #expect(model.hasWorkingTab(in: "/a"))
+    #expect(!model.hasWorkingTab(in: "/b"))
+  }
+
   @Test func sendWhileQuittingLaunchesNothing() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
