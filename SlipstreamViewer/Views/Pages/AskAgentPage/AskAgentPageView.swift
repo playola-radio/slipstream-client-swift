@@ -220,14 +220,15 @@ private struct QuestionEditor: NSViewRepresentable {
   }
 
   private func applyTypography(to text: NSTextView) {
-    let font = NSFont(name: "Geist", size: DesignTokens.Ask.editorFontSize * fontScale)
+    let size = DesignTokens.Ask.editorFontSize * fontScale
+    let font = NSFont(name: "Geist", size: size) ?? .systemFont(ofSize: size)
     let paragraph = NSMutableParagraphStyle()
     paragraph.minimumLineHeight = DesignTokens.Ask.editorLineHeight * fontScale
     paragraph.maximumLineHeight = DesignTokens.Ask.editorLineHeight * fontScale
     text.font = font
     text.defaultParagraphStyle = paragraph
     text.typingAttributes[.paragraphStyle] = paragraph
-    if let font { text.typingAttributes[.font] = font }
+    text.typingAttributes[.font] = font
     if let storage = text.textStorage {
       storage.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: storage.length))
     }
