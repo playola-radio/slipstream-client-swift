@@ -810,7 +810,7 @@ struct ChatPageTests {
     #expect(model.workingTabCount == 0)
   }
 
-  @Test func closeTabsInFolderStopsEveryAgentAndLeavesNoTab() async {
+  @Test func stopTabsInFolderStopsEveryAgentButKeepsItsConversations() async {
     let model = makeModel(records: [
       record(UUID(60), folder: "/b"), record(folder: "/a"), record(UUID(50), folder: "/a"),
     ])
@@ -823,14 +823,26 @@ struct ChatPageTests {
     await model.tabSelected(UUID(50))
     await send(model, "two")
 
-    await model.closeTabs(in: "/a")
+    await model.stopTabs(in: "/a")
 
-    expectNoDifference(model.records, [record(UUID(60), folder: "/b")])
     #expect(model.tabs.ids == [UUID(60)])
-    #expect(model.selectedTab == nil)
     #expect(agent.shutdowns(0) == 0)
     #expect(agent.shutdowns(1) == 1)
     #expect(agent.shutdowns(2) == 1)
+    expectNoDifference(model.records.map(\.id), [UUID(60), Self.saved, UUID(50)])
+
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+
+    expectNoDifference(model.visibleTabs.map(\.id), [Self.saved, UUID(50)])
+    #expect(model.selectedTab?.id == UUID(50))
+  }
+
+  @Test func forgetTabsInFolderRemovesOnlyThatFolder() {
+    let model = makeModel(records: [record(UUID(60), folder: "/b"), record(folder: "/a")])
+
+    model.forgetTabs(in: "/a")
+
+    expectNoDifference(model.records, [record(UUID(60), folder: "/b")])
   }
 
   @Test func hasWorkingTabOnlyCountsThatFolder() async {

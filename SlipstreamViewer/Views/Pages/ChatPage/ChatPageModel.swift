@@ -123,6 +123,11 @@ final class ChatPageModel: ViewModel {
   func workspaceChanged(folder: String?, emptyText: String?) {
     self.folder = folder
     self.emptyText = emptyText
+    if let folder {
+      for record in records where record.folder == folder && tabs[id: record.id] == nil {
+        addModel(for: record.id, needsHistory: true)
+      }
+    }
     if let folder, visibleTabs.isEmpty {
       addTab(in: folder, model: ChatModelChoice.defaultModel, effort: ChatModelChoice.defaultEffort)
     }
@@ -211,19 +216,21 @@ final class ChatPageModel: ViewModel {
     }
   }
 
-  /// Stops and forgets every tab in `folder`, without opening a new one, and returns once
-  /// their agents have all exited.
-  func closeTabs(in folder: String) async {
-    let ids = records.filter { $0.folder == folder }.map(\.id)
-    let closing = ids.compactMap { tabs[id: $0] }
-    $records.withLock { $0.removeAll { $0.folder == folder } }
-    selectedTabIDs[folder] = nil
+  /// Stops every agent in `folder` and returns once they have all exited. The
+  /// conversations are kept: showing the folder again reopens them.
+  func stopTabs(in folder: String) async {
+    let stopping = records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
     await withTaskGroup { group in
-      for tab in closing {
+      for tab in stopping {
         group.addTask { await tab.close() }
       }
     }
-    for id in ids { tabs[id: id] = nil }
+    for tab in stopping { tabs[id: tab.id] = nil }
+  }
+
+  func forgetTabs(in folder: String) {
+    $records.withLock { $0.removeAll { $0.folder == folder } }
+    selectedTabIDs[folder] = nil
   }
 
   // MARK: - Private Helpers

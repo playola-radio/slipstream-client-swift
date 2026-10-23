@@ -5,6 +5,12 @@ import Testing
 @testable import SlipstreamViewer
 
 struct WorkspaceClientTests {
+  @Test func managedRootFollowsHome() {
+    expectNoDifference(
+      WorkspaceClient.managedRoot(environment: ["HOME": "/nonexistent-home/x"]).path,
+      "/nonexistent-home/x/slipstream/workspaces")
+  }
+
   @Test func successReturnsThePathAndNoFailure() {
     let output = "created /w/workspace-1 on slipstream/workspace-1 from origin/develop\nSETUP-DONE\nworkspace_path: /w/workspace-1\n"
 

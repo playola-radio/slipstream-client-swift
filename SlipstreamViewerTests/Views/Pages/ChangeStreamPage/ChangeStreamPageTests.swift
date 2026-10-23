@@ -3156,19 +3156,41 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceBusy)
   }
 
-  @Test func refusedArchiveGivesBackAChatTabAndShowsTheError() async {
+  @Test func archiveHidesTheChatWhileTheCommandRuns() async {
     listWorkspace()
-    let model = makeModel(workspace: workspaceClient(archive: { _, _ in
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome(failureText: "refused")
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    #expect(model.chat.showsNewTabButton)
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    #expect(model.chat.folder == nil)
+    #expect(!model.chat.showsNewTabButton)
+    #expect(!model.chat.isMessageBoxEnabled)
+    release.yield()
+    await archiving.value
+  }
+
+  @Test func refusedArchiveGivesBackItsConversationsAndShowsTheError() async {
+    listWorkspace()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
       WorkspaceOutcome(failureText: "slipstream: the workspace has uncommitted or untracked changes.")
     }))
     await model.viewAppeared()
     defer { model.viewDisappeared() }
+    let conversations = model.chat.records.map(\.id)
 
     await model.archiveConfirmed()
 
     #expect(model.selectedSession?.id == Fixture.otherSession)
     #expect(model.chat.folder == Self.workspaceRoot)
-    #expect(model.chat.visibleTabs.count == 1)
+    expectNoDifference(model.chat.visibleTabs.map(\.id), conversations)
     #expect(model.isWorkspaceFailurePresented)
     #expect(model.workspaceFailureTitle == "Couldn't archive the workspace")
     #expect(model.workspaceFailureText == "slipstream: the workspace has uncommitted or untracked changes.")

@@ -490,19 +490,21 @@ final class ChangeStreamPageModel: ViewModel {
     isArchiveConfirmationPresented = true
   }
 
-  /// Stops the workspace's chats first: the command removes the folder they run in.
+  /// Hides and stops the workspace's chats first: the command removes the folder they run
+  /// in. Its conversations come back if the command refuses.
   func archiveConfirmed() async {
     guard !isWorkspaceBusy, let folder = selectedFolder else { return }
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
-    await chat.closeTabs(in: folder)
+    chat.workspaceChanged(folder: nil, emptyText: nil)
+    await chat.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
     if let failure = outcome.failureText {
       chat.workspaceChanged(folder: folder, emptyText: nil)
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
-    chat.workspaceChanged(folder: nil, emptyText: nil)
+    chat.forgetTabs(in: folder)
     selectedSession = nil
     resetFeed()
     startWatching()

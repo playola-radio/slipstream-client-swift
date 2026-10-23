@@ -21,6 +21,12 @@ extension WorkspaceClient {
   static let pathPrefix = "workspace_path: "
   static let failureLineLimit = 12
 
+  /// Follows `$HOME` the way the `slipstream` CLI it launches does.
+  static func managedRoot(environment: [String: String]) -> URL {
+    URL(filePath: environment["HOME"] ?? NSHomeDirectory())
+      .appending(path: "slipstream/workspaces").resolvingSymlinksInPath()
+  }
+
   static func outcome(output: String, status: Int32) -> WorkspaceOutcome {
     let lines = output.split(whereSeparator: \.isNewline).map(String.init)
     let path = lines.last { $0.hasPrefix(pathPrefix) }.map { String($0.dropFirst(pathPrefix.count)) }
@@ -35,8 +41,7 @@ extension WorkspaceClient {
 extension WorkspaceClient: DependencyKey {
   static var liveValue: Self {
     Self(
-      managedRoot: FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: "slipstream/workspaces").resolvingSymlinksInPath(),
+      managedRoot: managedRoot(environment: ProcessInfo.processInfo.environment),
       chooseRepository: {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
