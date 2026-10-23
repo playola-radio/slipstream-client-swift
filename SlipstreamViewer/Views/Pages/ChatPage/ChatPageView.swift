@@ -1,3 +1,4 @@
+import AppKit
 import SlipstreamCore
 import SwiftUI
 
@@ -74,6 +75,11 @@ struct ChatPageView<Leading: View>: View {
       .font(DesignTokens.Chat.MessageBox.font)
       .foregroundStyle(DesignTokens.Chat.MessageBox.color)
       .onSubmit { Task { await model.sendTapped() } }
+      .onKeyPress(.return, phases: .down) { press in
+        guard press.modifiers.contains(.shift) else { return .ignored }
+        NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
+        return .handled
+      }
       Spacer(minLength: 0)
       HStack {
         Menu {
