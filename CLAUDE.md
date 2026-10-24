@@ -1,7 +1,8 @@
 # slipstream-client-swift
 
-Native macOS watching client for Slipstream. `IMPLEMENTATION_PLAN.md` is the plan (read its
-top addendum first); the daemon (`briankeane/slipstream`) owns the wire contract.
+Native macOS client for Slipstream: it watches captures, creates workspaces, and runs agent
+chats. `IMPLEMENTATION_PLAN.md` is the plan (read its top addendum first); the daemon
+(`briankeane/slipstream`) owns the wire contract.
 
 The app follows the same architecture as `~/playola/logic-utils` (and through it
 `~/playola/playola-radio-ios`): MV with `@Observable` models, fully tested models, and

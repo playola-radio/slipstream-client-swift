@@ -65,6 +65,8 @@ confirm Codex can fork a conversation before designing its ask-at-a-line path.
 
 Ask-at-a-line (after v0.1)
 
+> Superseded 2026-10-24 (Brian): ask-at-a-line is no longer planned as a forked copy plus record_question_exchange; Ask goes to the workspace's linked chat (design/features/linked-chat/, being designed). The daemon verb stays shipped but the client no longer plans to use it. Applies to this section and the "Branch-off copy" line under Decided.
+
 The existing inline thread UI (AskAgentPage, QuestionThreadPage) stays.
 What changes is where the answer comes from:
 
@@ -90,6 +92,7 @@ The resulting edit is made by the main agent, so it’s attributed to the
 main conversation like any other edit.
 Line-asks on a Conductor-run linked chat keep using the old ask path;
 line-asks on a client-run tab use the new verb. A thread never mixes the two.
+> Superseded 2026-10-24 (Brian): the planned route is no longer a new verb path; line-asks go to the linked chat (being designed), which may be an app-run tab or an outside chat linked with slipstream attach.
 Ask-at-a-line needs a captured change to point at, so it’s only offered on
 workspaces with a recording capture.
 If recording the thread fails (daemon down, capture stopped), keep the thread
@@ -111,6 +114,7 @@ started. Attribution reading is off unless the daemon is started with
 --enable <harness> or a config file — check that when testing.
 The old attach/hook/answer-tool plumbing is not used by client-run chats; it
 stays for Conductor-run chats. Retiring it is a later call for Brian.
+> Superseded 2026-10-24 (Brian): the attach/answer-tool plumbing is planned to be the route for an app-run linked chat too (design/features/linked-chat/, being designed); it also stays for outside chats as an optional host.
 Decided
 
 Client runs the agent (amends the “does not launch agents” rule).
