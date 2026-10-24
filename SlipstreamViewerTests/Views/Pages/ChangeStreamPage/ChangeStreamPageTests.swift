@@ -2703,6 +2703,22 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.selectedSession?.agentConnection, .setupPending)
   }
 
+  @Test func aLinkMovedWhileAFreshSnapshotIsInFlightIsReadAgain() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture(binding: CaptureBinding(generation: "6", state: .unlinked))])
+    let model = await reconnectedWithAReplayedSetupPending(daemon, gate: open)
+    defer { model.viewDisappeared() }
+    daemon.setCaptures([Fixture.capture(binding: CaptureBinding(generation: "7", state: .setupPending))])
+
+    open.yield()
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession?.capture?.binding, CaptureBinding(generation: "7", state: .setupPending))
+  }
+
   @Test func aReplayedSetupPendingStaysUnconfirmedWhenTheRefreshFails() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)

@@ -104,6 +104,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var needsReadinessRefresh = false
   @ObservationIgnored private var awaitsFreshSnapshot = false
   @ObservationIgnored private var pendingReadiness: (state: AgentConnection, seq: Seq)?
+  /// A binding event that landed while a fresh snapshot was in flight; that snapshot may predate it.
+  @ObservationIgnored private var bindingMovedWhileAwaitingSnapshot = false
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
   @ObservationIgnored private var barFrames: [String: CGRect] = [:]
@@ -690,6 +692,7 @@ final class ChangeStreamPageModel: ViewModel {
     selectedSession = session
     awaitsFreshSnapshot = false
     pendingReadiness = nil
+    bindingMovedWhileAwaitingSnapshot = false
     resetFeed()
     startWatching()
     return true
@@ -761,6 +764,10 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
+      if bindingMovedWhileAwaitingSnapshot {
+        bindingMovedWhileAwaitingSnapshot = false
+        Task { [weak self] in await self?.loadSessions() }
+      }
       if let pending = pendingReadiness {
         pendingReadiness = nil
         if let listed = sessions[id: selectedSession?.id ?? ""], pending.seq > listed.readinessSeq {
@@ -998,8 +1005,10 @@ final class ChangeStreamPageModel: ViewModel {
       && ((selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
         || event.payload == .sessionResumed
         || event.payload == .agentConnection(.disconnected(reason: "capture_not_live")))
-    let shouldRefreshBinding = !awaitsFreshSnapshot && event.seq > (selectedSession?.readinessSeq ?? .zero)
+    let bindingMoved = event.seq > (selectedSession?.readinessSeq ?? .zero)
       && Self.changesBinding(event.payload, selectedSession?.capture?.binding)
+    if bindingMoved, awaitsFreshSnapshot { bindingMovedWhileAwaitingSnapshot = true }
+    let shouldRefreshBinding = bindingMoved && !awaitsFreshSnapshot
     switch event.payload {
     case .fileChanged(let change):
       append(

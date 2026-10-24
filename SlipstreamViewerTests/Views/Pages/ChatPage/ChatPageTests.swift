@@ -1867,6 +1867,23 @@ struct ChatPageTests {
     expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
   }
 
+  @Test func closingATabWhoseAttachLinksButReportsSetupIncompleteMovesTheLinkOff() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.setOutcomes(.refused(.setupIncomplete("this chat is linked, but setup is incomplete: no hook.")))
+    link.hold()
+    let connecting = Task { await model.connectTapped(UUID(50)) }
+    await Task.megaYield()
+
+    await model.closeTabTapped(UUID(50))
+    refresh(model, to: captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    link.release()
+    await connecting.value
+    await Task.megaYield()
+
+    expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
+  }
+
   @Test func closingUnlinkedTabChangesNothing() async {
     let model = await openWindow(
       records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))

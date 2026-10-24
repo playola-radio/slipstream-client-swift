@@ -39,7 +39,8 @@ final class ChatPageModel: ViewModel {
   private var linkFailures: [UUID: LinkRefusal] = [:]
   /// The folder just shown: its next capture read is the moment its window opens.
   private var openingFolder: String?
-  /// Tabs closed while they were connecting, by folder: the next capture read moves their link off.
+  /// Tabs closed while they were connecting, by folder: if the next capture read shows one linked,
+  /// its link moves off. Any outcome counts, since a refused attach can still have linked.
   private var strandedLinks: [UUID: String] = [:]
 
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
@@ -383,7 +384,7 @@ final class ChatPageModel: ViewModel {
       case .refused(let refusal): linkFailures[id] = refusal
       case .unlinked, .skipped, .retryLater: break
       }
-    } else if let id, case .linked = outcome {
+    } else if let id {
       strandedLinks[id] = folder
     }
     await onLinkChanged()
