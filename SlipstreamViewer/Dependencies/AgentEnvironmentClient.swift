@@ -114,16 +114,7 @@ extension AgentEnvironmentClient: DependencyKey {
   private static let timeout: TimeInterval = 10
 
   @Sendable private static func loadFromLoginShell() async throws -> AgentEnvironment {
-    let shell = loginShell(
-      environment: ProcessInfo.processInfo.environment,
-      passwordDatabaseShell: passwordDatabaseShell()
-    )
-    let marker = "SLIPSTREAM-ENV-\(UUID().uuidString)"
-    guard
-      let output = try await captureOutput(
-        shell, ["-ilc", "printf '\\0\(marker)\\0'; env -0"], environment: nil)
-    else { throw AgentEnvironmentError.shellTimedOut }
-    let variables = parseEnvironment(output, marker: marker)
+    let variables = try await loginEnvironment()
 
     let directories = (variables["PATH"] ?? "").split(separator: ":")
     guard
@@ -144,6 +135,19 @@ extension AgentEnvironmentClient: DependencyKey {
       variables: variables,
       configDirectory: configDirectory(variables, home: FileManager.default.homeDirectoryForCurrentUser)
     )
+  }
+
+  static func loginEnvironment() async throws -> [String: String] {
+    let shell = loginShell(
+      environment: ProcessInfo.processInfo.environment,
+      passwordDatabaseShell: passwordDatabaseShell()
+    )
+    let marker = "SLIPSTREAM-ENV-\(UUID().uuidString)"
+    guard
+      let output = try await captureOutput(
+        shell, ["-ilc", "printf '\\0\(marker)\\0'; env -0"], environment: nil)
+    else { throw AgentEnvironmentError.shellTimedOut }
+    return parseEnvironment(output, marker: marker)
   }
 
   /// Runs a command and returns its stdout, or nil if it doesn't finish within the timeout.

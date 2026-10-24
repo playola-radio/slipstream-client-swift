@@ -15,6 +15,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @Dependency(\.withRandomNumberGenerator) var withRandomNumberGenerator
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
+  @ObservationIgnored @Dependency(\.workspace) var workspace
 
   // MARK: - Shared State
 
@@ -43,6 +44,11 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var replyBarFrame = CGRect.zero
   private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
+  private(set) var isWorkspaceBusy = false
+  var isArchiveConfirmationPresented = false
+  var isWorkspaceFailurePresented = false
+  private(set) var workspaceFailureTitle = ""
+  private(set) var workspaceFailureText = ""
   private(set) var queuedQuestionNotice: String?
   private(set) var feedViewport = CGRect.zero
   private(set) var isSourceBlockVisible = false
@@ -87,6 +93,11 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
+  @ObservationIgnored private var pendingPreferredRoot: String?
+  @ObservationIgnored private var archivedSessionIDs: Set<String> = []
+  @ObservationIgnored private var managedWorkspaceRoot: URL?
+  @ObservationIgnored private var managedWorkspaceTask: Task<Void, Never>?
+  @ObservationIgnored private var managedWorkspaceGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
   @ObservationIgnored private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
@@ -106,6 +117,19 @@ final class ChangeStreamPageModel: ViewModel {
   let questionDismissMessage = "This submission may already be queued. Closing does not withdraw it and discards the draft and its retry ID. Sending it again could queue a duplicate."
   let questionDiscardText = "Discard draft"
   let questionKeepText = "Keep question"
+
+  let newWorkspaceText = "New workspace…"
+  let archiveWorkspaceText = "Archive workspace…"
+  let archiveConfirmationTitle = "Archive this workspace?"
+  let archiveConfirmText = "Archive"
+  let cancelText = "Cancel"
+  let workspaceFailureDismissText = "OK"
+
+  var archiveConfirmationText: String {
+    let text = "Its folder is removed. The branch is kept."
+    guard let selectedFolder, chat.hasWorkingTab(in: selectedFolder) else { return text }
+    return text + " Claude's current reply will be stopped."
+  }
 
   let paneTitle = "Change stream"
   let refreshButtonText = "Refresh"
@@ -368,8 +392,14 @@ final class ChangeStreamPageModel: ViewModel {
     isShowingInactiveSessions ? sessions : sessions.filter { !isHideable($0) }
   }
 
-  var isSessionPickerDisabled: Bool {
-    sessions.isEmpty
+  var isSessionPickerDisabled: Bool { isWorkspaceBusy }
+
+  /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
+  var isArchiveWorkspaceShown: Bool {
+    guard let selectedFolder, let managedWorkspaceRoot else { return false }
+    let root = URL(filePath: Self.normalizedFolder(managedWorkspaceRoot.path)).pathComponents
+    let folder = URL(filePath: selectedFolder).pathComponents
+    return folder.count == root.count + 2 && folder.starts(with: root)
   }
 
   var canCompareFunctions: Bool {
@@ -426,6 +456,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func viewAppeared() async {
     isShown = true
+    loadManagedWorkspaceRoot()
     chatWorkspaceMayHaveChanged()
     chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
     if selectedSession != nil, watchTask?.isCancelled ?? true {
@@ -444,10 +475,50 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sessionSelected(_ id: String) {
     guard select(id) else { return }
+    pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
       await loadSessions()
     }
+  }
+
+  func newWorkspaceTapped() async {
+    guard !isWorkspaceBusy, let repository = await workspace.chooseRepository() else { return }
+    isWorkspaceBusy = true
+    defer { isWorkspaceBusy = false }
+    let outcome = await workspace.create(repository, daemon.storeID)
+    if let path = outcome.workspacePath { await loadSessions(preferring: path) }
+    if let failure = outcome.failureText {
+      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
+    }
+  }
+
+  func archiveWorkspaceTapped() {
+    isArchiveConfirmationPresented = true
+  }
+
+  /// Hides and stops the workspace's chats first: the command removes the folder they run
+  /// in. Its conversations come back if the command refuses.
+  func archiveConfirmed() async {
+    guard !isWorkspaceBusy, let folder = selectedFolder else { return }
+    let archivedSessionID = selectedSession?.id
+    isWorkspaceBusy = true
+    defer { isWorkspaceBusy = false }
+    chat.workspaceChanged(folder: nil, emptyText: nil)
+    let drafts = await chat.stopTabs(in: folder)
+    let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
+    if let failure = outcome.failureText {
+      chat.workspaceChanged(folder: folder, emptyText: nil)
+      chat.restoreTabs(in: folder, drafts: drafts)
+      workspaceFailed(title: "Couldn't archive the workspace", text: failure)
+      return
+    }
+    chat.forgetTabs(in: folder)
+    if let archivedSessionID { archivedSessionIDs.insert(archivedSessionID) }
+    selectedSession = nil
+    resetFeed()
+    startWatching()
+    await loadSessions()
   }
 
   func viewDisappeared() {
@@ -458,6 +529,8 @@ final class ChangeStreamPageModel: ViewModel {
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
+    managedWorkspaceTask?.cancel()
+    managedWorkspaceGeneration += 1
     watchedFollowerLeftLive()
   }
 
@@ -620,7 +693,26 @@ final class ChangeStreamPageModel: ViewModel {
     return true
   }
 
-  private func loadSessions() async {
+  private func loadManagedWorkspaceRoot() {
+    managedWorkspaceTask?.cancel()
+    managedWorkspaceGeneration += 1
+    let generation = managedWorkspaceGeneration
+    let workspace = workspace
+    managedWorkspaceTask = Task { [weak self] in
+      let root = await workspace.managedRoot()
+      guard let self, !Task.isCancelled, isShown, generation == managedWorkspaceGeneration else { return }
+      managedWorkspaceRoot = root
+    }
+  }
+
+  private func workspaceFailed(title: String, text: String) {
+    workspaceFailureTitle = title
+    workspaceFailureText = text
+    isWorkspaceFailurePresented = true
+  }
+
+  private func loadSessions(preferring preferredRoot: String? = nil) async {
+    if let preferredRoot { pendingPreferredRoot = Self.normalizedFolder(preferredRoot) }
     sessionsGeneration += 1
     refreshGeneration += 1
     let generation = sessionsGeneration
@@ -700,7 +792,8 @@ final class ChangeStreamPageModel: ViewModel {
           isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
         composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture))
       }
-      if selectedSession == nil, sessions.count == 1 {
+      if selectedSession == nil, sessions.count == 1,
+        !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
       await withTaskGroup(of: (String, SessionStarted?).self) { group in
@@ -726,6 +819,11 @@ final class ChangeStreamPageModel: ViewModel {
         let session = sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
       }
+      if let pendingPreferredRoot, generation == sessionsGeneration,
+        let session = sessions.first(where: { $0.root == pendingPreferredRoot }) {
+        _ = select(session.id)
+        self.pendingPreferredRoot = nil
+      }
     } catch {
       guard generation == sessionsGeneration else {
         if refresh == refreshGeneration { captureRefreshFailed() }
@@ -738,6 +836,11 @@ final class ChangeStreamPageModel: ViewModel {
         ? "The Slipstream daemon isn't running"
         : "Couldn't reach the Slipstream daemon"
     }
+  }
+
+  /// An archived workspace's folder is gone, so it is never picked for the user.
+  private static func isArchived(_ session: SessionOption) -> Bool {
+    session.capture?.state == .stopped && session.capture?.reason == "archived"
   }
 
   private func captureResultArrived(_ result: Result<CaptureList?, any Error>, checkedAt: Date) -> [CaptureSummary] {

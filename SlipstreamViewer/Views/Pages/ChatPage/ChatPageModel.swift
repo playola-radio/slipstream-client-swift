@@ -89,6 +89,10 @@ final class ChatPageModel: ViewModel {
     records.contains { $0.folder == folder && $0.isWaiting }
   }
 
+  func hasWorkingTab(in folder: String) -> Bool {
+    records.contains { $0.folder == folder && tabs[id: $0.id]?.isWorking == true }
+  }
+
   func isSelected(_ tab: ChatTabModel) -> Bool { selectedTab?.id == tab.id }
 
   func isHovered(_ tab: ChatTabModel) -> Bool { hoveredTabID == tab.id }
@@ -119,6 +123,11 @@ final class ChatPageModel: ViewModel {
   func workspaceChanged(folder: String?, emptyText: String?) {
     self.folder = folder
     self.emptyText = emptyText
+    if let folder {
+      for record in records where record.folder == folder && tabs[id: record.id] == nil {
+        addModel(for: record.id, needsHistory: true)
+      }
+    }
     if let folder, visibleTabs.isEmpty {
       addTab(in: folder, model: ChatModelChoice.defaultModel, effort: ChatModelChoice.defaultEffort)
     }
@@ -205,6 +214,31 @@ final class ChatPageModel: ViewModel {
         group.addTask { await tab.close() }
       }
     }
+  }
+
+  /// Stops every agent in `folder` and returns once they have all exited. The
+  /// conversations are kept: showing the folder again reopens them.
+  func stopTabs(in folder: String) async -> [UUID: String] {
+    let stopping = records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
+    let drafts = Dictionary(uniqueKeysWithValues: stopping.map { ($0.id, $0.draft) })
+    await withTaskGroup { group in
+      for tab in stopping {
+        group.addTask { await tab.close() }
+      }
+    }
+    for tab in stopping { tabs[id: tab.id] = nil }
+    return drafts
+  }
+
+  func restoreTabs(in folder: String, drafts: [UUID: String]) {
+    for (id, draft) in drafts where records[id: id]?.folder == folder {
+      tabs[id: id]?.draft = draft
+    }
+  }
+
+  func forgetTabs(in folder: String) {
+    $records.withLock { $0.removeAll { $0.folder == folder } }
+    selectedTabIDs[folder] = nil
   }
 
   // MARK: - Private Helpers

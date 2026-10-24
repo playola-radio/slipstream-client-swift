@@ -35,6 +35,17 @@ struct ChangeStreamPageView: View {
     } message: {
       Text(model.questionDismissMessage)
     }
+    .alert(model.archiveConfirmationTitle, isPresented: $model.isArchiveConfirmationPresented) {
+      Button(model.archiveConfirmText, role: .destructive) { Task { await model.archiveConfirmed() } }
+      Button(model.cancelText, role: .cancel) {}
+    } message: {
+      Text(model.archiveConfirmationText)
+    }
+    .alert(model.workspaceFailureTitle, isPresented: $model.isWorkspaceFailurePresented) {
+      Button(model.workspaceFailureDismissText, role: .cancel) {}
+    } message: {
+      Text(model.workspaceFailureText)
+    }
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
     .task { await model.viewAppeared() }
@@ -389,8 +400,18 @@ struct ChangeStreamPageView: View {
           Divider()
           Button(inactiveSessionsToggleText) { model.inactiveSessionsToggleTapped() }
         }
+        Divider()
+        Button(model.newWorkspaceText) { Task { await model.newWorkspaceTapped() } }
+        if model.isArchiveWorkspaceShown {
+          Button(model.archiveWorkspaceText) { model.archiveWorkspaceTapped() }
+        }
       }
       .disabled(model.isSessionPickerDisabled)
+    }
+    if model.isWorkspaceBusy {
+      ToolbarItem(placement: .navigation) {
+        ProgressView().controlSize(.small)
+      }
     }
     ToolbarItem {
       Button(model.refreshButtonText, systemImage: "arrow.clockwise") {
