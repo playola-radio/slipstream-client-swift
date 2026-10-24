@@ -273,7 +273,11 @@ final class ChatPageModel: ViewModel {
     }
     await tab.close()
     tabs[id: id] = nil
-    if let linked { await linkedTabClosed(in: folder, generation: linked.generation) }
+    if let linked {
+      await linkedTabClosed(in: folder, generation: linked.generation)
+    } else if bindings == nil {
+      strandedLinks[id] = folder
+    }
   }
 
   func closeShortcutPressed() async {

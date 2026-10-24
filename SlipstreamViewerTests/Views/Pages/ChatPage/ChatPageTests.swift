@@ -1826,6 +1826,18 @@ struct ChatPageTests {
     expectNoDifference(link.calls, [.unlink(folder: "/w", replacing: "g1")])
   }
 
+  @Test func closingALinkedTabWhileCapturesAreUnavailableMovesTheLinkOffOnTheNextGoodRead() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    model.capturesArrived(nil)
+
+    await model.closeTabTapped(Self.saved)
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g2")])
+  }
+
   @Test func closingATabWhileItConnectsMovesTheLinkOff() async {
     let model = await openWindow(
       records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
