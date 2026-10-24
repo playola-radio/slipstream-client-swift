@@ -823,7 +823,7 @@ struct ChatPageTests {
     await model.tabSelected(UUID(50))
     await send(model, "two")
 
-    await model.stopTabs(in: "/a")
+    _ = await model.stopTabs(in: "/a")
 
     #expect(model.tabs.ids == [UUID(60)])
     #expect(agent.shutdowns(0) == 0)

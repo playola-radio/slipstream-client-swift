@@ -41,6 +41,13 @@ struct WorkspaceClientTests {
     )
   }
 
+  @Test func failureWithoutOutputNamesTheExitStatus() {
+    expectNoDifference(
+      WorkspaceClient.outcome(output: "", status: 9),
+      WorkspaceOutcome(workspacePath: nil, failureText: "slipstream exited with status 9.")
+    )
+  }
+
   @Test func failureTailIsCappedAtTwelveLines() {
     let output = (1...20).map { "line \($0)" }.joined(separator: "\n")
 
@@ -48,5 +55,13 @@ struct WorkspaceClientTests {
       WorkspaceClient.outcome(output: output, status: 1).failureText,
       (9...20).map { "line \($0)" }.joined(separator: "\n")
     )
+  }
+
+  @Test func commandReturnsWhenItsBackgroundSetupKeepsTheOutputPipeOpen() throws {
+    let result = try WorkspaceClient.run(
+      "/bin/sh", ["-c", "yes setup-output &"], environment: ProcessInfo.processInfo.environment)
+
+    #expect(result.status == 0)
+    #expect(result.output.utf8.count <= 65_536)
   }
 }

@@ -2989,7 +2989,7 @@ extension ChangeStreamPageTests {
     create: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() },
     archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() }
   ) -> WorkspaceClient {
-    WorkspaceClient(managedRoot: Self.managedRoot, chooseRepository: { choose }, create: create, archive: archive)
+    WorkspaceClient(managedRoot: { Self.managedRoot }, chooseRepository: { choose }, create: create, archive: archive)
   }
 
   nonisolated func listWorkspace(_ state: CaptureState = .recording, reason: String? = nil) {
@@ -3194,5 +3194,20 @@ extension ChangeStreamPageTests {
     #expect(model.isWorkspaceFailurePresented)
     #expect(model.workspaceFailureTitle == "Couldn't archive the workspace")
     #expect(model.workspaceFailureText == "slipstream: the workspace has uncommitted or untracked changes.")
+  }
+
+  @Test func refusedArchiveRestoresEachDraft() async throws {
+    listWorkspace()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
+      WorkspaceOutcome(failureText: "refused")
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let tab = try #require(model.chat.selectedTab)
+    tab.draft = "Keep this draft"
+
+    await model.archiveConfirmed()
+
+    #expect(model.chat.selectedTab?.draft == "Keep this draft")
   }
 }

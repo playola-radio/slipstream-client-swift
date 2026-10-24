@@ -218,14 +218,22 @@ final class ChatPageModel: ViewModel {
 
   /// Stops every agent in `folder` and returns once they have all exited. The
   /// conversations are kept: showing the folder again reopens them.
-  func stopTabs(in folder: String) async {
+  func stopTabs(in folder: String) async -> [UUID: String] {
     let stopping = records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
+    let drafts = Dictionary(uniqueKeysWithValues: stopping.map { ($0.id, $0.draft) })
     await withTaskGroup { group in
       for tab in stopping {
         group.addTask { await tab.close() }
       }
     }
     for tab in stopping { tabs[id: tab.id] = nil }
+    return drafts
+  }
+
+  func restoreTabs(in folder: String, drafts: [UUID: String]) {
+    for (id, draft) in drafts where records[id: id]?.folder == folder {
+      tabs[id: id]?.draft = draft
+    }
   }
 
   func forgetTabs(in folder: String) {

@@ -93,6 +93,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
+  @ObservationIgnored private var pendingPreferredRoot: String?
+  @ObservationIgnored private var managedWorkspaceRoot: URL?
   @ObservationIgnored private var refreshGeneration = 0
   @ObservationIgnored private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
@@ -391,8 +393,8 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
   var isArchiveWorkspaceShown: Bool {
-    guard let selectedFolder else { return false }
-    let root = URL(filePath: Self.normalizedFolder(workspace.managedRoot.path)).pathComponents
+    guard let selectedFolder, let managedWorkspaceRoot else { return false }
+    let root = URL(filePath: Self.normalizedFolder(managedWorkspaceRoot.path)).pathComponents
     let folder = URL(filePath: selectedFolder).pathComponents
     return folder.count == root.count + 2 && folder.starts(with: root)
   }
@@ -451,6 +453,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func viewAppeared() async {
     isShown = true
+    managedWorkspaceRoot = await workspace.managedRoot()
     chatWorkspaceMayHaveChanged()
     chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
     if selectedSession != nil, watchTask?.isCancelled ?? true {
@@ -497,10 +500,11 @@ final class ChangeStreamPageModel: ViewModel {
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
     chat.workspaceChanged(folder: nil, emptyText: nil)
-    await chat.stopTabs(in: folder)
+    let drafts = await chat.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
     if let failure = outcome.failureText {
       chat.workspaceChanged(folder: folder, emptyText: nil)
+      chat.restoreTabs(in: folder, drafts: drafts)
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
@@ -688,6 +692,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func loadSessions(preferring preferredRoot: String? = nil) async {
+    if let preferredRoot { pendingPreferredRoot = Self.normalizedFolder(preferredRoot) }
     sessionsGeneration += 1
     refreshGeneration += 1
     let generation = sessionsGeneration
@@ -793,9 +798,10 @@ final class ChangeStreamPageModel: ViewModel {
         let session = sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
       }
-      if let preferredRoot, generation == sessionsGeneration,
-        let session = sessions.first(where: { $0.root == Self.normalizedFolder(preferredRoot) }) {
+      if let pendingPreferredRoot, generation == sessionsGeneration,
+        let session = sessions.first(where: { $0.root == pendingPreferredRoot }) {
         _ = select(session.id)
+        self.pendingPreferredRoot = nil
       }
     } catch {
       guard generation == sessionsGeneration else {

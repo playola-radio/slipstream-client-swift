@@ -11,7 +11,7 @@ struct WorkspaceOutcome: Equatable, Sendable {
 /// Runs `slipstream workspace create|archive`, which makes, sets up, records and archives
 /// git worktree workspaces under `~/slipstream/workspaces`.
 struct WorkspaceClient: Sendable {
-  var managedRoot: URL
+  var managedRoot: @Sendable () async -> URL
   var chooseRepository: @MainActor @Sendable () async -> URL?
   var create: @Sendable (_ repository: URL, _ store: String) async -> WorkspaceOutcome
   var archive: @Sendable (_ workspace: URL, _ store: String) async -> WorkspaceOutcome
@@ -34,14 +34,20 @@ extension WorkspaceClient {
     let tail = lines
       .filter { !$0.hasPrefix(pathPrefix) && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
       .suffix(failureLineLimit)
-    return WorkspaceOutcome(workspacePath: path, failureText: tail.joined(separator: "\n"))
+    return WorkspaceOutcome(
+      workspacePath: path,
+      failureText: tail.isEmpty ? "slipstream exited with status \(status)." : tail.joined(separator: "\n")
+    )
   }
 }
 
 extension WorkspaceClient: DependencyKey {
   static var liveValue: Self {
     Self(
-      managedRoot: managedRoot(environment: ProcessInfo.processInfo.environment),
+      managedRoot: {
+        let environment = (try? await AgentEnvironmentClient.loginEnvironment()) ?? ProcessInfo.processInfo.environment
+        return managedRoot(environment: environment)
+      },
       chooseRepository: {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -58,7 +64,7 @@ extension WorkspaceClient: DependencyKey {
 
   static var testValue: Self {
     Self(
-      managedRoot: URL(filePath: "/tmp/slipstream-test/workspaces"),
+      managedRoot: { URL(filePath: "/tmp/slipstream-test/workspaces") },
       chooseRepository: unimplemented("WorkspaceClient.chooseRepository", placeholder: nil),
       create: unimplemented("WorkspaceClient.create", placeholder: WorkspaceOutcome()),
       archive: unimplemented("WorkspaceClient.archive", placeholder: WorkspaceOutcome())
@@ -68,12 +74,9 @@ extension WorkspaceClient: DependencyKey {
   private static let outputLimit = 65_536
 
   private static func runSlipstream(_ arguments: [String]) async -> WorkspaceOutcome {
-    @Dependency(\.agentEnvironment) var agentEnvironment
     let variables: [String: String]
     do {
-      variables = try await agentEnvironment.resolve().variables
-    } catch let error as AgentEnvironmentError {
-      return WorkspaceOutcome(failureText: error.message)
+      variables = try await AgentEnvironmentClient.loginEnvironment()
     } catch {
       return WorkspaceOutcome(failureText: error.localizedDescription)
     }
@@ -99,7 +102,7 @@ extension WorkspaceClient: DependencyKey {
   /// Runs a command to completion with stdout and stderr merged, keeping the last
   /// `outputLimit` bytes. Stops reading once it has exited and its output is drained, so a
   /// background job started by a setup script can't hold the pipe open.
-  private static func run(
+  static func run(
     _ executable: String, _ arguments: [String], environment: [String: String]
   ) throws -> (output: String, status: Int32) {
     let process = Process()
@@ -115,6 +118,7 @@ extension WorkspaceClient: DependencyKey {
 
     let descriptor = pipe.fileHandleForReading.fileDescriptor
     var output = Data()
+    var outputAfterExit = 0
     var buffer = [UInt8](repeating: 0, count: 65_536)
     while true {
       let hasExited = !process.isRunning
@@ -126,6 +130,10 @@ extension WorkspaceClient: DependencyKey {
         if count <= 0 { break }
         output.append(contentsOf: buffer[..<count])
         if output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
+        if hasExited {
+          outputAfterExit += count
+          if outputAfterExit >= outputLimit { break }
+        }
       } else if ready == 0 && hasExited {
         break
       }
