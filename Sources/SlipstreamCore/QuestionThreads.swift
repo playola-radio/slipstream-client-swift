@@ -17,6 +17,7 @@ public struct QuestionTurn: Equatable, Sendable {
     case waiting
     case answered
     case notDelivered
+    case resending
   }
 
   public let questionID: String
@@ -25,10 +26,11 @@ public struct QuestionTurn: Equatable, Sendable {
   public let queuedAtMs: Int64
   public var answer: QuestionAnswer?
   public var isDropped: Bool
+  public var isMoved: Bool
 
   public init(
     questionID: String, requestID: String, text: String, queuedAtMs: Int64, answer: QuestionAnswer? = nil,
-    isDropped: Bool = false
+    isDropped: Bool = false, isMoved: Bool = false
   ) {
     self.questionID = questionID
     self.requestID = requestID
@@ -36,11 +38,13 @@ public struct QuestionTurn: Equatable, Sendable {
     self.queuedAtMs = queuedAtMs
     self.answer = answer
     self.isDropped = isDropped
+    self.isMoved = isMoved
   }
 
   public var status: Status {
     if answer != nil { return .answered }
-    return isDropped ? .notDelivered : .waiting
+    if isDropped { return .notDelivered }
+    return isMoved ? .resending : .waiting
   }
 }
 
@@ -60,6 +64,7 @@ public struct QuestionThreads: Equatable, Sendable {
   public private(set) var threads: IdentifiedArrayOf<QuestionThread> = []
   private var rootByQuestionID: [String: String] = [:]
   private var undispatchedQuestionIDs: Set<String> = []
+  private var queuedSinceResumeIDs: Set<String> = []
 
   public init() {}
 
@@ -85,26 +90,40 @@ public struct QuestionThreads: Equatable, Sendable {
         threads.append(QuestionThread(id: question.questionID, source: question.source, turns: [turn]))
       }
       undispatchedQuestionIDs.insert(question.questionID)
+      queuedSinceResumeIDs.insert(question.questionID)
     case .questionDispatchAttempted(let attempt):
       undispatchedQuestionIDs.remove(attempt.questionID)
+      updateTurn(attempt.questionID) { $0.isMoved = false }
+    case .agentUnlinked(let unlinked):
+      guard unlinked.reason == "unlinked" else { return }
+      for thread in threads {
+        for turn in thread.turns where turn.answer == nil && queuedSinceResumeIDs.contains(turn.questionID) {
+          undispatchedQuestionIDs.insert(turn.questionID)
+          updateTurn(turn.questionID) { $0.isMoved = true }
+        }
+      }
     case .sessionResumed:
       for questionID in undispatchedQuestionIDs {
-        guard let rootID = rootByQuestionID[questionID],
-          let index = threads[id: rootID]?.turns.firstIndex(where: { $0.questionID == questionID })
-        else { continue }
-        threads[id: rootID]?.turns[index].isDropped = true
+        updateTurn(questionID) { $0.isDropped = true }
       }
       undispatchedQuestionIDs.removeAll()
+      queuedSinceResumeIDs.removeAll()
     case .questionAnswered(let answer):
-      guard
-        let rootID = rootByQuestionID[answer.questionID],
-        let index = threads[id: rootID]?.turns.firstIndex(where: { $0.questionID == answer.questionID }),
-        threads[id: rootID]?.turns[index].answer == nil
-      else { return }
-      threads[id: rootID]?.turns[index].answer = QuestionAnswer(
-        seq: event.seq, text: answer.text, answeredAtMs: answer.answeredAtMs)
+      updateTurn(answer.questionID) { turn in
+        guard turn.answer == nil else { return }
+        turn.answer = QuestionAnswer(seq: event.seq, text: answer.text, answeredAtMs: answer.answeredAtMs)
+      }
     default:
       break
     }
+  }
+
+  private mutating func updateTurn(_ questionID: String, _ body: (inout QuestionTurn) -> Void) {
+    guard let rootID = rootByQuestionID[questionID],
+      let index = threads[id: rootID]?.turns.firstIndex(where: { $0.questionID == questionID }),
+      var turn = threads[id: rootID]?.turns[index]
+    else { return }
+    body(&turn)
+    threads[id: rootID]?.turns[index] = turn
   }
 }

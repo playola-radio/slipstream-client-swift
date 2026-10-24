@@ -78,6 +78,18 @@ struct EventDecodingTests {
     expectNoDifference(try SlipstreamEvent.decode(fixture("session-resumed")).payload, .sessionResumed)
   }
 
+  @Test func agentUnlinked() throws {
+    let json = #"{"id":"9","seq":"9","type":"slipstream.agent.unlinked.v1","data":{"session_id":"s1","binding_generation":"3","reason":"unlinked"}}"#
+    expectNoDifference(try SlipstreamEvent.decode(Data(json.utf8)).payload, .agentUnlinked(AgentUnlinked(reason: "unlinked")))
+  }
+
+  @Test func agentUnlinkedWithoutReasonThrows() throws {
+    let json = #"{"id":"9","seq":"9","type":"slipstream.agent.unlinked.v1","data":{"session_id":"s1"}}"#
+    #expect(throws: EventDecodingError(seq: "9", type: "slipstream.agent.unlinked.v1")) {
+      try SlipstreamEvent.decode(Data(json.utf8))
+    }
+  }
+
   @Test func baselineIsRecordedWithoutRow() throws {
     expectNoDifference(try SlipstreamEvent.decode(fixture("file-baselined")).payload, .recordedWithoutRow)
   }
