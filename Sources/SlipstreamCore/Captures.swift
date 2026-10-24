@@ -55,11 +55,15 @@ public struct CaptureBinding: Decodable, Equatable, Sendable {
   public var generation: String
   public var state: BindingState
   public var reason: String?
+  public var harnessSessionID: String?
 
-  public init(generation: String, state: BindingState, reason: String? = nil) {
+  public init(
+    generation: String, state: BindingState, reason: String? = nil, harnessSessionID: String? = nil
+  ) {
     self.generation = generation
     self.state = state
     self.reason = reason
+    self.harnessSessionID = harnessSessionID
   }
 
   public init(from decoder: any Decoder) throws {
@@ -67,10 +71,19 @@ public struct CaptureBinding: Decodable, Equatable, Sendable {
     generation = try container.decode(String.self, forKey: .generation)
     state = BindingState(rawValue: try container.decode(String.self, forKey: .state))
     reason = try container.decode(String?.self, forKey: .reason)
+    harnessSessionID = try container.decodeIfPresent(String.self, forKey: .harnessSessionID)
+  }
+
+  /// A revoked link keeps its row and its old chat id, so only these states mean "linked".
+  public var isLive: Bool { state == .connected || state == .setupPending }
+
+  public func isLinked(toChat id: UUID) -> Bool {
+    isLive && harnessSessionID.flatMap(UUID.init(uuidString:)) == id
   }
 
   enum CodingKeys: String, CodingKey {
     case generation = "binding_generation", state, reason
+    case harnessSessionID = "harness_session_id"
   }
 }
 

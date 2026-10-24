@@ -228,47 +228,47 @@ struct CaptureStatusTests {
   }
 
   @Test func askIsAllowedOnlyWhenRecordingLinkedAndReady() {
-    #expect(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .connected) == nil)
+    #expect(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .connected, isAppTabLinked: false) == nil)
   }
 
   @Test func askNoticeFollowsThePrecedence() {
     let unknown = "Capture state is unknown, so questions are disabled. Refresh to check again."
     let notRecording = "This workspace isn't recording, so its chat can't receive questions."
-    let noChat = "No agent chat is linked to this workspace. Run `slipstream attach` inside the agent chat to link one."
+    let noChat = "No chat is connected yet. Send a message in a chat tab to connect it."
     let waiting = "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
 
     expectNoDifference(
-      CaptureStatus(availability: .failed, capture: nil).askNotice(agentConnection: .connected), unknown)
+      CaptureStatus(availability: .failed, capture: nil).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
     expectNoDifference(
-      CaptureStatus(availability: .unavailableFromReader, capture: nil).askNotice(agentConnection: .connected), unknown)
+      CaptureStatus(availability: .unavailableFromReader, capture: nil).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
     expectNoDifference(
-      CaptureStatus(availability: .loading, capture: nil).askNotice(agentConnection: .connected), unknown)
-    expectNoDifference(Self.status(.unknown("hibernating")).askNotice(agentConnection: .connected), unknown)
+      CaptureStatus(availability: .loading, capture: nil).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
+    expectNoDifference(Self.status(.unknown("hibernating")).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
     expectNoDifference(
       Self.status(.stopped, reason: "archived", binding: CaptureBinding(generation: "1", state: .unknown("paused")))
-        .askNotice(agentConnection: .connected),
+        .askNotice(agentConnection: .connected, isAppTabLinked: false),
       unknown)
     expectNoDifference(
       CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil)
-        .askNotice(agentConnection: .connected),
+        .askNotice(agentConnection: .connected, isAppTabLinked: false),
       notRecording)
     expectNoDifference(
-      Self.status(.stopped, reason: "archived", binding: Self.linked).askNotice(agentConnection: .connected),
+      Self.status(.stopped, reason: "archived", binding: Self.linked).askNotice(agentConnection: .connected, isAppTabLinked: false),
       notRecording)
-    expectNoDifference(Self.status(.recording).askNotice(agentConnection: .connected), noChat)
+    expectNoDifference(Self.status(.recording).askNotice(agentConnection: .connected, isAppTabLinked: false), noChat)
     expectNoDifference(
       Self.status(.recording, binding: CaptureBinding(generation: "1", state: .unlinked))
-        .askNotice(agentConnection: .connected),
+        .askNotice(agentConnection: .connected, isAppTabLinked: false),
       noChat)
     expectNoDifference(
       Self.status(.recording, binding: CaptureBinding(generation: "1", state: .unavailable, reason: "transcript-missing"))
-        .askNotice(agentConnection: .connected),
+        .askNotice(agentConnection: .connected, isAppTabLinked: false),
       "The linked chat is unavailable (chat transcript missing), so questions are disabled.")
     expectNoDifference(
       Self.status(.recording, binding: CaptureBinding(generation: "1", state: .setupPending))
-        .askNotice(agentConnection: .connected),
+        .askNotice(agentConnection: .connected, isAppTabLinked: false),
       waiting)
-    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .setupPending), waiting)
-    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported), waiting)
+    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .setupPending, isAppTabLinked: false), waiting)
+    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported, isAppTabLinked: false), waiting)
   }
 }

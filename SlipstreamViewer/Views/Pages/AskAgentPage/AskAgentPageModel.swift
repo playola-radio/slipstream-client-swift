@@ -15,11 +15,15 @@ final class AskAgentPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(sessionID: String, context: QuestionContext, agentConnection: AgentConnection, captureStatus: CaptureStatus) {
+  init(
+    sessionID: String, context: QuestionContext, agentConnection: AgentConnection, captureStatus: CaptureStatus,
+    isAppTabLinked: Bool
+  ) {
     self.sessionID = sessionID
     self.context = context
     self.agentConnection = agentConnection
     self.captureStatus = captureStatus
+    self.isAppTabLinked = isAppTabLinked
     bindingGeneration = captureStatus.capture?.binding?.generation
     super.init()
   }
@@ -31,6 +35,7 @@ final class AskAgentPageModel: ViewModel {
   let context: QuestionContext
   private(set) var agentConnection: AgentConnection
   private(set) var captureStatus: CaptureStatus
+  private(set) var isAppTabLinked: Bool
   private(set) var draft = ""
   private(set) var customQuestions: [String] = []
   private(set) var selectedPreset = defaults[0]
@@ -66,7 +71,7 @@ final class AskAgentPageModel: ViewModel {
   var contextText: String { "\(context.path) · Lines \(context.lineStart)–\(context.lineEnd)" }
   var options: [String] { Self.defaults + customQuestions }
 
-  var askNoticeText: String? { captureStatus.askNotice(agentConnection: agentConnection) }
+  var askNoticeText: String? { captureStatus.askNotice(agentConnection: agentConnection, isAppTabLinked: isAppTabLinked) }
 
   // MARK: - View Helpers
 
@@ -186,8 +191,9 @@ final class AskAgentPageModel: ViewModel {
     agentConnection = connection
   }
 
-  func captureChanged(_ status: CaptureStatus) {
+  func captureChanged(_ status: CaptureStatus, isAppTabLinked: Bool) {
     captureStatus = status
+    self.isAppTabLinked = isAppTabLinked
     bindingGeneration = bindingGeneration ?? status.capture?.binding?.generation
   }
 

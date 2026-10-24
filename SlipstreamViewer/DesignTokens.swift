@@ -565,6 +565,21 @@ enum DesignTokens {
       static func titleColor(isSelected: Bool, isBold: Bool) -> Color {
         isSelected || isBold ? primary : secondary
       }
+
+      static func link(_ icon: ChatLinkIcon) -> Icons.Icon {
+        switch icon {
+        case .connected: Icons.Icon(assetName: "Link", size: 12, color: Color(hex: 0x6CB6FF))
+        case .waiting: Icons.Icon(assetName: "Link", size: 12, color: Color(hex: 0xD8BE89))
+        case .failed: Icons.Icon(assetName: "Unlink", size: 12, color: Color(hex: 0xF0A070))
+        }
+      }
+    }
+
+    enum OutsideChat {
+      static let gap: CGFloat = 6
+      static let icon = Icons.Icon(assetName: "Link", size: 12, color: secondary)
+      static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let color = secondary
     }
 
     enum NewTab {

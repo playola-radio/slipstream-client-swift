@@ -18,6 +18,7 @@ struct ChatPageTests {
   nonisolated static let saved = UUID(uuidString: "4BAD416C-1D04-4063-9E76-61EBB936AE06")!
 
   let agent = AgentFake()
+  let link = ChatLinkFake()
   let clock = TestClock()
   let elapsed = LockIsolated<TimeInterval>(0)
   let copied = LockIsolated<[String]>([])
@@ -28,6 +29,7 @@ struct ChatPageTests {
       $0.agentEnvironment = agent.environmentClient
       $0.agentProcess = agent.processClient
       $0.transcripts = agent.transcriptClient
+      $0.chatLink = link.client
       $0.continuousClock = clock
       $0.uuid = .incrementing
       $0.date = DateGenerator { [elapsed] in Self.start.addingTimeInterval(elapsed.value) }
@@ -1530,5 +1532,554 @@ struct ChatPageTests {
 
     let code = row.runs.filter { $0.inlinePresentationIntent?.contains(.code) == true }
     expectNoDifference(code.map { String(row[$0.range].characters) }, ["ls"])
+  }
+
+  // MARK: - Linking
+
+  nonisolated static let outside = UUID(uuidString: "0D7C40A5-6E4B-4E0B-9F43-0F3A1A2B3C4D")!
+
+  func captures(_ binding: CaptureBinding?) -> [CaptureSummary] {
+    [CaptureSummary(sessionID: "capture-1", root: "/w", state: .recording, binding: binding)]
+  }
+
+  func binding(_ state: BindingState, chat: UUID = saved, generation: String = "g1") -> CaptureBinding {
+    CaptureBinding(generation: generation, state: state, harnessSessionID: chat.uuidString.lowercased())
+  }
+
+  /// Opens "/w" with these tabs, each with a message when it has a transcript, and delivers the
+  /// first capture read, which is the moment a window opens.
+  func openWindow(
+    records: [ChatTabRecord], withMessage: [UUID], captures: [CaptureSummary]
+  ) async -> ChatPageModel {
+    for id in withMessage { agent.setTranscript(id, .found([.title("Old")])) }
+    let model = makeModel(records: records)
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    model.capturesArrived(captures)
+    await Task.megaYield()
+    return model
+  }
+
+  func refresh(_ model: ChatPageModel, to next: [CaptureSummary], count: LockIsolated<Int>? = nil) {
+    model.onLinkChanged = { [weak model] in
+      count?.withValue { $0 += 1 }
+      model?.capturesArrived(next)
+    }
+  }
+
+  func tab(_ model: ChatPageModel, _ id: UUID) throws -> ChatTabModel {
+    try #require(model.tabs[id: id])
+  }
+
+  @Test func linkedTabShowsConnectedIcon() async throws {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    let tab = try tab(model, Self.saved)
+    #expect(model.linkIcon(for: tab) == .connected)
+    #expect(model.linkHoverTitle(for: tab) == "Connected to Stream")
+    #expect(model.linkHoverText(for: tab) == nil)
+    #expect(model.linkHelpText(for: tab) == "Connected to Stream")
+    #expect(model.outsideChatText == nil)
+    #expect(model.isAppTabLinked)
+  }
+
+  @Test func setupPendingShowsWaitingIcon() async throws {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.setupPending)))
+
+    let tab = try tab(model, Self.saved)
+    #expect(model.linkIcon(for: tab) == .waiting)
+    #expect(model.linkHoverTitle(for: tab) == "Connected to Stream")
+    #expect(
+      model.linkHoverText(for: tab)
+        == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+    #expect(
+      model.linkHelpText(for: tab)
+        == "Connected to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+    #expect(model.isAppTabLinked)
+  }
+
+  @Test func unlinkedWithOldIDShowsNoIcon() async throws {
+    link.setOutcomes(.skipped)
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.unlinked)))
+
+    let tab = try tab(model, Self.saved)
+    #expect(model.linkIcon(for: tab) == nil)
+    #expect(model.linkHoverTitle(for: tab) == nil)
+    #expect(model.linkHelpText(for: tab) == nil)
+    #expect(model.outsideChatText == nil)
+    #expect(model.isAppTabLinked == false)
+  }
+
+  @Test func outsideChatShowsLabelAndNoIcon() async throws {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.outsideChatText == "Stream: outside chat")
+    #expect(model.isAppTabLinked == false)
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func firstTabWaitsWhenNothingLinkedAndNoMessage() async throws {
+    let model = await openWindow(records: [record(), record(UUID(50))], withMessage: [], captures: captures(nil))
+
+    let first = try tab(model, Self.saved)
+    #expect(model.linkIcon(for: first) == .waiting)
+    #expect(model.linkHoverTitle(for: first) == "Connected to Stream")
+    #expect(
+      model.linkHoverText(for: first)
+        == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+    #expect(model.linkIcon(for: try tab(model, UUID(50))) == nil)
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func nothingShowsBeforeCapturesAreKnown() throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.outsideChatText == nil)
+  }
+
+  @Test(arguments: [BindingState.unavailable, .unknown("paused")])
+  func unavailableAndUnknownShowNothing(state: BindingState) async throws {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [UUID(50)], captures: captures(binding(state)))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.linkIcon(for: try tab(model, UUID(50))) == nil)
+    #expect(model.outsideChatText == nil)
+    #expect(model.isAppTabLinked == false)
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func windowOpenLinksFirstTabWithMessage() async {
+    _ = await openWindow(
+      records: [record(), record(UUID(50)), record(UUID(51))], withMessage: [UUID(50), UUID(51)],
+      captures: captures(nil))
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: nil)])
+  }
+
+  @Test func windowOpenLinksWhenTheCapturesArriveBeforeTheFolder() async {
+    agent.setTranscript(Self.saved, .found([.title("Old")]))
+    let model = makeModel(records: [record()])
+    model.capturesArrived(captures(nil))
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
+  }
+
+  @Test func theLiveCaptureSpeaksForAFolderRecordedBefore() async throws {
+    let older = CaptureSummary(
+      sessionID: "capture-0", root: "/w", state: .stopped, binding: binding(.unlinked, generation: "g0"))
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: [older] + captures(binding(.connected)))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == .connected)
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func windowOpenLinksOverAnUnlinkedBinding() async {
+    _ = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.unlinked)))
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
+  }
+
+  @Test func turnEndingWhileNothingLinkedLinks() async {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    #expect(link.calls.isEmpty)
+
+    await send(model, "hi")
+    await line(Line.result())
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(0), replacing: nil)])
+  }
+
+  @Test func turnEndingWhileLinkedDoesNothing() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    await send(model, "hi")
+    await line(Line.result())
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func ordinaryRefreshNeverStartsAutoLink() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    model.capturesArrived(captures(binding(.unlinked)))
+    await Task.megaYield()
+    model.capturesArrived(captures(nil))
+    await Task.megaYield()
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func retryLaterWaitsForNextTurnEnd() async throws {
+    link.setOutcomes(.retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    await line(Line.result())
+    #expect(link.calls.count == 1)
+    #expect(model.linkIcon(for: try tab(model, UUID(0))) == nil)
+
+    model.capturesArrived(captures(nil))
+    await clock.advance(by: .seconds(60))
+    #expect(link.calls.count == 1)
+
+    await send(model, "again")
+    await line(Line.result())
+    #expect(link.calls.count == 2)
+  }
+
+  @Test func connectPassesSeenGeneration() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)],
+      captures: captures(binding(.connected, generation: "g7")))
+
+    await model.connectTapped(UUID(50))
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g7")])
+  }
+
+  @Test func connectWhileNothingLinkedPassesNoGeneration() async {
+    link.setOutcomes(.retryLater)
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.unlinked)))
+
+    await model.connectTapped(UUID(50))
+
+    expectNoDifference(
+      link.calls,
+      [
+        .link(folder: "/w", tabID: Self.saved, replacing: nil),
+        .link(folder: "/w", tabID: UUID(50), replacing: nil),
+      ])
+  }
+
+  @Test func connectOverOutsideChatPullsItIn() async {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved],
+      captures: captures(binding(.connected, chat: Self.outside, generation: "g3")))
+
+    await model.connectTapped(Self.saved)
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: "g3")])
+  }
+
+  @Test func connectDisabledWithoutMessage() async throws {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    #expect(model.isConnectEnabled(try tab(model, Self.saved)))
+    #expect(model.isConnectEnabled(try tab(model, UUID(50))) == false)
+    #expect(model.connectText == "Connect to Stream")
+    #expect(model.closeTabText == "Close Tab")
+    #expect(model.connectHintText(for: try tab(model, Self.saved)) == nil)
+    #expect(model.connectHintText(for: try tab(model, UUID(50))) == "Send this chat a message first.")
+
+    await model.connectTapped(UUID(50))
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func skippedShowsRefreshedState() async throws {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.setOutcomes(.skipped)
+    refresh(model, to: captures(binding(.connected, chat: Self.outside, generation: "g2")))
+
+    await model.connectTapped(UUID(50))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.linkIcon(for: try tab(model, UUID(50))) == nil)
+    #expect(model.outsideChatText == "Stream: outside chat")
+  }
+
+  @Test func closingLinkedTabMovesLinkToFirstTabWithMessage() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50)), record(UUID(51))], withMessage: [Self.saved, UUID(51)],
+      captures: captures(binding(.connected)))
+
+    await model.closeTabTapped(Self.saved)
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(51), replacing: "g1")])
+  }
+
+  @Test func closingWaitingLinkedTabMovesLinkToo() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)],
+      captures: captures(binding(.setupPending)))
+
+    await model.closeTabTapped(Self.saved)
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g1")])
+  }
+
+  @Test func closingLinkedTabWithNoOtherMessageUnlinks() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    await model.closeTabTapped(Self.saved)
+
+    expectNoDifference(link.calls, [.unlink(folder: "/w", replacing: "g1")])
+  }
+
+  @Test func closingALinkedTabWhileCapturesAreUnavailableMovesTheLinkOffOnTheNextGoodRead() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    model.capturesArrived(nil)
+
+    await model.closeTabTapped(Self.saved)
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g2")])
+  }
+
+  @Test func closingATabWhileItConnectsMovesTheLinkOff() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.hold()
+    let connecting = Task { await model.connectTapped(UUID(50)) }
+    await Task.megaYield()
+
+    await model.closeTabTapped(UUID(50))
+    refresh(model, to: captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    link.release()
+    await connecting.value
+    await Task.megaYield()
+
+    expectNoDifference(
+      link.calls,
+      [
+        .link(folder: "/w", tabID: UUID(50), replacing: "g1"),
+        .link(folder: "/w", tabID: Self.saved, replacing: "g2"),
+      ]
+    )
+  }
+
+  @Test func aLinkLeftOnAClosedTabMovesOffOnTheNextGoodRead() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.hold()
+    let connecting = Task { await model.connectTapped(UUID(50)) }
+    await Task.megaYield()
+    await model.closeTabTapped(UUID(50))
+    model.onLinkChanged = { [weak model] in model?.capturesArrived(nil) }
+    link.release()
+    await connecting.value
+    await Task.megaYield()
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g1")])
+
+    model.capturesArrived(captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
+  }
+
+  @Test func closingATabWhoseAttachLinksButReportsSetupIncompleteMovesTheLinkOff() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.setOutcomes(.refused(.setupIncomplete("this chat is linked, but setup is incomplete: no hook.")))
+    link.hold()
+    let connecting = Task { await model.connectTapped(UUID(50)) }
+    await Task.megaYield()
+
+    await model.closeTabTapped(UUID(50))
+    refresh(model, to: captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    link.release()
+    await connecting.value
+    await Task.megaYield()
+
+    expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
+  }
+
+  @Test func closingUnlinkedTabChangesNothing() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+
+    await model.closeTabTapped(UUID(50))
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test(
+    arguments: [
+      (
+        LinkRefusal.slipstreamTooOld,
+        "This version of Slipstream can't connect chats run in the app. Update Slipstream, then right-click the tab and choose Connect to Stream to try again."
+      ),
+      (
+        .slotsFull,
+        "Slipstream is already connected to 10 chats, its limit. Unlink one with `slipstream unlink`, then right-click the tab and choose Connect to Stream to try again."
+      ),
+      (
+        .setupIncomplete("this chat is linked, but setup is incomplete: the hook didn't install."),
+        "Slipstream said: this chat is linked, but setup is incomplete: the hook didn't install. Right-click the tab and choose Connect to Stream to try again."
+      ),
+      (
+        .other("the daemon is busy."),
+        "Slipstream said: the daemon is busy. Right-click the tab and choose Connect to Stream to try again."
+      ),
+    ])
+  func refusalShowsFailedIconWithReasonText(refusal: LinkRefusal, text: String) async throws {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    link.setOutcomes(.refused(refusal))
+
+    await model.connectTapped(Self.saved)
+
+    let tab = try tab(model, Self.saved)
+    #expect(model.linkIcon(for: tab) == .failed)
+    #expect(model.linkHoverTitle(for: tab) == "Couldn't connect to Stream")
+    #expect(model.linkHoverText(for: tab) == text)
+  }
+
+  @Test func autoLinkRefusalShowsFailedIcon() async throws {
+    link.setOutcomes(.refused(.slotsFull))
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(nil))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == .failed)
+  }
+
+  @Test func refusalClearsWhenTabReadsConnected() async throws {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    link.setOutcomes(.refused(.slotsFull))
+    await model.connectTapped(Self.saved)
+
+    model.capturesArrived(captures(binding(.connected, generation: "g2")))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == .connected)
+  }
+
+  @Test func setupFailureSurvivesLinkedRefresh() async throws {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    link.setOutcomes(.refused(.setupIncomplete("this chat is linked, but setup is incomplete: no hook.")))
+    refresh(model, to: captures(binding(.setupPending, generation: "g2")))
+
+    await model.connectTapped(Self.saved)
+
+    let tab = try tab(model, Self.saved)
+    #expect(model.linkIcon(for: tab) == .failed)
+    #expect(model.isAppTabLinked)
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    #expect(model.linkIcon(for: tab) == .failed)
+
+    model.capturesArrived(captures(binding(.connected, generation: "g2")))
+    #expect(model.linkIcon(for: tab) == .connected)
+  }
+
+  @Test func failureClearsOnRetryAndOnClose() async throws {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)],
+      captures: captures(binding(.connected, chat: Self.outside)))
+    link.setOutcomes(.refused(.slotsFull), .retryLater, .refused(.slotsFull))
+    await model.connectTapped(Self.saved)
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == .failed)
+
+    await model.connectTapped(Self.saved)
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+
+    await model.connectTapped(UUID(50))
+    let closing = try tab(model, UUID(50))
+    #expect(model.linkIcon(for: closing) == .failed)
+    await model.closeTabTapped(UUID(50))
+    #expect(model.linkIcon(for: closing) == nil)
+  }
+
+  @Test func attachFailureAfterUnlinkLeavesUnlinkedWithFailure() async throws {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.setOutcomes(.refused(.slotsFull))
+    refresh(model, to: captures(binding(.unlinked)))
+
+    await model.connectTapped(UUID(50))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g1")])
+    #expect(model.linkIcon(for: try tab(model, UUID(50))) == .failed)
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.outsideChatText == nil)
+    #expect(model.isAppTabLinked == false)
+  }
+
+  @Test(arguments: [LinkOutcome.linked, .unlinked, .skipped, .retryLater, .refused(.other("no."))])
+  func everyOutcomeRefreshesCaptures(outcome: LinkOutcome) async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+    let refreshes = LockIsolated(0)
+    link.setOutcomes(outcome)
+    refresh(model, to: captures(binding(.connected)), count: refreshes)
+
+    await model.connectTapped(Self.saved)
+
+    #expect(refreshes.value == 1)
+  }
+
+  @Test func closingLinkedTabRefreshesCaptures() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved], captures: captures(binding(.connected)))
+    let refreshes = LockIsolated(0)
+    refresh(model, to: captures(binding(.unlinked)), count: refreshes)
+
+    await model.closeTabTapped(Self.saved)
+
+    #expect(refreshes.value == 1)
+  }
+
+  @Test func linkedIdleTabRestarts() async throws {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    await send(model, "hi")
+    await line(Line.result())
+    #expect(agent.shutdowns(0) == 0)
+
+    await model.connectTapped(Self.saved)
+    await Task.megaYield()
+
+    #expect(agent.shutdowns(0) == 1)
+    #expect(try tab(model, Self.saved).isWorking == false)
+  }
+
+  @Test func linkedTabWithoutProcessDoesNotRestart() async {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+
+    await model.connectTapped(Self.saved)
+    await send(model, "hi")
+
+    #expect(agent.launches.count == 1)
+    #expect(agent.shutdowns(0) == 0)
+  }
+
+  @Test func linkedWhileWorkingRestartsAfterTurnEnds() async throws {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    await send(model, "hi")
+
+    await model.connectTapped(Self.saved)
+    #expect(agent.shutdowns(0) == 0)
+    #expect(try tab(model, Self.saved).isWorking)
+
+    await line(Line.result())
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 1)
+    #expect(try tab(model, Self.saved).projection.items.last?.kind == .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start))
+  }
+
+  @Test func nextSendResumes() async {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    agent.setTranscript(UUID(0), .found([.title("Saying hi")]))
+
+    await line(Line.result())
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 1)
+
+    await send(model, "again")
+    expectNoDifference(agent.launches, [launch(session: .new(UUID(0))), launch(session: .resume(UUID(0)))])
   }
 }

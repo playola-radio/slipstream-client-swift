@@ -129,7 +129,8 @@ struct CaptureStatus: Equatable, Sendable {
     }
   }
 
-  func askNotice(agentConnection: AgentConnection) -> String? {
+  /// `isAppTabLinked`: the link belongs to one of this workspace's chat tabs, not an outside chat.
+  func askNotice(agentConnection: AgentConnection, isAppTabLinked: Bool) -> String? {
     guard case .available = availability else { return Self.unknownNotice }
     if case .unknown = capture?.state { return Self.unknownNotice }
     if case .unknown = capture?.binding?.state { return Self.unknownNotice }
@@ -137,13 +138,16 @@ struct CaptureStatus: Equatable, Sendable {
       return "This workspace isn't recording, so its chat can't receive questions."
     }
     guard let binding = capture.binding, binding.state != .unlinked else {
-      return "No agent chat is linked to this workspace. Run `slipstream attach` inside the agent chat to link one."
+      return "No chat is connected yet. Send a message in a chat tab to connect it."
     }
     if binding.state == .unavailable {
       let reason = binding.reason.map { " (\(Self.wording($0, Self.bindingUnavailableReasons)))" } ?? ""
       return "The linked chat is unavailable\(reason), so questions are disabled."
     }
     guard binding.state == .connected, agentConnection == .connected else {
+      if isAppTabLinked {
+        return "The chat tab connected to this stream hasn't confirmed it can answer yet. It confirms the next time the agent works — send it a message to confirm now."
+      }
       return "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
     }
     return nil

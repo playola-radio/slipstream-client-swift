@@ -2,12 +2,14 @@ import Dependencies
 import Foundation
 import IdentifiedCollections
 import Sharing
+import SlipstreamCore
 
 @MainActor
 @Observable
 final class ChatPageModel: ViewModel {
   // MARK: - Dependencies
 
+  @ObservationIgnored @Dependency(\.chatLink) var chatLink
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.uuid) var uuid
 
@@ -32,10 +34,21 @@ final class ChatPageModel: ViewModel {
   private(set) var isComparisonShown = false
   private var isAppActive = true
   private var hoveredTabID: UUID?
+  /// Each folder's binding from the last capture read; `nil` until a read succeeds.
+  private var bindings: [String: CaptureBinding]?
+  private var linkFailures: [UUID: LinkRefusal] = [:]
+  /// The folder just shown: its next capture read is the moment its window opens.
+  private var openingFolder: String?
+  /// Tabs closed while they were connecting, by folder: if the next capture read shows one linked,
+  /// its link moves off. Any outcome counts, since a refused attach can still have linked.
+  private var strandedLinks: [UUID: String] = [:]
+
+  /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
+  @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
 
   var visibleTabs: [ChatTabModel] {
     guard let folder else { return [] }
-    return records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
+    return tabs(in: folder)
   }
 
   var selectedTab: ChatTabModel? {
@@ -69,7 +82,41 @@ final class ChatPageModel: ViewModel {
   let quitText = "Quit"
   let cancelText = "Cancel"
 
+  let connectText = "Connect to Stream"
+  let closeTabText = "Close Tab"
+
   var noWorkspaceText: String? { folder == nil ? emptyText : nil }
+
+  var outsideChatText: String? {
+    guard let folder, let binding = bindings?[folder], binding.isLive,
+      !tabs(in: folder).contains(where: { binding.isLinked(toChat: $0.id) })
+    else { return nil }
+    return "Stream: outside chat"
+  }
+
+  func linkHoverTitle(for tab: ChatTabModel) -> String? {
+    switch linkIcon(for: tab) {
+    case .connected, .waiting: "Connected to Stream"
+    case .failed: "Couldn't connect to Stream"
+    case nil: nil
+    }
+  }
+
+  func connectHintText(for tab: ChatTabModel) -> String? {
+    isConnectEnabled(tab) ? nil : "Send this chat a message first."
+  }
+
+  /// The icon's tooltip: the hover title, then its explanation on the next line.
+  func linkHelpText(for tab: ChatTabModel) -> String? {
+    guard let title = linkHoverTitle(for: tab) else { return nil }
+    return [title, linkHoverText(for: tab)].compactMap(\.self).joined(separator: "\n")
+  }
+
+  func linkHoverText(for tab: ChatTabModel) -> String? {
+    if let refusal = linkFailures[tab.id] { return Self.text(for: refusal) }
+    guard linkIcon(for: tab) == .waiting else { return nil }
+    return "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now."
+  }
 
   var pickerText: String {
     selectedTab?.pickerText
@@ -97,6 +144,27 @@ final class ChatPageModel: ViewModel {
 
   func isHovered(_ tab: ChatTabModel) -> Bool { hoveredTabID == tab.id }
 
+  func isConnectEnabled(_ tab: ChatTabModel) -> Bool { tab.hasSentMessage }
+
+  /// Blue when connected, amber while it confirms. While nothing is linked and no chat has sent
+  /// a message, the first tab waits: auto-link will pick it.
+  func linkIcon(for tab: ChatTabModel) -> ChatLinkIcon? {
+    if linkFailures[tab.id] != nil { return .failed }
+    let folder = tab.record.folder
+    if let binding = bindings?[folder], binding.isLinked(toChat: tab.id) {
+      return binding.state == .connected ? .connected : .waiting
+    }
+    let strip = tabs(in: folder)
+    guard isUnlinked(folder), strip.first?.id == tab.id, !strip.contains(where: \.hasSentMessage) else { return nil }
+    return .waiting
+  }
+
+  /// For the Ask notice: the link belongs to one of this workspace's tabs.
+  var isAppTabLinked: Bool {
+    guard let folder, let binding = bindings?[folder] else { return false }
+    return tabs(in: folder).contains { binding.isLinked(toChat: $0.id) }
+  }
+
   // MARK: - User Actions
 
   /// Loads the shown tab's history the first time it is shown. Call it again whenever
@@ -123,6 +191,7 @@ final class ChatPageModel: ViewModel {
   func workspaceChanged(folder: String?, emptyText: String?) {
     self.folder = folder
     self.emptyText = emptyText
+    openingFolder = folder
     if let folder {
       for record in records where record.folder == folder && tabs[id: record.id] == nil {
         addModel(for: record.id, needsHistory: true)
@@ -131,6 +200,7 @@ final class ChatPageModel: ViewModel {
     if let folder, visibleTabs.isEmpty {
       addTab(in: folder, model: ChatModelChoice.defaultModel, effort: ChatModelChoice.defaultEffort)
     }
+    windowOpenedIfReady()
   }
 
   func tabHovered(_ id: UUID, isHovering: Bool) {
@@ -157,10 +227,42 @@ final class ChatPageModel: ViewModel {
     await tab.shown()
   }
 
+  /// Called with every capture read; `nil` when the read failed or lists no captures.
+  func capturesArrived(_ captures: [CaptureSummary]?) {
+    guard let captures else {
+      bindings = nil
+      return
+    }
+    let folders = Set(captures.map { ChangeStreamPageModel.normalizedFolder($0.root) })
+    let bindings = Dictionary(uniqueKeysWithValues: folders.compactMap { folder in
+      captures.current(in: folder)?.binding.map { (folder, $0) }
+    })
+    self.bindings = bindings
+    for (id, folder) in strandedLinks {
+      strandedLinks[id] = nil
+      guard let binding = bindings[folder], binding.isLive, binding.isLinked(toChat: id) else { continue }
+      Task { [weak self] in await self?.linkedTabClosed(in: folder, generation: binding.generation) }
+    }
+    linkFailures = linkFailures.filter { id, _ in
+      guard let folder = records[id: id]?.folder, let binding = bindings[folder] else { return true }
+      return !(binding.isLinked(toChat: id) && binding.state == .connected)
+    }
+    windowOpenedIfReady()
+  }
+
+  func connectTapped(_ id: UUID) async {
+    guard let folder, let tab = visibleTabs.first(where: { $0.id == id }), isConnectEnabled(tab) else { return }
+    linkFailures[id] = nil
+    let live = bindings?[folder].flatMap { $0.isLive ? $0 : nil }
+    await linkFinished(await chatLink.link(folder, id, live?.generation), for: id, in: folder)
+  }
+
   func closeTabTapped(_ id: UUID) async {
     let visible = visibleTabs
     guard let folder, let index = visible.firstIndex(where: { $0.id == id }) else { return }
     let tab = visible[index]
+    let linked = bindings?[folder].flatMap { $0.isLinked(toChat: id) ? $0 : nil }
+    linkFailures[id] = nil
     if selectedTab?.id == id {
       let neighbour = index > 0 ? visible[index - 1] : visible.dropFirst().first
       selectedTabIDs[folder] = neighbour?.id
@@ -171,6 +273,11 @@ final class ChatPageModel: ViewModel {
     }
     await tab.close()
     tabs[id: id] = nil
+    if let linked {
+      await linkedTabClosed(in: folder, generation: linked.generation)
+    } else if bindings == nil {
+      strandedLinks[id] = folder
+    }
   }
 
   func closeShortcutPressed() async {
@@ -243,6 +350,69 @@ final class ChatPageModel: ViewModel {
 
   // MARK: - Private Helpers
 
+  private func tabs(in folder: String) -> [ChatTabModel] {
+    records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
+  }
+
+  /// Unknown, `unavailable` and unrecognised bindings are never linked over.
+  private func isUnlinked(_ folder: String) -> Bool {
+    guard let bindings else { return false }
+    guard let binding = bindings[folder] else { return true }
+    return binding.state == .unlinked
+  }
+
+  /// Loads every tab's history first, so the Connect to Stream menu knows which can link.
+  private func firstTabWithMessage(in folder: String) async -> ChatTabModel? {
+    for tab in tabs(in: folder) { await tab.shown() }
+    return tabs(in: folder).first(where: \.hasSentMessage)
+  }
+
+  /// Two auto-links can overlap; `link(replacing: nil)` skips once anything is linked.
+  private func autoLink(in folder: String) async {
+    guard let tab = await firstTabWithMessage(in: folder), isUnlinked(folder) else { return }
+    await linkFinished(await chatLink.link(folder, tab.id, nil), for: tab.id, in: folder)
+  }
+
+  private func linkedTabClosed(in folder: String, generation: String) async {
+    if let next = await firstTabWithMessage(in: folder) {
+      await linkFinished(await chatLink.link(folder, next.id, generation), for: next.id, in: folder)
+    } else {
+      await linkFinished(await chatLink.unlink(folder, generation), for: nil, in: folder)
+    }
+  }
+
+  private func linkFinished(_ outcome: LinkOutcome, for id: UUID?, in folder: String) async {
+    if let id, records[id: id] != nil {
+      switch outcome {
+      case .linked: tabs[id: id]?.streamLinked()
+      case .refused(let refusal): linkFailures[id] = refusal
+      case .unlinked, .skipped, .retryLater: break
+      }
+    } else if let id {
+      strandedLinks[id] = folder
+    }
+    await onLinkChanged()
+  }
+
+  /// The window opens once both its folder and a capture read are known, in either order.
+  private func windowOpenedIfReady() {
+    guard let folder, openingFolder == folder, bindings != nil else { return }
+    openingFolder = nil
+    Task { [weak self] in await self?.autoLink(in: folder) }
+  }
+
+  private static func text(for refusal: LinkRefusal) -> String {
+    let retry = "right-click the tab and choose Connect to Stream to try again."
+    switch refusal {
+    case .slipstreamTooOld:
+      return "This version of Slipstream can't connect chats run in the app. Update Slipstream, then \(retry)"
+    case .slotsFull:
+      return "Slipstream is already connected to 10 chats, its limit. Unlink one with `slipstream unlink`, then \(retry)"
+    case .setupIncomplete(let message), .other(let message):
+      return "Slipstream said: \(message) Right-click the tab and choose Connect to Stream to try again."
+    }
+  }
+
   private func addTab(in folder: String, model: String, effort: ChatEffort) {
     let record = ChatTabRecord(id: uuid(), folder: folder, model: model, effort: effort, isWaiting: false)
     $records.withLock { _ = $0.append(record) }
@@ -259,9 +429,18 @@ final class ChatPageModel: ViewModel {
     tabs.append(tab)
   }
 
-  /// A turn that ends while its tab isn't on screen leaves the tab waiting.
+  /// A turn that ends while its tab isn't on screen leaves the tab waiting. While nothing is
+  /// linked, every turn end tries an auto-link.
   private func turnEnded(_ id: UUID) {
-    guard !isAppActive || isComparisonShown || selectedTab?.id != id else { return }
-    $records.withLock { $0[id: id]?.isWaiting = true }
+    if !isAppActive || isComparisonShown || selectedTab?.id != id {
+      $records.withLock { $0[id: id]?.isWaiting = true }
+    }
+    if let folder = records[id: id]?.folder, isUnlinked(folder) {
+      Task { [weak self] in await self?.autoLink(in: folder) }
+    }
   }
+}
+
+enum ChatLinkIcon: Equatable {
+  case connected, waiting, failed
 }
