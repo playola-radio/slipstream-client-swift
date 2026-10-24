@@ -80,21 +80,30 @@ extension WorkspaceClient: DependencyKey {
     } catch {
       return WorkspaceOutcome(failureText: error.localizedDescription)
     }
-    guard
-      let slipstream = (variables["PATH"] ?? "").split(separator: ":").map({ "\($0)/slipstream" })
-        .first(where: FileManager.default.isExecutableFile(atPath:))
-    else {
-      return WorkspaceOutcome(
-        failureText: "Couldn't find slipstream. Install it with `npm i -g @playola-radio/slipstream`.")
+    guard let slipstream = slipstreamExecutable(in: variables) else {
+      return WorkspaceOutcome(failureText: slipstreamNotFoundText)
     }
-    return await withCheckedContinuation { continuation in
+    do {
+      let (output, status) = try await runInBackground(slipstream, arguments, environment: variables)
+      return outcome(output: output, status: status)
+    } catch {
+      return WorkspaceOutcome(failureText: "Couldn't run slipstream: \(error.localizedDescription)")
+    }
+  }
+
+  static let slipstreamNotFoundText = "Couldn't find slipstream. Install it with `npm i -g @playola-radio/slipstream`."
+
+  static func slipstreamExecutable(in variables: [String: String]) -> String? {
+    (variables["PATH"] ?? "").split(separator: ":").map { "\($0)/slipstream" }
+      .first(where: FileManager.default.isExecutableFile(atPath:))
+  }
+
+  static func runInBackground(
+    _ executable: String, _ arguments: [String], environment: [String: String]
+  ) async throws -> (output: String, status: Int32) {
+    try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global().async {
-        do {
-          let (output, status) = try run(slipstream, arguments, environment: variables)
-          continuation.resume(returning: outcome(output: output, status: status))
-        } catch {
-          continuation.resume(returning: WorkspaceOutcome(failureText: "Couldn't run slipstream: \(error.localizedDescription)"))
-        }
+        continuation.resume(with: Result { try run(executable, arguments, environment: environment) })
       }
     }
   }

@@ -632,7 +632,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Private Helpers
 
-  static func normalizedFolder(_ root: String) -> String {
+  nonisolated static func normalizedFolder(_ root: String) -> String {
     URL(fileURLWithPath: root).standardizedFileURL.resolvingSymlinksInPath().path
   }
 

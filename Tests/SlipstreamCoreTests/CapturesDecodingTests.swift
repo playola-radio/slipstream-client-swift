@@ -36,7 +36,7 @@ struct CapturesDecodingTests {
       CaptureList(captures: [
         CaptureSummary(
           sessionID: Self.session, root: "/w/nairobi", state: .recording,
-          binding: CaptureBinding(generation: "3", state: .connected))
+          binding: CaptureBinding(generation: "3", state: .connected, harnessSessionID: "5c1e"))
       ])
     )
   }
@@ -85,7 +85,44 @@ struct CapturesDecodingTests {
   func decodesEveryBindingState(raw: String, expected: BindingState, wireReason: String, reason: String?) throws {
     let binding = #"{"harness":"codex","harness_session_id":"x","binding_generation":"9007199254740993","state":"\#(raw)","reason":\#(wireReason)}"#
     let capture = try #require(try Self.decode(Self.list(Self.row(binding: binding))).captures.first)
-    expectNoDifference(capture.binding, CaptureBinding(generation: "9007199254740993", state: expected, reason: reason))
+    expectNoDifference(
+      capture.binding,
+      CaptureBinding(generation: "9007199254740993", state: expected, reason: reason, harnessSessionID: "x"))
+  }
+
+  @Test func bindingDecodesChatID() throws {
+    let binding = #"{"harness":"claude-code","harness_session_id":"0B8E6C52-1F3A-4D2B-9C1E-7A5F3E2D1C0B","binding_generation":"3","state":"connected","reason":null}"#
+    let capture = try #require(try Self.decode(Self.list(Self.row(binding: binding))).captures.first)
+    expectNoDifference(capture.binding?.harnessSessionID, "0B8E6C52-1F3A-4D2B-9C1E-7A5F3E2D1C0B")
+  }
+
+  @Test func bindingWithoutChatIDStillDecodes() throws {
+    let binding = #"{"harness":"claude-code","binding_generation":"3","state":"connected","reason":null}"#
+    let capture = try #require(try Self.decode(Self.list(Self.row(binding: binding))).captures.first)
+    expectNoDifference(capture.binding, CaptureBinding(generation: "3", state: .connected))
+  }
+
+  private static let chat = UUID(uuidString: "0B8E6C52-1F3A-4D2B-9C1E-7A5F3E2D1C0B")!
+
+  @Test func isLinkedMatchesUUIDCaseInsensitively() {
+    let binding = CaptureBinding(
+      generation: "3", state: .connected, harnessSessionID: "0b8e6c52-1f3a-4d2b-9c1e-7a5f3e2d1c0b")
+    #expect(binding.isLinked(toChat: Self.chat))
+  }
+
+  @Test func isLinkedFalseWhenUnlinkedWithOldID() {
+    let binding = CaptureBinding(generation: "3", state: .unlinked, harnessSessionID: Self.chat.uuidString)
+    #expect(!binding.isLinked(toChat: Self.chat))
+  }
+
+  @Test func isLinkedTrueWhenSetupPending() {
+    let binding = CaptureBinding(generation: "3", state: .setupPending, harnessSessionID: Self.chat.uuidString)
+    #expect(binding.isLinked(toChat: Self.chat))
+  }
+
+  @Test func isLinkedFalseForAnotherChat() {
+    let binding = CaptureBinding(generation: "3", state: .connected, harnessSessionID: "5c1e7a2b-0000-4000-8000-000000000001")
+    #expect(!binding.isLinked(toChat: Self.chat))
   }
 
   @Test func decodesAnEmptyList() throws {
