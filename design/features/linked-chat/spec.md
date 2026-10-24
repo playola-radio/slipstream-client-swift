@@ -83,3 +83,94 @@ client PR #39, daemon PR #83); outside hosts stay supported as an option.
 - Endpoints: pending (Phase 4) — daemon wire contract (attach/unlink/binding), expected to
   change only the Claude version check.
 - Models: pending (Phase 4) — client binding model gains the linked chat's identity.
+
+## Existing contracts (Phase 2, surveyed 2026-10-24 at the base commits)
+
+### Client
+
+- **Chat tabs.** `ChatTabRecord {id, folder, model, effort, isWaiting}`
+  (`SlipstreamViewer/Models/ChatTabRecord.swift:5`).
+  - The tab `id` is the Claude session id: `--session-id` for a new tab, `--resume` once a
+    transcript exists (`ChatTabModel.swift:330`).
+  - Records persist in one global `@Shared(.chatTabs)` file and are filtered by `folder`.
+  - The "first tab" is the first record for that folder in array order. Nothing on the record
+    stores a binding.
+- **Launch.** `claude --print … --permission-mode=bypassPermissions
+  --setting-sources=user,project,local` (`Sources/SlipstreamCore/ClaudeInvocation.swift:9-23`).
+  - It runs in `record.folder` with the login-shell environment.
+  - Because `local` is a setting source, a hook in `.claude/settings.local.json` loads at launch.
+  - `tryAgain` (`ChatTabModel.swift:243`) relaunches with `--resume`.
+- **Tab strip.** `ChatPageView.swift:34` (`tabStrip`) and `ChatTabView` (`:147`). There is no
+  context menu today.
+- **Tab ↔ capture.** Matched by folder equality: tab `record.folder` == capture `root`
+  (`ChangeStreamPageModel.swift:635,819`).
+- **Binding model.** `CaptureBinding` decodes `binding_generation`, `state` and `reason` only
+  (`Sources/SlipstreamCore/Captures.swift`).
+  - It drops `harness` and `harness_session_id`, so the client can tell *that* a chat is
+    linked but not *which*.
+  - States: `setup_pending`, `connected`, `unavailable`, `unlinked`.
+  - `agent.binding.v1` and `agent.unlinked.v1` events decode to `.unsupported`
+    (`Events.swift:238-241`).
+- **Ask notices.** `CaptureStatus.askNotice` (`SlipstreamViewer/Models/CaptureStatus.swift:132-152`)
+  tells the user to "Run `slipstream attach` inside the agent chat". `chatText` says "No chat
+  linked". Both need app-linked wording.
+- **Daemon calls.**
+  - Control socket: `ask` is the only verb sent (`ControlTransport.swift`; `exchange` is private
+    and typed to questions).
+  - Readers: `GET /v1/captures`.
+  - `WorkspaceClient` already shells out to the `slipstream` CLI (`WorkspaceClient.swift:76`).
+
+### Daemon (`playola-radio/slipstream` @ 89eed57)
+
+- **`attach`** (`src/daemon.ts:2038-2051`).
+  - Request: `{v:1, verb:"attach", worktree, harness, harness_session_id, root_transcript}`.
+  - Reply: `{session_id, state, binding_generation, agent_connection, created}`.
+  - `BINDING_EXISTS` when the capture already holds a different chat. There is no in-place
+    swap: the caller unlinks, then attaches.
+- **Hook and answer-tool install is CLI-only** (`src/attach-workflow.ts`, `planAgentConfig` /
+  `applyAgentConfig`).
+  - The hook is a PostToolUse entry in `<worktree>/.claude/settings.local.json`.
+  - The answer tool is installed with `claude mcp add --scope local slipstream …`.
+  - The no-flag `slipstream attach` detects the chat from `CLAUDE_CODE_SESSION_ID`, finds its
+    transcript, installs config, then attaches.
+  - The identity-flag form (`--harness … --harness-session-id … --root-transcript`) attaches
+    without installing config (`src/cli.ts:882`).
+- **`unlink {session_id}`** (`src/daemon.ts:1536-1582`) revokes the binding and appends
+  `agent.unlinked.v1`.
+  - Queued, unclaimed questions are cleared silently (`src/session.ts:361-365`). No event is
+    written.
+  - Questions are never redelivered after a relink.
+- **Reader binding.** `GET /v1/captures` row `binding` = `null | {harness, harness_session_id,
+  binding_generation, state, reason}` (`src/daemon.ts:597-632`).
+  - A connected binding with a stale owner heartbeat reads `setup_pending`.
+- **Setup check.** After attach the binding is `setup_pending`.
+  - The chat's next tool call fires the hook, which returns a `setup_check`.
+  - The agent answers it with `slipstream_answer_question(check_id, "connected")`. Only then
+    is the binding `connected`.
+  - Connection state is memory-only, so a daemon restart returns every link to `setup_pending`.
+  - A newly linked tab that makes no tool call stays `setup_pending`.
+- **Question lifecycle.** The events are `question.queued.v1` (30-minute `expires_at_ms`),
+  `question.dispatch_attempted.v1` and `question.answered.v1`.
+  - There is no dropped, undelivered or expired fact (`docs/ask-agent/contract.md:286`).
+  - "Not delivered" must be derived by the client: the question was queued under a binding
+    generation that is no longer current, or its expiry passed with no dispatch attempt.
+- **Claude version check.** `RUNTIMES` (`src/claude-root-transcript.ts:8-13`) pins exactly
+  `2.1.280`/`2.1.284`/`2.1.300` with `sdk-ts`, and `2.1.283` with `sdk-cli`.
+  - It is also checked pre-flight in `src/attach-workflow.ts:~178`.
+  - Tests pin it in `claude-root-transcript.test.ts`, `daemon.test.ts:102-104`,
+    `test/daemon-harness.ts:90`, `attach-workflow.test.ts`, `cli.test.ts:356` and
+    `autocapture-acceptance.test.ts:716`.
+  - Docs list it in `docs/ask-agent/contract.md:230-235`, `docs/connect-agent-chat.md:62`,
+    `README.md:154` and `IMPLEMENTATION_PLAN.md:1084-1103`.
+  - The app's own minimum is Claude 2.1.293 (`AgentEnvironmentClient.swift:38`), so every
+    app-run tab is refused today.
+
+### Consequences for the design
+
+- The simplest link path reuses the CLI: the app runs `slipstream attach <folder>` with
+  `CLAUDE_CODE_SESSION_ID=<tab id>`. That one call installs the hook and answer tool and
+  attaches. Phase 4 confirms whether the env-detection path works outside a chat.
+- A relink is `unlink` then `attach`. The app needs an unlink call: CLI `slipstream unlink`,
+  or a control verb.
+- A newly linked tab sits at "waiting to confirm" until its next tool call. The Ask notice
+  must say so plainly. Whether the app sends a nudge is a Phase 3/4 question.
