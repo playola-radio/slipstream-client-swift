@@ -1660,6 +1660,26 @@ struct ChatPageTests {
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: nil)])
   }
 
+  @Test func windowOpenLinksWhenTheCapturesArriveBeforeTheFolder() async {
+    agent.setTranscript(Self.saved, .found([.title("Old")]))
+    let model = makeModel(records: [record()])
+    model.capturesArrived(captures(nil))
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
+  }
+
+  @Test func theLiveCaptureSpeaksForAFolderRecordedBefore() async throws {
+    let older = CaptureSummary(
+      sessionID: "capture-0", root: "/w", state: .stopped, binding: binding(.unlinked, generation: "g0"))
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: [older] + captures(binding(.connected)))
+
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == .connected)
+    #expect(link.calls.isEmpty)
+  }
+
   @Test func windowOpenLinksOverAnUnlinkedBinding() async {
     _ = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.unlinked)))
 
@@ -1804,6 +1824,27 @@ struct ChatPageTests {
     await model.closeTabTapped(Self.saved)
 
     expectNoDifference(link.calls, [.unlink(folder: "/w", replacing: "g1")])
+  }
+
+  @Test func closingATabWhileItConnectsMovesTheLinkOff() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.hold()
+    let connecting = Task { await model.connectTapped(UUID(50)) }
+    await Task.megaYield()
+
+    await model.closeTabTapped(UUID(50))
+    refresh(model, to: captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    link.release()
+    await connecting.value
+
+    expectNoDifference(
+      link.calls,
+      [
+        .link(folder: "/w", tabID: UUID(50), replacing: "g1"),
+        .link(folder: "/w", tabID: Self.saved, replacing: "g2"),
+      ]
+    )
   }
 
   @Test func closingUnlinkedTabChangesNothing() async {

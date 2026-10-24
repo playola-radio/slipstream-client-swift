@@ -197,6 +197,7 @@ final class ChatPageModel: ViewModel {
     if let folder, visibleTabs.isEmpty {
       addTab(in: folder, model: ChatModelChoice.defaultModel, effort: ChatModelChoice.defaultEffort)
     }
+    windowOpenedIfReady()
   }
 
   func tabHovered(_ id: UUID, isHovering: Bool) {
@@ -229,26 +230,23 @@ final class ChatPageModel: ViewModel {
       bindings = nil
       return
     }
-    let bindings = Dictionary(
-      captures.map { (ChangeStreamPageModel.normalizedFolder($0.root), $0.binding) },
-      uniquingKeysWith: { first, _ in first }
-    ).compactMapValues { $0 }
+    let folders = Set(captures.map { ChangeStreamPageModel.normalizedFolder($0.root) })
+    let bindings = Dictionary(uniqueKeysWithValues: folders.compactMap { folder in
+      captures.current(in: folder)?.binding.map { (folder, $0) }
+    })
     self.bindings = bindings
     linkFailures = linkFailures.filter { id, _ in
       guard let folder = records[id: id]?.folder, let binding = bindings[folder] else { return true }
       return !(binding.isLinked(toChat: id) && binding.state == .connected)
     }
-    if let folder, openingFolder == folder {
-      openingFolder = nil
-      Task { [weak self] in await self?.autoLink(in: folder) }
-    }
+    windowOpenedIfReady()
   }
 
   func connectTapped(_ id: UUID) async {
     guard let folder, let tab = visibleTabs.first(where: { $0.id == id }), isConnectEnabled(tab) else { return }
     linkFailures[id] = nil
     let live = bindings?[folder].flatMap { $0.isLive ? $0 : nil }
-    await linkFinished(await chatLink.link(folder, id, live?.generation), for: id)
+    await linkFinished(await chatLink.link(folder, id, live?.generation), for: id, in: folder)
   }
 
   func closeTabTapped(_ id: UUID) async {
@@ -360,18 +358,19 @@ final class ChatPageModel: ViewModel {
   /// Two auto-links can overlap; `link(replacing: nil)` skips once anything is linked.
   private func autoLink(in folder: String) async {
     guard let tab = await firstTabWithMessage(in: folder), isUnlinked(folder) else { return }
-    await linkFinished(await chatLink.link(folder, tab.id, nil), for: tab.id)
+    await linkFinished(await chatLink.link(folder, tab.id, nil), for: tab.id, in: folder)
   }
 
   private func linkedTabClosed(in folder: String, generation: String) async {
     if let next = await firstTabWithMessage(in: folder) {
-      await linkFinished(await chatLink.link(folder, next.id, generation), for: next.id)
+      await linkFinished(await chatLink.link(folder, next.id, generation), for: next.id, in: folder)
     } else {
-      await linkFinished(await chatLink.unlink(folder, generation), for: nil)
+      await linkFinished(await chatLink.unlink(folder, generation), for: nil, in: folder)
     }
   }
 
-  private func linkFinished(_ outcome: LinkOutcome, for id: UUID?) async {
+  /// A tab closed while it was connecting can end up linked; the link then moves off it.
+  private func linkFinished(_ outcome: LinkOutcome, for id: UUID?, in folder: String) async {
     if let id, records[id: id] != nil {
       switch outcome {
       case .linked: tabs[id: id]?.streamLinked()
@@ -380,6 +379,16 @@ final class ChatPageModel: ViewModel {
       }
     }
     await onLinkChanged()
+    if let id, records[id: id] == nil, let binding = bindings?[folder], binding.isLive, binding.isLinked(toChat: id) {
+      await linkedTabClosed(in: folder, generation: binding.generation)
+    }
+  }
+
+  /// The window opens once both its folder and a capture read are known, in either order.
+  private func windowOpenedIfReady() {
+    guard let folder, openingFolder == folder, bindings != nil else { return }
+    openingFolder = nil
+    Task { [weak self] in await self?.autoLink(in: folder) }
   }
 
   private static func text(for refusal: LinkRefusal) -> String {

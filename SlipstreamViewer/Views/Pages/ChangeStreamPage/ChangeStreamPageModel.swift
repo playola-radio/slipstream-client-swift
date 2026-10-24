@@ -998,6 +998,8 @@ final class ChangeStreamPageModel: ViewModel {
       && ((selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
         || event.payload == .sessionResumed
         || event.payload == .agentConnection(.disconnected(reason: "capture_not_live")))
+    let shouldRefreshBinding = event.seq > (selectedSession?.readinessSeq ?? .zero)
+      && Self.changesBinding(event.payload, selectedSession?.capture?.binding)
     switch event.payload {
     case .fileChanged(let change):
       append(
@@ -1057,6 +1059,8 @@ final class ChangeStreamPageModel: ViewModel {
     if shouldRefreshCaptureSnapshot, selectedSession != nil {
       watchedReadinessChanged(.disconnected(reason: nil), seq: event.seq)
       Task { [weak self] in await self?.loadSessions() }
+    } else if shouldRefreshBinding {
+      Task { [weak self] in await self?.loadSessions() }
     }
     lastAppliedSeq = event.seq
     return true
@@ -1078,6 +1082,15 @@ final class ChangeStreamPageModel: ViewModel {
     _ daemon: DaemonClient, _ descriptor: DaemonDescriptor, _ date: DateGenerator
   ) async -> (Result<CaptureList?, any Error>, Date) {
     do { return (.success(try await daemon.listCaptures(descriptor)), date.now) } catch { return (.failure(error), date.now) }
+  }
+
+  /// The chat strip's link icon reads the capture's binding, which these events move on.
+  private static func changesBinding(_ payload: EventPayload, _ binding: CaptureBinding?) -> Bool {
+    switch payload {
+    case .agentConnection(.connected): binding?.state == .setupPending
+    case .agentUnlinked: binding?.isLive == true
+    default: false
+    }
   }
 
   private func watchedAgentConnectionReported(_ reported: AgentConnection, seq: Seq) {

@@ -126,7 +126,7 @@ actor ChatLinkOperations {
   }
 
   private nonisolated func capture(in folder: String) async throws -> CaptureSummary? {
-    try await captures().first { ChangeStreamPageModel.normalizedFolder($0.root) == folder }
+    try await captures().current(in: folder)
   }
 
   private nonisolated func unlink(_ capture: CaptureSummary) async throws -> LinkOutcome {
@@ -148,5 +148,15 @@ actor ChatLinkOperations {
 
   private static func message(for error: any Error) -> String {
     (error as? AgentEnvironmentError)?.message ?? error.localizedDescription
+  }
+}
+
+extension [CaptureSummary] {
+  /// A folder recorded again keeps its old captures, so the live one speaks for it.
+  func current(in folder: String) -> CaptureSummary? {
+    let matching = filter { ChangeStreamPageModel.normalizedFolder($0.root) == folder }
+    return matching.first { $0.binding?.isLive == true }
+      ?? matching.first { [.queued, .baselining, .recording].contains($0.state) }
+      ?? matching.first
   }
 }

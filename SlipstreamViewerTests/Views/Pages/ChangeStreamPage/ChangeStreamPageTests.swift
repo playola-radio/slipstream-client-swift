@@ -112,6 +112,31 @@ struct ChangeStreamPageTests {
     expectNoDifference(model.chat.outsideChatText, nil)
   }
 
+  @Test func confirmationRefreshesTheLinkedBinding() async {
+    listSessions(.setupPending)
+    fake.setCaptures([Fixture.capture(binding: CaptureBinding(generation: "7", state: .setupPending))])
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setCaptures([Fixture.capture()])
+
+    await send(Fixture.agentConnection(1, state: "connected"))
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession?.capture?.binding, CaptureBinding(generation: "7", state: .connected))
+  }
+
+  @Test func unlinkingRefreshesTheLinkedBinding() async {
+    listSessions(.connected)
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setCaptures([Fixture.capture(binding: CaptureBinding(generation: "7", state: .unlinked))])
+
+    await send(Fixture.agentUnlinked(1))
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession?.capture?.binding, CaptureBinding(generation: "7", state: .unlinked))
+  }
+
   // MARK: - Sessions
 
   @Test func sessionsAreLabelledByRootAndStartTimeAndRemovedOnesHidden() async {

@@ -50,6 +50,17 @@ struct ChatLinkClientTests {
     expectNoDifference(fake.calls, [.captures, .run(Self.attachTab)])
   }
 
+  @Test func theLiveCaptureSpeaksForAFolderRecordedBefore() async {
+    let fake = LinkFake(
+      binding: CaptureBinding(generation: "3", state: .connected, harnessSessionID: "outside"),
+      older: CaptureBinding(generation: "1", state: .unlinked, harnessSessionID: "old"))
+
+    let outcome = await fake.operations.link(folder: "/w", tabID: Self.tab, replacing: "3")
+
+    expectNoDifference(outcome, .linked)
+    expectNoDifference(fake.calls, [.captures, .run(Self.unlinkCapture), .run(Self.attachTab)])
+  }
+
   @Test func moveSkipsWhenGenerationChanged() async {
     let fake = LinkFake(binding: CaptureBinding(generation: "4", state: .connected, harnessSessionID: "outside"))
 
@@ -171,6 +182,7 @@ private final class LinkFake: Sendable {
   enum Call: Equatable { case captures, run([String]) }
 
   private struct State {
+    var older: CaptureSummary?
     var capture: CaptureSummary?
     var bindingAfterAttach: CaptureBinding?
     var calls: [Call] = []
@@ -183,9 +195,11 @@ private final class LinkFake: Sendable {
 
   private let state: Mutex<State>
 
-  init(binding: CaptureBinding?, hasCapture: Bool = true) {
+  /// `older` is a stopped capture of the same folder, listed first.
+  init(binding: CaptureBinding?, hasCapture: Bool = true, older: CaptureBinding? = nil) {
     let capture = CaptureSummary(sessionID: "capture-1", root: "/w", state: .recording, binding: binding)
-    state = Mutex(State(capture: hasCapture ? capture : nil))
+    let stopped = older.map { CaptureSummary(sessionID: "capture-0", root: "/w", state: .stopped, binding: $0) }
+    state = Mutex(State(older: stopped, capture: hasCapture ? capture : nil))
   }
 
   var calls: [Call] { state.withLock { $0.calls } }
@@ -229,7 +243,7 @@ private final class LinkFake: Sendable {
       captures: {
         self.state.withLock { state in
           state.calls.append(.captures)
-          return state.capture.map { [$0] } ?? []
+          return [state.older, state.capture].compactMap(\.self)
         }
       },
       run: { arguments, environment in
