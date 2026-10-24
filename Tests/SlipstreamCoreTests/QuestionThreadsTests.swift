@@ -44,6 +44,11 @@ enum QuestionFixture {
     SlipstreamEvent(seq: Seq(String(seq))!, type: "slipstream.session.resumed.v1", payload: .sessionResumed)
   }
 
+  static func unlinked(_ seq: Int, reason: String = "unlinked") -> SlipstreamEvent {
+    SlipstreamEvent(
+      seq: Seq(String(seq))!, type: "slipstream.agent.unlinked.v1", payload: .agentUnlinked(AgentUnlinked(reason: reason)))
+  }
+
   static func answered(_ seq: Int, id: String, text: String = "Because.") -> SlipstreamEvent {
     SlipstreamEvent(
       seq: Seq(String(seq))!,
@@ -284,6 +289,13 @@ struct QuestionThreadsTests {
     let events = try QuestionFixture.events() + [
       QuestionFixture.queued(11, id: "q3", replyTo: "<question_id_1>"),
       QuestionFixture.answered(13, id: "q3"),
+      QuestionFixture.queued(14, id: "q4", replyTo: "<question_id_1>"),
+      QuestionFixture.attempted(15, id: "q4"),
+      QuestionFixture.unlinked(16),
+      QuestionFixture.queued(17, id: "q5"),
+      QuestionFixture.unlinked(18),
+      QuestionFixture.attempted(19, id: "q5"),
+      QuestionFixture.resumed(20),
     ]
     for split in events.indices {
       var resumed = QuestionThreads(events[..<split])
@@ -300,5 +312,73 @@ struct QuestionThreadsTests {
       SlipstreamEvent(seq: Seq("2")!, type: "slipstream.future.v1", payload: .unsupported(type: "slipstream.future.v1")),
     ])
     expectNoDifference(threads, QuestionThreads())
+  }
+}
+
+extension QuestionThreadsTests {
+  @Test func unlinkMarksUnansweredTurnsResending() {
+    var threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.queued(3, id: "q2"),
+    ])
+    expectDifference(threads.threads) {
+      threads.apply(QuestionFixture.unlinked(4))
+    } changes: {
+      $0[id: "q1"]?.turns[0].isMoved = true
+      $0[id: "q2"]?.turns[0].isMoved = true
+    }
+    expectNoDifference(threads.threads.map { $0.turns.map(\.status) }, [[.resending], [.resending]])
+  }
+
+  @Test func answeredAndNotDeliveredTurnsAreUnaffectedByUnlink() {
+    let events = [
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.answered(3, id: "q1"),
+      QuestionFixture.queued(4, id: "q2"),
+      QuestionFixture.resumed(5),
+    ]
+    expectNoDifference(QuestionThreads(events + [QuestionFixture.unlinked(6)]), QuestionThreads(events))
+  }
+
+  @Test(arguments: ["detached", "archived"])
+  func otherUnlinkReasonsChangeNothing(_ reason: String) {
+    let events = [QuestionFixture.queued(1, id: "q1"), QuestionFixture.attempted(2, id: "q1")]
+    expectNoDifference(QuestionThreads(events + [QuestionFixture.unlinked(3, reason: reason)]), QuestionThreads(events))
+  }
+
+  @Test func dispatchAfterMoveReturnsToWaiting() {
+    var threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.unlinked(3),
+    ])
+    expectDifference(threads.threads) {
+      threads.apply(QuestionFixture.attempted(4, id: "q1"))
+    } changes: {
+      $0[id: "q1"]?.turns[0].isMoved = false
+    }
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.waiting])
+  }
+
+  @Test func resumeAfterMoveIsNotDelivered() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.unlinked(3),
+      QuestionFixture.resumed(4),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.notDelivered])
+  }
+
+  @Test func lateAnswerAnswersMovedTurn() {
+    var threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.unlinked(3),
+    ])
+    threads.apply(QuestionFixture.answered(5, id: "q1"))
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
   }
 }

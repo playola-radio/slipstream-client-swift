@@ -1027,8 +1027,9 @@ final class ChangeStreamPageModel: ViewModel {
       shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
       openReplyUpdated()
       if follow == .following { scrollToLatestRequest += 1 }
-    case .questionDispatchAttempted:
+    case .questionDispatchAttempted, .agentUnlinked:
       questionThreads.apply(event)
+      openReplyUpdated()
     case .agentConnection(let state):
       watchedAgentConnectionReported(state, seq: event.seq)
     case .recordedWithoutRow:
@@ -1173,7 +1174,7 @@ final class ChangeStreamPageModel: ViewModel {
       return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
     }
     if hasUnread { return .newReply }
-    if thread.turns.contains(where: { $0.status == .waiting }) { return .waiting }
+    if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
     return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }
 

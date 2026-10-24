@@ -355,6 +355,10 @@ enum Fixture {
     frame(value, type: "slipstream.question.dispatch_attempted.v1", data: ["question_id": id, "queued_seq": String(queuedSeq)])
   }
 
+  static func agentUnlinked(_ value: Int, reason: String = "unlinked") -> StreamItem {
+    frame(value, type: "slipstream.agent.unlinked.v1", data: ["session_id": session, "binding_generation": "7", "reason": reason])
+  }
+
   static func questionAnswered(_ value: Int, id: String, text: String = "Because.") -> StreamItem {
     frame(value, type: "slipstream.question.answered.v1", data: [
       "question_id": id, "attempt_seq": String(value - 1), "text": text, "answered_at_ms": observedAtMs,

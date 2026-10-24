@@ -1683,6 +1683,44 @@ extension ChangeStreamPageTests {
     expectNoDifference(try bar(model, "q1").status, .waiting)
   }
 
+  @Test func unlinkEventAddsNoFeedRow() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.agentUnlinked(1))
+    expectNoDifference(model.lastAppliedSeq, Fixture.seq(1))
+    #expect(model.sections.isEmpty)
+  }
+
+  @Test func aMovedQuestionShowsResendingUntilAChatPicksItUp() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionDispatchAttempted(3, id: "q1", queuedSeq: 2))
+    let reply = try open(model, "q1")
+    await send(Fixture.agentUnlinked(4))
+    expectNoDifference(reply.thread.turns.map(\.status), [.resending])
+    expectNoDifference(try bar(model, "q1").status, .waiting)
+    #expect(reply.isFollowUpDisabled)
+    await send(Fixture.questionDispatchAttempted(5, id: "q1", queuedSeq: 2))
+    expectNoDifference(reply.thread.turns.map(\.status), [.waiting])
+  }
+
+  @Test func resendingCountsAsWaitingForUnreadAndFollowUps() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionAnswered(3, id: "q1"),
+      Fixture.questionQueued(4, id: "q2", text: "Follow-up", replyTo: "q1"),
+      Fixture.agentUnlinked(5))
+    #expect(try bar(model, "q1").status == .newReply)
+    try open(model, "q1").answerDisplayed(Fixture.seq(3))
+    #expect(try bar(model, "q1").status == .waiting)
+  }
+
   @Test func anEarlierUnansweredFollowUpKeepsTheThreadWaiting() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }

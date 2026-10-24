@@ -109,6 +109,14 @@ public struct QuestionAnswered: Equatable, Sendable {
   }
 }
 
+public struct AgentUnlinked: Equatable, Sendable {
+  public var reason: String
+
+  public init(reason: String) {
+    self.reason = reason
+  }
+}
+
 public enum EventPayload: Equatable, Sendable {
   case sessionStarted(SessionStarted)
   case fileChanged(FileChange)
@@ -119,6 +127,7 @@ public enum EventPayload: Equatable, Sendable {
   case questionDispatchAttempted(QuestionDispatchAttempted)
   case questionAnswered(QuestionAnswered)
   case agentConnection(AgentConnection)
+  case agentUnlinked(AgentUnlinked)
   case recordedWithoutRow
   case unsupported(type: String)
 }
@@ -235,6 +244,9 @@ extension SlipstreamEvent {
     case "slipstream.agent.connection.v1":
       let connection = try decoder.decode(Envelope<AgentConnectionWire>.self, from: data).data
       return .agentConnection(connection.connection)
+    case "slipstream.agent.unlinked.v1":
+      let unlinked = try decoder.decode(Envelope<AgentUnlinkedData>.self, from: data).data
+      return .agentUnlinked(AgentUnlinked(reason: unlinked.reason))
     case _ where rowlessTypes.contains(type):
       return .recordedWithoutRow
     default:
@@ -366,6 +378,10 @@ extension SlipstreamEvent {
   private struct QuestionDispatchAttemptedData: Decodable {
     var question_id: String
     var queued_seq: Seq
+  }
+
+  private struct AgentUnlinkedData: Decodable {
+    var reason: String
   }
 
   private struct QuestionAnsweredData: Decodable {

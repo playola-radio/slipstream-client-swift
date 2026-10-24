@@ -54,6 +54,7 @@ final class QuestionThreadPageModel: ViewModel {
   let closeText = "Close reply"
   let waitingText = "Waiting for the agent to answer…"
   let notDeliveredText = "Not delivered — recording restarted. Ask again."
+  let resendingText = "Re-sending to the newly connected chat — waiting for the agent to answer…"
   let followUpPlaceholder = "Ask a follow-up…"
   let sendText = "Send reply"
   let errorTitle = "Reply not confirmed"
@@ -74,7 +75,11 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   func unansweredText(_ turn: QuestionTurn) -> String {
-    turn.status == .notDelivered ? notDeliveredText : waitingText
+    switch turn.status {
+    case .notDelivered: notDeliveredText
+    case .resending: resendingText
+    case .waiting, .answered: waitingText
+    }
   }
 
   func answerText(_ answer: QuestionAnswer) -> String {
@@ -97,7 +102,7 @@ final class QuestionThreadPageModel: ViewModel {
       !thread.turns.contains { $0.questionID == queued.questionID }
     } ?? false
     return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn
-      || (thread.turns.last?.status ?? .waiting) == .waiting
+      || [.waiting, .resending].contains(thread.turns.last?.status ?? .waiting)
   }
 
   var canSendReply: Bool {
@@ -151,7 +156,7 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   func captureChanged(_ capture: CaptureSummary?) {
-    bindingGeneration = bindingGeneration ?? capture?.binding?.generation
+    bindingGeneration = capture?.binding?.generation ?? bindingGeneration
   }
 
   func dismissed() {

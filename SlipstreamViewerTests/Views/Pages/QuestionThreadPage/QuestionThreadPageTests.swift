@@ -22,6 +22,8 @@ struct QuestionThreadPageTests {
   static let waiting = QuestionTurn(questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs)
   static let notDelivered = QuestionTurn(
     questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isDropped: true)
+  static let resending = QuestionTurn(
+    questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isMoved: true)
 
   static func source(lines: ClosedRange<Int> = 7...9) -> QuestionSource {
     QuestionSource(
@@ -90,6 +92,26 @@ struct QuestionThreadPageTests {
     expectNoDifference(model.unansweredText(Self.notDelivered), "Not delivered — recording restarted. Ask again.")
   }
 
+  @Test func resendingText() {
+    let model = makeModel([Self.answered, Self.resending])
+    expectNoDifference(
+      model.unansweredText(Self.resending), "Re-sending to the newly connected chat — waiting for the agent to answer…")
+  }
+
+  @Test func recordingRestartedKeepsTodayText() {
+    var droppedAfterMove = Self.resending
+    droppedAfterMove.isDropped = true
+    let model = makeModel([Self.answered, droppedAfterMove])
+    expectNoDifference(model.unansweredText(droppedAfterMove), "Not delivered — recording restarted. Ask again.")
+  }
+
+  @Test func resendingDisablesFollowUpsLikeWaiting() {
+    let model = makeModel([Self.answered, Self.resending])
+    #expect(model.isFollowUpDisabled)
+    model.draft = "Ignored"
+    expectNoDifference(model.draft, "")
+  }
+
   @Test func aLatestTurnThatWasNotDeliveredCanBeAskedAgainAsANewFollowUp() async {
     let requests = LockIsolated<[QuestionRequest]>([])
     let model = makeModel([Self.answered, Self.notDelivered]) { request in
@@ -118,7 +140,7 @@ struct QuestionThreadPageTests {
     expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
   }
 
-  @Test func anOpenReplyKeepsTheChatLinkItKnewWhenTheWorkspaceIsRelinked() async {
+  @Test func followUpUsesCurrentGeneration() async {
     let requests = LockIsolated<[QuestionRequest]>([])
     let model = makeModel([Self.answered]) { request in
       requests.withValue { $0.append(request) }
@@ -128,7 +150,23 @@ struct QuestionThreadPageTests {
     model.captureChanged(nil)
     model.draft = "And then?"
     await model.sendReplyTapped()
-    expectNoDifference(requests.value.map(\.bindingGeneration), ["7"])
+    expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
+  }
+
+  @Test func inFlightFollowUpKeepsItsBody() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      throw QuestionError.outcomeUnknown
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    model.isErrorPresented = false
+    model.captureChanged(Fixture.capture(binding: CaptureBinding(generation: "8", state: .connected)))
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.count, 2)
+    expectNoDifference(requests.value[1], requests.value[0])
+    expectNoDifference(requests.value[1].bindingGeneration, "7")
   }
 
   @Test func displayingAnAnswerMarksOnlyThatAnswerRead() {
