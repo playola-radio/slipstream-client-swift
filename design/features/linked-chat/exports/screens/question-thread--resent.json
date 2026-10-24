@@ -1,0 +1,167 @@
+{
+  "type": "frame",
+  "id": "Ycgxv",
+  "x": 0,
+  "y": 37900,
+  "name": "thread--resent-after-link-moved",
+  "clip": true,
+  "width": 620,
+  "height": 440,
+  "fill": "#0F1820",
+  "children": [
+    {
+      "type": "frame",
+      "id": "tD2Kq",
+      "layoutPosition": "absolute",
+      "x": 100,
+      "y": 40,
+      "name": "Question thread",
+      "width": 420,
+      "fill": "#202B35",
+      "cornerRadius": 6,
+      "stroke": "#83C7F0",
+      "strokeWidth": 1,
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#00000066",
+        "offset": {
+          "x": 0,
+          "y": 8
+        },
+        "blur": 22
+      },
+      "layout": "vertical",
+      "gap": 14,
+      "padding": 16,
+      "children": [
+        {
+          "type": "frame",
+          "id": "iLd5f",
+          "name": "Header",
+          "width": "fill_container",
+          "gap": 14,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "m0nxYc",
+              "name": "Title",
+              "fill": "#C0D0DD",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Talk to the agent",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "550"
+            },
+            {
+              "type": "icon",
+              "id": "T0Nxbo",
+              "name": "Close",
+              "width": 15,
+              "height": 15,
+              "icon": "x",
+              "library": "lucide",
+              "fill": "#A4B8C7"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "utbiR",
+          "name": "Question",
+          "fill": "#EEF5FA",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "Why does this retry three times before failing?",
+          "lineHeight": 1.4,
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fontWeight": "550"
+        },
+        {
+          "type": "text",
+          "id": "ngcEp",
+          "name": "Not delivered",
+          "fill": "#D8BE89",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "Re-sending to the newly connected chat \u2014 waiting for the agent to answer\u2026",
+          "fontFamily": "Geist Mono",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "frame",
+          "id": "Lw4RG",
+          "name": "Follow-up",
+          "width": "fill_container",
+          "height": 68,
+          "fill": "#111D26",
+          "cornerRadius": 4,
+          "stroke": "#59798F",
+          "strokeWidth": 1,
+          "padding": 12,
+          "children": [
+            {
+              "type": "text",
+              "id": "rXCWd",
+              "name": "Placeholder",
+              "fill": "#6F8798",
+              "content": "Ask a follow-up\u2026",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "tdNXt",
+          "name": "Actions",
+          "width": "fill_container",
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "rbiJQ",
+              "name": "Source",
+              "fill": "#91A8B9",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "retry.ts:12\u201318 \u00b7 1 message",
+              "fontFamily": "Geist Mono",
+              "fontSize": 10,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "K9HiA",
+              "name": "Send reply",
+              "fill": "#B2DAEE",
+              "cornerRadius": 4,
+              "padding": [
+                9,
+                13
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "dJU2Q",
+                  "name": "Label",
+                  "fill": "#132735",
+                  "content": "Send reply",
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "550"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
