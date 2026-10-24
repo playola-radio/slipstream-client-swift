@@ -41,6 +41,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   var showsSpinner: Bool { isWorking }
   var showsStop: Bool { isWorking }
   var isPickerEnabled: Bool { !isWorking }
+  /// Slipstream can link a chat only once it has a transcript.
+  private(set) var hasSentMessage = false
 
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
@@ -50,6 +52,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   private var isClosed = false
   private var now = Date.distantPast
   private var needsHistory: Bool
+  /// The process predates this chat's link, so it is dropped when the running turn ends.
+  @ObservationIgnored private var reloadWhenIdle = false
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var follower: Task<Void, Never>?
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
@@ -275,6 +279,18 @@ final class ChatTabModel: ViewModel, Identifiable {
     now = date.now
   }
 
+  /// A running Claude doesn't load the hook and answer tool a link installs, so a process that
+  /// predates the link is dropped once idle. The next send resumes in a fresh one.
+  func streamLinked() {
+    guard handle != nil || !starting.isEmpty else { return }
+    if isWorking {
+      reloadWhenIdle = true
+    } else {
+      follower?.cancel()
+      retireProcess()
+    }
+  }
+
   /// Shuts down for good: a send still waiting on an earlier shutdown launches nothing.
   func close() async {
     isClosed = true
@@ -378,12 +394,14 @@ final class ChatTabModel: ViewModel, Identifiable {
     let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
     projection = .history(lines)
     title = Self.title(lines)
+    if !lines.isEmpty { hasSentMessage = true }
   }
 
   /// Drops the process: its late events are ignored, and its shutdown runs until done.
   @discardableResult
   private func retireProcess() -> Task<Void, Never>? {
     generation += 1
+    reloadWhenIdle = false
     follower = nil
     defer { handle = nil }
     return handle.map(retire)
@@ -476,8 +494,10 @@ final class ChatTabModel: ViewModel, Identifiable {
   private func endTurn(_ ending: TurnEnding, duration: Duration) {
     guard let turn = activeTurn else { return }
     activeTurn = nil
+    hasSentMessage = true
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
+    if reloadWhenIdle { retireProcess() }
     titleRefresh?.cancel()
     let generation = generation
     titleRefresh = Task { [weak self] in await self?.refreshTitle(generation: generation) }
