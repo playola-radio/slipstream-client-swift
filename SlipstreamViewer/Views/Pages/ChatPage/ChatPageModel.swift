@@ -39,6 +39,8 @@ final class ChatPageModel: ViewModel {
   private var linkFailures: [UUID: LinkRefusal] = [:]
   /// The folder just shown: its next capture read is the moment its window opens.
   private var openingFolder: String?
+  /// Tabs closed while they were connecting, by folder: the next capture read moves their link off.
+  private var strandedLinks: [UUID: String] = [:]
 
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
   @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
@@ -235,6 +237,11 @@ final class ChatPageModel: ViewModel {
       captures.current(in: folder)?.binding.map { (folder, $0) }
     })
     self.bindings = bindings
+    for (id, folder) in strandedLinks {
+      strandedLinks[id] = nil
+      guard let binding = bindings[folder], binding.isLive, binding.isLinked(toChat: id) else { continue }
+      Task { [weak self] in await self?.linkedTabClosed(in: folder, generation: binding.generation) }
+    }
     linkFailures = linkFailures.filter { id, _ in
       guard let folder = records[id: id]?.folder, let binding = bindings[folder] else { return true }
       return !(binding.isLinked(toChat: id) && binding.state == .connected)
@@ -369,7 +376,6 @@ final class ChatPageModel: ViewModel {
     }
   }
 
-  /// A tab closed while it was connecting can end up linked; the link then moves off it.
   private func linkFinished(_ outcome: LinkOutcome, for id: UUID?, in folder: String) async {
     if let id, records[id: id] != nil {
       switch outcome {
@@ -377,11 +383,10 @@ final class ChatPageModel: ViewModel {
       case .refused(let refusal): linkFailures[id] = refusal
       case .unlinked, .skipped, .retryLater: break
       }
+    } else if let id, case .linked = outcome {
+      strandedLinks[id] = folder
     }
     await onLinkChanged()
-    if let id, records[id: id] == nil, let binding = bindings?[folder], binding.isLive, binding.isLinked(toChat: id) {
-      await linkedTabClosed(in: folder, generation: binding.generation)
-    }
   }
 
   /// The window opens once both its folder and a capture read are known, in either order.

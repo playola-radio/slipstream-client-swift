@@ -90,12 +90,6 @@ struct CapturesDecodingTests {
       CaptureBinding(generation: "9007199254740993", state: expected, reason: reason, harnessSessionID: "x"))
   }
 
-  @Test func bindingDecodesChatID() throws {
-    let binding = #"{"harness":"claude-code","harness_session_id":"0B8E6C52-1F3A-4D2B-9C1E-7A5F3E2D1C0B","binding_generation":"3","state":"connected","reason":null}"#
-    let capture = try #require(try Self.decode(Self.list(Self.row(binding: binding))).captures.first)
-    expectNoDifference(capture.binding?.harnessSessionID, "0B8E6C52-1F3A-4D2B-9C1E-7A5F3E2D1C0B")
-  }
-
   @Test func bindingWithoutChatIDStillDecodes() throws {
     let binding = #"{"harness":"claude-code","binding_generation":"3","state":"connected","reason":null}"#
     let capture = try #require(try Self.decode(Self.list(Self.row(binding: binding))).captures.first)

@@ -1538,8 +1538,8 @@ struct ChatPageTests {
 
   nonisolated static let outside = UUID(uuidString: "0D7C40A5-6E4B-4E0B-9F43-0F3A1A2B3C4D")!
 
-  func captures(_ binding: CaptureBinding?, root: String = "/w") -> [CaptureSummary] {
-    [CaptureSummary(sessionID: "capture-1", root: root, state: .recording, binding: binding)]
+  func captures(_ binding: CaptureBinding?) -> [CaptureSummary] {
+    [CaptureSummary(sessionID: "capture-1", root: "/w", state: .recording, binding: binding)]
   }
 
   func binding(_ state: BindingState, chat: UUID = saved, generation: String = "g1") -> CaptureBinding {
@@ -1837,6 +1837,7 @@ struct ChatPageTests {
     refresh(model, to: captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
     link.release()
     await connecting.value
+    await Task.megaYield()
 
     expectNoDifference(
       link.calls,
@@ -1845,6 +1846,25 @@ struct ChatPageTests {
         .link(folder: "/w", tabID: Self.saved, replacing: "g2"),
       ]
     )
+  }
+
+  @Test func aLinkLeftOnAClosedTabMovesOffOnTheNextGoodRead() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    link.hold()
+    let connecting = Task { await model.connectTapped(UUID(50)) }
+    await Task.megaYield()
+    await model.closeTabTapped(UUID(50))
+    model.onLinkChanged = { [weak model] in model?.capturesArrived(nil) }
+    link.release()
+    await connecting.value
+    await Task.megaYield()
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g1")])
+
+    model.capturesArrived(captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
   }
 
   @Test func closingUnlinkedTabChangesNothing() async {

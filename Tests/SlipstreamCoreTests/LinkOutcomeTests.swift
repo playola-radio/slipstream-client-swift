@@ -88,12 +88,8 @@ struct LinkOutcomeTests {
       LinkOutcome.unlink(exitCode: 1, output: output), .refused(.other("SESSION_NOT_FOUND: no capture 6f3c")))
   }
 
-  @Test func attachOutputCutToLast64KiBStillParses() {
-    let filler = String(repeating: "x", count: 100)
-    let lines = (0..<700).map { "hook output \($0) \(filler)" }.joined(separator: "\n")
-    let full = "slipstream: the very first line\n\(lines)\nslipstream: BINDING_LIMIT_REACHED: 10 of 10 agent bindings are in use\n"
-    let tail = String(decoding: Array(full.utf8).suffix(65_536), as: UTF8.self)
-    #expect(!tail.contains("the very first line"))
+  @Test func attachOutputMissingItsLeadingLinesStillParses() {
+    let tail = "put 412\nslipstream: BINDING_LIMIT_REACHED: 10 of 10 agent bindings are in use\n"
     expectNoDifference(LinkOutcome.attach(exitCode: 1, output: tail), .refused(.slotsFull))
   }
 }
