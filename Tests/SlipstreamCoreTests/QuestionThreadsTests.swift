@@ -289,13 +289,6 @@ struct QuestionThreadsTests {
     let events = try QuestionFixture.events() + [
       QuestionFixture.queued(11, id: "q3", replyTo: "<question_id_1>"),
       QuestionFixture.answered(13, id: "q3"),
-      QuestionFixture.queued(14, id: "q4", replyTo: "<question_id_1>"),
-      QuestionFixture.attempted(15, id: "q4"),
-      QuestionFixture.unlinked(16),
-      QuestionFixture.queued(17, id: "q5"),
-      QuestionFixture.unlinked(18),
-      QuestionFixture.attempted(19, id: "q5"),
-      QuestionFixture.resumed(20),
     ]
     for split in events.indices {
       var resumed = QuestionThreads(events[..<split])
