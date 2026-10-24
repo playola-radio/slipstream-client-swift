@@ -94,7 +94,10 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
+  @ObservationIgnored private var archivedSessionIDs: Set<String> = []
   @ObservationIgnored private var managedWorkspaceRoot: URL?
+  @ObservationIgnored private var managedWorkspaceTask: Task<Void, Never>?
+  @ObservationIgnored private var managedWorkspaceGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
   @ObservationIgnored private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
@@ -453,7 +456,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func viewAppeared() async {
     isShown = true
-    managedWorkspaceRoot = await workspace.managedRoot()
+    loadManagedWorkspaceRoot()
     chatWorkspaceMayHaveChanged()
     chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
     if selectedSession != nil, watchTask?.isCancelled ?? true {
@@ -472,6 +475,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sessionSelected(_ id: String) {
     guard select(id) else { return }
+    pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
       await loadSessions()
@@ -497,6 +501,7 @@ final class ChangeStreamPageModel: ViewModel {
   /// in. Its conversations come back if the command refuses.
   func archiveConfirmed() async {
     guard !isWorkspaceBusy, let folder = selectedFolder else { return }
+    let archivedSessionID = selectedSession?.id
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
     chat.workspaceChanged(folder: nil, emptyText: nil)
@@ -509,6 +514,7 @@ final class ChangeStreamPageModel: ViewModel {
       return
     }
     chat.forgetTabs(in: folder)
+    if let archivedSessionID { archivedSessionIDs.insert(archivedSessionID) }
     selectedSession = nil
     resetFeed()
     startWatching()
@@ -523,6 +529,8 @@ final class ChangeStreamPageModel: ViewModel {
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
+    managedWorkspaceTask?.cancel()
+    managedWorkspaceGeneration += 1
     watchedFollowerLeftLive()
   }
 
@@ -685,6 +693,18 @@ final class ChangeStreamPageModel: ViewModel {
     return true
   }
 
+  private func loadManagedWorkspaceRoot() {
+    managedWorkspaceTask?.cancel()
+    managedWorkspaceGeneration += 1
+    let generation = managedWorkspaceGeneration
+    let workspace = workspace
+    managedWorkspaceTask = Task { [weak self] in
+      let root = await workspace.managedRoot()
+      guard let self, !Task.isCancelled, isShown, generation == managedWorkspaceGeneration else { return }
+      managedWorkspaceRoot = root
+    }
+  }
+
   private func workspaceFailed(title: String, text: String) {
     workspaceFailureTitle = title
     workspaceFailureText = text
@@ -772,7 +792,8 @@ final class ChangeStreamPageModel: ViewModel {
           isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
         composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture))
       }
-      if selectedSession == nil, sessions.count == 1, !Self.isArchived(sessions[0]) {
+      if selectedSession == nil, sessions.count == 1,
+        !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
       await withTaskGroup(of: (String, SessionStarted?).self) { group in

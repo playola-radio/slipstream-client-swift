@@ -3156,6 +3156,91 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceBusy)
   }
 
+  @Test func archivedWorkspaceIsNotAutomaticallySelectedWhenCaptureLoadingFails() async {
+    listWorkspace()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
+      WorkspaceOutcome()
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    await model.archiveConfirmed()
+
+    #expect(model.selectedSession == nil)
+    #expect(model.chat.folder == nil)
+  }
+
+  @Test func sessionDiscoveryDoesNotWaitForManagedWorkspaceRoot() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let workspace = workspaceClient()
+    let slowWorkspace = WorkspaceClient(
+      managedRoot: {
+        for await _ in gate { break }
+        return Self.managedRoot
+      },
+      chooseRepository: workspace.chooseRepository,
+      create: workspace.create,
+      archive: workspace.archive
+    )
+    let model = makeModel(workspace: slowWorkspace)
+    let appeared = Task { await model.viewAppeared() }
+    defer { release.yield() }
+
+    await Task.megaYield()
+
+    #expect(model.selectedSession?.id == Fixture.session)
+    release.yield()
+    await appeared.value
+  }
+
+  @Test func explicitSessionSelectionClearsAnUnresolvedWorkspacePreference() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ]
+    )
+    let model = makeModel(workspace: workspaceClient(create: { [fake] _, _ in
+      fake.setSessions(
+        [
+          SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+          SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        ],
+        starts: [
+          Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+          Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+        ]
+      )
+      return WorkspaceOutcome(workspacePath: Self.workspaceRoot)
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.newWorkspaceTapped()
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: "new", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+        "new": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+      ]
+    )
+
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
   @Test func archiveHidesTheChatWhileTheCommandRuns() async {
     listWorkspace()
     let (gate, release) = AsyncStream<Void>.makeStream()
