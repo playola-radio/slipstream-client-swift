@@ -1577,6 +1577,7 @@ struct ChatPageTests {
     #expect(model.linkIcon(for: tab) == .connected)
     #expect(model.linkHoverTitle(for: tab) == "Connected to Stream")
     #expect(model.linkHoverText(for: tab) == nil)
+    #expect(model.linkHelpText(for: tab) == "Connected to Stream")
     #expect(model.outsideChatText == nil)
     #expect(model.isAppTabLinked)
   }
@@ -1590,6 +1591,9 @@ struct ChatPageTests {
     #expect(
       model.linkHoverText(for: tab)
         == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+    #expect(
+      model.linkHelpText(for: tab)
+        == "Connected to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
     #expect(model.isAppTabLinked)
   }
 
@@ -1600,6 +1604,7 @@ struct ChatPageTests {
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == nil)
     #expect(model.linkHoverTitle(for: tab) == nil)
+    #expect(model.linkHelpText(for: tab) == nil)
     #expect(model.outsideChatText == nil)
     #expect(model.isAppTabLinked == false)
   }
@@ -1751,7 +1756,8 @@ struct ChatPageTests {
     #expect(model.isConnectEnabled(try tab(model, UUID(50))) == false)
     #expect(model.connectText == "Connect to Stream")
     #expect(model.closeTabText == "Close Tab")
-    #expect(model.connectDisabledText == "Send this chat a message first.")
+    #expect(model.connectHintText(for: try tab(model, Self.saved)) == nil)
+    #expect(model.connectHintText(for: try tab(model, UUID(50))) == "Send this chat a message first.")
 
     await model.connectTapped(UUID(50))
 

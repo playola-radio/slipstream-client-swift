@@ -38,9 +38,18 @@ struct ChatPageView<Leading: View>: View {
         HStack(spacing: DesignTokens.Chat.TabStrip.gap) {
           ForEach(model.visibleTabs) { tab in
             ChatTabView(tab: tab, isSelected: model.isSelected(tab), isHovered: model.isHovered(tab),
+              linkIcon: model.linkIcon(for: tab), linkHelpText: model.linkHelpText(for: tab),
               selected: { Task { await model.tabSelected(tab.id) } },
               closed: { Task { await model.closeTabTapped(tab.id) } },
               hovered: { model.tabHovered(tab.id, isHovering: $0) })
+            .contextMenu {
+              Button { Task { await model.connectTapped(tab.id) } } label: {
+                Text(model.connectText)
+                if let hint = model.connectHintText(for: tab) { Text(hint) }
+              }
+              .disabled(!model.isConnectEnabled(tab))
+              Button(model.closeTabText) { Task { await model.closeTabTapped(tab.id) } }
+            }
           }
           if model.showsNewTabButton {
             Button { Task { await model.newTabTapped() } } label: {
@@ -55,6 +64,16 @@ struct ChatPageView<Leading: View>: View {
         }
       }
       .scrollIndicators(.hidden)
+      if let outsideChatText = model.outsideChatText {
+        HStack(spacing: DesignTokens.Chat.OutsideChat.gap) {
+          IconView(icon: DesignTokens.Chat.OutsideChat.icon)
+          Text(outsideChatText)
+            .font(DesignTokens.Chat.OutsideChat.font)
+            .foregroundStyle(DesignTokens.Chat.OutsideChat.color)
+            .lineLimit(1)
+        }
+        .fixedSize()
+      }
     }
     .padding(.horizontal, DesignTokens.Chat.TabStrip.horizontalPadding)
     .frame(height: DesignTokens.Chat.TabStrip.height)
@@ -148,6 +167,8 @@ private struct ChatTabView: View {
   let tab: ChatTabModel
   let isSelected: Bool
   let isHovered: Bool
+  let linkIcon: ChatLinkIcon?
+  let linkHelpText: String?
   let selected: () -> Void
   let closed: () -> Void
   let hovered: (Bool) -> Void
@@ -163,6 +184,10 @@ private struct ChatTabView: View {
             .font(DesignTokens.Chat.Tab.titleFont(isBold: tab.isTitleBold))
             .foregroundStyle(DesignTokens.Chat.Tab.titleColor(isSelected: isSelected, isBold: tab.isTitleBold))
             .lineLimit(1)
+          if let linkIcon, let linkHelpText {
+            IconView(icon: DesignTokens.Chat.Tab.link(linkIcon))
+              .help(linkHelpText)
+          }
         }
         .padding(.horizontal, DesignTokens.Chat.Tab.horizontalPadding)
         .frame(maxHeight: .infinity)

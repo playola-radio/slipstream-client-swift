@@ -29,6 +29,7 @@ final class ChangeStreamPageModel: ViewModel {
     self.chat = chat
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
+    chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
   }
 
   // MARK: - Properties
@@ -322,7 +323,8 @@ final class ChangeStreamPageModel: ViewModel {
         context: selection.context,
         agentConnection: selectedSession?.agentConnection ?? .unreported,
         captureStatus: sessions[id: selection.sessionID].map(captureStatus(of:))
-          ?? CaptureStatus(availability: captureAvailability, capture: nil)
+          ?? CaptureStatus(availability: captureAvailability, capture: nil),
+        isAppTabLinked: isAppTabLinked(selection.sessionID)
       )
     }
   }
@@ -790,7 +792,9 @@ final class ChangeStreamPageModel: ViewModel {
         let isWatched = composer.sessionID == selectedSession?.id
         composer.agentConnectionChanged(
           isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
-        composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture))
+        composer.captureChanged(
+          CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture),
+          isAppTabLinked: isAppTabLinked(composer.sessionID))
       }
       if selectedSession == nil, sessions.count == 1,
         !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
@@ -847,12 +851,15 @@ final class ChangeStreamPageModel: ViewModel {
     switch result {
     case .success(let list?):
       captureAvailability = .available(checkedAt: checkedAt)
+      chat.capturesArrived(list.captures)
       return list.captures
     case .success(nil):
       captureAvailability = .unavailableFromReader
+      chat.capturesArrived(nil)
       return []
     case .failure:
       captureAvailability = .failed
+      chat.capturesArrived(nil)
       return []
     }
   }
@@ -874,14 +881,22 @@ final class ChangeStreamPageModel: ViewModel {
     if let selectedID = selectedSession?.id { selectedSession?.capture = capturesByID[selectedID] }
     reply?.captureChanged(selectedSession?.capture)
     if let composer = askAgent {
-      composer.captureChanged(CaptureStatus(availability: captureAvailability, capture: capturesByID[composer.sessionID]))
+      composer.captureChanged(
+        CaptureStatus(availability: captureAvailability, capture: capturesByID[composer.sessionID]),
+        isAppTabLinked: isAppTabLinked(composer.sessionID))
     }
   }
 
   private func captureRefreshFailed() {
     captureAvailability = .failed
+    chat.capturesArrived(nil)
     reply?.captureChanged(nil)
-    askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil))
+    askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil), isAppTabLinked: false)
+  }
+
+  /// The chat strip shows the selected workspace, so its link only speaks for that session.
+  private func isAppTabLinked(_ sessionID: String) -> Bool {
+    sessions[id: sessionID]?.root == chat.folder && chat.isAppTabLinked
   }
 
   private func startWatching() {

@@ -81,7 +81,6 @@ final class ChatPageModel: ViewModel {
 
   let connectText = "Connect to Stream"
   let closeTabText = "Close Tab"
-  let connectDisabledText = "Send this chat a message first."
 
   var noWorkspaceText: String? { folder == nil ? emptyText : nil }
 
@@ -98,6 +97,16 @@ final class ChatPageModel: ViewModel {
     case .failed: "Couldn't connect to Stream"
     case nil: nil
     }
+  }
+
+  func connectHintText(for tab: ChatTabModel) -> String? {
+    isConnectEnabled(tab) ? nil : "Send this chat a message first."
+  }
+
+  /// The icon's tooltip: the hover title, then its explanation on the next line.
+  func linkHelpText(for tab: ChatTabModel) -> String? {
+    guard let title = linkHoverTitle(for: tab) else { return nil }
+    return [title, linkHoverText(for: tab)].compactMap(\.self).joined(separator: "\n")
   }
 
   func linkHoverText(for tab: ChatTabModel) -> String? {
