@@ -64,6 +64,7 @@ public struct QuestionThreads: Equatable, Sendable {
   public private(set) var threads: IdentifiedArrayOf<QuestionThread> = []
   private var rootByQuestionID: [String: String] = [:]
   private var undispatchedQuestionIDs: Set<String> = []
+  private var queuedSinceResumeIDs: Set<String> = []
 
   public init() {}
 
@@ -89,13 +90,14 @@ public struct QuestionThreads: Equatable, Sendable {
         threads.append(QuestionThread(id: question.questionID, source: question.source, turns: [turn]))
       }
       undispatchedQuestionIDs.insert(question.questionID)
+      queuedSinceResumeIDs.insert(question.questionID)
     case .questionDispatchAttempted(let attempt):
       undispatchedQuestionIDs.remove(attempt.questionID)
       updateTurn(attempt.questionID) { $0.isMoved = false }
     case .agentUnlinked(let unlinked):
       guard unlinked.reason == "unlinked" else { return }
       for thread in threads {
-        for turn in thread.turns where turn.answer == nil && !turn.isDropped {
+        for turn in thread.turns where turn.answer == nil && queuedSinceResumeIDs.contains(turn.questionID) {
           undispatchedQuestionIDs.insert(turn.questionID)
           updateTurn(turn.questionID) { $0.isMoved = true }
         }
@@ -105,6 +107,7 @@ public struct QuestionThreads: Equatable, Sendable {
         updateTurn(questionID) { $0.isDropped = true }
       }
       undispatchedQuestionIDs.removeAll()
+      queuedSinceResumeIDs.removeAll()
     case .questionAnswered(let answer):
       updateTurn(answer.questionID) { turn in
         guard turn.answer == nil else { return }

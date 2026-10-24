@@ -342,6 +342,17 @@ extension QuestionThreadsTests {
     expectNoDifference(QuestionThreads(events + [QuestionFixture.unlinked(6)]), QuestionThreads(events))
   }
 
+  @Test func unlinkLeavesQuestionsFromBeforeTheLatestResumeWaiting() {
+    let threads = QuestionThreads([
+      QuestionFixture.queued(1, id: "q1"),
+      QuestionFixture.attempted(2, id: "q1"),
+      QuestionFixture.resumed(3),
+      QuestionFixture.queued(4, id: "q2"),
+      QuestionFixture.unlinked(5),
+    ])
+    expectNoDifference(threads.threads.map { $0.turns.map(\.status) }, [[.waiting], [.resending]])
+  }
+
   @Test(arguments: ["detached", "archived"])
   func otherUnlinkReasonsChangeNothing(_ reason: String) {
     let events = [QuestionFixture.queued(1, id: "q1"), QuestionFixture.attempted(2, id: "q1")]
