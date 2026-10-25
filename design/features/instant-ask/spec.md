@@ -81,6 +81,35 @@ This reverses linked-chat's non-goal "No fork-based Ask" (Brian, 2026-10-24, aft
     (`6e1214434e6591b15e47786d51aa0f571e27c7820dfc225e21134e6f81df48eb`). The project's session
     count was 4 before and 4 after.
 
+### Probes before stage 2 (2026-10-25, Claude CLI 2.1.293, throwaway config, scratch repo)
+
+The tab ran with `ClaudeInvocation.arguments` plus `--replay-user-messages`, driven over
+stream-json as `ChatTabModel` drives it (endpoints.md "Stage 2's first task").
+
+1. **Partly fails.** The echo carries the `uuid` the app sent, for an idle send and for a mid-turn
+   write. It does **not** parse as a prompt line: the live echo is
+   `{"type":"user","uuid":…,"isReplay":true,"timestamp":…,"session_id":…,"message":…}` with no
+   `promptId`, so `AgentLine.decode` gives `isPrompt == false`. Today's projection already draws
+   nothing for it. Every user message is echoed, ordinary sends too (with a uuid Claude makes
+   up). The process also writes `command_lifecycle` lines (`command_uuid` = the sent uuid,
+   `state` queued → started → completed).
+2. **Passes.** A relay written at 2.0 s, during a 15 s `sleep`, was echoed at 18.1 s, right after
+   the tool result, and the agent acted on it in the same turn. `command_lifecycle` "queued" came
+   at the write; the echo came at the read.
+3. **Passes, with a new finding.** A message queued during a turn is read after Stop and after a
+   normal turn end. Neither waits for the app's next send: the process starts a new turn for it
+   on its own (`system`/`init`, the echo, the reply, its own `result`) right after the previous
+   turn's `result`. Closing stdin mid-turn doesn't drop it either: the process reads it, answers
+   and then exits. Only an exit before the read (SIGTERM, a crash) leaves it unread.
+4. **Passes.** A copy resumed and forked while the tab was still running, right after its
+   `result`, answered from that turn ("PINEAPPLE-42").
+
+Also seen: a message read mid-turn is saved in the transcript as an `attachment` of type
+`queued_command` (`prompt`, `source_uuid` = the sent uuid), not as a `user` line, so today's
+history doesn't show it after a reload. A message that starts a turn (idle, or the turn the
+process starts by itself after Stop or a turn end) is saved as an ordinary `user` line with the
+sent `uuid` and a `promptId`, so a reload shows it.
+
 ## Scope
 
 1. **Ask answers right away.** The answer comes from a hidden copy (fork) of the linked chat tab,
