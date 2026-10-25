@@ -357,6 +357,8 @@ thread is in progress.
 |---|---|
 | `userMessage(_ text: String, uuid: UUID? = nil)` | A relay passes its `relay_id` as a top-level `uuid`; ordinary sends are unchanged |
 | `--replay-user-messages` added to `arguments` | The tab echoes each user message when the agent reads it |
+| `AgentLine.echo(uuid: String)` | New: a `user` line with `isReplay == true`. Ordinary sends are echoed too, with a uuid Claude makes up (spec.md "Probes before stage 2", A) |
+| `AgentLine.queuedMessage(uuid: String, text: String)` | New: a transcript `attachment` of type `queued_command`, a message read mid-turn (B). Not a prompt line: it doesn't start a turn |
 
 ## TranscriptProjection — Changed (stage 2)
 
@@ -365,6 +367,8 @@ thread is in progress.
 | `userSent(_:id:relay:)` | Gains an optional `RelayMark`. A relay's item id is its `relay_id` (`TranscriptProjection.swift:61`) |
 | `markRelay(id:delivery:)` | New: updates a relayed message's mark |
 | `TranscriptItem.Kind.userMessage` gains `relay: RelayMark?` | `RelayMark { label: String, delivery: .waiting / .pickedUp / .notDelivered }`; `label` is "From Ask · greet.py:3-5" |
+| Echoes never drawn | `.echo` lines are skipped by `apply` and `history` (A) |
+| `history` draws `.queuedMessage` | As an unmarked user message at its place in the running turn: no footer, no tool interrupted. `apply` never draws one: the tab drew it when it was sent (B) |
 
 The relayed text is the user's own words with the quoted question and answer above them, built by
 `InstantAskModel`, so it reads correctly in the transcript even where the mark isn't shown, as
@@ -374,12 +378,15 @@ after a reload: a reloaded relay shows unmarked.
 
 | Change | Notes |
 |---|---|
-| Live echoes skipped | `received(_ line:)` (`ChatTabModel.swift:465`) never draws a live `.user` prompt line (`isPrompt`, `TranscriptProjection.swift:90`): the tab drew it when it was sent. A reload still draws prompts from the transcript |
 | `relay(_ message: AskRelayMessage) async throws` | Idle: starts a turn with it, as `send` does, without touching the draft. Mid-turn: writes it to stdin now. Inserts the marked message as `waiting` |
-| Echo seen | The echo with the relay's `uuid`, from this process launch, sets the message `pickedUp`; `InstantAskModel` records `picked_up` |
-| Process exited, output read to the end, no echo | Sets `notDelivered`; `InstantAskModel` records `not_delivered` [1] |
-| Turn ended or Stop pressed, no echo | Nothing changes: the message is still queued and the process reads it next (stage 2's first check). Only an exit proves it was never read [1] |
-| Turn ends | `ChatPageModel` already sets each tab's `onTurnEnded` (`ChatPageModel.swift:423`); its `turnEnded(_:)` also tells `InstantAskModel` the tab id |
+| Echo seen | The echo with the relay's `uuid` (lowercased), from the launch it was written to, sets the message `pickedUp`; `onRelayDelivery` reports it at once, before that turn's `onTabTurnEnded` (A, C4) |
+| Echo while no turn is running | Starts a turn, as a send does: the process read a queued message after Stop or a turn end. The user's sends wait for it, Stop works, its `result` ends it with a footer, `onTabTurnEnded` fires once (C) |
+| Process exited, output read to the end, no echo | Sets `notDelivered`; reports `exitedUnread`; `InstantAskModel` records `not_delivered` [1] |
+| Retired process (Stop's deadline, model change, close) | Keeps reading only for its unread relays' echoes or exit; never touches the current turn or screen (C1) |
+| `reloadWhenIdle` | Waits while the launch has unread relays, then relaunches (C2) |
+| Failed write | Doesn't end a turn an echo has already started (C3) |
+| Turn ended or Stop pressed, no echo | Nothing changes: the message is still queued and the process reads it in a turn it starts by itself. Only an exit proves it was never read [1] |
+| Turn ends | `ChatPageModel` already sets each tab's `onTurnEnded` (`ChatPageModel.swift:423`); its `turnEnded(_:)` also calls `onTabTurnEnded` with the tab id |
 
 `AskRelayMessage { relayID: UUID, text: String, label: String }`.
 

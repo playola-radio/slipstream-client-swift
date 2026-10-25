@@ -9,7 +9,7 @@ private let baseArguments = [
   "--print", "--output-format", "stream-json", "--verbose", "--input-format", "stream-json",
   "--thinking=adaptive", "--thinking-display=summarized", "--effort=high", "--model=claude-opus-5-5",
   "--max-turns=1000", "--permission-prompt-tool=stdio", "--permission-mode=bypassPermissions",
-  "--disallowedTools=AskUserQuestion", "--setting-sources=user,project,local",
+  "--disallowedTools=AskUserQuestion", "--setting-sources=user,project,local", "--replay-user-messages",
 ]
 
 private func json(_ line: Data) throws -> JSONValue {
@@ -43,7 +43,28 @@ struct ClaudeInvocationTests {
     )
   }
 
-  @Test func userMessageLine() throws {
+  @Test func argumentsIncludeReplay() {
+    #expect(
+      ClaudeInvocation.arguments(model: "claude-opus-5-5", effort: "high", session: .new(sessionID))
+        .contains("--replay-user-messages"))
+  }
+
+  @Test func userMessageCarriesTopLevelUUIDWhenGiven() throws {
+    let relayID = UUID(uuidString: "C9D8E7F6-A5B4-4C3D-8E2F-1A0B9C8D7E6F")!
+    expectNoDifference(
+      try json(ClaudeInvocation.userMessage("…", uuid: relayID)),
+      .object([
+        "type": .string("user"),
+        "uuid": .string("c9d8e7f6-a5b4-4c3d-8e2f-1a0b9c8d7e6f"),
+        "message": .object([
+          "role": .string("user"),
+          "content": .array([.object(["type": .string("text"), "text": .string("…")])]),
+        ]),
+      ])
+    )
+  }
+
+  @Test func ordinaryUserMessageHasNoUUID() throws {
     expectNoDifference(
       try json(ClaudeInvocation.userMessage("Fix \"it\"\nplease / now")),
       .object([

@@ -17,7 +17,7 @@ public enum ClaudeInvocation {
       "--thinking=adaptive", "--thinking-display=summarized",
       "--effort=\(effort)", "--model=\(model)", "--max-turns=1000",
       "--permission-prompt-tool=stdio", "--permission-mode=bypassPermissions",
-      "--disallowedTools=AskUserQuestion", "--setting-sources=user,project,local",
+      "--disallowedTools=AskUserQuestion", "--setting-sources=user,project,local", "--replay-user-messages",
       sessionArgument,
     ]
   }
@@ -30,15 +30,16 @@ public enum ClaudeInvocation {
     ]
   }
 
-  public static func userMessage(_ text: String) -> Data {
-    line(
-      .object([
-        "type": .string("user"),
-        "message": .object([
-          "role": .string("user"),
-          "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
-        ]),
-      ]))
+  public static func userMessage(_ text: String, uuid: UUID? = nil) -> Data {
+    var fields: [String: JSONValue] = [
+      "type": .string("user"),
+      "message": .object([
+        "role": .string("user"),
+        "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
+      ]),
+    ]
+    if let uuid { fields["uuid"] = .string(uuid.uuidString.lowercased()) }
+    return line(.object(fields))
   }
 
   public static func interrupt(requestID: String) -> Data {

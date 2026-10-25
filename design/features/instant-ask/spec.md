@@ -81,6 +81,35 @@ This reverses linked-chat's non-goal "No fork-based Ask" (Brian, 2026-10-24, aft
     (`6e1214434e6591b15e47786d51aa0f571e27c7820dfc225e21134e6f81df48eb`). The project's session
     count was 4 before and 4 after.
 
+### Probes before stage 2 (2026-10-25, Claude CLI 2.1.293, throwaway config, scratch repo)
+
+The tab ran with `ClaudeInvocation.arguments` plus `--replay-user-messages`, driven over
+stream-json as `ChatTabModel` drives it (endpoints.md "Stage 2's first task").
+
+1. **Partly fails.** The echo carries the `uuid` the app sent, for an idle send and for a mid-turn
+   write. It does **not** parse as a prompt line: the live echo is
+   `{"type":"user","uuid":…,"isReplay":true,"timestamp":…,"session_id":…,"message":…}` with no
+   `promptId`, so `AgentLine.decode` gives `isPrompt == false`. Today's projection already draws
+   nothing for it. Every user message is echoed, ordinary sends too (with a uuid Claude makes
+   up). The process also writes `command_lifecycle` lines (`command_uuid` = the sent uuid,
+   `state` queued → started → completed).
+2. **Passes.** A relay written at 2.0 s, during a 15 s `sleep`, was echoed at 18.1 s, right after
+   the tool result, and the agent acted on it in the same turn. `command_lifecycle` "queued" came
+   at the write; the echo came at the read.
+3. **Passes, with a new finding.** A message queued during a turn is read after Stop and after a
+   normal turn end. Neither waits for the app's next send: the process starts a new turn for it
+   on its own (`system`/`init`, the echo, the reply, its own `result`) right after the previous
+   turn's `result`. Closing stdin mid-turn doesn't drop it either: the process reads it, answers
+   and then exits. Only an exit before the read (SIGTERM, a crash) leaves it unread.
+4. **Passes.** A copy resumed and forked while the tab was still running, right after its
+   `result`, answered from that turn ("PINEAPPLE-42").
+
+Also seen: a message read mid-turn is saved in the transcript as an `attachment` of type
+`queued_command` (`prompt`, `source_uuid` = the sent uuid), not as a `user` line, so today's
+history doesn't show it after a reload. A message that starts a turn (idle, or the turn the
+process starts by itself after Stop or a turn end) is saved as an ordinary `user` line with the
+sent `uuid` and a `promptId`, so a reload shows it.
+
 ## Scope
 
 1. **Ask answers right away.** The answer comes from a hidden copy (fork) of the linked chat tab,
@@ -363,6 +392,24 @@ ships no transcript adapters), so nothing about attribution changes.
   and the app folds them by status precedence, instead of the daemon enforcing order and the app
   sending one step at a time. This supersedes the order rules and the serial queue from Phase 5
   finding #2.
+- 2026-10-25 **Task 9 probe amendments (A–C)**, approved by Brian after the stage-2 probes (item 1
+  partly failed; item 3 found turns the process starts by itself), checked by the orchestrator
+  with Codex against `ChatTabModel` and `AgentProcessClient`:
+  - **A. Echo detection:** a `user` line with `isReplay == true` decodes as its own echo, which the
+    projection never draws, live or in history. The tab matches its `uuid` (lowercased) against
+    the launch's unread relays for pickup. `command_lifecycle` lines stay ignored.
+  - **B. Mid-turn relays after a reload:** history draws a `queued_command` attachment as an
+    unmarked user message at its place in its turn, without starting a new turn. It is never
+    drawn live.
+  - **C. Turns the process starts by itself:** an echo while no turn is running starts a turn, as
+    a send does. The user's own sends wait for it, Stop works on it, its `result` ends it with a
+    footer, and the turn-ended signal fires once. A retired process (Stop's deadline, a model
+    change, a close) still reports its unread relays, by echo or as not delivered once it exits,
+    without touching the tab's turn or screen; a relink waits for unread relays before
+    relaunching; a failed write doesn't end a turn an echo started; a pickup is reported before
+    the turn-ended signal of the turn that read it.
+  - Accepted, no change: `.exited` can come up to 1 s after the exit without stdout's end if a
+    child holds the pipe; everything claude wrote before it exited is read within that time.
 
 ## Acceptance criteria
 

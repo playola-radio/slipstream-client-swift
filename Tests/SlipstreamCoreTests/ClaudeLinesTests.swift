@@ -76,6 +76,31 @@ struct ClaudeLinesTests {
     )
   }
 
+  @Test func replayedUserLineIsAnEcho() {
+    expectNoDifference(
+      decode(
+        #"{"type":"user","uuid":"c9d8e7f6-a5b4-4c3d-8e2f-1a0b9c8d7e6f","isReplay":true,"timestamp":"2026-10-25T15:16:12.607Z","session_id":"s","parent_tool_use_id":null,"message":{"role":"user","content":[{"type":"text","text":"hi"}]}}"#
+      ),
+      .echo(uuid: "c9d8e7f6-a5b4-4c3d-8e2f-1a0b9c8d7e6f")
+    )
+  }
+
+  @Test func queuedCommandAttachmentIsAQueuedMessage() {
+    expectNoDifference(
+      decode(
+        #"{"type":"attachment","uuid":"q-1","timestamp":"2026-10-25T15:16:12.607Z","attachment":{"type":"queued_command","prompt":[{"type":"text","text":"Also add a test."}],"source_uuid":"c9d8e7f6-a5b4-4c3d-8e2f-1a0b9c8d7e6f","commandMode":"prompt"}}"#
+      ),
+      .queuedMessage(uuid: "q-1", text: "Also add a test.")
+    )
+  }
+
+  @Test func otherAttachmentsAreIgnored() {
+    expectNoDifference(
+      decode(#"{"type":"attachment","uuid":"q-2","attachment":{"type":"todo_reminder"}}"#),
+      .ignored
+    )
+  }
+
   @Test func lifecycleLinesAreIgnored() {
     expectNoDifference(
       [

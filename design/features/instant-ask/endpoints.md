@@ -286,24 +286,30 @@ Simplified in Phase 7 (spec.md "Simplicity gate"); relay steps are accepted in a
 ## CLI the tab's claude process (relayed requests)
 - **Change:** Changed use (stage 2). Two changes to `ClaudeInvocation`:
   - `--replay-user-messages` is added to every tab's arguments, so the process echoes each user
-    message on stdout when the agent reads it. The chat console doesn't draw a live echo again:
-    the tab drew the message when it was sent.
+    message on stdout when the agent reads it:
+    `{"type":"user","uuid":…,"isReplay":true,"timestamp":…,"session_id":…,"message":…}`, with no
+    `promptId`. The chat console never draws an echo: the tab drew the message when it was sent.
+    `command_lifecycle` lines are ignored.
   - A relayed request's line carries a top-level `uuid`, its `relay_id`; ordinary sends are
     unchanged:
     ```json
     { "type": "user", "uuid": "c9d8e7f6-a5b4-4c3d-8e2f-1a0b9c8d7e6f", "message": { "role": "user", "content": [ { "type": "text", "text": "…" } ] } }
     ```
-- **Pickup [1]:** the echoed `user` line with that `uuid`, from the process launch the request was
+- **Pickup [1]:** the echo (`isReplay`) with that `uuid`, from the process launch the request was
   written to, is pickup. A repeated echo changes nothing.
+- **Turns the process starts by itself:** a message still queued when a turn ends (or after Stop)
+  is read in a new turn the process starts on its own: `system`/`init`, the echo, the reply, its
+  own `result`. An echo while no turn is running starts that turn in the tab.
 - **Not delivered [1]:** only when that process has exited and its stdout has been read to the end
   with no echo. A turn end or Stop without the echo is not a failure: the message is still in the
-  process's input and is read on its next turn.
-- **Stage 2's first task** confirms on Claude CLI 2.1.293: the echo carries the sent `uuid` and
-  parses as a prompt line (`isPrompt`); a mid-turn write is echoed when read; a message queued
-  during a turn is read after an interrupt (Stop) and after a normal turn end; the copy's resumed
-  transcript includes the turn that just ended. A reloaded request shows without its "From Ask"
-  mark (models.md `TranscriptProjection`). If a queued message is dropped by an interrupt, Stop
-  joins exit as a not-delivered signal and that is recorded in spec.md before building.
+  process's input and is read in a turn the process starts by itself. A process the tab retires
+  (Stop's deadline, a model change, a close) is still read until it exits, for its relays only.
+- **Transcript:** a request read mid-turn is saved as
+  `{"type":"attachment","attachment":{"type":"queued_command","prompt":[{"type":"text","text":…}],"source_uuid":…}}`;
+  history draws it inside its turn. One that starts a turn is saved as an ordinary `user` line. A
+  reloaded request shows without its "From Ask" mark (models.md `TranscriptProjection`).
+- **Stage 2's first task** ran on Claude CLI 2.1.293; results in spec.md "Probes before stage 2"
+  and its decision log ("Task 9 probe amendments (A–C)").
 - **Consumers:** Chat console, question thread.
 
 ## CLI slipstream attach / slipstream unlink (app tabs)
