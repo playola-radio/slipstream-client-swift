@@ -6,6 +6,9 @@ case "$1" in
       printf '{"echo":%s}\n' "$line"
     done
     ;;
+  count-stdin)
+    printf '{"length":%s}\n' "$(wc -c | tr -d ' ')"
+    ;;
   stderr-then-exit)
     i=0
     while [ "$i" -lt 100 ]; do

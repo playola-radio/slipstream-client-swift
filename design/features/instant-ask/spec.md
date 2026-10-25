@@ -64,6 +64,22 @@ This reverses linked-chat's non-goal "No fork-based Ask" (Brian, 2026-10-24, aft
 - **The Slipstream hook ignores unbound chats.** It claims questions by its own
   `harness_session_id` (daemon `src/question-hook.ts:23`), so an app tab that loads an outside
   chat's hook from the folder's local settings is never handed a question.
+- **PR 1, Task 4 gate (2026-10-25, Claude CLI 2.1.293, throwaway `CLAUDE_CONFIG_DIR`, scratch
+  repo):** `forkArguments`' exact command, against a chat with one finished turn, with the prompt
+  on stdin and stdin closed.
+  - `-p` reads the prompt from stdin: the copy answered the stdin question and exited 0 in about
+    6 s.
+  - The first line is `{"type":"system","subtype":"session_state_changed","state":"running"}`,
+    before `init`. The parser ignores lines before `init`.
+  - The `system`/`init` line names its lists `tools` and `mcp_servers`:
+    `"tools":["Glob","Grep","Read","StructuredOutput"]` (`--json-schema` adds `StructuredOutput`)
+    and `"mcp_servers":[]`. Its `session_id` is the copy's id, not the parent's.
+  - The `result` line is `{"type":"result","subtype":"success","is_error":false,
+    "session_id":"<copy id>","structured_output":{"reply":"…"},…}`. A
+    `session_state_changed` `idle` line follows it.
+  - The parent's transcript sha256 was the same before and after
+    (`6e1214434e6591b15e47786d51aa0f571e27c7820dfc225e21134e6f81df48eb`). The project's session
+    count was 4 before and 4 after.
 
 ## Scope
 
