@@ -392,6 +392,24 @@ ships no transcript adapters), so nothing about attribution changes.
   and the app folds them by status precedence, instead of the daemon enforcing order and the app
   sending one step at a time. This supersedes the order rules and the serial queue from Phase 5
   finding #2.
+- 2026-10-25 **Task 9 probe amendments (A–C)**, approved by Brian after the stage-2 probes (item 1
+  partly failed; item 3 found turns the process starts by itself), checked by the orchestrator
+  with Codex against `ChatTabModel` and `AgentProcessClient`:
+  - **A. Echo detection:** a `user` line with `isReplay == true` decodes as its own echo, which the
+    projection never draws, live or in history. The tab matches its `uuid` (lowercased) against
+    the launch's unread relays for pickup. `command_lifecycle` lines stay ignored.
+  - **B. Mid-turn relays after a reload:** history draws a `queued_command` attachment as an
+    unmarked user message at its place in its turn, without starting a new turn. It is never
+    drawn live.
+  - **C. Turns the process starts by itself:** an echo while no turn is running starts a turn, as
+    a send does. The user's own sends wait for it, Stop works on it, its `result` ends it with a
+    footer, and the turn-ended signal fires once. A retired process (Stop's deadline, a model
+    change, a close) still reports its unread relays, by echo or as not delivered once it exits,
+    without touching the tab's turn or screen; a relink waits for unread relays before
+    relaunching; a failed write doesn't end a turn an echo started; a pickup is reported before
+    the turn-ended signal of the turn that read it.
+  - Accepted, no change: `.exited` can come up to 1 s after the exit without stdout's end if a
+    child holds the pipe; everything claude wrote before it exited is read within that time.
 
 ## Acceptance criteria
 

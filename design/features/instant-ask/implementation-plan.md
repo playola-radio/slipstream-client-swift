@@ -106,15 +106,18 @@ Subagents invoke them too. The daemon session follows the daemon repo's `CLAUDE.
 
 1. **Every ordinary chat message is now echoed.** Stage 2 turns on `--replay-user-messages` for
    every tab. A message the user types must still appear exactly once: live (the tab already drew
-   it, so it skips the echo) and after a reload from the transcript. Covered by Task 10,
-   `liveEchoIsNotDrawnAgain` and `reloadDrawsEachMessageOnce`.
+   it, and echoes are never drawn) and after a reload from the transcript, a mid-turn relay
+   included. Covered by Task 10, `liveEchoIsNotDrawnAgain`, `reloadDrawsEachMessageOnce` and
+   `reloadDrawsMidTurnRelayInsideItsTurn`.
 2. **The echo arrives before the write returns.** An idle tab starts its turn at once, so the echo
    can be read before `relay(_:)` finishes. That must still count as Picked up, not leave the
    request Sent. Covered by Task 11, `echoBeforeWriteReturnsCountsAsPickup`.
 3. **The thread's chat went away between the answer and the next message.** The tab can be closed,
    or relaunched (model change, Stop and retire). A follow-up or change request must go to the
-   folder's linked tab, and an echo from an older launch must change nothing. Covered by Task 5,
-   `followUpAfterThreadChatClosedUsesLinkedTab`, and Task 11, `echoFromEarlierLaunchIsIgnored`.
+   folder's linked tab. An echo only counts for the launch its relay was written to; a retired
+   launch still resolves its own relays but never touches the current turn. Covered by Task 5,
+   `followUpAfterThreadChatClosedUsesLinkedTab`, and Task 11, `echoFromEarlierLaunchIsIgnored`
+   and `stopDeadlineRetireStillResolvesRelay`.
 4. **The capture is deleted, or the app quits, while a copy runs.** Nothing may publish
    afterwards, and the process must be reaped, not orphaned. Covered by Task 5,
    `captureDeletedCancelsRunAndPublishesNothing` and `quitCancelsAndWaitsForRunningCopies`.
@@ -552,7 +555,7 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
 **Files:**
 - Modify: `design/features/instant-ask/spec.md` (a "Probes before stage 2" section)
 
-- [ ] **Step 1: Probe** on Claude CLI 2.1.293 (throwaway config, scratch repo), with a tab launched
+- [x] **Step 1: Probe** on Claude CLI 2.1.293 (throwaway config, scratch repo), with a tab launched
   using `ClaudeInvocation.arguments` plus `--replay-user-messages`. Confirm each item in endpoints.md
   "Stage 2's first task":
   1. The echo carries the `uuid` the app sent, for an idle send and for a mid-turn write, and it
@@ -560,20 +563,25 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
   2. A mid-turn write is echoed when the agent reads it, not when it is written.
   3. A message queued during a turn is read after Stop (interrupt), and after a normal turn end.
   4. A fork resumed right after a turn ends includes that turn.
-- [ ] **Step 2: Record** each result in spec.md. **Stop and report back** if (1) or (2) fails: the
+- [x] **Step 2: Record** each result in spec.md. **Stop and report back** if (1) or (2) fails: the
   pickup design rests on them. If (3) shows an interrupt drops queued input, record that Stop
   joins exit as a not-delivered signal (spec acceptance stage 2 item 5), and amend models.md
   "ChatTabModel / ChatPageModel", before Task 11.
-- [ ] **Step 3: Commit** `chore: record how chat tabs echo and queue messages`.
+- [x] **Step 3: Commit** `chore: record how chat tabs echo and queue messages`.
+
+**Result (2026-10-25):** (1) partly failed: the echo carries the sent `uuid` but is an `isReplay`
+line with no `promptId`. (2)–(4) passed; (3) found that the process starts a turn by itself for a
+queued message. Brian approved amendments A–C (spec.md decision log, "Task 9 probe amendments
+(A–C)"); Tasks 10–11 below include them.
 
 ### Task 10: Message ids, echoes and the "From Ask" mark
 
 **Files:**
 - Modify: `Sources/SlipstreamCore/ClaudeInvocation.swift` (`userMessage(_:uuid:)`,
   `--replay-user-messages`)
-- Modify: `Sources/SlipstreamCore/TranscriptProjection.swift` (`RelayMark`, `userSent`, `markRelay`)
-- Modify: `SlipstreamViewer/Views/Pages/ChatPage/ChatTabModel.swift` (`received(_ line:)` :465
-  skips live prompt lines before `projection.apply` :477)
+- Modify: `Sources/SlipstreamCore/ClaudeLines.swift` (`AgentLine.echo`, `AgentLine.queuedMessage`)
+- Modify: `Sources/SlipstreamCore/TranscriptProjection.swift` (`RelayMark`, `userSent`, `markRelay`,
+  echoes skipped, queued messages in history)
 - Test: `Tests/SlipstreamCoreTests/ClaudeInvocationTests.swift`,
   `Tests/SlipstreamCoreTests/TranscriptProjectionTests.swift`,
   `SlipstreamViewerTests/Views/Pages/ChatPage/ChatPageTests.swift`
@@ -583,6 +591,9 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
 
   ```swift
   public static func userMessage(_ text: String, uuid: UUID? = nil) -> Data   // only relays pass a uuid
+  // AgentLine gains
+  case echo(uuid: String)                // a `user` line with isReplay == true (A)
+  case queuedMessage(text: String)       // a `queued_command` attachment (B)
   // TranscriptItem.Kind.userMessage gains
   public var relay: RelayMark?
   public struct RelayMark: Equatable, Sendable {
@@ -598,16 +609,22 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
 - [ ] **Step 1: Write the failing tests**
   - `userMessageCarriesTopLevelUUIDWhenGiven` (endpoints.md's line, lowercased);
     `ordinaryUserMessageHasNoUUID` (today's bytes); `argumentsIncludeReplay`.
-  - `liveEchoIsNotDrawnAgain` and `reloadDrawsEachMessageOnce` (Review Focus 1).
+  - `liveEchoIsNotDrawnAgain` and `reloadDrawsEachMessageOnce` (Review Focus 1; regression tests
+    now that echoes are their own line).
+  - `reloadDrawsMidTurnRelayInsideItsTurn` (no extra footer, no tool interrupted);
+    `liveQueuedCommandNotDrawn`.
   - `relayMarkShownAndUpdated`; `reloadedRelayShowsUnmarked`.
 - [ ] **Step 2: Run** `swift test --filter "ClaudeInvocationTests|TranscriptProjectionTests"` and
   `ChatPageTests`. Expect FAIL.
-- [ ] **Step 3: Implement.** A live `.user` line with `isPrompt` is never drawn: the tab drew the
-  message when it was sent. Task 11 reads its `uuid` for pickup. A reload draws prompts from the
-  transcript as today, so a reloaded relay shows unmarked. This reverses the chat-console rule
-  against `--replay-user-messages` (`design/features/chat-console/implementation-plan.md:47`);
-  skipping live echoes is what keeps that rule's concern (messages drawn twice) covered. Say so in
-  the PR body.
+- [ ] **Step 3: Implement.** A `user` line with `isReplay == true` decodes as `.echo`, which the
+  projection never draws, live or in history: the tab drew the message when it was sent. Task 11
+  reads its `uuid` for pickup. A `queued_command` attachment decodes as `.queuedMessage`; history
+  draws it unmarked at its place in the turn (not a turn boundary), `apply` ignores it. A reload
+  draws prompts from the transcript as today, so a reloaded relay shows unmarked.
+  `command_lifecycle` lines stay `.ignored`. This reverses the chat-console rule against
+  `--replay-user-messages` (`design/features/chat-console/implementation-plan.md:47`); never
+  drawing echoes is what keeps that rule's concern (messages drawn twice) covered. Say so in the
+  PR body.
 - [ ] **Step 4: Run** `swift test` and the full app test target (touched-area rule: every chat
   console test). Expect PASS.
 - [ ] **Step 5: Commit** `chore: let chat tabs echo messages without drawing them twice`.
@@ -617,7 +634,7 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
 **Files:**
 - Modify: `SlipstreamViewer/Views/Pages/ChatPage/ChatTabModel.swift`
 - Modify: `SlipstreamViewer/Views/Pages/ChatPage/ChatPageModel.swift` (`turnEnded` :434 forwards
-  the tab id; relay events forwarded)
+  the tab id; relay deliveries forwarded)
 - Modify: `SlipstreamViewer/Views/Pages/ChatPage/ChatPageView.swift` (the mark and its line)
 - Test: `SlipstreamViewerTests/Views/Pages/ChatPage/ChatPageTests.swift` (with `AgentFake`)
 
@@ -641,12 +658,23 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
   - `echoSetsPickedUpAndReports`; `echoBeforeWriteReturnsCountsAsPickup` (Review Focus 2);
     `duplicateEchoChangesNothing`; `echoFromEarlierLaunchIsIgnored` (Review Focus 3).
   - `exitAfterStdoutEOFWithoutEchoIsNotDelivered`; `turnEndWithoutEchoStaysWaiting`;
-    `stopWithoutEchoStaysWaiting` (or the Task 9 amendment).
+    `stopWithoutEchoStaysWaiting`.
   - `turnEndForwardsTabID`.
   - `ordinarySendStillBlockedMidTurn` (today's rule for the user's own sends is unchanged).
+  - Turns the process starts by itself (C): `queuedRelayAfterStopRunsAsItsOwnTurn`,
+    `queuedRelayAfterTurnEndRunsAsItsOwnTurn`, `sendRacingSelfStartedTurnKeepsTurnsInStep`,
+    `failedWriteDoesNotClearSelfStartedTurn`, `stopDeadlineRetireStillResolvesRelay`,
+    `reloadWhenIdleWaitsForUnreadRelay`, `pickupPublishedBeforeTurnEnded`.
 - [ ] **Step 2: Run** `ChatPageTests`. Expect FAIL.
-- [ ] **Step 3: Implement.** The tab tracks unread relay ids per process launch. The launch's exit
-  path checks them only after its event stream has ended (stdout read to EOF).
+- [ ] **Step 3: Implement.** The tab tracks unread relay ids per process launch. An echo whose
+  `uuid` (lowercased) is unread in its launch is pickup, reported at once. The launch's exit path
+  checks them only after its event stream has ended (stdout read to EOF, or `outputGrace` after
+  the exit: accepted, see spec.md). An echo while no turn is running starts a fresh turn (new id,
+  Stop not pressed, the normal turn-start housekeeping); its `result` ends it with a footer and
+  `onTabTurnEnded` fires once, stopped or failed endings included. A retired launch keeps reading
+  only to resolve its unread relays and never changes the current turn or screen.
+  `reloadWhenIdle` waits for the launch's unread relays to resolve. A failed write in `send()`
+  doesn't clear a turn an echo has claimed.
 - [ ] **Step 4: Run** the full app test target. Expect PASS (all 128+ `ChatPageTests`).
 - [ ] **Step 5: Manual QA** (throwaway config): ordinary chat unchanged, every message once, before
   and after a relaunch. A relay written mid-turn shows Waiting, then Picked up. Compare with the
