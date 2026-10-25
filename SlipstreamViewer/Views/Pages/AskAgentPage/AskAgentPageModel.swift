@@ -4,11 +4,17 @@ import IdentifiedCollections
 import SlipstreamCore
 import SwiftUI
 
+enum AskSent: Equatable {
+  case queued
+  case answering(requestID: String)
+}
+
 @MainActor
 @Observable
 final class AskAgentPageModel: ViewModel {
   // MARK: - Dependencies
 
+  @ObservationIgnored @Dependency(\.daemon) var daemon
   @ObservationIgnored @Dependency(\.questionClient) var questionClient
   @ObservationIgnored @Dependency(\.savedQuestions) var savedQuestions
   @ObservationIgnored @Dependency(\.uuid) var uuid
@@ -16,14 +22,16 @@ final class AskAgentPageModel: ViewModel {
   // MARK: - Initialization
 
   init(
-    sessionID: String, context: QuestionContext, agentConnection: AgentConnection, captureStatus: CaptureStatus,
-    isAppTabLinked: Bool
+    sessionID: String, folder: String, source: QuestionSource, agentConnection: AgentConnection,
+    captureStatus: CaptureStatus, route: AskRoute, instantAsk: InstantAskModel
   ) {
     self.sessionID = sessionID
-    self.context = context
+    self.folder = folder
+    self.source = source
     self.agentConnection = agentConnection
     self.captureStatus = captureStatus
-    self.isAppTabLinked = isAppTabLinked
+    self.route = route
+    self.instantAsk = instantAsk
     bindingGeneration = captureStatus.capture?.binding?.generation
     super.init()
   }
@@ -32,10 +40,12 @@ final class AskAgentPageModel: ViewModel {
 
   static let defaults = ["Why are you making this change?", "Explain your thinking here, please."]
   let sessionID: String
-  let context: QuestionContext
+  let folder: String
+  let source: QuestionSource
+  var context: QuestionContext { source.context }
   private(set) var agentConnection: AgentConnection
   private(set) var captureStatus: CaptureStatus
-  private(set) var isAppTabLinked: Bool
+  private(set) var route: AskRoute
   private(set) var draft = ""
   private(set) var customQuestions: [String] = []
   private(set) var selectedPreset = defaults[0]
@@ -54,6 +64,7 @@ final class AskAgentPageModel: ViewModel {
   @ObservationIgnored private var generation = 0
   private var isActive: Bool { generation == 0 }
   @ObservationIgnored private var hasLoadedPresets = false
+  @ObservationIgnored private let instantAsk: InstantAskModel
 
   // MARK: - Display Text
 
@@ -71,7 +82,7 @@ final class AskAgentPageModel: ViewModel {
   var contextText: String { "\(context.path) · Lines \(context.lineStart)–\(context.lineEnd)" }
   var options: [String] { Self.defaults + customQuestions }
 
-  var askNoticeText: String? { captureStatus.askNotice(agentConnection: agentConnection, isAppTabLinked: isAppTabLinked) }
+  var askNoticeText: String? { captureStatus.askNotice(agentConnection: agentConnection, route: route) }
 
   // MARK: - View Helpers
 
@@ -163,8 +174,15 @@ final class AskAgentPageModel: ViewModel {
     }
   }
 
-  func askTapped() async -> Bool {
-    guard canSubmit else { return false }
+  /// An app tab answers at once; an outside chat gets the question through the daemon.
+  func askTapped() async -> AskSent? {
+    guard canSubmit else { return nil }
+    if case .app = route {
+      let question = InstantQuestion(
+        storeID: daemon.storeID, sessionID: sessionID, folder: folder, source: source, replyToQuestionID: nil,
+        threadChatSessionID: nil, earlier: [], text: draft)
+      return instantAsk.ask(question).map { .answering(requestID: $0) }
+    }
     let intent = QuestionRequest(
       sessionID: sessionID, requestID: request?.requestID ?? uuid().uuidString.lowercased(),
       text: request?.text ?? draft, context: context,
@@ -175,15 +193,15 @@ final class AskAgentPageModel: ViewModel {
     isSubmitting = true
     do {
       _ = try await questionClient.send(intent)
-      guard isActive, generation == operation, request == intent else { return false }
+      guard isActive, generation == operation, request == intent else { return nil }
       isSubmitting = false
-      return true
+      return .queued
     } catch {
-      guard isActive, generation == operation, request == intent else { return false }
+      guard isActive, generation == operation, request == intent else { return nil }
       isSubmitting = false
       if QuestionFailure.isOutcomeUnknown(error) { hasUncertainSubmission = true }
       showError(QuestionFailure.message(error, hasUncertainSubmission: hasUncertainSubmission))
-      return false
+      return nil
     }
   }
 
@@ -191,9 +209,9 @@ final class AskAgentPageModel: ViewModel {
     agentConnection = connection
   }
 
-  func captureChanged(_ status: CaptureStatus, isAppTabLinked: Bool) {
+  func captureChanged(_ status: CaptureStatus, route: AskRoute) {
     captureStatus = status
-    self.isAppTabLinked = isAppTabLinked
+    self.route = route
     bindingGeneration = bindingGeneration ?? status.capture?.binding?.generation
   }
 

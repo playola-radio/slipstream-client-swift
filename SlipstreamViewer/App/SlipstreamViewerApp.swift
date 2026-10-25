@@ -23,6 +23,7 @@ struct SlipstreamViewerApp: App {
           }) {
             ChangeStreamPageView(
               chat: chat,
+              instantAsk: instantAsk,
               functionChangesDemo: FunctionChangesFixtureModel(
                 root: ProcessInfo.processInfo.environment["SLIPSTREAM_INTERFACE_FIXTURE_ROOT"].map {
                   URL(fileURLWithPath: $0)
@@ -30,7 +31,7 @@ struct SlipstreamViewerApp: App {
                 initialCase: String(fixtureArgument.dropFirst("--function-changes-fixture=".count))
               ))
           } else {
-            ChangeStreamPageView(chat: chat)
+            ChangeStreamPageView(chat: chat, instantAsk: instantAsk)
           }
         }
       }

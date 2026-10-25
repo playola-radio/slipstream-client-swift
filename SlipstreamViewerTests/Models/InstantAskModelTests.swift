@@ -96,20 +96,18 @@ struct InstantAskModelTests {
     ]
   }
 
-  func asking(_ model: InstantAskModel, _ question: InstantQuestion) async -> Task<Void, Never> {
-    let task = Task { await model.ask(question) }
+  func asking(_ model: InstantAskModel, _ question: InstantQuestion) async {
+    model.ask(question)
     await Task.megaYield()
-    return task
   }
 
   /// Answers the running copy and lets the recording retries run out.
-  func askUntilCouldntRecord(_ model: InstantAskModel) async -> Task<Void, Never> {
-    let task = await asking(model, question())
+  func askUntilCouldntRecord(_ model: InstantAskModel) async {
+    await asking(model, question())
     fork.answer()
     await Task.megaYield()
     await clock.advance(by: .seconds(5))
-    await task.value
-    return task
+    await Task.megaYield()
   }
 
   // MARK: - Asking
@@ -118,10 +116,10 @@ struct InstantAskModelTests {
     let model = makeModel()
     recorder.script(.success("q-1"))
 
-    let task = await asking(model, question())
+    await asking(model, question())
     expectNoDifference(model.pending, [entry(state: .answering)])
     fork.answer()
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(recorder.requests, [recording()])
     expectNoDifference(model.pending, [entry(state: .recorded(questionID: "q-1"))])
@@ -131,7 +129,7 @@ struct InstantAskModelTests {
     let model = makeModel()
     let earlier = [AskPrompt.Exchange(question: "What is this?", answer: "A guard.")]
 
-    _ = await asking(model, question("And why?", replyTo: "q-1", threadChat: Self.threadChat, earlier: earlier))
+    await asking(model, question("And why?", replyTo: "q-1", threadChat: Self.threadChat, earlier: earlier))
 
     expectNoDifference(
       fork.requests.map(\.prompt),
@@ -142,7 +140,7 @@ struct InstantAskModelTests {
   @Test func newQuestionUsesLinkedTab() async {
     let model = makeModel()
 
-    _ = await asking(model, question())
+    await asking(model, question())
 
     expectNoDifference(fork.requests.map(\.parentSessionID), [Self.linked])
   }
@@ -150,7 +148,7 @@ struct InstantAskModelTests {
   @Test func followUpUsesThreadChat() async {
     let model = makeModel()
 
-    _ = await asking(model, question(replyTo: "q-1", threadChat: Self.threadChat))
+    await asking(model, question(replyTo: "q-1", threadChat: Self.threadChat))
 
     expectNoDifference(fork.requests.map(\.parentSessionID), [Self.threadChat])
   }
@@ -158,7 +156,7 @@ struct InstantAskModelTests {
   @Test func followUpAfterThreadChatClosedUsesLinkedTab() async {
     let model = makeModel()
 
-    _ = await asking(model, question(replyTo: "q-1", threadChat: UUID(uuidString: "11111111-2222-4333-8444-555555555555")))
+    await asking(model, question(replyTo: "q-1", threadChat: UUID(uuidString: "11111111-2222-4333-8444-555555555555")))
 
     expectNoDifference(fork.requests.map(\.parentSessionID), [Self.linked])
   }
@@ -168,7 +166,7 @@ struct InstantAskModelTests {
       ChatTabRecord(id: Self.linked, folder: "/w", model: "claude-sonnet-5-5", effort: .low, isWaiting: false)
     ])
 
-    _ = await asking(model, question())
+    await asking(model, question())
 
     expectNoDifference(
       fork.requests,
@@ -189,9 +187,9 @@ struct InstantAskModelTests {
   func copyFailureMapsToReason(error: AskForkError, failure: AskFailure) async {
     let model = makeModel()
 
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.reply(.failure(error))
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(model.pending, [entry(state: .couldntAnswer(failure))])
     expectNoDifference(recorder.requests, [])
@@ -201,7 +199,7 @@ struct InstantAskModelTests {
     agent.setEnvironmentError(.claudeNotFound)
     let model = makeModel()
 
-    await model.ask(question())
+    await asking(model, question())
 
     expectNoDifference(model.pending, [entry(state: .couldntAnswer(.chatUnavailable))])
   }
@@ -212,7 +210,7 @@ struct InstantAskModelTests {
     let model = makeModel()
     recorder.script(.failure(.outcomeUnknown), .failure(.rejected(code: "STORAGE_UNAVAILABLE", message: "")), .success("q-1"))
 
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.answer()
     await Task.megaYield()
     expectNoDifference(recorder.requests.count, 1)
@@ -220,7 +218,7 @@ struct InstantAskModelTests {
     await clock.advance(by: .milliseconds(2500))
     expectNoDifference(recorder.requests.count, 2)
     await clock.advance(by: .milliseconds(2500))
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(recorder.requests, [recording(), recording(), recording()])
     expectNoDifference(model.pending, [entry(state: .recorded(questionID: "q-1"))])
@@ -229,7 +227,7 @@ struct InstantAskModelTests {
   @Test func exhaustedRetriesAreCouldntRecord() async {
     let model = makeModel()
 
-    _ = await askUntilCouldntRecord(model)
+    await askUntilCouldntRecord(model)
 
     expectNoDifference(recorder.requests.count, 3)
     expectNoDifference(model.pending, [entry(state: .couldntRecord(Self.answer))])
@@ -237,10 +235,11 @@ struct InstantAskModelTests {
 
   @Test func tryAgainOnCouldntRecordResendsSameRequest() async {
     let model = makeModel()
-    _ = await askUntilCouldntRecord(model)
+    await askUntilCouldntRecord(model)
     recorder.script(.success("q-1"))
 
-    await model.tryAgainTapped(requestID: Self.firstRequest)
+    model.tryAgainTapped(requestID: Self.firstRequest)
+    await Task.megaYield()
 
     expectNoDifference(recorder.requests, Array(repeating: recording(), count: 4))
     expectNoDifference(fork.requests.count, 1)
@@ -251,9 +250,9 @@ struct InstantAskModelTests {
     let model = makeModel()
     recorder.script(.failure(.rejected(code: "INVALID_CONTEXT", message: "")))
 
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.answer()
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(recorder.requests.count, 1)
     expectNoDifference(model.pending, [entry(state: .couldntAnswer(.notSaved))])
@@ -261,12 +260,14 @@ struct InstantAskModelTests {
 
   @Test func tryAgainOnCouldntAnswerRunsNewCopyWithNewRequestID() async {
     let model = makeModel()
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.reply(.failure(.unavailable))
-    await task.value
-
-    _ = Task { await model.tryAgainTapped(requestID: Self.firstRequest) }
     await Task.megaYield()
+
+    let retried = model.tryAgainTapped(requestID: Self.firstRequest)
+    await Task.megaYield()
+
+    #expect(retried == Self.secondRequest)
 
     expectNoDifference(fork.requests.count, 2)
     expectNoDifference(model.pending, [entry(Self.secondRequest, state: .answering)])
@@ -274,7 +275,7 @@ struct InstantAskModelTests {
 
   @Test func lateEventAfterErrorDropsPendingEntry() async {
     let model = makeModel()
-    _ = await askUntilCouldntRecord(model)
+    await askUntilCouldntRecord(model)
 
     model.threadsFolded(sessionID: Self.capture, threads: thread(requestID: Self.firstRequest))
 
@@ -286,9 +287,9 @@ struct InstantAskModelTests {
   @Test func recordedEntryLeavesWhenFoldHasQuestionID() async {
     let model = makeModel()
     recorder.script(.success("q-1"))
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.answer()
-    await task.value
+    await Task.megaYield()
 
     model.threadsFolded(sessionID: Self.capture, threads: thread(requestID: "someone-elses"))
     expectNoDifference(model.pending.count, 1)
@@ -300,10 +301,10 @@ struct InstantAskModelTests {
   @Test func recordedEntryLeavesWhenCaptureDeselected() async {
     let model = makeModel()
     recorder.script(.success("q-1"))
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.answer()
-    await task.value
-    _ = await asking(model, question("Another?"))
+    await Task.megaYield()
+    await asking(model, question("Another?"))
 
     model.captureDeselected(Self.capture)
 
@@ -313,11 +314,11 @@ struct InstantAskModelTests {
   @Test func closingPanelOrDeselectingDoesNotCancel() async {
     let model = makeModel()
     recorder.script(.success("q-1"))
-    let task = await asking(model, question())
+    await asking(model, question())
 
     model.captureDeselected(Self.capture)
     fork.answer()
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(fork.stopCount, 0)
     expectNoDifference(model.pending, [entry(state: .recorded(questionID: "q-1"))])
@@ -325,10 +326,10 @@ struct InstantAskModelTests {
 
   @Test func captureDeletedCancelsRunAndPublishesNothing() async {
     let model = makeModel()
-    let task = await asking(model, question())
+    await asking(model, question())
 
     model.captureDeleted(Self.capture)
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(fork.stopCount, 1)
     expectNoDifference(model.pending, [])
@@ -337,8 +338,8 @@ struct InstantAskModelTests {
 
   @Test func quitCancelsAndWaitsForRunningCopies() async {
     let model = makeModel()
-    _ = await asking(model, question())
-    _ = await asking(model, question("Another?"))
+    await asking(model, question())
+    await asking(model, question("Another?"))
     fork.holdStops()
     let isDone = LockIsolated(false)
 
@@ -354,15 +355,25 @@ struct InstantAskModelTests {
     expectNoDifference(fork.stopCount, 2)
   }
 
+  @Test func followUpWithNoTabIsChatUnavailable() async {
+    let model = makeModel(records: [])
+
+    await asking(model, question(replyTo: "q-1", threadChat: Self.threadChat))
+
+    expectNoDifference(model.pending.map(\.state), [.couldntAnswer(.chatUnavailable)])
+    expectNoDifference(model.pending.map(\.chatSessionID), [Self.threadChat])
+    expectNoDifference(fork.requests, [])
+  }
+
   @Test func staleCompletionPublishesNothing() async {
     let model = makeModel()
-    let task = await asking(model, question())
+    await asking(model, question())
     fork.answer()
     await Task.megaYield()
 
     model.threadsFolded(sessionID: Self.capture, threads: thread(requestID: Self.firstRequest))
     await clock.advance(by: .seconds(5))
-    await task.value
+    await Task.megaYield()
 
     expectNoDifference(recorder.requests.count, 1)
     expectNoDifference(model.pending, [])

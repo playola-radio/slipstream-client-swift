@@ -45,6 +45,54 @@ struct QuestionThreadPageView: View {
             .foregroundStyle(DesignTokens.Reply.waitingColor)
         }
       }
+      if let pending = model.pendingTurn {
+        Text(pending.text)
+          .font(DesignTokens.Reply.questionFont)
+          .foregroundStyle(DesignTokens.Reply.questionColor)
+          .lineSpacing(DesignTokens.Reply.questionLineSpacing)
+          .fixedSize(horizontal: false, vertical: true)
+        if let reason = model.pendingFailureText {
+          VStack(alignment: .leading, spacing: DesignTokens.Reply.progressGap) {
+            HStack(spacing: DesignTokens.Reply.progressRowGap) {
+              Image("X").resizable()
+                .frame(width: DesignTokens.Reply.progressIconSize, height: DesignTokens.Reply.progressIconSize)
+                .foregroundStyle(DesignTokens.Reply.failureColor)
+              Text(model.couldntAnswerText)
+                .font(DesignTokens.Reply.agentFont)
+                .foregroundStyle(DesignTokens.Reply.failureColor)
+              Text(reason)
+                .font(DesignTokens.Reply.agentFont)
+                .foregroundStyle(DesignTokens.Reply.failureDetailColor)
+            }
+            Button(action: model.tryAgainTapped) {
+              Text(model.tryAgainText)
+                .font(DesignTokens.Reply.tryAgainFont)
+                .foregroundStyle(DesignTokens.Reply.tryAgainText)
+                .padding(.vertical, DesignTokens.Reply.tryAgainVerticalPadding)
+                .padding(.horizontal, DesignTokens.Reply.tryAgainHorizontalPadding)
+                .background(DesignTokens.Reply.tryAgainFill, in: RoundedRectangle(cornerRadius: DesignTokens.Reply.tryAgainRadius))
+                .overlay {
+                  RoundedRectangle(cornerRadius: DesignTokens.Reply.tryAgainRadius)
+                    .strokeBorder(DesignTokens.Reply.tryAgainStroke, lineWidth: DesignTokens.Reply.strokeWidth)
+                }
+            }
+            .padding(DesignTokens.Reply.progressActionsPadding)
+          }
+          .padding(DesignTokens.Reply.progressPadding)
+          .overlay(alignment: .leading) {
+            DesignTokens.Reply.progressStroke.frame(width: DesignTokens.Reply.progressStrokeWidth)
+          }
+        } else {
+          HStack(spacing: DesignTokens.Reply.progressRowGap) {
+            Image("LoaderCircle").resizable()
+              .frame(width: DesignTokens.Reply.progressIconSize, height: DesignTokens.Reply.progressIconSize)
+              .foregroundStyle(DesignTokens.Reply.agentColor)
+            Text(model.thinkingText)
+              .font(DesignTokens.Reply.agentFont)
+              .foregroundStyle(DesignTokens.Reply.agentColor)
+          }
+        }
+      }
       ScrollView {
         TextField(model.followUpPlaceholder, text: $model.draft, axis: .vertical)
           .textFieldStyle(.plain)

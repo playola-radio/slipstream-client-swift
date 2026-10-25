@@ -159,9 +159,10 @@ final class ChatPageModel: ViewModel {
     return .waiting
   }
 
-  /// For the Ask notice: the link belongs to one of this workspace's tabs.
-  var isAppTabLinked: Bool {
-    folder.flatMap(linkedAppTab(forFolder:)) != nil
+  /// A linked app tab answers once it has sent a message; anything else keeps the outside chat's checks.
+  func askRoute(forFolder folder: String) -> AskRoute {
+    guard let tab = linkedAppTab(forFolder: folder) else { return .outside }
+    return tab.hasSentMessage ? .app(tabID: tab.id) : .none
   }
 
   /// The tab the folder's binding names, if it is one of the app's tabs.

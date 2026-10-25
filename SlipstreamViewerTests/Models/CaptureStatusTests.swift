@@ -19,6 +19,7 @@ struct CaptureStatusTests {
   }
 
   static let linked = CaptureBinding(generation: "7", state: .connected)
+  static let tab = UUID(uuidString: "5896F28C-F4A9-46C2-B481-7CA57E8714A8")!
 
   @Test(arguments: [
     (CaptureState.recording, nil, "Recording"),
@@ -228,7 +229,7 @@ struct CaptureStatusTests {
   }
 
   @Test func askIsAllowedOnlyWhenRecordingLinkedAndReady() {
-    #expect(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .connected, isAppTabLinked: false) == nil)
+    #expect(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .connected, route: .outside) == nil)
   }
 
   @Test func askNoticeFollowsThePrecedence() {
@@ -238,37 +239,72 @@ struct CaptureStatusTests {
     let waiting = "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
 
     expectNoDifference(
-      CaptureStatus(availability: .failed, capture: nil).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
+      CaptureStatus(availability: .failed, capture: nil).askNotice(agentConnection: .connected, route: .outside), unknown)
     expectNoDifference(
-      CaptureStatus(availability: .unavailableFromReader, capture: nil).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
+      CaptureStatus(availability: .unavailableFromReader, capture: nil).askNotice(agentConnection: .connected, route: .outside), unknown)
     expectNoDifference(
-      CaptureStatus(availability: .loading, capture: nil).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
-    expectNoDifference(Self.status(.unknown("hibernating")).askNotice(agentConnection: .connected, isAppTabLinked: false), unknown)
+      CaptureStatus(availability: .loading, capture: nil).askNotice(agentConnection: .connected, route: .outside), unknown)
+    expectNoDifference(Self.status(.unknown("hibernating")).askNotice(agentConnection: .connected, route: .outside), unknown)
     expectNoDifference(
       Self.status(.stopped, reason: "archived", binding: CaptureBinding(generation: "1", state: .unknown("paused")))
-        .askNotice(agentConnection: .connected, isAppTabLinked: false),
+        .askNotice(agentConnection: .connected, route: .outside),
       unknown)
     expectNoDifference(
       CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil)
-        .askNotice(agentConnection: .connected, isAppTabLinked: false),
+        .askNotice(agentConnection: .connected, route: .outside),
       notRecording)
     expectNoDifference(
-      Self.status(.stopped, reason: "archived", binding: Self.linked).askNotice(agentConnection: .connected, isAppTabLinked: false),
+      Self.status(.stopped, reason: "archived", binding: Self.linked).askNotice(agentConnection: .connected, route: .outside),
       notRecording)
-    expectNoDifference(Self.status(.recording).askNotice(agentConnection: .connected, isAppTabLinked: false), noChat)
+    expectNoDifference(Self.status(.recording).askNotice(agentConnection: .connected, route: .outside), noChat)
     expectNoDifference(
       Self.status(.recording, binding: CaptureBinding(generation: "1", state: .unlinked))
-        .askNotice(agentConnection: .connected, isAppTabLinked: false),
+        .askNotice(agentConnection: .connected, route: .outside),
       noChat)
     expectNoDifference(
       Self.status(.recording, binding: CaptureBinding(generation: "1", state: .unavailable, reason: "transcript-missing"))
-        .askNotice(agentConnection: .connected, isAppTabLinked: false),
+        .askNotice(agentConnection: .connected, route: .outside),
       "The linked chat is unavailable (chat transcript missing), so questions are disabled.")
     expectNoDifference(
       Self.status(.recording, binding: CaptureBinding(generation: "1", state: .setupPending))
-        .askNotice(agentConnection: .connected, isAppTabLinked: false),
+        .askNotice(agentConnection: .connected, route: .outside),
       waiting)
-    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .setupPending, isAppTabLinked: false), waiting)
-    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported, isAppTabLinked: false), waiting)
+    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .setupPending, route: .outside), waiting)
+    expectNoDifference(Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported, route: .outside), waiting)
+  }
+
+  @Test func askNoticeAppTabWithMessageIsReady() {
+    let notice = Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported, route: .app(tabID: Self.tab))
+
+    expectNoDifference(notice, nil)
+  }
+
+  @Test func askNoticeAppTabSetupPendingIsStillReady() {
+    let notice = Self.status(.recording, binding: CaptureBinding(generation: "1", state: .setupPending))
+      .askNotice(agentConnection: .setupPending, route: .app(tabID: Self.tab))
+
+    expectNoDifference(notice, nil)
+  }
+
+  @Test func askNoticeAppTabWithoutMessageIsNothingConnected() {
+    let notice = Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .connected, route: .none)
+
+    expectNoDifference(notice, "No chat is connected yet. Send a message in a chat tab to connect it.")
+  }
+
+  @Test func askNoticeOutsideChatUnchanged() {
+    let notice = Self.status(.recording, binding: CaptureBinding(generation: "1", state: .setupPending))
+      .askNotice(agentConnection: .connected, route: .outside)
+
+    expectNoDifference(
+      notice,
+      "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`.")
+  }
+
+  @Test func askNoticeAppTabStillNeedsRecording() {
+    let notice = Self.status(.stopped, reason: "archived", binding: Self.linked)
+      .askNotice(agentConnection: .connected, route: .app(tabID: Self.tab))
+
+    expectNoDifference(notice, "This workspace isn't recording, so its chat can't receive questions.")
   }
 }

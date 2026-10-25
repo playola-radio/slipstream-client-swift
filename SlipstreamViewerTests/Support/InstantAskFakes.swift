@@ -1,3 +1,4 @@
+import Dependencies
 import Foundation
 import SlipstreamCore
 import Synchronization
@@ -93,5 +94,20 @@ final class RecordFake: Sendable {
           duplicate: false)
       }
     )
+  }
+}
+
+extension InstantAskModel {
+  /// Answers with `fork` and records with `recorder`, choosing from `chat`'s tabs.
+  static func fake(chat: ChatPageModel, fork: ForkFake, recorder: RecordFake = RecordFake()) -> InstantAskModel {
+    withDependencies {
+      $0.agentEnvironment = AgentFake().environmentClient
+      $0.askFork = fork.client
+      $0.questionClient = recorder.client
+      $0.uuid = .incrementing
+      $0.date = DateGenerator { Date(timeIntervalSince1970: 1_760_000_000) }
+    } operation: {
+      InstantAskModel(chat: chat)
+    }
   }
 }

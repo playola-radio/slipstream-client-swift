@@ -5,7 +5,8 @@ let package = Package(
   name: "SlipstreamCore",
   platforms: [.macOS(.v15)],
   products: [
-    .library(name: "SlipstreamCore", targets: ["SlipstreamCore"])
+    .library(name: "SlipstreamCore", targets: ["SlipstreamCore"]),
+    .executable(name: "ask-evals", targets: ["AskEvals"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/swift-clocks", exact: "1.1.1"),
@@ -17,6 +18,7 @@ let package = Package(
       name: "SlipstreamCore",
       dependencies: [.product(name: "IdentifiedCollections", package: "swift-identified-collections")]
     ),
+    .executableTarget(name: "AskEvals", dependencies: ["SlipstreamCore"]),
     .testTarget(
       name: "SlipstreamCoreTests",
       dependencies: [

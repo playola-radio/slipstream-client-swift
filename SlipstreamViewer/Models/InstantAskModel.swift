@@ -35,6 +35,11 @@ struct PendingAsk: Identifiable, Equatable, Sendable {
     /// The daemon's reply never came back, so the exact request is kept to send again.
     case couldntRecord(AskForkResult)
   }
+
+  /// The thread a new question shows as until its answer folds into the capture's log.
+  var rootThread: QuestionThread {
+    QuestionThread(id: id, source: source, turns: [], link: .recorded(chatSessionID: chatSessionID.uuidString.lowercased()))
+  }
 }
 
 enum AskFailure: Equatable, Sendable {
@@ -79,24 +84,28 @@ final class InstantAskModel: ViewModel {
 
   // MARK: - User Actions
 
-  func ask(_ question: InstantQuestion) async {
-    await start(question, at: pending.endIndex)
+  /// Starts answering at once; the run outlives the caller. Returns the new entry's request id.
+  @discardableResult
+  func ask(_ question: InstantQuestion) -> String? {
+    start(question, at: pending.endIndex)
   }
 
   /// A recording whose outcome is unknown is sent again unchanged; anything else runs a new copy
-  /// under a new request id.
-  func tryAgainTapped(requestID: String) async {
-    guard let entry = pending[id: requestID] else { return }
+  /// under a new request id, which is returned.
+  @discardableResult
+  func tryAgainTapped(requestID: String) -> String? {
+    guard let entry = pending[id: requestID] else { return nil }
     switch entry.state {
     case .couldntRecord(let result):
       pending[id: requestID]?.state = .recording(result)
-      await run(requestID) { attempt in await self.record(requestID, result: result, attempt: attempt) }
+      run(requestID) { attempt in await self.record(requestID, result: result, attempt: attempt) }
+      return requestID
     case .couldntAnswer:
-      guard let question = questions[requestID], let index = pending.index(id: requestID) else { return }
+      guard let question = questions[requestID], let index = pending.index(id: requestID) else { return nil }
       forget(requestID)
-      await start(question, at: index)
+      return start(question, at: index)
     case .answering, .recording, .recorded:
-      break
+      return requestID
     }
   }
 
@@ -133,10 +142,11 @@ final class InstantAskModel: ViewModel {
     let task: Task<Void, Never>
   }
 
-  private func start(_ question: InstantQuestion, at index: Int) async {
-    guard let tab = answeringTab(for: question) else {
+  private func start(_ question: InstantQuestion, at index: Int) -> String? {
+    let tab = answeringTab(for: question)
+    guard let chatSessionID = tab?.id ?? question.threadChatSessionID.flatMap(UUID.init(uuidString:)) else {
       reportIssue("No chat tab can answer a question in \(question.folder)")
-      return
+      return nil
     }
     let requestID = uuid().uuidString.lowercased()
     pending.insert(
@@ -144,18 +154,20 @@ final class InstantAskModel: ViewModel {
         id: requestID,
         storeID: question.storeID,
         sessionID: question.sessionID,
-        chatSessionID: tab.id,
+        chatSessionID: chatSessionID,
         source: question.source,
         replyToQuestionID: question.replyToQuestionID,
         text: question.text,
         askedAtMs: Int64((date.now.timeIntervalSince1970 * 1000).rounded()),
-        state: .answering
+        state: tab == nil ? .couldntAnswer(.chatUnavailable) : .answering
       ),
       at: index
     )
     questions[requestID] = question
-    let record = tab.record
-    await run(requestID) { attempt in await self.answer(requestID, question: question, tab: record, attempt: attempt) }
+    if let record = tab?.record {
+      run(requestID) { attempt in await self.answer(requestID, question: question, tab: record, attempt: attempt) }
+    }
+    return requestID
   }
 
   /// The thread's own chat while it is open, otherwise the tab the folder is linked to.
@@ -166,11 +178,9 @@ final class InstantAskModel: ViewModel {
     return chat.linkedAppTab(forFolder: question.folder)
   }
 
-  private func run(_ requestID: String, _ work: @escaping @MainActor (Int) async -> Void) async {
+  private func run(_ requestID: String, _ work: @escaping @MainActor (Int) async -> Void) {
     let attempt = (runs[requestID]?.attempt ?? 0) + 1
-    let task = Task { await work(attempt) }
-    runs[requestID] = Run(attempt: attempt, task: task)
-    await task.value
+    runs[requestID] = Run(attempt: attempt, task: Task { await work(attempt) })
   }
 
   /// Request ids are fresh per store and capture, so the id and attempt identify the run.

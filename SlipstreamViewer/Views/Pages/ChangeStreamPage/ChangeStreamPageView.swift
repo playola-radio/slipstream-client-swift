@@ -7,9 +7,9 @@ struct ChangeStreamPageView: View {
 
   private let bottomID = "feed-bottom"
 
-  init(chat: ChatPageModel, functionChangesDemo: FunctionChangesFixtureModel? = nil) {
+  init(chat: ChatPageModel, instantAsk: InstantAskModel, functionChangesDemo: FunctionChangesFixtureModel? = nil) {
     _model = State(initialValue: ChangeStreamPageModel(
-      chat: chat, isFunctionDemoVisible: functionChangesDemo != nil))
+      chat: chat, instantAsk: instantAsk, isFunctionDemoVisible: functionChangesDemo != nil))
     _functionChangesDemo = State(initialValue: functionChangesDemo)
   }
 

@@ -19,6 +19,7 @@ struct ChangeStreamPageTests {
   let clock = TestClock()
   let storage = InMemoryStorage()
   let link = ChatLinkFake()
+  let agent = AgentFake()
 
   init() {
     fake = DaemonFake()
@@ -29,7 +30,7 @@ struct ChangeStreamPageTests {
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
-    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue
+    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil
   ) -> ChangeStreamPageModel {
     withDependencies {
       $0.workspace = workspace
@@ -40,7 +41,9 @@ struct ChangeStreamPageTests {
       $0.timeZone = TimeZone(identifier: "UTC")!
       $0.date = DateGenerator(now ?? { Fixture.checkedAt })
     } operation: {
-      ChangeStreamPageModel(chat: chat ?? makeChat(), isFunctionDemoVisible: isFunctionDemoVisible)
+      let chat = chat ?? makeChat()
+      return ChangeStreamPageModel(
+        chat: chat, instantAsk: instantAsk ?? InstantAskModel(chat: chat), isFunctionDemoVisible: isFunctionDemoVisible)
     }
   }
 
@@ -49,6 +52,8 @@ struct ChangeStreamPageTests {
       $0.defaultFileStorage = .inMemory
       $0.uuid = .incrementing
       $0.chatLink = link.client
+      $0.agentEnvironment = agent.environmentClient
+      $0.transcripts = agent.transcriptClient
     } operation: {
       @Shared(.chatTabs) var stored
       $stored.withLock { $0 = IdentifiedArray(uniqueElements: records) }
@@ -1432,14 +1437,14 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     defer { model.viewDisappeared() }
     let context = AskAgentPageTests.context
-    let original = withDependencies(from: model) { AskAgentPageModel(sessionID: Fixture.session, context: context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    let original = withDependencies(from: model) { AskAgentPageTests.composer(sessionID: Fixture.session, context: context) }
     model.askAgent = original
     original.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(original) }
     await Task.megaYield()
     let health = model.connection
     model.questionDismissed()
-    let newer = AskAgentPageModel(sessionID: Fixture.otherSession, context: context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false)
+    let newer = AskAgentPageTests.composer(sessionID: Fixture.otherSession, context: context)
     newer.draftChanged("A different question")
     model.askAgent = newer
     resume.yield()
@@ -1456,7 +1461,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { _ in throw QuestionError.outcomeUnknown }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1478,7 +1483,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return try AskAgentPageTests.ack(request)
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(composer) }
@@ -1499,7 +1504,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1514,7 +1519,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies(from: model) {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     model.viewDisappeared()
@@ -1537,7 +1542,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         throw QuestionError.outcomeUnknown
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     let send = Task { await model.askQuestionTapped(composer) }
@@ -1573,7 +1578,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies(from: model) {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1596,7 +1601,7 @@ extension ChangeStreamPageTests {
     let composer = withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = { try AskAgentPageTests.ack($0) }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -1741,7 +1746,7 @@ extension ChangeStreamPageTests {
         if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
         return try AskAgentPageTests.ack(request)
       }
-    } operation: { AskAgentPageModel(sessionID: Fixture.session, context: AskAgentPageTests.context, agentConnection: .connected, captureStatus: AskAgentPageTests.capture(), isAppTabLinked: false) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
     model.askAgent = composer
     composer.draftChanged("Why?")
     await model.askQuestionTapped(composer)
@@ -2206,9 +2211,9 @@ extension ChangeStreamPageTests {
     _ model: ChangeStreamPageModel, session: String = Fixture.session, agentConnection: AgentConnection
   ) -> AskAgentPageModel {
     let composer = withDependencies(from: model) {
-      AskAgentPageModel(
-        sessionID: session, context: AskAgentPageTests.context, agentConnection: agentConnection,
-        captureStatus: model.selectedCaptureStatus ?? AskAgentPageTests.capture(), isAppTabLinked: false)
+      AskAgentPageTests.composer(
+        sessionID: session, agentConnection: agentConnection,
+        captureStatus: model.selectedCaptureStatus ?? AskAgentPageTests.capture())
     }
     model.askAgent = composer
     composer.draftChanged("Why?")
@@ -2596,9 +2601,7 @@ extension ChangeStreamPageTests {
       await Task.megaYield()
       await send(to: fake.follows.count - 1, .heartbeat)
       let composer = withDependencies(from: model) {
-        AskAgentPageModel(
-          sessionID: session, context: AskAgentPageTests.context, agentConnection: .connected,
-          captureStatus: model.selectedCaptureStatus!, isAppTabLinked: false)
+        AskAgentPageTests.composer(sessionID: session, captureStatus: model.selectedCaptureStatus!)
       }
       model.askAgent = composer
       composer.draftChanged("Why?")
@@ -3431,3 +3434,126 @@ extension ChangeStreamPageTests {
     #expect(model.chat.selectedTab?.draft == "Keep this draft")
   }
 }
+
+extension ChangeStreamPageTests {
+  // MARK: - Instant answers
+
+  static let tab = UUID(uuidString: "4BAD416C-1D04-4063-9E76-61EBB936AE06")!
+  static let firstRequest = "00000000-0000-0000-0000-000000000000"
+  static let secondRequest = "00000000-0000-0000-0000-000000000001"
+
+  /// The capture's folder is linked to an app tab, so its questions are answered by `fork`.
+  func linkedModel(fork: ForkFake, recorder: RecordFake = RecordFake()) async -> ChangeStreamPageModel {
+    fake.setCaptures([
+      Fixture.capture(
+        binding: CaptureBinding(generation: "7", state: .connected, harnessSessionID: Self.tab.uuidString.lowercased()))
+    ])
+    agent.setTranscript(Self.tab, .found([.user(uuid: "u1", timestamp: Fixture.checkedAt, isPrompt: true, blocks: [.text("Hi")])]))
+    let chat = makeChat(records: [
+      ChatTabRecord(id: Self.tab, folder: "/tmp/project", model: "claude-opus-5-5", effort: .high, isWaiting: false)
+    ])
+    let model = makeModel(chat: chat, instantAsk: .fake(chat: chat, fork: fork, recorder: recorder))
+    await model.viewAppeared()
+    await Task.megaYield()
+    return model
+  }
+
+  func askedRightAway(_ model: ChangeStreamPageModel, _ text: String) async {
+    let composer = withDependencies(from: model) {
+      AskAgentPageTests.composer(
+        sessionID: Fixture.session, folder: "/tmp/project",
+        context: QuestionContext(changeSeq: "1", path: "src/user.ts", snapshotSHA256: Fixture.shaB, lineStart: 7, lineEnd: 9),
+        route: .app(tabID: Self.tab), instantAsk: model.instantAsk)
+    }
+    model.askAgent = composer
+    composer.draftChanged(text)
+    await model.askQuestionTapped(composer)
+    await Task.megaYield()
+  }
+
+  @Test func pendingRootShowsWaitingBarAtLines() async throws {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    expectNoDifference(try bars(model, 1), [
+      QuestionBar(id: Self.firstRequest, preview: "Why?", status: .waiting, isOpen: true)
+    ])
+    #expect(model.askAgent == nil)
+    #expect(model.queuedQuestionNotice == nil)
+    expectNoDifference(model.reply?.pendingTurn?.text, "Why?")
+  }
+
+  @Test func failedPendingRootShowsNotDelivered() async throws {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    fork.reply(.failure(.timedOut))
+    await Task.megaYield()
+    expectNoDifference(try bars(model, 1).map(\.status), [.notDelivered])
+  }
+
+  @Test func barAndOpenPanelMoveToQuestionIDOnFold() async throws {
+    let fork = ForkFake()
+    let recorder = RecordFake()
+    recorder.script(.success("q1"))
+    let model = await linkedModel(fork: fork, recorder: recorder)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    model.questionBarMoved(try bar(model, Self.firstRequest), frame: CGRect(x: 0, y: 40, width: 600, height: 42))
+    fork.answer("Because.")
+    await Task.megaYield()
+    await send(
+      Fixture.questionExchangeRecorded(
+        2, id: "q1", text: "Why?", requestID: Self.firstRequest, chat: Self.tab.uuidString.lowercased()))
+    expectNoDifference(try bars(model, 1), [QuestionBar(id: "q1", preview: "Why?", status: .newReply, isOpen: true)])
+    expectNoDifference(model.reply?.thread.turns.map(\.answer?.text), ["Because."])
+    #expect(model.instantAsk.pending.isEmpty)
+    expectNoDifference(model.replyBarFrame, CGRect(x: 0, y: 40, width: 600, height: 42))
+  }
+
+  @Test func twoNewQuestionsShowTwoPendingBars() async throws {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    await askedRightAway(model, "And why here?")
+    expectNoDifference(try bars(model, 1), [
+      QuestionBar(id: Self.firstRequest, preview: "Why?", status: .waiting, isOpen: false),
+      QuestionBar(id: Self.secondRequest, preview: "And why here?", status: .waiting, isOpen: true),
+    ])
+    expectNoDifference(fork.requests.count, 2)
+  }
+
+  @Test func quittingWithoutThreadsKeepsTodayFlow() async {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    #expect(model.chat.quitAlertText == nil)
+    await model.instantAsk.quitConfirmed()
+    #expect(model.instantAsk.pending.isEmpty)
+    expectNoDifference(fork.stopCount, 1)
+  }
+
+  @Test func deletedCaptureDropsItsPendingQuestions() async throws {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    fake.setSessions([], starts: [:])
+    fake.setCaptures([])
+    await model.refreshTapped()
+    await Task.megaYield()
+    #expect(model.instantAsk.pending.isEmpty)
+    expectNoDifference(fork.stopCount, 1)
+  }
+}
+

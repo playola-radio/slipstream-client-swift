@@ -12,6 +12,14 @@ enum CaptureDot: Equatable, Sendable {
   case recording, attention, unknown, linked, noChat
 }
 
+/// Which chat answers Ask for a folder: an app tab that has sent a message answers at once, a
+/// linked app tab that hasn't can't be asked yet, and anything else goes through the daemon.
+enum AskRoute: Equatable, Sendable {
+  case app(tabID: UUID)
+  case outside
+  case none
+}
+
 struct CaptureStatus: Equatable, Sendable {
   var availability: CaptureAvailability
   var capture: CaptureSummary?
@@ -129,25 +137,24 @@ struct CaptureStatus: Equatable, Sendable {
     }
   }
 
-  /// `isAppTabLinked`: the link belongs to one of this workspace's chat tabs, not an outside chat.
-  func askNotice(agentConnection: AgentConnection, isAppTabLinked: Bool) -> String? {
+  func askNotice(agentConnection: AgentConnection, route: AskRoute) -> String? {
     guard case .available = availability else { return Self.unknownNotice }
     if case .unknown = capture?.state { return Self.unknownNotice }
     if case .unknown = capture?.binding?.state { return Self.unknownNotice }
     guard let capture, capture.state == .recording else {
       return "This workspace isn't recording, so its chat can't receive questions."
     }
-    guard let binding = capture.binding, binding.state != .unlinked else {
-      return "No chat is connected yet. Send a message in a chat tab to connect it."
+    switch route {
+    case .app: return nil
+    case .none: return Self.nothingConnectedNotice
+    case .outside: break
     }
+    guard let binding = capture.binding, binding.state != .unlinked else { return Self.nothingConnectedNotice }
     if binding.state == .unavailable {
       let reason = binding.reason.map { " (\(Self.wording($0, Self.bindingUnavailableReasons)))" } ?? ""
       return "The linked chat is unavailable\(reason), so questions are disabled."
     }
     guard binding.state == .connected, agentConnection == .connected else {
-      if isAppTabLinked {
-        return "The chat tab connected to this stream hasn't confirmed it can answer yet. It confirms the next time the agent works — send it a message to confirm now."
-      }
       return "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
     }
     return nil
@@ -172,6 +179,7 @@ struct CaptureStatus: Equatable, Sendable {
   }
 
   private static let unknownNotice = "Capture state is unknown, so questions are disabled. Refresh to check again."
+  private static let nothingConnectedNotice = "No chat is connected yet. Send a message in a chat tab to connect it."
 
   private static let stoppedReasons = [
     "detached": "capture detached",
