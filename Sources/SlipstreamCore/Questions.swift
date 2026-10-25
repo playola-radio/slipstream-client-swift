@@ -56,6 +56,8 @@ public struct ExchangeConversation: Encodable, Equatable, Sendable {
 }
 
 public struct QuestionRequest: Encodable, Equatable, Sendable {
+  public static let maximumTextBytes = 8192
+
   public let sessionID: String
   public let requestID: String
   public let text: String
@@ -104,7 +106,7 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
       throw QuestionError.rejected(code: "INVALID_CONTEXT", message: "Select 1–200 source lines from one change.")
     }
     let normalized = Self.trim(text)
-    guard !normalized.isEmpty, normalized.utf8.count <= 8192 else {
+    guard !normalized.isEmpty, normalized.utf8.count <= Self.maximumTextBytes else {
       throw QuestionError.rejected(code: "INVALID_QUESTION", message: "Use a question of 1–8192 UTF-8 bytes.")
     }
     let bytes = try JSONEncoder().encode(self)

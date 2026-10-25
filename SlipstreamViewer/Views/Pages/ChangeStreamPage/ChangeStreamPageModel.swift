@@ -31,6 +31,7 @@ final class ChangeStreamPageModel: ViewModel {
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
+    chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
   }
 
   // MARK: - Properties
@@ -928,6 +929,11 @@ final class ChangeStreamPageModel: ViewModel {
     sessions[id: sessionID]?.root.map(chat.askRoute(forFolder:)) ?? .outside
   }
 
+  private func askRouteChanged() {
+    guard let composer = askAgent else { return }
+    composer.routeChanged(askRoute(composer.sessionID))
+  }
+
   /// New questions on the selected capture still being answered, shown as bars at their lines.
   private var pendingRoots: IdentifiedArrayOf<PendingAsk> {
     instantAsk.pending.filter { entry in
@@ -1275,6 +1281,12 @@ final class ChangeStreamPageModel: ViewModel {
       return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
     }
     if hasUnread { return .newReply }
+    if let entry = instantAsk.pending.first(where: {
+      $0.storeID == daemon.storeID && $0.sessionID == selectedSession?.id
+        && $0.replyToQuestionID.map { id in thread.turns.contains { $0.questionID == id } } == true
+    }) {
+      return status(of: entry)
+    }
     if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
     return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }

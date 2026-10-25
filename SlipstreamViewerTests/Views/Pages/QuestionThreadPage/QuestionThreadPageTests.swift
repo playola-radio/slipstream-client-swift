@@ -511,6 +511,18 @@ extension QuestionThreadPageTests {
     expectNoDifference(model.draft, "")
   }
 
+  @Test func oversizedRecordedFollowUpKeepsItsDraftAndDoesNotStartAnAnswer() async {
+    let model = makeModel([Self.answered], link: Self.recorded)
+    let text = String(repeating: "😀", count: 2049)
+    model.draft = text
+
+    #expect(!model.canSendReply)
+    await model.sendReplyTapped()
+
+    expectNoDifference(model.draft, text)
+    expectNoDifference(fork.requests, [])
+  }
+
   @Test(arguments: [
     (AskForkError.timedOut, "no reply within 120 seconds"),
     (.unavailable, "the chat couldn't be reached"),

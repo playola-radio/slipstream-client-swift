@@ -136,7 +136,10 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   var canSendReply: Bool {
-    guard !isFollowUpDisabled, thread.source.context.isValid, !QuestionRequest.trim(draft).isEmpty else { return false }
+    let text = QuestionRequest.trim(draft)
+    guard !isFollowUpDisabled, thread.source.context.isValid, !text.isEmpty,
+      text.utf8.count <= QuestionRequest.maximumTextBytes
+    else { return false }
     switch thread.link {
     case .recorded: return folder != nil
     case .hook: return replyDraft.request != nil || bindingGeneration != nil

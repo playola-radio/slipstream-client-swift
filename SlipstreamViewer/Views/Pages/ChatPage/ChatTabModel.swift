@@ -46,6 +46,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
+  @ObservationIgnored var onReadinessChanged: () -> Void = {}
 
   private var activeTurn: ActiveTurn?
   private var toggledItemIDs: Set<String> = []
@@ -394,7 +395,10 @@ final class ChatTabModel: ViewModel, Identifiable {
     let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
     projection = .history(lines)
     title = Self.title(lines)
-    if !lines.isEmpty { hasSentMessage = true }
+    if !lines.isEmpty {
+      hasSentMessage = true
+      onReadinessChanged()
+    }
   }
 
   /// Drops the process: its late events are ignored, and its shutdown runs until done.
@@ -495,6 +499,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     guard let turn = activeTurn else { return }
     activeTurn = nil
     hasSentMessage = true
+    onReadinessChanged()
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
     if reloadWhenIdle { retireProcess() }

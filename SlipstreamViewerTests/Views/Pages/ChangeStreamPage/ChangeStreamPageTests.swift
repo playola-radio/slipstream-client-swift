@@ -1371,6 +1371,7 @@ struct ChangeStreamPageTests {
   }
 }
 
+
 extension ChangeStreamPageTests {
   @Test func selectedDraftSurvivesCacheEvictionAndSessionSwitchWithoutRetargeting() async throws {
     let model = await connectedModel()
@@ -3485,6 +3486,44 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.reply?.pendingTurn?.text, "Why?")
   }
 
+  @Test func historyReadinessRefreshesAnOpenAskRoute() async throws {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    let composer = withDependencies(from: model) {
+      AskAgentPageTests.composer(
+        sessionID: Fixture.session, folder: "/tmp/project",
+        context: QuestionContext(changeSeq: "1", path: "src/user.ts", snapshotSHA256: Fixture.shaB, lineStart: 7, lineEnd: 9),
+        route: .none, instantAsk: model.instantAsk)
+    }
+    model.askAgent = composer
+
+    expectNoDifference(composer.route, .none)
+    model.chat.onReadinessChanged()
+    expectNoDifference(composer.route, .app)
+  }
+
+  @Test func pendingFollowUpUpdatesTheSavedThreadBar() async throws {
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionExchangeRecorded(2, id: "q1", chat: Self.tab.uuidString.lowercased()))
+    let reply = try open(model, "q1")
+    reply.answerDisplayed(Fixture.seq(2))
+    model.replyDismissTapped()
+    let thread = try #require(model.questionThreads.threads[id: "q1"])
+
+    _ = model.instantAsk.ask(
+      InstantQuestion(
+        storeID: "store-a", sessionID: Fixture.session, folder: "/tmp/project", source: thread.source,
+        replyToQuestionID: "q1", threadChatSessionID: Self.tab.uuidString.lowercased(),
+        earlier: [], text: "What next?"))
+
+    expectNoDifference(try bar(model, "q1").status, .waiting)
+  }
+
   @Test func failedPendingRootShowsNotDelivered() async throws {
     let fork = ForkFake()
     let model = await linkedModel(fork: fork)
@@ -3556,4 +3595,3 @@ extension ChangeStreamPageTests {
     expectNoDifference(fork.stopCount, 1)
   }
 }
-

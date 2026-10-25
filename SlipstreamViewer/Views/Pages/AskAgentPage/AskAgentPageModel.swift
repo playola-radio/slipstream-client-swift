@@ -216,6 +216,10 @@ final class AskAgentPageModel: ViewModel {
     bindingGeneration = bindingGeneration ?? status.capture?.binding?.generation
   }
 
+  func routeChanged(_ route: AskRoute) {
+    self.route = route
+  }
+
   func questionsUpdated(_ threads: IdentifiedArrayOf<QuestionThread>) {
     guard let request,
       threads.contains(where: { thread in
