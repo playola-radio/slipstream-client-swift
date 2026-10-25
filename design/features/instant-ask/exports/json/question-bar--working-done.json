@@ -1,0 +1,154 @@
+{
+    "type": "frame",
+    "id": "yhSA1",
+    "x": 0,
+    "y": 41200,
+    "name": "question-bar--working-done",
+    "width": 620,
+    "fill": "#0F1820",
+    "layout": "vertical",
+    "gap": 10,
+    "padding": 40,
+    "children": [
+        {
+            "type": "frame",
+            "id": "R1bdL",
+            "name": "Question bar \u00b7 Working",
+            "metadata": {
+                "type": "interaction",
+                "behavior": "A persistent one-line question preview below its source code. Clicking opens a compact anchored reply popover. New reply remains unread until its text is displayed. Collapse keeps the bar and any unsent draft."
+            },
+            "width": "fill_container",
+            "height": 42,
+            "fill": "#294C68",
+            "cornerRadius": 4,
+            "stroke": "#76AED5",
+            "strokeWidth": {
+                "top": 1,
+                "right": 1,
+                "bottom": 1,
+                "left": 3
+            },
+            "gap": 10,
+            "padding": [
+                0,
+                12
+            ],
+            "alignItems": "center",
+            "children": [
+                {
+                    "type": "icon",
+                    "id": "B25fJ7",
+                    "name": "Question indicator",
+                    "width": 15,
+                    "height": 15,
+                    "icon": "message-circle",
+                    "library": "lucide",
+                    "fill": "#E4C282"
+                },
+                {
+                    "type": "text",
+                    "id": "ckwzw",
+                    "name": "Question preview",
+                    "fill": "#F0F7FC",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "Does farewell print anything?",
+                    "fontFamily": "Geist",
+                    "fontSize": 12,
+                    "fontWeight": "550"
+                },
+                {
+                    "type": "text",
+                    "id": "cw4xX",
+                    "name": "Response status",
+                    "fill": "#E4C282",
+                    "content": "Working",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "550"
+                },
+                {
+                    "type": "icon",
+                    "id": "zYitv",
+                    "name": "Open question",
+                    "width": 14,
+                    "height": 14,
+                    "icon": "chevron-down",
+                    "library": "lucide",
+                    "fill": "#C6E7FF"
+                }
+            ]
+        },
+        {
+            "type": "frame",
+            "id": "PwcNh",
+            "name": "Question bar \u00b7 Done",
+            "metadata": {
+                "type": "interaction",
+                "behavior": "A persistent one-line question preview below its source code. Clicking opens a compact anchored reply popover. New reply remains unread until its text is displayed. Collapse keeps the bar and any unsent draft."
+            },
+            "width": "fill_container",
+            "height": 42,
+            "fill": "#294C68",
+            "cornerRadius": 4,
+            "stroke": "#76AED5",
+            "strokeWidth": {
+                "top": 1,
+                "right": 1,
+                "bottom": 1,
+                "left": 3
+            },
+            "gap": 10,
+            "padding": [
+                0,
+                12
+            ],
+            "alignItems": "center",
+            "children": [
+                {
+                    "type": "icon",
+                    "id": "cLe3K",
+                    "name": "Question indicator",
+                    "width": 15,
+                    "height": 15,
+                    "icon": "message-circle",
+                    "library": "lucide",
+                    "fill": "#8DD9B1"
+                },
+                {
+                    "type": "text",
+                    "id": "iOTjk",
+                    "name": "Question preview",
+                    "fill": "#F0F7FC",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "Does farewell print anything?",
+                    "fontFamily": "Geist",
+                    "fontSize": 12,
+                    "fontWeight": "550"
+                },
+                {
+                    "type": "text",
+                    "id": "IBTcq",
+                    "name": "Response status",
+                    "fill": "#8DD9B1",
+                    "content": "Done",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "550"
+                },
+                {
+                    "type": "icon",
+                    "id": "piITd",
+                    "name": "Open question",
+                    "width": 14,
+                    "height": 14,
+                    "icon": "chevron-down",
+                    "library": "lucide",
+                    "fill": "#C6E7FF"
+                }
+            ]
+        }
+    ]
+}

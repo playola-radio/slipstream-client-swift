@@ -1,0 +1,194 @@
+{
+    "type": "frame",
+    "id": "WyEdX",
+    "x": 660,
+    "y": 39650,
+    "name": "question-thread--answered-offer",
+    "clip": true,
+    "width": 620,
+    "fill": "#0F1820",
+    "layout": "vertical",
+    "padding": [
+        40,
+        0
+    ],
+    "alignItems": "center",
+    "children": [
+        {
+            "type": "frame",
+            "id": "IT8nY",
+            "name": "Question thread",
+            "width": 420,
+            "fill": "#202B35",
+            "cornerRadius": 6,
+            "stroke": "#83C7F0",
+            "strokeWidth": 1,
+            "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000066",
+                "offset": {
+                    "x": 0,
+                    "y": 8
+                },
+                "blur": 22
+            },
+            "layout": "vertical",
+            "gap": 14,
+            "padding": 16,
+            "children": [
+                {
+                    "type": "frame",
+                    "id": "yaLSp",
+                    "name": "Header",
+                    "width": "fill_container",
+                    "gap": 10,
+                    "alignItems": "center",
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "Of7Rt",
+                            "name": "Title",
+                            "fill": "#C0D0DD",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "Talk to the agent",
+                            "lineHeight": 1,
+                            "fontFamily": "Geist",
+                            "fontSize": 12,
+                            "fontWeight": "550"
+                        },
+                        {
+                            "type": "icon",
+                            "id": "P0c4OZ",
+                            "name": "Close",
+                            "width": 15,
+                            "height": 15,
+                            "icon": "x",
+                            "library": "lucide",
+                            "fill": "#A4B8C7"
+                        }
+                    ]
+                },
+                {
+                    "type": "text",
+                    "id": "oHEoj",
+                    "name": "Question",
+                    "fill": "#EEF5FA",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "Does farewell print anything?",
+                    "lineHeight": 1.4,
+                    "fontFamily": "Geist",
+                    "fontSize": 14,
+                    "fontWeight": "550"
+                },
+                {
+                    "type": "frame",
+                    "id": "L9dkzI",
+                    "name": "AGENT message",
+                    "width": "fill_container",
+                    "layout": "vertical",
+                    "gap": 6,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "rBA1u",
+                            "name": "Author",
+                            "fill": "#A4D5F1",
+                            "content": "AGENT \u00b7 14:01",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "text",
+                            "id": "r1ZYM",
+                            "name": "Text",
+                            "fill": "#DDE7EF",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "No. farewell builds the message and returns it, but nothing prints it. Want me to make it print?",
+                            "lineHeight": 1.55,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "EYJjK",
+                    "name": "Follow-up",
+                    "width": "fill_container",
+                    "height": 68,
+                    "fill": "#111D26",
+                    "cornerRadius": 4,
+                    "stroke": "#59798F",
+                    "strokeWidth": 1,
+                    "padding": 12,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "XZH3L",
+                            "name": "Placeholder",
+                            "fill": "#6F8799",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "Ask a follow-up\u2026",
+                            "lineHeight": 1.4,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "Ab7Kk",
+                    "name": "Actions",
+                    "width": "fill_container",
+                    "gap": 12,
+                    "alignItems": "center",
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "fKCUQ",
+                            "name": "Source",
+                            "fill": "#91A8B9",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "greet.py:8\u201311 \u00b7 2 messages",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "frame",
+                            "id": "nmQcB",
+                            "name": "Send reply",
+                            "fill": "#B2DAEE",
+                            "cornerRadius": 4,
+                            "padding": [
+                                9,
+                                13
+                            ],
+                            "children": [
+                                {
+                                    "type": "text",
+                                    "id": "ne86X",
+                                    "name": "Label",
+                                    "fill": "#132735",
+                                    "content": "Send reply",
+                                    "fontFamily": "Geist",
+                                    "fontSize": 12,
+                                    "fontWeight": "550"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
