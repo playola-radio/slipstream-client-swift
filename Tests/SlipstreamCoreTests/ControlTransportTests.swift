@@ -177,3 +177,35 @@ extension ControlTransportTests {
     }
   }
 }
+
+extension ControlTransportTests {
+  func capability(reply: String) async throws -> Bool {
+    let server = try SocketFixture()
+    let serving = server.serve { fd in
+      var request = Data()
+      var byte: UInt8 = 0
+      while Darwin.read(fd, &byte, 1) == 1, byte != 10 { request.append(byte) }
+      expectNoDifference(
+        try QuestionsTests.json(request),
+        try QuestionsTests.json(
+          Data(#"{"v":1,"verb":"record_question_relay_update","session_id":"\#(QuestionsTests.session)"}"#.utf8)))
+      let bytes = Array((reply + "\n").utf8)
+      _ = bytes.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+    }
+    let supports = try await ControlTransport(store: server.store).supportsRelays(sessionID: QuestionsTests.session)
+    try await serving.value
+    return supports
+  }
+
+  @Test func supportsRelaysTrueOnProtocol() async throws {
+    #expect(
+      try await capability(
+        reply: #"{"v":1,"ok":false,"code":"PROTOCOL","message":"request_id must be a canonical lowercase UUID"}"#))
+  }
+
+  @Test func supportsRelaysFalseOnUnknownVerb() async throws {
+    #expect(
+      try await !capability(
+        reply: #"{"v":1,"ok":false,"code":"PROTOCOL","message":"unknown verb: record_question_relay_update"}"#))
+  }
+}

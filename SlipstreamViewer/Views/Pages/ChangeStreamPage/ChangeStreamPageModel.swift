@@ -1071,6 +1071,9 @@ final class ChangeStreamPageModel: ViewModel {
       )
       newestFileID = event.seq
       follow.fileCardAppended()
+      let threadsBefore = questionThreads
+      questionThreads.apply(event)
+      if questionThreads != threadsBefore { threadsFolded() }
     case .taskStarted(let task):
       taskCount += 1
       sections.append(
@@ -1100,6 +1103,9 @@ final class ChangeStreamPageModel: ViewModel {
       shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
       threadsFolded()
       if follow == .following { scrollToLatestRequest += 1 }
+    case .questionRelayUpdated:
+      questionThreads.apply(event)
+      threadsFolded()
     case .questionDispatchAttempted, .agentUnlinked:
       questionThreads.apply(event)
       openReplyUpdated()

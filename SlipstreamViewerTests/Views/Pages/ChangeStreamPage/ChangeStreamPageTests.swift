@@ -1680,6 +1680,15 @@ extension ChangeStreamPageTests {
     ])
   }
 
+  @Test func relayUpdatedAddsNoFeedRow() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1", relay: "rl1"),
+      Fixture.questionRelayUpdated(3, id: "q1", relay: "rl1", update: ["kind": "picked_up"]))
+    #expect(model.sections.flatMap(\.items).map(\.id) == [Fixture.seq(1)])
+  }
+
   @Test func headerKeepsItsSubtitleUntilSomeoneAsks() async {
     let model = await connectedModel()
     defer { model.viewDisappeared() }

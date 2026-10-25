@@ -172,3 +172,101 @@ extension QuestionsTests {
     expectNoDifference(QuestionRequest.trim("\u{0085}"), "\u{0085}")
   }
 }
+
+extension QuestionsTests {
+  static let relayID = "44444444-4444-4444-8444-444444444444"
+
+  static func relayUpdate(_ update: RelayUpdate) -> QuestionRelayUpdateRequest {
+    QuestionRelayUpdateRequest(
+      sessionID: session, requestID: requestID, questionID: questionID, relayID: relayID, update: update)
+  }
+
+  static var relayAcknowledgment: String {
+    """
+    {"v":1,"ok":true,"session_id":"\(session)","request_id":"\(requestID)","question_id":"\(questionID)","relay_id":"\(relayID)","seq":"43","duplicate":true}
+    """
+  }
+
+  @Test func encodesExchangeRelay() throws {
+    let request = QuestionRequest(
+      sessionID: Self.session, requestID: Self.requestID, text: "Rename it", context: Self.request.context,
+      verb: .recordExchange(
+        answerText: "On it.",
+        conversation: ExchangeConversation(parentSessionID: Self.parentSessionID, forkSessionID: Self.forkSessionID),
+        relay: ExchangeRelay(relayID: Self.relayID, chatSessionID: Self.parentSessionID.uppercased())))
+    expectNoDifference(
+      try Self.json(request.encoded()),
+      try Self.json(Data(#"""
+        {"v":1,"verb":"record_question_exchange","session_id":"\#(Self.session)","request_id":"\#(Self.requestID)",
+         "text":"Rename it","context":\#(Self.contextJSON),"answer_text":"On it.",
+         "conversation":{"harness":"claude-code","parent_session_id":"\#(Self.parentSessionID)","fork_session_id":"\#(Self.forkSessionID)"},
+         "relay":{"relay_id":"\#(Self.relayID)","chat_session_id":"\#(Self.parentSessionID)"}}
+        """#.utf8))
+    )
+    let badRelay = QuestionRequest(
+      sessionID: Self.session, requestID: Self.requestID, text: "Rename it", context: Self.request.context,
+      verb: .recordExchange(
+        answerText: "On it.",
+        conversation: ExchangeConversation(parentSessionID: Self.parentSessionID, forkSessionID: Self.forkSessionID),
+        relay: ExchangeRelay(relayID: "rl1", chatSessionID: Self.parentSessionID)))
+    #expect(throws: QuestionError.rejected(code: "PROTOCOL", message: "Invalid capture or request identity.")) {
+      try badRelay.encoded()
+    }
+  }
+
+  @Test(arguments: [
+    (RelayUpdate.sent(chatSessionID: parentSessionID.uppercased()), #"{"kind":"sent","chat_session_id":"\#(parentSessionID)"}"#),
+    (.pickedUp, #"{"kind":"picked_up"}"#),
+    (.notDelivered, #"{"kind":"not_delivered"}"#),
+    (.reported(.done, text: "Renamed it."), #"{"kind":"reported","outcome":"done","text":"Renamed it."}"#),
+    (.reported(.notDoneYet, text: "Not yet."), #"{"kind":"reported","outcome":"not_done_yet","text":"Not yet."}"#),
+  ])
+  func encodesEachRelayUpdateKind(_ update: RelayUpdate, _ expected: String) throws {
+    expectNoDifference(
+      try Self.json(Self.relayUpdate(update).encoded()),
+      try Self.json(Data(#"""
+        {"v":1,"verb":"record_question_relay_update","session_id":"\#(Self.session)","request_id":"\#(Self.requestID)",
+         "question_id":"\#(Self.questionID)","relay_id":"\#(Self.relayID)","update":\#(expected)}
+        """#.utf8))
+    )
+  }
+
+  @Test func relayUpdateRefusesOverOneMiBAndBadIDs() {
+    #expect(throws: QuestionError.rejected(code: "PROTOCOL", message: "The request is too large.")) {
+      try Self.relayUpdate(
+        .reported(.done, text: String(repeating: "a", count: ControlTransport.maximumMessageBytes))
+      ).encoded()
+    }
+    let request = QuestionRelayUpdateRequest(
+      sessionID: Self.session, requestID: Self.requestID, questionID: Self.questionID, relayID: "rl1", update: .pickedUp)
+    #expect(throws: QuestionError.rejected(code: "PROTOCOL", message: "Invalid capture or request identity.")) {
+      try request.encoded()
+    }
+  }
+
+  @Test func decodesRelayAcknowledgment() throws {
+    expectNoDifference(
+      try RelayAcknowledgment.decode(Data(Self.relayAcknowledgment.utf8), for: Self.relayUpdate(.pickedUp)),
+      RelayAcknowledgment(
+        sessionID: Self.session, requestID: Self.requestID, questionID: Self.questionID, relayID: Self.relayID,
+        seq: Seq("43")!, duplicate: true)
+    )
+  }
+
+  @Test func relayAckWithOtherRelayIDIsMalformed() {
+    for other in [Self.relayID, Self.questionID, Self.requestID, Self.session] {
+      let reply = Self.relayAcknowledgment.replacingOccurrences(of: other, with: "55555555-5555-4555-8555-555555555555")
+      #expect(throws: QuestionError.outcomeUnknown) {
+        try RelayAcknowledgment.decode(Data(reply.utf8), for: Self.relayUpdate(.pickedUp))
+      }
+    }
+  }
+
+  @Test(arguments: ["INVALID_RELAY_UPDATE", "REQUEST_CONFLICT"])
+  func relayRefusalIsPreserved(_ code: String) {
+    #expect(throws: QuestionError.rejected(code: code, message: "Refused")) {
+      try RelayAcknowledgment.decode(
+        Data(#"{"v":1,"ok":false,"code":"\#(code)","message":"Refused"}"#.utf8), for: Self.relayUpdate(.pickedUp))
+    }
+  }
+}

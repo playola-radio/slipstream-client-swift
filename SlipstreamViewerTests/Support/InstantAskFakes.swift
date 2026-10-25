@@ -92,7 +92,9 @@ final class RecordFake: Sendable {
         return ExchangeAcknowledgment(
           sessionID: request.sessionID, requestID: request.requestID, questionID: questionID, seq: Seq("42")!,
           duplicate: false)
-      }
+      },
+      updateRelay: unimplemented("QuestionClient.updateRelay"),
+      supportsRelays: unimplemented("QuestionClient.supportsRelays")
     )
   }
 }
