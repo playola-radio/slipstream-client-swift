@@ -301,4 +301,64 @@ struct TranscriptProjectionTests {
     projection.apply(.queuedMessage(uuid: "q1", text: "Also add a test."))
     expectNoDifference(kinds(projection), [.userMessage("Also add a test.")])
   }
+
+  @Test func waitingRelaysStayAtTheBottom() {
+    var projection = TranscriptProjection()
+    let waiting = RelayMark(label: "From Ask · greet.py:3-5", delivery: .waiting)
+    projection.userSent("go", id: "local-1")
+    projection.userSent("Rename it", id: "relay-1", relay: waiting)
+
+    projection.apply(.assistant(uuid: "a1", timestamp: nil, blocks: [.text("Working.")]))
+    projection.endTurn(.completed, duration: .seconds(3), at: t0, id: "turn-1")
+    projection.markRelay(id: "relay-1", delivery: .pickedUp)
+    projection.apply(.assistant(uuid: "a2", timestamp: nil, blocks: [.text("Renamed.")]))
+
+    expectNoDifference(
+      kinds(projection),
+      [
+        .userMessage("go"),
+        .reply("Working."),
+        .turnFooter(ending: .completed, duration: .seconds(3), time: t0),
+        .userMessage("Rename it", relay: RelayMark(label: "From Ask · greet.py:3-5", delivery: .pickedUp)),
+        .reply("Renamed."),
+      ])
+  }
+
+  @Test func toolsAboveAWaitingRelayStopWhenTheTurnEnds() {
+    var projection = TranscriptProjection()
+    projection.userSent("go", id: "local-1")
+    projection.apply(
+      .assistant(
+        uuid: "a1", timestamp: nil,
+        blocks: [.toolUse(id: "toolu_1", name: "Bash", input: .object(["command": .string("sleep 15")]))]))
+    projection.userSent("Rename it", id: "relay-1", relay: RelayMark(label: "From Ask", delivery: .waiting))
+
+    projection.endTurn(.stopped, duration: .seconds(3), at: t0, id: "turn-1")
+
+    expectNoDifference(
+      kinds(projection),
+      [
+        .userMessage("go"),
+        .toolCall(name: "Bash", target: "sleep 15", status: .stopped, detail: nil),
+        .turnFooter(ending: .stopped, duration: .seconds(3), time: t0),
+        .userMessage("Rename it", relay: RelayMark(label: "From Ask", delivery: .waiting)),
+      ])
+  }
+
+  @Test func undeliveredRelayStaysBelowTheFooter() {
+    var projection = TranscriptProjection()
+    projection.userSent("go", id: "local-1")
+    projection.userSent("Rename it", id: "relay-1", relay: RelayMark(label: "From Ask", delivery: .waiting))
+
+    projection.markRelay(id: "relay-1", delivery: .notDelivered)
+    projection.endTurn(.stopped, duration: .seconds(3), at: t0, id: "turn-1")
+
+    expectNoDifference(
+      kinds(projection),
+      [
+        .userMessage("go"),
+        .turnFooter(ending: .stopped, duration: .seconds(3), time: t0),
+        .userMessage("Rename it", relay: RelayMark(label: "From Ask", delivery: .notDelivered)),
+      ])
+  }
 }

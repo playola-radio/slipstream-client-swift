@@ -99,11 +99,11 @@ public struct TranscriptProjection: Equatable, Sendable {
         let id = "\(uuid)#\(index)"
         switch block {
         case .text(let text) where !text.isEmpty:
-          items.append(TranscriptItem(id: id, kind: .reply(text)))
+          add(TranscriptItem(id: id, kind: .reply(text)))
         case .thinking(let text) where !text.isEmpty:
-          items.append(TranscriptItem(id: id, kind: .thinking(text)))
+          add(TranscriptItem(id: id, kind: .thinking(text)))
         case .toolUse(let toolID, let name, let input):
-          items.append(
+          add(
             TranscriptItem(
               id: toolID,
               kind: .toolCall(name: name, target: Self.target(of: name, input: input), status: .running, detail: nil)))
@@ -115,7 +115,7 @@ public struct TranscriptProjection: Equatable, Sendable {
       for (index, block) in blocks.enumerated() {
         switch block {
         case .text(let text) where isPrompt && !Self.isInterruptMarker(text):
-          items.append(TranscriptItem(id: "\(uuid)#\(index)", kind: .userMessage(text)))
+          add(TranscriptItem(id: "\(uuid)#\(index)", kind: .userMessage(text)))
         case .toolResult(let toolUseID, let text, let isError):
           finishTool(toolUseID, text: text, isError: isError)
         default:
@@ -123,7 +123,7 @@ public struct TranscriptProjection: Equatable, Sendable {
         }
       }
     case .gap:
-      items.append(TranscriptItem(id: "gap#\(gapCount)", kind: .gap))
+      add(TranscriptItem(id: "gap#\(gapCount)", kind: .gap))
       gapCount += 1
     case .echo, .queuedMessage, .result, .controlRequest, .title, .ignored:
       break
@@ -132,8 +132,7 @@ public struct TranscriptProjection: Equatable, Sendable {
 
   public mutating func endTurn(_ ending: TurnEnding, duration: Duration, at time: Date, id: String) {
     stopRunningTools()
-    items.append(TranscriptItem(id: id, kind: .turnFooter(ending: ending, duration: duration, time: time)))
-    currentTurnStartIndex = items.endIndex
+    currentTurnStartIndex = add(TranscriptItem(id: id, kind: .turnFooter(ending: ending, duration: duration, time: time))) + 1
   }
 
   public func replyText(endingAt footerID: String) -> String {
@@ -174,6 +173,18 @@ public struct TranscriptProjection: Equatable, Sendable {
       duration: .seconds(last.timeIntervalSince(first)),
       at: last,
       id: "\(lastUUID)#footer")
+  }
+
+  /// Relays the agent hasn't read stay at the bottom, below the output of the step it is on.
+  @discardableResult
+  private mutating func add(_ item: TranscriptItem) -> Int {
+    let index = (items.lastIndex { !Self.isUnreadRelay($0) } ?? -1) + 1
+    items.insert(item, at: index)
+    return index
+  }
+
+  private static func isUnreadRelay(_ item: TranscriptItem) -> Bool {
+    if case .userMessage(_, let relay?) = item.kind { relay.delivery != .pickedUp } else { false }
   }
 
   private mutating func finishTool(_ toolUseID: String, text: String, isError: Bool) {

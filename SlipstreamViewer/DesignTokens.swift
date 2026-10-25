@@ -620,6 +620,34 @@ enum DesignTokens {
       static let maxWidth: CGFloat = 520
     }
 
+    enum Relay {
+      static let gap: CGFloat = 8
+      static let tagGap: CGFloat = 6
+      static let tagIcon = Icons.Icon(assetName: "MessageCircle", size: 11, color: Color(hex: 0xA4D5F1))
+      static let tagFont: FontToken = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+      static let tagColor = Color(hex: 0xA4D5F1)
+      static let statusGap: CGFloat = 6
+      static let statusFont: FontToken = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+      static let detailColor = Color(hex: 0x91A8B9)
+
+      /// A relay the agent hasn't read is faded.
+      static func opacity(_ status: RelayStatus?) -> Double { status == nil ? 1 : 0.55 }
+
+      static func icon(_ status: RelayStatus) -> Icons.Icon {
+        switch status {
+        case .waiting: Icons.Icon(assetName: "Hourglass", size: 12, color: statusColor(status))
+        case .notDelivered: Icons.Icon(assetName: "X", size: 12, color: statusColor(status))
+        }
+      }
+
+      static func statusColor(_ status: RelayStatus) -> Color {
+        switch status {
+        case .waiting: Color(hex: 0xE4C282)
+        case .notDelivered: Color(hex: 0xF0A4AB)
+        }
+      }
+    }
+
     enum Paragraph {
       static let font: FontToken = variableFont(family: geistFamily, size: 14, weight: 400)
       static let color = primary

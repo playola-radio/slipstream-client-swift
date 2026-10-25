@@ -1355,6 +1355,27 @@ struct ChatPageTests {
     #expect(tab.rowText(for: TranscriptItem(id: "g", kind: .gap)) == "Part of this conversation couldn't be shown")
   }
 
+  @Test func relayRowsShowLabelAndStatus() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    func relay(_ delivery: RelayMark.Delivery) -> TranscriptItem {
+      TranscriptItem(id: "r", kind: .userMessage("Rename it", relay: RelayMark(label: "From Ask · a.ts:1", delivery: delivery)))
+    }
+    let plain = TranscriptItem(id: "u", kind: .userMessage("Fix it"))
+
+    #expect(tab.relayLabel(for: relay(.waiting)) == "From Ask · a.ts:1")
+    #expect(tab.relayLabel(for: plain) == nil)
+    #expect(tab.relayStatus(for: relay(.waiting)) == .waiting)
+    #expect(tab.relayStatus(for: relay(.notDelivered)) == .notDelivered)
+    #expect(tab.relayStatus(for: relay(.pickedUp)) == nil)
+    #expect(tab.relayStatus(for: plain) == nil)
+    #expect(tab.relayStatusText(.waiting) == "Waiting")
+    #expect(tab.relayStatusDetail(.waiting) == "the agent will read this after its current step")
+    #expect(tab.relayStatusText(.notDelivered) == "Not delivered")
+    #expect(tab.relayStatusDetail(.notDelivered) == "the chat stopped before the agent read this")
+  }
+
   @Test func textRowsDropSurroundingBlankLines() async throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -2129,5 +2150,411 @@ struct ChatPageTests {
 
     await send(model, "again")
     expectNoDifference(agent.launches, [launch(session: .new(UUID(0))), launch(session: .resume(UUID(0)))])
+  }
+
+  // MARK: - Relays
+
+  nonisolated static let relayID = UUID(uuidString: "C9D8E7F6-A5B4-4C3D-8E2F-1A0B9C8D7E6F")!
+  nonisolated static let otherRelayID = UUID(uuidString: "D1E2F3A4-B5C6-4D7E-8F90-A1B2C3D4E5F6")!
+  static let label = "From Ask · greet.py:3-5"
+
+  enum Signal: Equatable {
+    case turnEnded(UUID)
+    case delivery(UUID, RelayDelivery)
+  }
+
+  let signals = LockIsolated<[Signal]>([])
+
+  func relayMessage(_ relayID: UUID = relayID, _ text: String = "Rename it") -> AskRelayMessage {
+    AskRelayMessage(relayID: relayID, text: text, label: Self.label)
+  }
+
+  func relayed(_ delivery: RelayMark.Delivery, _ text: String = "Rename it") -> TranscriptItem.Kind {
+    .userMessage(text, relay: RelayMark(label: Self.label, delivery: delivery))
+  }
+
+  func listening(_ model: ChatPageModel) -> ChatPageModel {
+    model.onTabTurnEnded = { [signals] id in signals.withValue { $0.append(.turnEnded(id)) } }
+    model.onRelayDelivery = { [signals] id, delivery in signals.withValue { $0.append(.delivery(id, delivery)) } }
+    return model
+  }
+
+  func echo(_ relayID: UUID = relayID) -> String {
+    Line.echo(relayID.uuidString.lowercased(), "Rename it")
+  }
+
+  /// The page owns the callbacks, so tests keep it alive.
+  func workingModel() async -> ChatPageModel {
+    let model = listening(makeModel(records: [record()]))
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "hi")
+    return model
+  }
+
+  @Test func relayWhileIdleStartsTurnWithoutTouchingDraft() async throws {
+    let model = makeModel(records: [record(isWaiting: true)])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = "half typed"
+
+    try await tab.relay(relayMessage())
+
+    #expect(tab.isWorking)
+    #expect(tab.draft == "half typed")
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
+    #expect(model.records[id: Self.saved]?.isWaiting == false)
+  }
+
+  @Test func relayMidTurnWritesNow() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+
+    try await tab.relay(relayMessage())
+
+    expectNoDifference(
+      agent.writes(0),
+      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
+    #expect(tab.isWorking)
+  }
+
+  @Test func relayInsertsWaitingMark() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    await line(Line.assistantText("a1", "Looking."))
+
+    try await tab.relay(relayMessage())
+    await line(Line.assistantText("a2", "Still looking."))
+
+    expectNoDifference(
+      tab.projection.items,
+      [
+        TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("hi")),
+        TranscriptItem(id: "a1#0", kind: .reply("Looking.")),
+        TranscriptItem(id: "a2#0", kind: .reply("Still looking.")),
+        TranscriptItem(id: Self.relayID.uuidString, kind: relayed(.waiting)),
+      ])
+  }
+
+  @Test func echoSetsPickedUpAndReports() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+
+    await line(echo())
+
+    #expect(tab.projection.items.last?.kind == relayed(.pickedUp))
+    expectNoDifference(signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID))])
+  }
+
+  @Test func echoBeforeWriteReturnsCountsAsPickup() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    agent.hold(.writes)
+
+    let relaying = Task { try await tab.relay(relayMessage()) }
+    await Task.megaYield()
+    await line(echo())
+    agent.release(.writes)
+    try await relaying.value
+
+    #expect(tab.projection.items.last?.kind == relayed(.pickedUp))
+    expectNoDifference(signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID))])
+  }
+
+  @Test func duplicateEchoChangesNothing() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    await line(echo())
+    let items = tab.projection.items
+
+    await line(echo())
+
+    expectNoDifference(tab.projection.items, items)
+    expectNoDifference(signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID))])
+    #expect(tab.isWorking)
+  }
+
+  @Test func echoFromEarlierLaunchIsIgnored() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    agent.exit()
+    await Task.megaYield()
+    signals.setValue([])
+
+    agent.setTranscript(Self.saved, .found([]))
+    await send(model, "two")
+    await line(echo())
+
+    #expect(agent.launches.count == 2)
+    #expect(tab.projection.items.contains { $0.kind == relayed(.notDelivered) })
+    expectNoDifference(signals.value, [])
+  }
+
+  // `.exited` comes once stdout is read to the end, or `outputGrace` (1 s) after the exit if
+  // something the process left behind still holds the pipe open. Accepted: spec.md, Task 9 A–C.
+  @Test func exitAfterStdoutEOFWithoutEchoIsNotDelivered() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+
+    agent.exit()
+    await Task.megaYield()
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("hi"),
+        .turnFooter(ending: .failed, duration: .zero, time: Self.start),
+        relayed(.notDelivered),
+      ])
+    expectNoDifference(
+      signals.value, [.turnEnded(Self.saved), .delivery(Self.saved, .exitedUnread(relayID: Self.relayID))])
+  }
+
+  @Test func turnEndWithoutEchoStaysWaiting() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+
+    await line(Line.result())
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("hi"),
+        .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start),
+        relayed(.waiting),
+      ])
+    expectNoDifference(signals.value, [.turnEnded(Self.saved)])
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func stopWithoutEchoStaysWaiting() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    await line(Line.interruptedResult(durationMs: 12_000))
+    await clock.advance(by: .seconds(10))
+    await stop.value
+
+    #expect(tab.projection.items.last?.kind == relayed(.waiting))
+    expectNoDifference(signals.value, [.turnEnded(Self.saved)])
+    #expect(agent.shutdownCount == 0)
+  }
+
+  @Test func turnEndForwardsTabID() async {
+    let model = await workingModel()
+
+    await line(Line.result())
+
+    expectNoDifference(signals.value, [.turnEnded(Self.saved)])
+    #expect(model.selectedTab?.isWorking == false)
+  }
+
+  @Test func ordinarySendStillBlockedMidTurn() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+
+    await send(model, "two")
+
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("hi"))])
+    #expect(tab.draft == "two")
+  }
+
+  @Test func queuedRelayAfterStopRunsAsItsOwnTurn() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    await line(Line.interruptedResult(durationMs: 12_000))
+    #expect(tab.isWorking == false)
+
+    await line(echo())
+    #expect(tab.isWorking)
+    #expect(tab.showsStop)
+    await line(Line.assistantText("a1", "Renamed."))
+    await line(Line.result(durationMs: 3_000))
+    await clock.advance(by: .seconds(10))
+    await stop.value
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("hi"),
+        .turnFooter(ending: .stopped, duration: .seconds(12), time: Self.start),
+        relayed(.pickedUp),
+        .reply("Renamed."),
+        .turnFooter(ending: .completed, duration: .seconds(3), time: Self.start),
+      ])
+    expectNoDifference(
+      signals.value,
+      [.turnEnded(Self.saved), .delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved)])
+    #expect(tab.isWorking == false)
+    #expect(agent.shutdownCount == 0)
+  }
+
+  @Test func queuedRelayAfterTurnEndRunsAsItsOwnTurn() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    await line(Line.result())
+
+    await line(echo())
+    #expect(tab.isWorking)
+    await send(model, "two")
+    expectNoDifference(
+      agent.writes(0),
+      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
+    await line(Line.assistantText("a1", "Renamed."))
+    await line(Line.result(durationMs: 3_000))
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("hi"),
+        .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start),
+        relayed(.pickedUp),
+        .reply("Renamed."),
+        .turnFooter(ending: .completed, duration: .seconds(3), time: Self.start),
+      ])
+    expectNoDifference(
+      signals.value,
+      [.turnEnded(Self.saved), .delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved)])
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func sendRacingSelfStartedTurnKeepsTurnsInStep() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    await line(Line.result())
+
+    await send(model, "two")
+    await line(echo())
+    await line(Line.assistantText("a1", "Renamed."))
+    await line(Line.result(durationMs: 3_000))
+    #expect(tab.isWorking == false)
+    await line(Line.echo("0b4f6f2e-3333-4c3d-8e2f-1a0b9c8d7e6f", "two"))
+    #expect(tab.isWorking)
+    await line(Line.assistantText("a2", "Two done."))
+    await line(Line.result(durationMs: 2_000))
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("hi"),
+        .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start),
+        relayed(.pickedUp),
+        .userMessage("two"),
+        .reply("Renamed."),
+        .turnFooter(ending: .completed, duration: .seconds(3), time: Self.start),
+        .reply("Two done."),
+        .turnFooter(ending: .completed, duration: .seconds(2), time: Self.start),
+      ])
+    expectNoDifference(
+      signals.value,
+      [
+        .turnEnded(Self.saved), .delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved),
+        .turnEnded(Self.saved),
+      ])
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func failedWriteDoesNotClearSelfStartedTurn() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    await line(Line.result())
+    agent.hold(.writes)
+    tab.draft = "two"
+
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+    await line(echo())
+    agent.setWriteError(WriteFailed())
+    agent.release(.writes)
+    await sending.value
+
+    #expect(tab.isWorking)
+    #expect(tab.errorText == "Couldn't send your message to Claude")
+    #expect(tab.draft == "two")
+    #expect(!tab.projection.items.contains { $0.kind == .userMessage("two") })
+
+    await line(Line.result(durationMs: 3_000))
+    #expect(tab.isWorking == false)
+    #expect(tab.projection.items.last?.kind == .turnFooter(ending: .completed, duration: .seconds(3), time: Self.start))
+  }
+
+  @Test func stopDeadlineRetireStillResolvesRelay() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    try await tab.relay(relayMessage(Self.otherRelayID, "And the tests"))
+    agent.hold(.shutdowns)
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    await clock.advance(by: .seconds(10))
+    await Task.megaYield()
+    #expect(agent.shutdownCount == 1)
+
+    await line(echo())
+    await line(Line.assistantText("a1", "late"))
+    #expect(!tab.projection.items.contains { $0.kind == .reply("late") })
+    agent.release(.shutdowns)
+    await stop.value
+    await Task.megaYield()
+
+    expectNoDifference(
+      tab.projection.items.map(\.kind),
+      [
+        .userMessage("hi"),
+        relayed(.pickedUp),
+        .turnFooter(ending: .stopped, duration: .zero, time: Self.start),
+        relayed(.notDelivered, "And the tests"),
+      ])
+    expectNoDifference(
+      signals.value,
+      [
+        .delivery(Self.saved, .pickedUp(relayID: Self.relayID)),
+        .turnEnded(Self.saved),
+        .delivery(Self.saved, .exitedUnread(relayID: Self.otherRelayID)),
+      ])
+    #expect(tab.isWorking == false)
+  }
+
+  @Test func reloadWhenIdleWaitsForUnreadRelay() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    tab.streamLinked()
+
+    await line(Line.result())
+    tab.streamLinked()
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 0)
+
+    await line(echo())
+    await line(Line.result(durationMs: 3_000))
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func pickupPublishedBeforeTurnEnded() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+
+    agent.sendLine(echo())
+    agent.sendLine(Line.result())
+    await Task.megaYield()
+
+    expectNoDifference(
+      signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved)])
   }
 }

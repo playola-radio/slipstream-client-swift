@@ -46,6 +46,10 @@ final class ChatPageModel: ViewModel {
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
   @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
   @ObservationIgnored var onReadinessChanged: @MainActor () -> Void = {}
+  /// Called once each time a tab's turn ends, with the tab's id.
+  @ObservationIgnored var onTabTurnEnded: (UUID) -> Void = { _ in }
+  /// Called once per relay a tab was sent, with the tab's id.
+  @ObservationIgnored var onRelayDelivery: (UUID, RelayDelivery) -> Void = { _, _ in }
 
   var visibleTabs: [ChatTabModel] {
     guard let folder else { return [] }
@@ -434,6 +438,7 @@ final class ChatPageModel: ViewModel {
     }
     tab.onTurnEnded = { [weak self] in self?.turnEnded(id) }
     tab.onReadinessChanged = { [weak self] in self?.onReadinessChanged() }
+    tab.onRelayDelivery = { [weak self] delivery in self?.onRelayDelivery(id, delivery) }
     tabs.append(tab)
   }
 
@@ -446,6 +451,7 @@ final class ChatPageModel: ViewModel {
     if let folder = records[id: id]?.folder, isUnlinked(folder) {
       Task { [weak self] in await self?.autoLink(in: folder) }
     }
+    onTabTurnEnded(id)
   }
 }
 

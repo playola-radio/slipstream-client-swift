@@ -249,16 +249,20 @@ private struct TranscriptView: View {
   private func itemView(_ item: TranscriptItem) -> some View {
     switch item.kind {
     case .userMessage:
-      Text(tab.rowText(for: item))
-        .font(DesignTokens.Chat.Paragraph.font)
-        .foregroundStyle(DesignTokens.Chat.Paragraph.color)
-        .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
-        .textSelection(.enabled)
-        .padding(.vertical, DesignTokens.Chat.Bubble.verticalPadding)
-        .padding(.horizontal, DesignTokens.Chat.Bubble.horizontalPadding)
-        .background(DesignTokens.Chat.Bubble.fill, in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Bubble.radius))
-        .frame(maxWidth: DesignTokens.Chat.Bubble.maxWidth, alignment: .trailing)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+      VStack(alignment: .trailing, spacing: DesignTokens.Chat.Transcript.gap) {
+        userBubble(item)
+        if let status = tab.relayStatus(for: item) {
+          HStack(spacing: DesignTokens.Chat.Relay.statusGap) {
+            IconView(icon: DesignTokens.Chat.Relay.icon(status))
+            Text(tab.relayStatusText(status))
+              .foregroundStyle(DesignTokens.Chat.Relay.statusColor(status))
+            Text(tab.relayStatusDetail(status))
+              .foregroundStyle(DesignTokens.Chat.Relay.detailColor)
+          }
+          .font(DesignTokens.Chat.Relay.statusFont)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .trailing)
     case .reply:
       MarkdownText(text: tab.rowText(for: item))
     case .thinking:
@@ -299,6 +303,29 @@ private struct TranscriptView: View {
         .font(DesignTokens.Chat.TurnFooter.font)
         .foregroundStyle(DesignTokens.Chat.TurnFooter.color)
     }
+  }
+
+  private func userBubble(_ item: TranscriptItem) -> some View {
+    VStack(alignment: .leading, spacing: DesignTokens.Chat.Relay.gap) {
+      if let label = tab.relayLabel(for: item) {
+        HStack(spacing: DesignTokens.Chat.Relay.tagGap) {
+          IconView(icon: DesignTokens.Chat.Relay.tagIcon)
+          Text(label)
+            .font(DesignTokens.Chat.Relay.tagFont)
+            .foregroundStyle(DesignTokens.Chat.Relay.tagColor)
+        }
+      }
+      Text(tab.rowText(for: item))
+        .font(DesignTokens.Chat.Paragraph.font)
+        .foregroundStyle(DesignTokens.Chat.Paragraph.color)
+        .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
+        .textSelection(.enabled)
+    }
+    .padding(.vertical, DesignTokens.Chat.Bubble.verticalPadding)
+    .padding(.horizontal, DesignTokens.Chat.Bubble.horizontalPadding)
+    .background(DesignTokens.Chat.Bubble.fill, in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Bubble.radius))
+    .opacity(DesignTokens.Chat.Relay.opacity(tab.relayStatus(for: item)))
+    .frame(maxWidth: DesignTokens.Chat.Bubble.maxWidth, alignment: .trailing)
   }
 
   private func errorBox(_ errorText: String) -> some View {
