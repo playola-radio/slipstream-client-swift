@@ -870,6 +870,26 @@ struct InstantAskModelTests {
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, true)
   }
 
+  @Test func reconnectAppliesARecordedDoneReport() async {
+    let (model, chat) = makeModelAndChat()
+    await askingChangeRequest(model)
+    pickedUp(chat)
+    await Task.megaYield()
+    recorder.scriptUpdates(.failure(.outcomeUnknown), .failure(.outcomeUnknown), .failure(.outcomeUnknown))
+    await turnEnded(chat)
+    fork.report(.done)
+    await Task.megaYield()
+    await clock.advance(by: .seconds(5))
+    await Task.megaYield()
+
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, false)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
+    await model.daemonConnected(storeID: "store-1")
+
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, true)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, nil)
+  }
+
   @Test func checkAgainIgnoredWhileChecking() async {
     let (model, chat) = makeModelAndChat()
     await askingChangeRequest(model)
@@ -980,6 +1000,16 @@ struct InstantAskModelTests {
     await turnEnded(chat)
 
     expectNoDifference(fork.requests, [])
+  }
+
+  @Test func restartedNotDoneReportChecksAtNextIdleWithoutPickedUpStep() async {
+    let model = makeModel()
+    let report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("45")!, atMs: 45)
+
+    handOver(model, loggedRelay(report: report))
+    await Task.megaYield()
+
+    expectNoDifference(fork.requests.map(\.kind), [.report])
   }
 
   @Test func sentNeverPickedUpIsDeliveryUnknown() {

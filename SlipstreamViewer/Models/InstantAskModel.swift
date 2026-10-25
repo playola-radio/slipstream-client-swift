@@ -60,6 +60,7 @@ struct RelayRun: Equatable, Sendable {
   var report: Report = .idle
   /// When the last check failed; it stays shown while a new check runs.
   var checkFailedAtMs: Int64?
+  var lastReportRequestID: String?
   var isDone = false
   /// Checked once the log replay catches up, if its chat is idle: set when a replay hands it over
   /// or its chat's turn ends mid-replay, cleared once a check starts.
@@ -213,7 +214,9 @@ final class InstantAskModel: ViewModel {
     for (relayID, run) in relayRuns where run.storeID == storeID && !run.unrecorded.isEmpty {
       relayRuns[relayID]?.unrecorded = []
       for request in run.unrecorded {
-        retries.append(track(run.sessionID) { await self.send(request) })
+        retries.append(track(run.sessionID) {
+          if await self.send(request) { self.recorded(request) }
+        })
       }
     }
     for retry in retries { await retry.value }
@@ -434,7 +437,7 @@ final class InstantAskModel: ViewModel {
         storeID: storeID, sessionID: sessionID, questionID: relay.questionID, chatSessionID: chatSessionID,
         folder: folder, source: source, earlier: earlier, request: request, checksAfterReplay: true)
     }
-    if relay.pickedUp != nil { relayRuns[relay.id]?.delivery = .pickedUp }
+    if relay.pickedUp != nil || relay.report != nil { relayRuns[relay.id]?.delivery = .pickedUp }
     if relay.isDone { relayRuns[relay.id]?.isDone = true }
     guard !isReplaying, let run = relayRuns[relay.id], run.checksAfterReplay, run.delivery == .pickedUp, !run.isDone,
       run.report == .idle, chat.tabs[id: run.chatSessionID]?.isWorking == false
@@ -537,13 +540,22 @@ final class InstantAskModel: ViewModel {
     if !Task.isCancelled, case .report(let reply, let outcome) = result,
       let request = updateRequest(relayID, .reported(outcome, text: reply))
     {
+      relayRuns[relayID]?.lastReportRequestID = request.requestID
       isRecorded = await send(request)
-      if isRecorded, outcome == .done { relayRuns[relayID]?.isDone = true }
+      if isRecorded { recorded(request) }
     }
     guard !Task.isCancelled, case .checking(let rerun) = relayRuns[relayID]?.report else { return }
     relayRuns[relayID]?.report = .idle
     relayRuns[relayID]?.checkFailedAtMs = isRecorded ? nil : Int64(now.timeIntervalSince1970 * 1000)
     if rerun, relayRuns[relayID]?.isDone == false { startCheck(relayID) }
+  }
+
+  private func recorded(_ request: QuestionRelayUpdateRequest) {
+    guard case .reported(let outcome, _) = request.update else { return }
+    if outcome == .done { relayRuns[request.relayID]?.isDone = true }
+    if relayRuns[request.relayID]?.lastReportRequestID == request.requestID {
+      relayRuns[request.relayID]?.checkFailedAtMs = nil
+    }
   }
 
   /// Each step is recorded on its own, so one that fails never holds back the next.

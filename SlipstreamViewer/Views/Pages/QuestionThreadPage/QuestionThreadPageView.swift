@@ -217,6 +217,7 @@ private struct RelayProgressView: View {
             }
           }
       }
+      .id(report.seq)
     }
   }
 }

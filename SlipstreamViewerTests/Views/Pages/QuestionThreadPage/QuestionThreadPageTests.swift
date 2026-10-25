@@ -899,4 +899,14 @@ extension QuestionThreadPageTests {
 
     expectNoDifference(readAnswers(), [AnswerReadMarker(storeID: "store-a", sessionID: Fixture.session, seq: Fixture.seq(9))])
   }
+
+  @Test func displayingReplacementReportMarksItsOwnSequenceRead() {
+    let replacement = RelayReport(outcome: .done, text: "Done again.", seq: Fixture.seq(10), atMs: Self.at1405)
+    let model = makeModel(
+      [Self.answered, Self.onIt(Self.relay(pickedUp: true, report: replacement))], link: Self.recorded)
+
+    model.answerDisplayed(Fixture.seq(10))
+
+    expectNoDifference(readAnswers(), [AnswerReadMarker(storeID: "store-a", sessionID: Fixture.session, seq: Fixture.seq(10))])
+  }
 }
