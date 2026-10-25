@@ -61,8 +61,9 @@ struct RelayRun: Equatable, Sendable {
   /// When the last check failed; it stays shown while a new check runs.
   var checkFailedAtMs: Int64?
   var isDone = false
-  /// Set when a log replay hands it over; cleared once a check starts.
-  var needsTakeoverCheck = false
+  /// Checked once the log replay catches up, if its chat is idle: set when a replay hands it over
+  /// or its chat's turn ends mid-replay, cleared once a check starts.
+  var checksAfterReplay = false
   /// Replaced by a newer relay, so it can't be sent again.
   var isSentAgain = false
   /// Steps whose retries ran out, sent again when the daemon reconnects.
@@ -123,6 +124,8 @@ final class InstantAskModel: ViewModel {
   @ObservationIgnored private var relaySupport: [String: Bool] = [:]
   @ObservationIgnored private var relayTasks: [Int: RelayTask] = [:]
   @ObservationIgnored private var nextRelayTaskID = 0
+  /// The capture whose log is replaying; its turn ends wait for the replay to catch up.
+  @ObservationIgnored private var replayingSessionID: String?
   /// Question ids with a Send again in flight.
   private var sendingAgain: Set<String> = []
 
@@ -180,6 +183,7 @@ final class InstantAskModel: ViewModel {
   func threadsFolded(
     storeID: String, sessionID: String, folder: String?, isReplaying: Bool, threads: IdentifiedArrayOf<QuestionThread>
   ) {
+    replayingSessionID = isReplaying ? sessionID : nil
     let questionIDs = Dictionary(
       threads.flatMap { $0.turns.map { ($0.requestID, $0.questionID) } }, uniquingKeysWith: { first, _ in first })
     for entry in pending where entry.sessionID == sessionID {
@@ -237,6 +241,7 @@ final class InstantAskModel: ViewModel {
 
   /// Selecting the capture again replays its log, which brings recorded answers back.
   func captureDeselected(_ sessionID: String) {
+    if replayingSessionID == sessionID { replayingSessionID = nil }
     for entry in pending where entry.sessionID == sessionID {
       if case .recorded = entry.state { forget(entry.id) }
     }
@@ -427,11 +432,11 @@ final class InstantAskModel: ViewModel {
       guard let chatSessionID = UUID(uuidString: relay.chatSessionID) else { return }
       relayRuns[relay.id] = RelayRun(
         storeID: storeID, sessionID: sessionID, questionID: relay.questionID, chatSessionID: chatSessionID,
-        folder: folder, source: source, earlier: earlier, request: request, needsTakeoverCheck: true)
+        folder: folder, source: source, earlier: earlier, request: request, checksAfterReplay: true)
     }
     if relay.pickedUp != nil { relayRuns[relay.id]?.delivery = .pickedUp }
     if relay.isDone { relayRuns[relay.id]?.isDone = true }
-    guard !isReplaying, let run = relayRuns[relay.id], run.needsTakeoverCheck, run.delivery == .pickedUp, !run.isDone,
+    guard !isReplaying, let run = relayRuns[relay.id], run.checksAfterReplay, run.delivery == .pickedUp, !run.isDone,
       run.report == .idle, chat.tabs[id: run.chatSessionID]?.isWorking == false
     else { return }
     startCheck(relay.id)
@@ -495,6 +500,7 @@ final class InstantAskModel: ViewModel {
   private func tabTurnEnded(_ tabID: UUID) {
     for (relayID, run) in relayRuns where run.chatSessionID == tabID && run.delivery == .pickedUp && !run.isDone {
       switch run.report {
+      case .idle where run.sessionID == replayingSessionID: relayRuns[relayID]?.checksAfterReplay = true
       case .idle: startCheck(relayID)
       case .checking: relayRuns[relayID]?.report = .checking(rerun: true)
       }
@@ -505,7 +511,7 @@ final class InstantAskModel: ViewModel {
   private func startCheck(_ relayID: String) -> Task<Void, Never>? {
     guard !isQuitting, let run = relayRuns[relayID] else { return nil }
     relayRuns[relayID]?.report = .checking(rerun: false)
-    relayRuns[relayID]?.needsTakeoverCheck = false
+    relayRuns[relayID]?.checksAfterReplay = false
     return track(run.sessionID) { await self.check(relayID) }
   }
 

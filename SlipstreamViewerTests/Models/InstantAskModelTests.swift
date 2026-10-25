@@ -947,6 +947,19 @@ struct InstantAskModelTests {
     expectNoDifference(fork.requests.map(\.kind), [.report])
   }
 
+  @Test func turnEndDuringReplayWaitsForReplayToEnd() async {
+    let (model, chat) = makeModelAndChat()
+    let done = RelayReport(outcome: .done, text: "Done.", seq: Seq("45")!, atMs: 45)
+
+    handOver(model, isReplaying: true, loggedRelay(pickedUp: true))
+    await turnEnded(chat)
+    handOver(model, isReplaying: true, loggedRelay(pickedUp: true, report: done))
+    handOver(model, loggedRelay(pickedUp: true, report: done))
+    await Task.megaYield()
+
+    expectNoDifference(fork.requests, [])
+  }
+
   @Test func replayedDoneRelayIsNeverChecked() async {
     let model = makeModel()
     let done = RelayReport(outcome: .done, text: "Done.", seq: Seq("45")!, atMs: 45)
