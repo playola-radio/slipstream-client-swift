@@ -174,10 +174,11 @@ final class AskAgentPageModel: ViewModel {
     }
   }
 
-  /// An app tab answers at once; an outside chat gets the question through the daemon.
+  /// An app tab answers at once; an outside chat gets the question through the daemon. A request
+  /// the daemon may already have keeps going to the daemon, so a retry can't ask twice.
   func askTapped() async -> AskSent? {
     guard canSubmit else { return nil }
-    if case .app = route {
+    if case .app = route, request == nil {
       let question = InstantQuestion(
         storeID: daemon.storeID, sessionID: sessionID, folder: folder, source: source, replyToQuestionID: nil,
         threadChatSessionID: nil, earlier: [], text: draft)

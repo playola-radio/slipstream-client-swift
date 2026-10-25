@@ -119,6 +119,22 @@ struct AskAgentPageTests {
     #expect(model.hasUncertainSubmission)
   }
 
+  @Test func retryAfterRouteTurnsAppResendsRetainedRequest() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = model(route: .outside, send: { request in
+      requests.withValue { $0.append(request) }
+      throw QuestionError.outcomeUnknown
+    })
+    model.draftChanged("Why?")
+    #expect(await model.askTapped() == nil)
+    let first = requests.value
+
+    model.captureChanged(Self.capture(), route: .app)
+    #expect(await model.askTapped() == nil)
+
+    expectNoDifference(requests.value, first + first)
+  }
+
   @Test func inFlightDuplicateAndDismissedCompletionCannotSucceed() async {
     let (gate, resume) = AsyncStream<Void>.makeStream()
     let requests = LockIsolated<[QuestionRequest]>([])
