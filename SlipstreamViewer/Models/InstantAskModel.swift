@@ -24,16 +24,15 @@ struct PendingAsk: Identifiable, Equatable, Sendable {
   let source: QuestionSource
   let replyToQuestionID: String?
   let text: String
-  let askedAtMs: Int64
   var state: State
 
   enum State: Equatable, Sendable {
     case answering
-    case recording(AskForkResult)
-    case recorded(questionID: String)
+    case recording
+    case recorded
     case couldntAnswer(AskFailure)
     /// The daemon's reply never came back, so the exact request is kept to send again.
-    case couldntRecord(AskForkResult)
+    case couldntRecord
   }
 
   /// The thread a new question shows as until its answer folds into the capture's log.
@@ -57,7 +56,6 @@ final class InstantAskModel: ViewModel {
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.askFork) var askFork
   @ObservationIgnored @Dependency(\.continuousClock) var clock
-  @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @Dependency(\.questionClient) var questionClient
   @ObservationIgnored @Dependency(\.uuid) var uuid
 
@@ -81,27 +79,33 @@ final class InstantAskModel: ViewModel {
   @ObservationIgnored private var recordings: [String: QuestionRequest] = [:]
   /// Keyed by request id. Each run bumps the attempt, so only the latest run can publish.
   @ObservationIgnored private var runs: [String: Run] = [:]
+  @ObservationIgnored private var isQuitting = false
 
   // MARK: - User Actions
 
   /// Starts answering at once; the run outlives the caller. Returns the new entry's request id.
   @discardableResult
   func ask(_ question: InstantQuestion) -> String? {
-    start(question, at: pending.endIndex)
+    guard !isQuitting else { return nil }
+    return start(question, at: pending.endIndex)
   }
 
   /// A recording whose outcome is unknown is sent again unchanged; anything else runs a new copy
   /// under a new request id, which is returned.
   @discardableResult
   func tryAgainTapped(requestID: String) -> String? {
-    guard let entry = pending[id: requestID] else { return nil }
+    guard !isQuitting, let entry = pending[id: requestID] else { return nil }
     switch entry.state {
-    case .couldntRecord(let result):
-      pending[id: requestID]?.state = .recording(result)
-      run(requestID) { attempt in await self.record(requestID, result: result, attempt: attempt) }
+    case .couldntRecord:
+      pending[id: requestID]?.state = .recording
+      run(requestID) { attempt in await self.record(requestID, attempt: attempt, isOutcomeUnknown: true) }
       return requestID
     case .couldntAnswer:
       guard let question = questions[requestID], let index = pending.index(id: requestID) else { return nil }
+      guard answeringTab(for: question) != nil else {
+        pending[id: requestID]?.state = .couldntAnswer(.chatUnavailable)
+        return requestID
+      }
       forget(requestID)
       return start(question, at: index)
     case .answering, .recording, .recorded:
@@ -130,6 +134,7 @@ final class InstantAskModel: ViewModel {
 
   /// Stops every copy and returns once they have all exited.
   func quitConfirmed() async {
+    isQuitting = true
     let running = runs.values.map(\.task)
     for id in pending.ids { forget(id) }
     for task in running { await task.value }
@@ -158,7 +163,6 @@ final class InstantAskModel: ViewModel {
         source: question.source,
         replyToQuestionID: question.replyToQuestionID,
         text: question.text,
-        askedAtMs: Int64((date.now.timeIntervalSince1970 * 1000).rounded()),
         state: tab == nil ? .couldntAnswer(.chatUnavailable) : .answering
       ),
       at: index
@@ -210,7 +214,7 @@ final class InstantAskModel: ViewModel {
       return publish(requestID, attempt, .couldntAnswer(Self.failure(error)))
     }
     guard isCurrent(requestID, attempt), case .answer(let forkSessionID, let reply, _) = result else { return }
-    pending[id: requestID]?.state = .recording(result)
+    pending[id: requestID]?.state = .recording
     recordings[requestID] = QuestionRequest(
       sessionID: question.sessionID,
       requestID: requestID,
@@ -222,23 +226,26 @@ final class InstantAskModel: ViewModel {
         conversation: ExchangeConversation(parentSessionID: tab.id.uuidString, forkSessionID: forkSessionID)
       )
     )
-    await record(requestID, result: result, attempt: attempt)
+    await record(requestID, attempt: attempt, isOutcomeUnknown: false)
   }
 
-  /// An unknown outcome is retried with the identical body; a refusal is final.
-  private func record(_ requestID: String, result: AskForkResult, attempt: Int) async {
+  /// An unknown outcome is retried with the identical body. A refusal is final only while every
+  /// earlier attempt is known to have failed; otherwise the exchange may already be saved.
+  private func record(_ requestID: String, attempt: Int, isOutcomeUnknown: Bool) async {
     guard let request = recordings[requestID] else { return }
+    var isOutcomeUnknown = isOutcomeUnknown
     for remaining in (0..<Self.recordingAttempts).reversed() {
       do {
-        let acknowledgment = try await questionClient.record(request)
-        return publish(requestID, attempt, .recorded(questionID: acknowledgment.questionID))
+        _ = try await questionClient.record(request)
+        return publish(requestID, attempt, .recorded)
       } catch where QuestionFailure.isOutcomeUnknown(error) {
-        guard remaining > 0 else { return publish(requestID, attempt, .couldntRecord(result)) }
+        isOutcomeUnknown = true
+        guard remaining > 0 else { return publish(requestID, attempt, .couldntRecord) }
         guard (try? await clock.sleep(for: Self.recordingRetryDelay)) != nil, isCurrent(requestID, attempt) else {
           return
         }
       } catch {
-        return publish(requestID, attempt, .couldntAnswer(.notSaved))
+        return publish(requestID, attempt, isOutcomeUnknown ? .couldntRecord : .couldntAnswer(.notSaved))
       }
     }
   }

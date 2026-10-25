@@ -200,14 +200,13 @@ struct PendingAsk: Identifiable, Equatable, Sendable {
   let source: QuestionSource
   let replyToQuestionID: String?
   let text: String
-  let askedAtMs: Int64
   var state: State
   enum State: Equatable, Sendable {
     case answering
-    case recording(AskForkResult)
-    case recorded(questionID: String)
+    case recording
+    case recorded
     case couldntAnswer(AskFailure)
-    case couldntRecord(AskForkResult)   // the outcome is unknown; the exact request is kept
+    case couldntRecord   // the outcome is unknown; the exact request is kept
   }
 }
 

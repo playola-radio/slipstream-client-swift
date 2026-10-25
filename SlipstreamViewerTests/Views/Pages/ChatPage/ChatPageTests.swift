@@ -1579,7 +1579,7 @@ struct ChatPageTests {
     #expect(model.linkHoverText(for: tab) == nil)
     #expect(model.linkHelpText(for: tab) == "Connected to Stream")
     #expect(model.outsideChatText == nil)
-    #expect(model.askRoute(forFolder: "/w") == .app(tabID: Self.saved))
+    #expect(model.askRoute(forFolder: "/w") == .app)
   }
 
   @Test func linkedTabWithoutMessageCannotBeAsked() async throws {
@@ -1600,7 +1600,7 @@ struct ChatPageTests {
     #expect(
       model.linkHelpText(for: tab)
         == "Connected to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
-    #expect(model.askRoute(forFolder: "/w") == .app(tabID: Self.saved))
+    #expect(model.askRoute(forFolder: "/w") == .app)
   }
 
   @Test func unlinkedWithOldIDShowsNoIcon() async throws {
@@ -1971,7 +1971,7 @@ struct ChatPageTests {
 
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == .failed)
-    #expect(model.askRoute(forFolder: "/w") == .app(tabID: Self.saved))
+    #expect(model.askRoute(forFolder: "/w") == .app)
     model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
     #expect(model.linkIcon(for: tab) == .failed)
 

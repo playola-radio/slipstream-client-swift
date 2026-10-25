@@ -15,7 +15,7 @@ enum CaptureDot: Equatable, Sendable {
 /// Which chat answers Ask for a folder: an app tab that has sent a message answers at once, a
 /// linked app tab that hasn't can't be asked yet, and anything else goes through the daemon.
 enum AskRoute: Equatable, Sendable {
-  case app(tabID: UUID)
+  case app
   case outside
   case none
 }

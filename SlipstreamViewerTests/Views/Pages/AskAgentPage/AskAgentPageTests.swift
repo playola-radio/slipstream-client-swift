@@ -288,7 +288,7 @@ extension AskAgentPageTests {
     (.setupPending, CaptureBinding(generation: "7", state: .connected)),
   ])
   func askNoticeAppTabIsReadyBeforeTheLinkConfirms(agentConnection: AgentConnection, binding: CaptureBinding) {
-    let model = model(agentConnection: agentConnection, captureStatus: Self.capture(binding: binding), route: .app(tabID: Self.tab))
+    let model = model(agentConnection: agentConnection, captureStatus: Self.capture(binding: binding), route: .app)
     expectNoDifference(model.askNoticeText, nil)
   }
 
@@ -298,7 +298,7 @@ extension AskAgentPageTests {
   }
 
   @Test func askNoticeConnectedTabIsNil() {
-    let model = model(route: .app(tabID: Self.tab))
+    let model = model(route: .app)
     model.draftChanged("Why?")
     #expect(model.askNoticeText == nil)
     #expect(model.canSubmit)
@@ -307,7 +307,7 @@ extension AskAgentPageTests {
   @Test func askNoticeFollowsTheLinkMovingToATab() {
     let pending = Self.capture(binding: CaptureBinding(generation: "8", state: .setupPending))
     let model = model(captureStatus: pending)
-    model.captureChanged(pending, route: .app(tabID: Self.tab))
+    model.captureChanged(pending, route: .app)
     expectNoDifference(model.askNoticeText, nil)
   }
 
@@ -430,7 +430,6 @@ extension AskAgentPageTests {
       $0.agentEnvironment = AgentFake().environmentClient
       $0.askFork = fork.client
       $0.uuid = .incrementing
-      $0.date = DateGenerator { Date(timeIntervalSince1970: 1_760_000_000) }
     } operation: {
       @Shared(.chatTabs) var stored
       $stored.withLock {
@@ -445,7 +444,7 @@ extension AskAgentPageTests {
       return InstantAskModel(chat: chat)
     }
     let sent = LockIsolated(0)
-    let model = model(route: .app(tabID: Self.tab), instantAsk: instantAsk, send: { request in
+    let model = model(route: .app, instantAsk: instantAsk, send: { request in
       sent.withValue { $0 += 1 }
       return try Self.ack(request)
     })

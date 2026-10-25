@@ -854,7 +854,7 @@ struct ChangeStreamPageTests {
     let lines = await highlightedLines(before: "\tx\t= 1\n", after: "\tx\t= 2\n", clips: [functionClip(1, 1)])
     expectNoDifference(
       lines,
-      [CodeLine(id: 1, number: "1", text: "    x    = 2", isChanged: true, changedRanges: [11..<12])]
+      [CodeLine(id: 1, number: "1", text: "    x    = 2", sourceText: "\tx\t= 2", isChanged: true, changedRanges: [11..<12])]
     )
   }
 
@@ -3463,7 +3463,7 @@ extension ChangeStreamPageTests {
       AskAgentPageTests.composer(
         sessionID: Fixture.session, folder: "/tmp/project",
         context: QuestionContext(changeSeq: "1", path: "src/user.ts", snapshotSHA256: Fixture.shaB, lineStart: 7, lineEnd: 9),
-        route: .app(tabID: Self.tab), instantAsk: model.instantAsk)
+        route: .app, instantAsk: model.instantAsk)
     }
     model.askAgent = composer
     composer.draftChanged(text)

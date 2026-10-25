@@ -162,7 +162,7 @@ final class ChatPageModel: ViewModel {
   /// A linked app tab answers once it has sent a message; anything else keeps the outside chat's checks.
   func askRoute(forFolder folder: String) -> AskRoute {
     guard let tab = linkedAppTab(forFolder: folder) else { return .outside }
-    return tab.hasSentMessage ? .app(tabID: tab.id) : .none
+    return tab.hasSentMessage ? .app : .none
   }
 
   /// The tab the folder's binding names, if it is one of the app's tabs.

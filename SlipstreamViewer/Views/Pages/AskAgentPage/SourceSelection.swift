@@ -27,7 +27,7 @@ struct SourceSelection: Equatable {
       lineStart: first.id, lineEnd: last.id)
     guard context.isValid else { return nil }
     return Self(sessionID: sessionID, rowID: row.id, blockID: block.id,
-      firstBlockLine: block.lines[0].id, context: context, selectedText: lines.map(\.text).joined(separator: "\n"))
+      firstBlockLine: block.lines[0].id, context: context, selectedText: lines.map(\.sourceText).joined(separator: "\n"))
   }
 
   func rect(in blockFrame: CGRect, lineHeight: CGFloat) -> CGRect {

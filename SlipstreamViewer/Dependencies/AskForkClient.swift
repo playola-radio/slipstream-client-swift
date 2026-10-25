@@ -58,10 +58,12 @@ extension AskForkClient: DependencyKey {
           }
         }
         let first = await group.next() ?? .failure(.unavailable)
+        // Before the group waits for the other task: a prompt write blocked on a full pipe only
+        // returns once the process is gone.
+        await handle.shutdown()
         group.cancelAll()
         return first
       }
-      await handle.shutdown()
       return try outcome.get()
     })
   }

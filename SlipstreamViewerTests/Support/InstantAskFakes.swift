@@ -105,7 +105,6 @@ extension InstantAskModel {
       $0.askFork = fork.client
       $0.questionClient = recorder.client
       $0.uuid = .incrementing
-      $0.date = DateGenerator { Date(timeIntervalSince1970: 1_760_000_000) }
     } operation: {
       InstantAskModel(chat: chat)
     }

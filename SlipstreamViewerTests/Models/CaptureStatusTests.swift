@@ -274,14 +274,14 @@ struct CaptureStatusTests {
   }
 
   @Test func askNoticeAppTabWithMessageIsReady() {
-    let notice = Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported, route: .app(tabID: Self.tab))
+    let notice = Self.status(.recording, binding: Self.linked).askNotice(agentConnection: .unreported, route: .app)
 
     expectNoDifference(notice, nil)
   }
 
   @Test func askNoticeAppTabSetupPendingIsStillReady() {
     let notice = Self.status(.recording, binding: CaptureBinding(generation: "1", state: .setupPending))
-      .askNotice(agentConnection: .setupPending, route: .app(tabID: Self.tab))
+      .askNotice(agentConnection: .setupPending, route: .app)
 
     expectNoDifference(notice, nil)
   }
@@ -303,7 +303,7 @@ struct CaptureStatusTests {
 
   @Test func askNoticeAppTabStillNeedsRecording() {
     let notice = Self.status(.stopped, reason: "archived", binding: Self.linked)
-      .askNotice(agentConnection: .connected, route: .app(tabID: Self.tab))
+      .askNotice(agentConnection: .connected, route: .app)
 
     expectNoDifference(notice, "This workspace isn't recording, so its chat can't receive questions.")
   }

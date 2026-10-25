@@ -158,6 +158,18 @@ struct AskForkClientTests {
     #expect(agent.shutdowns(0) == 1)
   }
 
+  @Test func blockedPromptWriteStillShutsDownAtTimeLimit() async {
+    agent.hold(.writes)
+    let run = await start()
+
+    await clock.advance(by: .seconds(120))
+
+    #expect(agent.shutdowns(0) == 1)
+    agent.release(.writes)
+    let outcome = await run.value
+    expectNoDifference(outcome, .failure(.timedOut))
+  }
+
   @Test func cancellationShutsDown() async {
     let run = await start()
     await line(Self.isolatedInit)
