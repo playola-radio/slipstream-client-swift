@@ -39,6 +39,7 @@ public struct TranscriptProjection: Equatable, Sendable {
   public private(set) var items: [TranscriptItem]
   private var gapCount = 0
   private var currentTurnStartIndex = 0
+  private var historyTurnStartIndices: [String: Int] = [:]
 
   public init() {
     items = []
@@ -47,10 +48,12 @@ public struct TranscriptProjection: Equatable, Sendable {
   public static func history(_ lines: [AgentLine]) -> TranscriptProjection {
     var projection = TranscriptProjection()
     var turn: HistoryTurn?
+    var turnStartIndex = 0
     for line in lines {
       if case .user(_, _, true, _) = line {
-        if let turn { projection.closeHistoryTurn(turn) }
+        if let turn { projection.closeHistoryTurn(turn, startIndex: turnStartIndex) }
         turn = HistoryTurn()
+        turnStartIndex = projection.items.endIndex
       }
       if case .queuedMessage(let uuid, let text) = line {
         projection.items.append(TranscriptItem(id: "\(uuid)#0", kind: .userMessage(text)))
@@ -68,7 +71,7 @@ public struct TranscriptProjection: Equatable, Sendable {
         break
       }
     }
-    if let turn { projection.closeHistoryTurn(turn) }
+    if let turn { projection.closeHistoryTurn(turn, startIndex: turnStartIndex) }
     projection.stopRunningTools()
     return projection
   }
@@ -138,9 +141,14 @@ public struct TranscriptProjection: Equatable, Sendable {
   public func replyText(endingAt footerID: String) -> String {
     guard let footerIndex = items.firstIndex(where: { $0.id == footerID }) else { return "" }
     var replies: [String] = []
-    for item in items[..<footerIndex].reversed() {
+    let startIndex = historyTurnStartIndices[footerID] ?? 0
+    let stopsAtUserMessage = historyTurnStartIndices[footerID] == nil
+    for item in items[startIndex..<footerIndex].reversed() {
       switch item.kind {
-      case .turnFooter, .userMessage(_, relay: nil): return replies.reversed().joined(separator: "\n\n")
+      case .turnFooter:
+        return replies.reversed().joined(separator: "\n\n")
+      case .userMessage(_, relay: nil) where stopsAtUserMessage:
+        return replies.reversed().joined(separator: "\n\n")
       case .reply(let text): replies.append(text)
       default: break
       }
@@ -162,17 +170,19 @@ public struct TranscriptProjection: Equatable, Sendable {
     }
   }
 
-  private mutating func closeHistoryTurn(_ turn: HistoryTurn) {
+  private mutating func closeHistoryTurn(_ turn: HistoryTurn, startIndex: Int) {
     guard let first = turn.first, let last = turn.last, let lastUUID = turn.lastUUID else {
       stopRunningTools()
       currentTurnStartIndex = items.endIndex
       return
     }
+    let footerID = "\(lastUUID)#footer"
     endTurn(
       turn.isInterrupted ? .stopped : .completed,
       duration: .seconds(last.timeIntervalSince(first)),
       at: last,
-      id: "\(lastUUID)#footer")
+      id: footerID)
+    historyTurnStartIndices[footerID] = startIndex
   }
 
   /// Relays the agent hasn't read stay at the bottom, below the output of the step it is on.

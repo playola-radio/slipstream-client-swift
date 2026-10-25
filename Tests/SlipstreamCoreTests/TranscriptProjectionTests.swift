@@ -145,6 +145,17 @@ struct TranscriptProjectionTests {
     expectNoDifference(projection.replyText(endingAt: "f1"), "one\n\ntwo")
   }
 
+  @Test func replyTextReadsPastAQueuedMessageInAReloadedTurn() {
+    let projection = TranscriptProjection.history([
+      .user(uuid: "u1", timestamp: t0, isPrompt: true, blocks: [.text("go")]),
+      .assistant(uuid: "a1", timestamp: t0.addingTimeInterval(1), blocks: [.text("one")]),
+      .queuedMessage(uuid: "q1", text: "Also do this."),
+      .assistant(uuid: "a2", timestamp: t0.addingTimeInterval(2), blocks: [.text("two")]),
+    ])
+
+    expectNoDifference(projection.replyText(endingAt: "a2#footer"), "one\n\ntwo")
+  }
+
   @Test func replyTextStopsAtAnUntimedHistoryTurnsPrompt() {
     let projection = TranscriptProjection.history([
       .user(uuid: "u1", timestamp: nil, isPrompt: true, blocks: [.text("first")]),
