@@ -161,8 +161,13 @@ final class ChatPageModel: ViewModel {
 
   /// For the Ask notice: the link belongs to one of this workspace's tabs.
   var isAppTabLinked: Bool {
-    guard let folder, let binding = bindings?[folder] else { return false }
-    return tabs(in: folder).contains { binding.isLinked(toChat: $0.id) }
+    folder.flatMap(linkedAppTab(forFolder:)) != nil
+  }
+
+  /// The tab the folder's binding names, if it is one of the app's tabs.
+  func linkedAppTab(forFolder folder: String) -> ChatTabModel? {
+    guard let binding = bindings?[folder] else { return nil }
+    return tabs(in: folder).first { binding.isLinked(toChat: $0.id) }
   }
 
   // MARK: - User Actions
