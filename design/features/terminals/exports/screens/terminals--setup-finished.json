@@ -1,0 +1,3376 @@
+{
+  "type": "frame",
+  "id": "hEY8y",
+  "x": 2160,
+  "y": 39840,
+  "name": "terminals--setup-finished",
+  "clip": true,
+  "width": 2040,
+  "height": 1000,
+  "fill": "#12171D",
+  "cornerRadius": 10,
+  "stroke": "#2A3640",
+  "strokeWidth": 1,
+  "layout": "vertical",
+  "children": [
+    {
+      "type": "frame",
+      "id": "EExoQ",
+      "name": "Window toolbar",
+      "width": "fill_container",
+      "height": 52,
+      "fill": "#191F27",
+      "stroke": "#2A3640",
+      "strokeWidth": {
+        "bottom": 1
+      },
+      "gap": 14,
+      "padding": [
+        0,
+        16
+      ],
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "o9UlL0",
+          "name": "Traffic lights",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "ueS9k",
+              "name": "Light",
+              "fill": "#FF5F57",
+              "width": 12,
+              "height": 12
+            },
+            {
+              "type": "ellipse",
+              "id": "iullp",
+              "name": "Light",
+              "fill": "#FEBC2E",
+              "width": 12,
+              "height": 12
+            },
+            {
+              "type": "ellipse",
+              "id": "ozbnM",
+              "name": "Light",
+              "fill": "#28C840",
+              "width": 12,
+              "height": 12
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "T8YPg0",
+          "name": "Workspace picker",
+          "fill": "#222A33",
+          "cornerRadius": 6,
+          "gap": 6,
+          "padding": [
+            6,
+            10
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "RYkz7",
+              "name": "Workspace name",
+              "fill": "#E6EDF3",
+              "content": "Chat console",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "500"
+            },
+            {
+              "type": "icon",
+              "id": "jmdHE",
+              "name": "Chevron",
+              "width": 14,
+              "height": 14,
+              "icon": "chevron-down",
+              "library": "lucide",
+              "fill": "#8B9AA6"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "qkVme",
+          "name": "Toolbar spacer",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "frame",
+          "id": "O6nA9",
+          "name": "Refresh",
+          "gap": 6,
+          "padding": [
+            6,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "Y9Vb7e",
+              "name": "Refresh icon",
+              "width": 14,
+              "height": 14,
+              "icon": "refresh-cw",
+              "library": "lucide",
+              "fill": "#8B9AA6"
+            },
+            {
+              "type": "text",
+              "id": "GHaPR",
+              "name": "Refresh label",
+              "fill": "#8B9AA6",
+              "content": "Refresh",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "o62aQA",
+          "name": "Compare functions",
+          "gap": 6,
+          "padding": [
+            6,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "N6FXIO",
+              "name": "Compare functions icon",
+              "width": 14,
+              "height": 14,
+              "icon": "git-compare",
+              "library": "lucide",
+              "fill": "#8B9AA6"
+            },
+            {
+              "type": "text",
+              "id": "op0xU",
+              "name": "Compare functions label",
+              "fill": "#8B9AA6",
+              "content": "Compare functions",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "DcWO7",
+      "name": "Body",
+      "width": "fill_container",
+      "height": "fill_container",
+      "children": [
+        {
+          "type": "frame",
+          "id": "CXP3D",
+          "name": "Change stream feed",
+          "metadata": {
+            "type": "interaction",
+            "behavior": "Hide with Hide feed; restore with Activity in the right editor toolbar. Feed scrolls independently in the implemented app."
+          },
+          "clip": true,
+          "width": 680,
+          "height": "fill_container",
+          "fill": "#191F27",
+          "stroke": "#405562",
+          "strokeWidth": {
+            "right": 1
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "KB2MQ",
+              "name": "Feed header",
+              "width": "fill_container",
+              "height": 52,
+              "gap": 10,
+              "padding": [
+                0,
+                20
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "IpKKX",
+                  "name": "Activity icon",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "list-tree",
+                  "library": "lucide",
+                  "fill": "#96B7CA"
+                },
+                {
+                  "type": "text",
+                  "id": "OnozE",
+                  "name": "Feed title",
+                  "fill": "#D9E7EF",
+                  "content": "Change stream",
+                  "fontFamily": "Geist",
+                  "fontSize": 16,
+                  "fontWeight": "550"
+                },
+                {
+                  "type": "text",
+                  "id": "ADbCM",
+                  "name": "Feed order",
+                  "fill": "#7D98AD",
+                  "content": "Full functions",
+                  "fontFamily": "Geist",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "cv13c",
+                  "name": "Feed header gap",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "dugfZ",
+                  "name": "Hide activity feed",
+                  "cornerRadius": 4,
+                  "stroke": "#3E5260",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    8
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "s48Cy",
+                      "name": "Hide feed icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "panel-left-close",
+                      "library": "lucide",
+                      "fill": "#9EBACB"
+                    },
+                    {
+                      "type": "text",
+                      "id": "t5QpL",
+                      "name": "Hide feed label",
+                      "fill": "#9EBACB",
+                      "content": "Hide feed",
+                      "fontFamily": "Geist",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "v1ciTA",
+              "name": "Chronological task stream",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 28,
+              "padding": [
+                0,
+                0,
+                16,
+                0
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "XYak3",
+                  "name": "Task 1 chronological group",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Z5Aup",
+                      "name": "Task 1 sticky heading",
+                      "metadata": {
+                        "type": "interaction",
+                        "behavior": "Shown pinned at the top of the feed. Keeps full task name visible."
+                      },
+                      "width": "fill_container",
+                      "fill": "#24313B",
+                      "stroke": "#526B7B",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": [
+                        12,
+                        20
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ynL6N",
+                          "name": "Task identity row",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "iUT4u",
+                              "name": "Task number badge",
+                              "fill": "#344B57",
+                              "cornerRadius": 3,
+                              "padding": [
+                                6,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "MLiu4",
+                                  "name": "Task number",
+                                  "fill": "#B2DEC9",
+                                  "content": "01",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "sIXES",
+                              "name": "Full task title",
+                              "fill": "#E0EBF1",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Convert isActive from a boolean to an enum",
+                              "fontFamily": "Geist",
+                              "fontSize": 15,
+                              "fontWeight": "550"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "A9AU1V",
+                              "name": "Pinned task indicator",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "pin",
+                              "library": "lucide",
+                              "fill": "#9ACBB8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Tmiq5",
+                      "name": "src/types/user.ts change event",
+                      "metadata": {
+                        "type": "interaction",
+                        "gesture": "double-click code",
+                        "action": "Open or focus src/types/user.ts in full-file editor; reveal clicked lines."
+                      },
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "padding": [
+                        0,
+                        20
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "pldfj",
+                          "name": "src/types/user.ts file clip card",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "#1C2630",
+                          "cornerRadius": 8,
+                          "stroke": "#5B859F",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "CwPhq",
+                              "name": "src/types/user.ts event heading",
+                              "width": "fill_container",
+                              "fill": "#2B4050",
+                              "stroke": "#405564",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 7,
+                              "padding": [
+                                12,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "m8ww6",
+                                  "name": "src/types/user.ts icon",
+                                  "width": 12,
+                                  "height": 12,
+                                  "icon": "file-text",
+                                  "library": "lucide",
+                                  "fill": "#789FB9"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "TZC96",
+                                  "name": "src/types/user.ts path",
+                                  "fill": "#A2CBE3",
+                                  "content": "src/types/user.ts",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "v6po1X",
+                                  "name": "Event header space",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "T4ywzG",
+                                  "name": "Event time",
+                                  "fill": "#68879E",
+                                  "content": "10:42:18",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "JHWEj",
+                                  "name": "Open indicator",
+                                  "fill": "#78AAD0",
+                                  "content": "OPEN →",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 9,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Y7Wwt",
+                              "name": "src/types/user.ts code snippet",
+                              "width": "fill_container",
+                              "fill": "#1D2D3B",
+                              "layout": "vertical",
+                              "padding": [
+                                14,
+                                10,
+                                16,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "bUzy7",
+                                  "name": "Snippet line 6",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "f91Ay5",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "FPPSA",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "6",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "w4VVjQ",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "export enum ActivityState {",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "LiNxW",
+                                  "name": "Snippet line 7",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "rV1mZ",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "p0ABl2",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "7",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "p5Ki27",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  Inactive = 'inactive',",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "hdQt6",
+                                  "name": "Snippet line 8",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "r3dlN",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "J3VcX",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "8",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "E3fprm",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  Active = 'active',",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "jkwlE",
+                                  "name": "Snippet line 9",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "xMya1",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Uq8wq",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "9",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "o9eKw",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  Suspended = 'suspended',",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ee9tU",
+                                  "name": "Snippet line 10",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Zjf7B",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "NNVo8",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "10",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "zCjN9",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "}",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "rEGy1",
+                                  "name": "Snippet line ···",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "mEH71",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "u4E8BY",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "···",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "I0Iym8",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "wihW9",
+                                  "name": "Snippet line 16",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "JTecC",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ZxN3z",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "16",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "X9tuyk",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  isActive: ActivityState;",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rVao3",
+                      "name": "src/api/create-user.ts change event",
+                      "metadata": {
+                        "type": "interaction",
+                        "gesture": "double-click code",
+                        "action": "Open or focus src/api/create-user.ts in full-file editor; reveal clicked lines."
+                      },
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "padding": [
+                        0,
+                        20
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "oIIoq",
+                          "name": "src/api/create-user.ts file clip card",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "#1C2630",
+                          "cornerRadius": 8,
+                          "stroke": "#3F5363",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "rzld2",
+                              "name": "src/api/create-user.ts event heading",
+                              "width": "fill_container",
+                              "fill": "#283642",
+                              "stroke": "#405564",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 7,
+                              "padding": [
+                                12,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "MGO58",
+                                  "name": "src/api/create-user.ts icon",
+                                  "width": 12,
+                                  "height": 12,
+                                  "icon": "file-text",
+                                  "library": "lucide",
+                                  "fill": "#789FB9"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "wKBzF",
+                                  "name": "src/api/create-user.ts path",
+                                  "fill": "#8DA9BD",
+                                  "content": "src/api/create-user.ts",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "oCCT3",
+                                  "name": "Event header space",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "URlIr",
+                                  "name": "Event time",
+                                  "fill": "#68879E",
+                                  "content": "10:43:06",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "gUBgZ",
+                              "name": "src/api/create-user.ts code snippet",
+                              "width": "fill_container",
+                              "fill": "#1C2630",
+                              "layout": "vertical",
+                              "padding": [
+                                14,
+                                10,
+                                16,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "fNR7K",
+                                  "name": "Snippet line 10",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "aRjNm",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Z95Fv",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "10",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "WkGKL",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "export async function createUser(",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "c8AwV",
+                                  "name": "Snippet line 11",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "bcCBu",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "n2XB6",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "11",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "SdreI",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  input: CreateUserInput",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "a7s6c",
+                                  "name": "Snippet line 12",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "EltkO",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "HWhHu",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "12",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "s7wq6w",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "): Promise<User> {",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "GSfbi",
+                                  "name": "Snippet line 13",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "HP4nU",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "yqqJ7",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "13",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "V8PGY7",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  const profile = {",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "avR3j",
+                                  "name": "Snippet line 14",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Tc2VA",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "cjHyE",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "14",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "niBer",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "    id: crypto.randomUUID(),",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "cHEwC",
+                                  "name": "Snippet line 15",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "vMYMf",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "EM1XN",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "15",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Vy80M",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "    name: input.name.trim(),",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "A8PRX1",
+                                  "name": "Snippet line 16",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "c59KXN",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "gfdtR",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "16",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "H35k3",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "    email: input.email.toLowerCase(),",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "YxQCM",
+                                  "name": "Snippet line 17",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Dm6Sf",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "r9HKc4",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "17",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ZnyVm",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  };",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "P8py8",
+                                  "name": "Snippet line 18",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "ltVH9",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "fcoLo",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "18",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "BXEhK",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "pXU5o",
+                                  "name": "Snippet line 19",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Q2uOt",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Xk0xM",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "19",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Xl3FX",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  // New accounts start inactive.",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "lvz8v",
+                                  "name": "Snippet line 20",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "myEy0",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "b2wEPh",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "20",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "blEYi",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ilsqS",
+                                  "name": "Snippet line 21",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Z7GrS",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "H2qs3",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "21",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "DZXXI",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  const user: User = {",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Q44jF",
+                                  "name": "Snippet line 22",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "PUltY",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "pyYcY",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "22",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "O7RMF",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "    ...profile,",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Tg7Wb",
+                                  "name": "Snippet line 23",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "N1yCt",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "tldFY",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "23",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "oj4DN",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "    isActive: ActivityState.Inactive,",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "jFZHV",
+                                  "name": "Snippet line 24",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "w0UgW",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "w7v1Zx",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "24",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Y02Yc",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "    createdAt: new Date(),",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "IG36r",
+                                  "name": "Snippet line 25",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "xcOfH",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "AlzjY",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "25",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "K0k3u",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  };",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "gtksf",
+                                  "name": "Snippet line 26",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "g1zLZ",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "K4H4VG",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "26",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ogv9Y",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "M0jKK8",
+                                  "name": "Snippet line 27",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "LKMB1",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "v9mDPM",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "27",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "dods2",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  await db.users.insert(user);",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "yuDHK",
+                                  "name": "Snippet line 28",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "ocoIk",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "gWaHl",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "28",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "XFgLH",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  return user;",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "fHQoQ",
+                                  "name": "Snippet line 29",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "s1D2K",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#00000000"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Kcfre",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "29",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "c4lPsz",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "}",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IeNaB",
+                  "name": "Task 2 chronological group",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "dRbMC",
+                      "name": "Task 2 sticky heading",
+                      "metadata": {
+                        "type": "interaction",
+                        "behavior": "Shown inline in chronology. Replaces Task 1 at the feed's sticky boundary."
+                      },
+                      "width": "fill_container",
+                      "fill": "#24313B",
+                      "stroke": "#526B7B",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": [
+                        12,
+                        20
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d5aymx",
+                          "name": "Task identity row",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "jPC9p",
+                              "name": "Task number badge",
+                              "fill": "#344B57",
+                              "cornerRadius": 3,
+                              "padding": [
+                                6,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "F63lN",
+                                  "name": "Task number",
+                                  "fill": "#B2DEC9",
+                                  "content": "02",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "QApuY",
+                              "name": "Full task title",
+                              "fill": "#E0EBF1",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Update checks to use ActivityState",
+                              "fontFamily": "Geist",
+                              "fontSize": 15,
+                              "fontWeight": "550"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "xE1bi",
+                              "name": "Task will pin on scroll",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "pin",
+                              "library": "lucide",
+                              "fill": "#7F96A6"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "CTIko",
+                      "name": "src/auth/access.ts change event",
+                      "metadata": {
+                        "type": "interaction",
+                        "gesture": "double-click code",
+                        "action": "Open or focus src/auth/access.ts in full-file editor; reveal clicked lines."
+                      },
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "padding": [
+                        0,
+                        20
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "VK6q9",
+                          "name": "src/auth/access.ts file clip card",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "#1C2630",
+                          "cornerRadius": 8,
+                          "stroke": "#3F5363",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "I6yo1f",
+                              "name": "src/auth/access.ts event heading",
+                              "width": "fill_container",
+                              "fill": "#283642",
+                              "stroke": "#405564",
+                              "strokeWidth": {
+                                "bottom": 1
+                              },
+                              "gap": 7,
+                              "padding": [
+                                12,
+                                14
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "HGDlb",
+                                  "name": "src/auth/access.ts icon",
+                                  "width": 12,
+                                  "height": 12,
+                                  "icon": "file-text",
+                                  "library": "lucide",
+                                  "fill": "#789FB9"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "OGXHF",
+                                  "name": "src/auth/access.ts path",
+                                  "fill": "#8DA9BD",
+                                  "content": "src/auth/access.ts",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Nm2Nz",
+                                  "name": "Event header space",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "F5zeNN",
+                                  "name": "Event time",
+                                  "fill": "#68879E",
+                                  "content": "10:45:32",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "O3sP3V",
+                              "name": "src/auth/access.ts code snippet",
+                              "width": "fill_container",
+                              "fill": "#1C2630",
+                              "layout": "vertical",
+                              "padding": [
+                                14,
+                                10,
+                                16,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "kPpm4",
+                                  "name": "Snippet line 12",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "sUcaE",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "aIk8Z",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "12",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "w0OyB",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "export function canAccess(user: User) {",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "v5SbIM",
+                                  "name": "Snippet line 13",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "IXDSV",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "A3zaU",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "13",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "wesVj",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  return user.isActive === ActivityState.Active;",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Zz8SK",
+                                  "name": "Snippet line 14",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "a7sINl",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ErtEV",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "14",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "T9oKJk",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "}",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "mYaSf",
+                                  "name": "Snippet line 15",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "J2MT16",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "y9aO6e",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "15",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "q6Edo2",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "sQGOo",
+                                  "name": "Snippet line 16",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Qck3B",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "T0Wa7X",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "16",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Jk9nb",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "export function isSuspended(user: User) {",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "N0qb9",
+                                  "name": "Snippet line 17",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "e8sTPc",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "IKncr",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "17",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "VpSHU",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "  return user.isActive === ActivityState.Suspended;",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "EIw0L",
+                                  "name": "Snippet line 18",
+                                  "width": "fill_container",
+                                  "height": 22,
+                                  "gap": 10,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "qaiQ3",
+                                      "name": "Blue modification marker",
+                                      "width": 3,
+                                      "height": "fill_container",
+                                      "fill": "#4B9CDA"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "gU4qA",
+                                      "name": "Snippet line number",
+                                      "fill": "#5F8099",
+                                      "textGrowth": "fixed-width",
+                                      "width": 25,
+                                      "content": "18",
+                                      "textAlign": "right",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "CJ4Vg",
+                                      "name": "Snippet source",
+                                      "fill": "#BDCDDF",
+                                      "content": "}",
+                                      "fontFamily": "Geist Mono",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iBZd2",
+                  "name": "End of current activity",
+                  "width": "fill_container",
+                  "stroke": "#314351",
+                  "strokeWidth": {
+                    "top": 1
+                  },
+                  "gap": 8,
+                  "padding": [
+                    10,
+                    20
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "enFxc",
+                      "name": "Live pulse",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "activity",
+                      "library": "lucide",
+                      "fill": "#83BDA4"
+                    },
+                    {
+                      "type": "text",
+                      "id": "IZFux",
+                      "name": "Live status",
+                      "fill": "#789F91",
+                      "content": "Live · New changes appear below",
+                      "fontFamily": "Geist",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XnoDB",
+                      "name": "Live footer gap",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "yONHF",
+                      "name": "Jump latest",
+                      "fill": "#82AAC5",
+                      "content": "Jump to latest ↓",
+                      "fontFamily": "Geist",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "nUM4k",
+          "name": "Chat",
+          "width": 920,
+          "height": "fill_container",
+          "fill": "#12171D",
+          "stroke": "#2A3640",
+          "strokeWidth": {
+            "left": 1
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "nXCU3",
+              "name": "Tab strip",
+              "width": "fill_container",
+              "height": 40,
+              "stroke": "#2A3640",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 4,
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FuTkb",
+                  "name": "Tab · Add retry to sessions load",
+                  "height": 40,
+                  "stroke": "#6CB6FF",
+                  "strokeWidth": {
+                    "bottom": 2
+                  },
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "h1sJ13",
+                      "name": "Tab title",
+                      "fill": "#E6EDF3",
+                      "content": "Add retry to sessions load",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "wgaUU",
+                      "name": "Linked for Ask",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "link",
+                      "library": "lucide",
+                      "fill": "#6CB6FF"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ol8px",
+                  "name": "Tab · Fix feed scroll",
+                  "height": 40,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "m4HHLW",
+                      "name": "Tab title",
+                      "fill": "#8B9AA6",
+                      "content": "Fix feed scroll",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "FD7I1",
+                  "name": "New tab",
+                  "height": 40,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "h56Krg",
+                      "name": "Plus",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "plus",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "BlAyw",
+              "name": "Transcript",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 14,
+              "padding": [
+                20,
+                48,
+                12,
+                48
+              ],
+              "justifyContent": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m9etkx",
+                  "name": "User message",
+                  "width": "fill_container",
+                  "justifyContent": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "EoqEE",
+                      "name": "Bubble",
+                      "width": 520,
+                      "fill": "#232C36",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "padding": [
+                        10,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Dohf7",
+                          "name": "Paragraph",
+                          "fill": "#E6EDF3",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "When the daemon isn't up yet the session list just shows an error. Make it retry first.",
+                          "lineHeight": 1.65,
+                          "fontFamily": "Geist",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "mC78S",
+                  "name": "Paragraph",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Done. The session list now retries twice before showing the error, and a slow earlier attempt can't overwrite a newer one.",
+                  "lineHeight": 1.65,
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "cyuLr",
+                  "name": "Turn footer",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "h65L0",
+                      "name": "Duration and time",
+                      "fill": "#5E6C78",
+                      "content": "12s · 3:04 PM",
+                      "fontFamily": "Geist",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "m697gC",
+                      "name": "Copy",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "copy",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "FAsjc",
+                      "name": "More",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "ellipsis",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SQe1m",
+                  "name": "User message",
+                  "width": "fill_container",
+                  "justifyContent": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "iyoXg",
+                      "name": "Bubble",
+                      "width": 520,
+                      "fill": "#232C36",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "padding": [
+                        10,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "M3asMB",
+                          "name": "Paragraph",
+                          "fill": "#E6EDF3",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Can the retry wait a bit longer between tries? It gives up before the daemon has finished starting.",
+                          "lineHeight": 1.65,
+                          "fontFamily": "Geist",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kQ2ar",
+                  "name": "Thinking",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "T1E4z2",
+                      "name": "Thinking header",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "QwD3Y",
+                          "name": "Thinking icon",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "brain",
+                          "library": "lucide",
+                          "fill": "#8B9AA6"
+                        },
+                        {
+                          "type": "text",
+                          "id": "wcTiq",
+                          "name": "Thinking label",
+                          "fill": "#8B9AA6",
+                          "content": "Thinking",
+                          "fontFamily": "Geist",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "xffc6",
+                          "name": "Collapse",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "#5E6C78"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "N6aoK",
+                      "name": "Paragraph",
+                      "fill": "#5E6C78",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "The retry uses a fixed 200 ms pause. The daemon's own start-up takes about a second, so I'll switch to a growing pause and keep the test clock driving it.",
+                      "lineHeight": 1.65,
+                      "fontFamily": "Geist",
+                      "fontSize": 13.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "D9oS49",
+                  "name": "Tool call",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "ML2ol",
+                      "name": "Tool icon",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "pencil",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    },
+                    {
+                      "type": "text",
+                      "id": "YvSs1",
+                      "name": "Tool verb",
+                      "fill": "#5E6C78",
+                      "content": "Edited",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "lunbm",
+                      "name": "Tool target",
+                      "fill": "#8B9AA6",
+                      "content": "ChangeStreamPageModel.swift",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "SgHmE",
+                      "name": "Expand",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "chevron-right",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "A1pfz",
+                  "name": "Tool call",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "gGjVj",
+                      "name": "Tool icon",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "pencil",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ucKKc",
+                      "name": "Tool verb",
+                      "fill": "#5E6C78",
+                      "content": "Edited",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "amGZX",
+                      "name": "Tool target",
+                      "fill": "#8B9AA6",
+                      "content": "ChangeStreamPageTests.swift",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "V467Sc",
+                      "name": "Expand",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "chevron-right",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "NgKqS",
+                  "name": "Tool call",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "K9uctS",
+                      "name": "Tool icon",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "terminal",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    },
+                    {
+                      "type": "text",
+                      "id": "y9dq6",
+                      "name": "Tool verb",
+                      "fill": "#5E6C78",
+                      "content": "Ran",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "uZtFL",
+                      "name": "Tool target",
+                      "fill": "#8B9AA6",
+                      "content": "swift test --filter ChangeStreamPage",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "p4Gia",
+                      "name": "Expand",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "chevron-right",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "bcqLT",
+                  "name": "Paragraph",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "The pause now doubles each time: 250 ms, then 500 ms, then 1 s, so the last try lands after the daemon is usually up. The tests drive it with the test clock, so they still run instantly.",
+                  "lineHeight": 1.65,
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "y96Fhv",
+                  "name": "Paragraph",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Want me to show a \"Still connecting…\" line while it waits, or keep it silent until the error?",
+                  "lineHeight": 1.65,
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "W5Iigh",
+                  "name": "Turn footer",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "l1LsfO",
+                      "name": "Duration and time",
+                      "fill": "#5E6C78",
+                      "content": "41s · 3:09 PM",
+                      "fontFamily": "Geist",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "b2iIOW",
+                      "name": "Copy",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "copy",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "TzEif",
+                      "name": "More",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "ellipsis",
+                      "library": "lucide",
+                      "fill": "#5E6C78"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "rzHQ9",
+              "name": "Message box area",
+              "width": "fill_container",
+              "padding": [
+                0,
+                24,
+                20,
+                24
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "DYhxm",
+                  "name": "Message box",
+                  "width": "fill_container",
+                  "height": 120,
+                  "fill": "#191F27",
+                  "cornerRadius": 10,
+                  "stroke": "#2A3640",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "padding": [
+                    14,
+                    16,
+                    12,
+                    16
+                  ],
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "j6w6LI",
+                      "name": "Placeholder",
+                      "fill": "#5E6C78",
+                      "content": "Ask to make changes, @mention files, run /commands",
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R3i8w",
+                      "name": "Box controls",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "g2tw5",
+                          "name": "Agent picker",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "J76yu",
+                              "name": "Model",
+                              "fill": "#E6EDF3",
+                              "content": "Opus 5.5",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "SVdPb",
+                              "name": "Effort",
+                              "fill": "#8B9AA6",
+                              "content": "High",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "Ji8WS",
+                              "name": "Chevron",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NPlYm",
+                          "name": "Send",
+                          "width": 26,
+                          "height": 26,
+                          "fill": "#2F3A45",
+                          "cornerRadius": 6,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "L9fKb",
+                              "name": "Arrow up",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "arrow-up",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "LGiZu",
+          "name": "Terminals pane",
+          "width": 440,
+          "height": "fill_container",
+          "fill": "#0E1318",
+          "stroke": "#2A3640",
+          "strokeWidth": {
+            "left": 1
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ZHuIU",
+              "name": "Terminal tab strip",
+              "width": "fill_container",
+              "height": 40,
+              "stroke": "#2A3640",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 2,
+              "padding": [
+                0,
+                6,
+                0,
+                10
+              ],
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "iQUM6",
+                  "name": "Tab · Setup",
+                  "height": 40,
+                  "stroke": "#6CB6FF",
+                  "strokeWidth": {
+                    "bottom": 2
+                  },
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "TWW7I",
+                      "name": "Status",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "check",
+                      "library": "lucide",
+                      "fill": "#8DD9B1"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JbopN",
+                      "name": "Tab title",
+                      "fill": "#E6EDF3",
+                      "content": "Setup",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "O3VyEs",
+                      "name": "Close tab",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "x",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PrXGb",
+                  "name": "Tab · Terminal 1",
+                  "height": 40,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Ys4Fx",
+                      "name": "Tab title",
+                      "fill": "#8B9AA6",
+                      "content": "Terminal 1",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "i97UCn",
+                  "name": "New terminal",
+                  "height": 40,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "ZHkdV",
+                      "name": "Plus",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "plus",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "j9sELB",
+                  "name": "Strip spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "F3CMNh",
+                  "name": "Hide terminals",
+                  "height": 40,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "oALGe",
+                      "name": "Hide icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "panel-right-close",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "w7Pho",
+              "name": "Shell",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 3,
+              "padding": [
+                14,
+                16
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "g8morc",
+                  "name": "Line",
+                  "fill": "#8B9AA6",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "created /Users/brian/slipstream/workspaces/playola/workspace-3 on briankeane/workspace-3 from origin/develop",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "ylc1N",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": " ",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "cC1FQ",
+                  "name": "Line",
+                  "fill": "#8B9AA6",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "workspace_path: /Users/brian/slipstream/workspaces/playola/workspace-3",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "FINcm",
+                  "name": "Line",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "$ npm install",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "i8guX",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "added 412 packages in 6s",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "SlFg7",
+                  "name": "Line",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "$ ./scripts/conductor-setup.sh",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "o6FmJE",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Copying .env from ~/playola/config …",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "s0dZVN",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Starting Postgres on port 55432 … ok",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "WH7Fm",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": " ",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "gc9U0",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "  API     http://localhost:4312",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "xvgaU",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "  Web     http://localhost:5174",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "vSwZu",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "  Admin   http://localhost:5174/admin",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "o1q67e",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "  DB      postgres://localhost:55432/playola_ws3",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "I8bN0c",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": " ",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "kVtoj",
+                  "name": "Line",
+                  "fill": "#8DD9B1",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Setup complete.",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "P8G6m",
+                  "name": "Line",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": " ",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "BjIsn",
+                  "name": "Line",
+                  "fill": "#8B9AA6",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "workspace_path: /Users/brian/slipstream/workspaces/playola/workspace-3",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "idcCi",
+              "name": "Setup status",
+              "width": "fill_container",
+              "height": 34,
+              "stroke": "#2A3640",
+              "strokeWidth": {
+                "top": 1
+              },
+              "gap": 8,
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "T0c3Gg",
+                  "name": "Status icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "#8DD9B1"
+                },
+                {
+                  "type": "text",
+                  "id": "G4thEM",
+                  "name": "Status text",
+                  "fill": "#B7C3CD",
+                  "content": "Setup finished · 14s",
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
