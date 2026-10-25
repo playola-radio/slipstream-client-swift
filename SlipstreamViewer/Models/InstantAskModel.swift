@@ -61,6 +61,10 @@ struct RelayRun: Equatable, Sendable {
   /// When the last check failed; it stays shown while a new check runs.
   var checkFailedAtMs: Int64?
   var isDone = false
+  /// Set when a log replay hands it over; cleared once a check starts.
+  var needsTakeoverCheck = false
+  /// Replaced by a newer relay, so it can't be sent again.
+  var isSentAgain = false
   /// Steps whose retries ran out, sent again when the daemon reconnects.
   var unrecorded: [QuestionRelayUpdateRequest] = []
 
@@ -119,7 +123,8 @@ final class InstantAskModel: ViewModel {
   @ObservationIgnored private var relaySupport: [String: Bool] = [:]
   @ObservationIgnored private var relayTasks: [Int: RelayTask] = [:]
   @ObservationIgnored private var nextRelayTaskID = 0
-  @ObservationIgnored private var sendingAgain: Set<String> = []
+  /// Question ids with a Send again in flight.
+  private var sendingAgain: Set<String> = []
 
   // MARK: - View Helpers
 
@@ -130,6 +135,10 @@ final class InstantAskModel: ViewModel {
     if run?.delivery == .exitedUnread { relay.isNotDelivered = true }
     return relay.status(
       livePickup: run?.delivery == .pickedUp, liveWrite: run?.delivery != nil, lastCheckFailed: run?.checkFailedAtMs != nil)
+  }
+
+  func canSendAgain(_ relay: QuestionRelay) -> Bool {
+    relayRuns[relay.id]?.isSentAgain != true && !sendingAgain.contains(relay.questionID)
   }
 
   // MARK: - User Actions
@@ -166,8 +175,11 @@ final class InstantAskModel: ViewModel {
 
   /// An entry leaves once its exchange is in the capture's log, even if an error showed first.
   /// Relays this app run didn't write are taken over: a pickup without a done report is checked
-  /// at the chat's next idle, and one never picked up is left for the user to send again.
-  func threadsFolded(storeID: String, sessionID: String, folder: String?, threads: IdentifiedArrayOf<QuestionThread>) {
+  /// at the chat's next idle, and one never picked up is left for the user to send again. While
+  /// the log is still replaying, a later event may already hold the report, so nothing is checked.
+  func threadsFolded(
+    storeID: String, sessionID: String, folder: String?, isReplaying: Bool, threads: IdentifiedArrayOf<QuestionThread>
+  ) {
     let questionIDs = Dictionary(
       threads.flatMap { $0.turns.map { ($0.requestID, $0.questionID) } }, uniquingKeysWith: { first, _ in first })
     for entry in pending where entry.sessionID == sessionID {
@@ -183,7 +195,7 @@ final class InstantAskModel: ViewModel {
         for relay in turn.relays {
           relayFolded(
             relay, storeID: storeID, sessionID: sessionID, folder: folder, source: thread.source, earlier: earlier,
-            request: turn.text)
+            request: turn.text, isReplaying: isReplaying)
         }
       }
     }
@@ -210,23 +222,17 @@ final class InstantAskModel: ViewModel {
   }
 
   /// Writes the request again under a new relay id, once the daemon has recorded it as sent.
-  /// A closed chat hands it to the tab the folder is linked to.
+  /// A closed chat hands it to the tab the folder is linked to. One runs per question at a time,
+  /// and a relay already sent again can't be sent again.
   func sendAgainTapped(relayID: String) async {
-    guard !isQuitting, let run = relayRuns[relayID], !sendingAgain.contains(relayID),
+    guard !isQuitting, let run = relayRuns[relayID], !run.isSentAgain, !sendingAgain.contains(run.questionID),
       let tab = chat.tabs[id: run.chatSessionID] ?? run.folder.flatMap(chat.linkedAppTab(forFolder:))
     else { return }
-    sendingAgain.insert(relayID)
-    defer { sendingAgain.remove(relayID) }
-    let newRelayID = uuid()
-    let isRecorded = await send(
-      QuestionRelayUpdateRequest(
-        sessionID: run.sessionID, requestID: uuid().uuidString.lowercased(), questionID: run.questionID,
-        relayID: newRelayID.uuidString.lowercased(), update: .sent(chatSessionID: tab.id.uuidString.lowercased())))
-    guard isRecorded, !isQuitting, relayRuns[relayID] != nil else { return }
-    relayRuns[newRelayID.uuidString.lowercased()] = RelayRun(
-      storeID: run.storeID, sessionID: run.sessionID, questionID: run.questionID, chatSessionID: tab.id,
-      folder: run.folder, source: run.source, earlier: run.earlier, request: run.request)
-    await track(run.sessionID) { await self.write(newRelayID) }.value
+    sendingAgain.insert(run.questionID)
+    await track(run.sessionID) {
+      defer { self.sendingAgain.remove(run.questionID) }
+      await self.sendAgain(run, from: relayID, to: tab.id)
+    }.value
   }
 
   /// Selecting the capture again replays its log, which brings recorded answers back.
@@ -415,21 +421,41 @@ final class InstantAskModel: ViewModel {
 
   private func relayFolded(
     _ relay: QuestionRelay, storeID: String, sessionID: String, folder: String?, source: QuestionSource,
-    earlier: [AskPrompt.Exchange], request: String
+    earlier: [AskPrompt.Exchange], request: String, isReplaying: Bool
   ) {
-    let isNew = relayRuns[relay.id] == nil
-    if isNew {
+    if relayRuns[relay.id] == nil {
       guard let chatSessionID = UUID(uuidString: relay.chatSessionID) else { return }
       relayRuns[relay.id] = RelayRun(
         storeID: storeID, sessionID: sessionID, questionID: relay.questionID, chatSessionID: chatSessionID,
-        folder: folder, source: source, earlier: earlier, request: request)
+        folder: folder, source: source, earlier: earlier, request: request, needsTakeoverCheck: true)
     }
     if relay.pickedUp != nil { relayRuns[relay.id]?.delivery = .pickedUp }
     if relay.isDone { relayRuns[relay.id]?.isDone = true }
-    guard isNew, let run = relayRuns[relay.id], run.delivery == .pickedUp, !run.isDone,
-      chat.tabs[id: run.chatSessionID]?.isWorking == false
+    guard !isReplaying, let run = relayRuns[relay.id], run.needsTakeoverCheck, run.delivery == .pickedUp, !run.isDone,
+      run.report == .idle, chat.tabs[id: run.chatSessionID]?.isWorking == false
     else { return }
     startCheck(relay.id)
+  }
+
+  /// The new run exists before its `sent` step is sent, so a step whose retries run out is kept
+  /// for reconnect under the same request id.
+  private func sendAgain(_ run: RelayRun, from relayID: String, to tabID: UUID) async {
+    let newRelayID = uuid()
+    let newKey = newRelayID.uuidString.lowercased()
+    relayRuns[newKey] = RelayRun(
+      storeID: run.storeID, sessionID: run.sessionID, questionID: run.questionID, chatSessionID: tabID,
+      folder: run.folder, source: run.source, earlier: run.earlier, request: run.request)
+    let isRecorded = await send(
+      QuestionRelayUpdateRequest(
+        sessionID: run.sessionID, requestID: uuid().uuidString.lowercased(), questionID: run.questionID,
+        relayID: newKey, update: .sent(chatSessionID: tabID.uuidString.lowercased())))
+    guard isRecorded else {
+      if relayRuns[newKey]?.unrecorded.isEmpty == true { relayRuns[newKey] = nil }
+      return
+    }
+    guard !Task.isCancelled, relayRuns[newKey] != nil else { return }
+    relayRuns[relayID]?.isSentAgain = true
+    await write(newRelayID)
   }
 
   private func write(_ relayID: UUID) async {
@@ -479,10 +505,12 @@ final class InstantAskModel: ViewModel {
   private func startCheck(_ relayID: String) -> Task<Void, Never>? {
     guard !isQuitting, let run = relayRuns[relayID] else { return nil }
     relayRuns[relayID]?.report = .checking(rerun: false)
+    relayRuns[relayID]?.needsTakeoverCheck = false
     return track(run.sessionID) { await self.check(relayID) }
   }
 
-  /// Asks a copy of the chat whether it made the change, then records its answer.
+  /// Asks a copy of the chat whether it made the change, then records its answer. It is done only
+  /// once the daemon has recorded a done report; a turn end during the check runs one more.
   private func check(_ relayID: String) async {
     guard let run = relayRuns[relayID] else { return }
     var result: AskForkResult?
@@ -499,28 +527,30 @@ final class InstantAskModel: ViewModel {
         )
       )
     }
+    var isRecorded = false
+    if !Task.isCancelled, case .report(let reply, let outcome) = result,
+      let request = updateRequest(relayID, .reported(outcome, text: reply))
+    {
+      isRecorded = await send(request)
+      if isRecorded, outcome == .done { relayRuns[relayID]?.isDone = true }
+    }
     guard !Task.isCancelled, case .checking(let rerun) = relayRuns[relayID]?.report else { return }
     relayRuns[relayID]?.report = .idle
-    guard case .report(let reply, let outcome) = result else {
-      relayRuns[relayID]?.checkFailedAtMs = Int64(now.timeIntervalSince1970 * 1000)
-      return
-    }
-    recordUpdate(relayID, .reported(outcome, text: reply))
-    relayRuns[relayID]?.checkFailedAtMs = nil
-    if outcome == .done {
-      relayRuns[relayID]?.isDone = true
-    } else if rerun {
-      startCheck(relayID)
-    }
+    relayRuns[relayID]?.checkFailedAtMs = isRecorded ? nil : Int64(now.timeIntervalSince1970 * 1000)
+    if rerun, relayRuns[relayID]?.isDone == false { startCheck(relayID) }
   }
 
   /// Each step is recorded on its own, so one that fails never holds back the next.
   private func recordUpdate(_ relayID: String, _ update: RelayUpdate) {
-    guard !isQuitting, let run = relayRuns[relayID] else { return }
-    let request = QuestionRelayUpdateRequest(
+    guard !isQuitting, let request = updateRequest(relayID, update) else { return }
+    track(request.sessionID) { await self.send(request) }
+  }
+
+  private func updateRequest(_ relayID: String, _ update: RelayUpdate) -> QuestionRelayUpdateRequest? {
+    guard let run = relayRuns[relayID] else { return nil }
+    return QuestionRelayUpdateRequest(
       sessionID: run.sessionID, requestID: uuid().uuidString.lowercased(), questionID: run.questionID,
       relayID: relayID, update: update)
-    track(run.sessionID) { await self.send(request) }
   }
 
   /// Anything but a refusal may have been recorded, so it is retried with the identical body and

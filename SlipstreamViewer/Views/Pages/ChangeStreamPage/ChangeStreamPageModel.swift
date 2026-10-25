@@ -89,6 +89,8 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var fileHeaderOffsets: [Seq: CGFloat] = [:]
 
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
+  /// Where the log stood when this feed started from the beginning; events up to it are replay.
+  @ObservationIgnored private var replayEndSeq: Seq = .zero
   @ObservationIgnored private(set) var watchTask: Task<Void, Never>?
   @ObservationIgnored private var cardContentOrder: [Seq] = []
   @ObservationIgnored private var cardLoadGenerations: [Seq: Int] = [:]
@@ -964,6 +966,7 @@ final class ChangeStreamPageModel: ViewModel {
     let generation = watchGeneration
     connection = .connecting
     let after = lastAppliedSeq
+    if after == .zero { replayEndSeq = selectedSession?.readinessSeq ?? .zero }
     let daemon = daemon
     let clock = clock
     let random = withRandomNumberGenerator
@@ -1126,9 +1129,13 @@ final class ChangeStreamPageModel: ViewModel {
     } else if shouldRefreshBinding {
       Task { [weak self] in await self?.loadSessions() }
     }
+    let wasReplaying = isReplaying
     lastAppliedSeq = event.seq
+    if wasReplaying, !isReplaying { threadsFolded() }
     return true
   }
+
+  private var isReplaying: Bool { lastAppliedSeq < replayEndSeq }
 
   private func captureStatus(of session: SessionOption) -> CaptureStatus {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
@@ -1210,7 +1217,8 @@ final class ChangeStreamPageModel: ViewModel {
   private func threadsFolded() {
     if let session = selectedSession {
       instantAsk.threadsFolded(
-        storeID: daemon.storeID, sessionID: session.id, folder: session.root, threads: questionThreads.threads)
+        storeID: daemon.storeID, sessionID: session.id, folder: session.root, isReplaying: isReplaying,
+        threads: questionThreads.threads)
     }
     if let reply, !reply.isDismissed,
       let thread = questionThreads.threads.first(where: { $0.turns.first?.requestID == reply.key.rootQuestionID }) {

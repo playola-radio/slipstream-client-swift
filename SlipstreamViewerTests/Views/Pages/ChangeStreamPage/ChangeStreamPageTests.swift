@@ -3675,6 +3675,23 @@ extension ChangeStreamPageTests {
     expectNoDifference(recorder.capabilityChecks.count, 2)
   }
 
+  @Test func replayedPickupIsCheckedOnceHistoryCatchesUp() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(3), removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let fork = ForkFake()
+    let model = await linkedModel(fork: fork)
+    defer { model.viewDisappeared() }
+    let relay = "6f1c1f0e-8d1e-4b7a-9c2f-3a5b7d9e1f20"
+
+    await send(Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1", chat: Self.tab.uuidString.lowercased(), relay: relay))
+    expectNoDifference(fork.requests, [])
+    await send(relayUpdated(3, relay: relay, "picked_up"))
+    await Task.megaYield()
+
+    expectNoDifference(fork.requests.map(\.kind), [.report])
+  }
+
   @Test func deletedCaptureDropsItsPendingQuestions() async throws {
     let fork = ForkFake()
     let model = await linkedModel(fork: fork)

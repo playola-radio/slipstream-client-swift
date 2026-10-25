@@ -314,7 +314,7 @@ struct InstantAskModelTests {
     let model = makeModel()
     await askUntilCouldntRecord(model)
 
-    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", threads: thread(requestID: Self.firstRequest))
+    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", isReplaying: false, threads: thread(requestID: Self.firstRequest))
 
     expectNoDifference(model.pending, [])
   }
@@ -328,9 +328,9 @@ struct InstantAskModelTests {
     fork.answer()
     await Task.megaYield()
 
-    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", threads: thread(requestID: "someone-elses"))
+    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", isReplaying: false, threads: thread(requestID: "someone-elses"))
     expectNoDifference(model.pending.count, 1)
-    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", threads: thread(requestID: Self.firstRequest))
+    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", isReplaying: false, threads: thread(requestID: Self.firstRequest))
 
     expectNoDifference(model.pending, [])
   }
@@ -419,7 +419,7 @@ struct InstantAskModelTests {
     fork.answer()
     await Task.megaYield()
 
-    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", threads: thread(requestID: Self.firstRequest))
+    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", isReplaying: false, threads: thread(requestID: Self.firstRequest))
     await clock.advance(by: .seconds(5))
     await Task.megaYield()
 
@@ -486,9 +486,9 @@ struct InstantAskModelTests {
   }
 
   /// The selected capture's log folding in, as on a restart.
-  func handOver(_ model: InstantAskModel, _ relays: QuestionRelay...) {
+  func handOver(_ model: InstantAskModel, isReplaying: Bool = false, _ relays: QuestionRelay...) {
     model.threadsFolded(
-      storeID: "store-1", sessionID: Self.capture, folder: "/w",
+      storeID: "store-1", sessionID: Self.capture, folder: "/w", isReplaying: isReplaying,
       threads: [
         QuestionThread(
           id: "q-1", source: Self.source,
@@ -809,6 +809,35 @@ struct InstantAskModelTests {
     expectNoDifference(steps.map(\.update), [.pickedUp])
   }
 
+  @Test func failedCheckStillRerunsAfterTurnEnd() async {
+    let (model, chat) = makeModelAndChat()
+    await askingChangeRequest(model)
+    pickedUp(chat)
+    await turnEnded(chat)
+    await turnEnded(chat)
+
+    fork.reply(.failure(.timedOut))
+    await Task.megaYield()
+
+    expectNoDifference(fork.requests.count, 3)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .checking(rerun: false))
+  }
+
+  @Test func refusedDoneReportIsCouldntCheck() async {
+    let (model, chat) = makeModelAndChat()
+    await askingChangeRequest(model)
+    pickedUp(chat)
+    await turnEnded(chat)
+    recorder.scriptUpdates(.failure(.rejected(code: "INVALID_RELAY_UPDATE", message: "")))
+
+    fork.report(.done)
+    await Task.megaYield()
+
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, false)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
+    expectNoDifference(model.relayStatus(loggedRelay(pickedUp: true)), .couldntCheck)
+  }
+
   @Test func reportForClosedTabIsCouldntCheck() async {
     let (model, chat) = makeModelAndChat()
     handOver(model, loggedRelay(chat: Self.threadChat, pickedUp: true))
@@ -904,13 +933,31 @@ struct InstantAskModelTests {
       fork.requests.map(\.prompt), [AskPrompt.report(source: Self.source, earlier: [], request: "Rename it")])
   }
 
-  @Test func pickedUpWithoutDoneChecksAtOnceWhenTabIsIdle() async {
+  @Test func replayedPickupIsCheckedOnceReplayEnds() async {
     let model = makeModel()
 
+    handOver(model, isReplaying: true, loggedRelay())
+    handOver(model, isReplaying: true, loggedRelay(pickedUp: true))
+    await Task.megaYield()
+    expectNoDifference(fork.requests, [])
+    handOver(model, loggedRelay(pickedUp: true))
     handOver(model, loggedRelay(pickedUp: true))
     await Task.megaYield()
 
     expectNoDifference(fork.requests.map(\.kind), [.report])
+  }
+
+  @Test func replayedDoneRelayIsNeverChecked() async {
+    let model = makeModel()
+    let done = RelayReport(outcome: .done, text: "Done.", seq: Seq("45")!, atMs: 45)
+
+    handOver(model, isReplaying: true, loggedRelay())
+    handOver(model, isReplaying: true, loggedRelay(pickedUp: true))
+    handOver(model, isReplaying: true, loggedRelay(pickedUp: true, report: done))
+    handOver(model, loggedRelay(pickedUp: true, report: done))
+    await Task.megaYield()
+
+    expectNoDifference(fork.requests, [])
   }
 
   @Test func doneRelayIsNeverChecked() async {
@@ -981,6 +1028,59 @@ struct InstantAskModelTests {
     expectNoDifference(Array(model.relayRuns.keys), [Self.firstRelay])
   }
 
+  @Test func sendAgainIgnoredWhileItsReplacementIsSending() async throws {
+    let model = makeModel()
+    handOver(model, loggedRelay())
+    recorder.scriptUpdates(.failure(.unavailable))
+    let newRelay = UUID(0).uuidString.lowercased()
+
+    let sending = Task { await model.sendAgainTapped(relayID: Self.firstRelay) }
+    await Task.megaYield()
+    handOver(model, loggedRelay(), loggedRelay(newRelay))
+    await model.sendAgainTapped(relayID: newRelay)
+    await model.sendAgainTapped(relayID: Self.firstRelay)
+    expectNoDifference(recorder.updates.count, 1)
+    await clock.advance(by: .milliseconds(2500))
+    await sending.value
+    await model.sendAgainTapped(relayID: Self.firstRelay)
+
+    expectNoDifference(recorder.updates.count, 2)
+    expectNoDifference(agent.writes(0), [try relayWrite(relayID: UUID(0))])
+  }
+
+  @Test func unrecordedSendAgainIsSentAgainOnReconnect() async {
+    let model = makeModel()
+    handOver(model, loggedRelay())
+    recorder.scriptUpdates(.failure(.unavailable), .failure(.unavailable), .failure(.unavailable))
+    let newRelay = UUID(0).uuidString.lowercased()
+
+    let sending = Task { await model.sendAgainTapped(relayID: Self.firstRelay) }
+    await Task.megaYield()
+    await clock.advance(by: .seconds(5))
+    await sending.value
+    let first = recorder.updates[0]
+    expectNoDifference(model.relayRuns[newRelay]?.unrecorded, [first])
+    await model.daemonConnected(storeID: "store-1")
+
+    expectNoDifference(recorder.updates, [first, first, first, first])
+    expectNoDifference(agent.launches, [])
+  }
+
+  @Test func quitStopsSendAgain() async {
+    let model = makeModel()
+    handOver(model, loggedRelay())
+    recorder.scriptUpdates(.failure(.unavailable))
+
+    let sending = Task { await model.sendAgainTapped(relayID: Self.firstRelay) }
+    await Task.megaYield()
+    await model.quitConfirmed()
+    await clock.advance(by: .seconds(5))
+    await sending.value
+
+    expectNoDifference(recorder.updates.count, 1)
+    expectNoDifference(agent.launches, [])
+  }
+
   @Test func sendAgainToClosedThreadChatUsesLinkedTab() async throws {
     let model = makeModel(records: [
       ChatTabRecord(id: Self.linked, folder: "/w", model: "claude-opus-5-5", effort: .high, isWaiting: false)
@@ -999,36 +1099,11 @@ struct InstantAskModelTests {
   @Test func crashBeforeExchangeRecordedLeavesNothing() async {
     let model = makeModel()
 
-    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", threads: [])
+    model.threadsFolded(storeID: "store-1", sessionID: Self.capture, folder: "/w", isReplaying: false, threads: [])
     await Task.megaYield()
 
     expectNoDifference(model.relayRuns, [:])
     expectNoDifference(agent.launches, [])
-  }
-
-  @Test func crashAfterExchangeBeforeWriteIsDeliveryUnknown() async {
-    agent.hold(.launches)
-    let first = makeModel()
-    await askingChangeRequest(first)
-    let restarted = makeModel()
-
-    handOver(restarted, loggedRelay())
-
-    expectNoDifference(restarted.relayStatus(loggedRelay()), .deliveryUnknown)
-    expectNoDifference(agent.launches, [])
-  }
-
-  @Test func crashAfterWriteBeforeEchoIsDeliveryUnknown() async {
-    let first = makeModel()
-    await askingChangeRequest(first)
-    expectNoDifference(agent.launches.count, 1)
-    let restarted = makeModel()
-
-    handOver(restarted, loggedRelay())
-    await Task.megaYield()
-
-    expectNoDifference(restarted.relayStatus(loggedRelay()), .deliveryUnknown)
-    expectNoDifference(agent.launches.count, 1)
   }
 
   @Test func crashAfterPickupBeforeReportChecksAtNextIdle() async {

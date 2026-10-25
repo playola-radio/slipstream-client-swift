@@ -199,9 +199,13 @@ final class QuestionThreadPageModel: ViewModel {
       break
     }
     let isChecking = if case .checking = run?.report { true } else { false }
+    let isActionDisabled = switch action {
+    case .checkAgain: isChecking
+    case .sendAgain: !instantAsk.canSendAgain(relay)
+    case nil: false
+    }
     return RelayProgress(
-      relayID: relay.id, lines: lines, action: action, isActionDisabled: action == .checkAgain && isChecking,
-      report: report)
+      relayID: relay.id, lines: lines, action: action, isActionDisabled: isActionDisabled, report: report)
   }
 
   func actionText(_ action: RelayProgress.Action) -> String {

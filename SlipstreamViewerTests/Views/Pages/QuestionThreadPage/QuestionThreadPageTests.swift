@@ -672,7 +672,8 @@ extension QuestionThreadPageTests {
 
   func handOver(_ instantAsk: InstantAskModel, _ turns: [QuestionTurn]) {
     instantAsk.threadsFolded(
-      storeID: Self.key.storeID, sessionID: Self.key.sessionID, folder: "/w", threads: Self.recordedThread(turns))
+      storeID: Self.key.storeID, sessionID: Self.key.sessionID, folder: "/w", isReplaying: false,
+      threads: Self.recordedThread(turns))
   }
 
   func progress(_ model: QuestionThreadPageModel, turn: Int = 1) -> RelayProgress? {
@@ -824,6 +825,23 @@ extension QuestionThreadPageTests {
     fork.report(.notDoneYet, "Not yet.")
     await checking.value
     expectNoDifference(progress(model)?.action, nil)
+  }
+
+  @Test func sendAgainDisabledOnceTapped() async throws {
+    let agent = AgentFake()
+    let (instantAsk, _) = makeRelayingInstantAsk(agent)
+    let turns = [Self.answered, Self.onIt(Self.relay())]
+    handOver(instantAsk, turns)
+    let model = makeModel(turns, link: Self.recorded, instantAsk: instantAsk)
+    agent.hold(.environment)
+
+    let sending = Task { [progress = try #require(progress(model))] in await model.sendAgainTapped(progress) }
+    await Task.megaYield()
+    expectNoDifference(progress(model)?.isActionDisabled, true)
+    agent.release(.environment)
+    await sending.value
+
+    expectNoDifference(progress(model)?.isActionDisabled, true)
   }
 
   @Test func idleAgentGoesFromOnItToPickedUp() async throws {
