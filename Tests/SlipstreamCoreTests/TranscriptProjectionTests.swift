@@ -135,6 +135,16 @@ struct TranscriptProjectionTests {
     expectNoDifference(projection.replyText(endingAt: "missing"), "")
   }
 
+  @Test func replyTextReadsPastARelayInTheTurn() {
+    var projection = TranscriptProjection()
+    projection.userSent("hi", id: "u1")
+    projection.apply(.assistant(uuid: "a1", timestamp: nil, blocks: [.text("one")]))
+    projection.userSent("Rename it", id: "r1", relay: RelayMark(label: "From Ask", delivery: .pickedUp))
+    projection.apply(.assistant(uuid: "a2", timestamp: nil, blocks: [.text("two")]))
+    projection.endTurn(.completed, duration: .seconds(1), at: t0, id: "f1")
+    expectNoDifference(projection.replyText(endingAt: "f1"), "one\n\ntwo")
+  }
+
   @Test func replyTextStopsAtAnUntimedHistoryTurnsPrompt() {
     let projection = TranscriptProjection.history([
       .user(uuid: "u1", timestamp: nil, isPrompt: true, blocks: [.text("first")]),

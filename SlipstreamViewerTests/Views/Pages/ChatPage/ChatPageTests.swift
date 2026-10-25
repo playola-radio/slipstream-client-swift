@@ -2275,6 +2275,20 @@ struct ChatPageTests {
     #expect(tab.isWorking)
   }
 
+  @Test func duplicateEchoAfterTurnEndStartsNoTurn() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    await line(echo())
+    await line(Line.result())
+
+    await line(echo())
+
+    #expect(tab.isWorking == false)
+    expectNoDifference(
+      signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved)])
+  }
+
   @Test func echoFromEarlierLaunchIsIgnored() async throws {
     let model = await workingModel()
     let tab = try #require(model.selectedTab)
@@ -2522,8 +2536,8 @@ struct ChatPageTests {
       signals.value,
       [
         .delivery(Self.saved, .pickedUp(relayID: Self.relayID)),
-        .turnEnded(Self.saved),
         .delivery(Self.saved, .exitedUnread(relayID: Self.otherRelayID)),
+        .turnEnded(Self.saved),
       ])
     #expect(tab.isWorking == false)
   }
@@ -2556,5 +2570,50 @@ struct ChatPageTests {
 
     expectNoDifference(
       signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved)])
+  }
+
+  @Test func reloadWhenIdleWaitsForSendQueuedBehindRelay() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    tab.streamLinked()
+    await line(Line.result())
+
+    await send(model, "two")
+    await line(echo())
+    await line(Line.result(durationMs: 3_000))
+    #expect(agent.shutdowns(0) == 0)
+
+    await line(Line.echo("0b4f6f2e-3333-4c3d-8e2f-1a0b9c8d7e6f", "two"))
+    await line(Line.result(durationMs: 2_000))
+    #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func pickupBufferedAtStopDeadlineComesBeforeTurnEnded() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+    agent.hold(.shutdowns)
+    let stop = Task { await model.stopTapped() }
+    await Task.megaYield()
+    await clock.advance(by: .seconds(10))
+    await Task.megaYield()
+
+    agent.release(.shutdowns)
+    agent.sendLine(echo())
+    await stop.value
+
+    expectNoDifference(
+      signals.value, [.delivery(Self.saved, .pickedUp(relayID: Self.relayID)), .turnEnded(Self.saved)])
+  }
+
+  @Test func closingTabReportsUnreadRelays() async throws {
+    let model = await workingModel()
+    let tab = try #require(model.selectedTab)
+    try await tab.relay(relayMessage())
+
+    await model.closeTabTapped(tab.id)
+
+    expectNoDifference(signals.value, [.delivery(Self.saved, .exitedUnread(relayID: Self.relayID))])
   }
 }

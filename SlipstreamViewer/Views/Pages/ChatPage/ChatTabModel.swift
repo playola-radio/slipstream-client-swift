@@ -61,6 +61,11 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var handleGeneration = 0
   /// Relays written to each launch that it hasn't echoed yet, in the order they were sent.
   @ObservationIgnored private var unreadRelays: [Int: [UUID]] = [:]
+  /// Of the current launch.
+  @ObservationIgnored private var echoes: Set<String> = []
+  /// Sends written behind an unread relay of the current launch and not yet read.
+  @ObservationIgnored private var queuedSends = 0
+  @ObservationIgnored private var followers: [Int: Task<Void, Never>] = [:]
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
   @ObservationIgnored private var starting: [Task<Bool, Never>] = []
   /// Shutdowns still running, so quitting can wait for every process to be gone.
@@ -235,10 +240,14 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     guard let handle, activeTurn?.id == turn else { return }
     let itemID = uuid().uuidString
+    let launch = handleGeneration
+    let isQueued = hasUnreadInput
     projection.userSent(text, id: itemID)
+    if isQueued { queuedSends += 1 }
     do {
       try await handle.write(ClaudeInvocation.userMessage(text))
     } catch {
+      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
       projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
       // An echo means the process is already working on a message it read for this turn.
@@ -302,8 +311,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     try? await clock.sleep(for: Self.stopDeadline)
     guard activeTurn?.id == turn.id else { return }
     let duration = duration(of: turn)
+    let launch = handleGeneration
     // Only this process: a stale launch from an earlier turn mustn't hold up this footer.
     await retireProcess()?.value
+    // Its last pickups belong to this turn, so they are reported before it ends.
+    await followers[launch]?.value
     guard activeTurn?.id == turn.id else { return }
     endTurn(.stopped, duration: duration)
   }
@@ -347,7 +359,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// predates the link is dropped once idle. The next send resumes in a fresh one.
   func streamLinked() {
     guard handle != nil || !starting.isEmpty else { return }
-    if isWorking || hasUnreadRelays {
+    if isWorking || hasUnreadInput {
       reloadWhenIdle = true
     } else {
       retireProcess()
@@ -365,7 +377,10 @@ final class ChatTabModel: ViewModel, Identifiable {
   func shutdown() async {
     activeTurn = nil
     retireProcess()
+    // Taken first: a send that launches while this drains has a live follower that never ends.
+    let retired = Array(followers.values)
     await awaitRetired()
+    for follower in retired { await follower.value }
   }
 
   // MARK: - Private Helpers
@@ -427,11 +442,14 @@ final class ChatTabModel: ViewModel, Identifiable {
       }
       self.handle = handle
       handleGeneration = generation
+      echoes = []
+      queuedSends = 0
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
-      Task { [weak self] in
+      followers[generation] = Task { [weak self] in
         for await event in handle.events {
           self?.received(event, from: handle, generation: generation)
         }
+        self?.followers[generation] = nil
       }
       return true
     } catch {
@@ -518,10 +536,10 @@ final class ChatTabModel: ViewModel, Identifiable {
     switch event {
     case .line(let data):
       let line = AgentLine.decode(data)
-      if case .echo(let uuid) = line { relayEchoed(uuid, launch: generation) }
+      let isPickup = if case .echo(let uuid) = line { relayEchoed(uuid, launch: generation) } else { false }
       guard isCurrent else { return }
       outputArrived()
-      received(line, from: handle)
+      received(line, isPickup: isPickup, from: handle)
     case .overflow:
       guard isCurrent else { return }
       outputArrived()
@@ -532,11 +550,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  private func relayEchoed(_ uuid: String, launch: Int) {
-    guard let relayID = UUID(uuidString: uuid), unreadRelays[launch]?.contains(relayID) == true else { return }
+  private func relayEchoed(_ uuid: String, launch: Int) -> Bool {
+    guard let relayID = UUID(uuidString: uuid), unreadRelays[launch]?.contains(relayID) == true else { return false }
     unreadRelays[launch]?.removeAll { $0 == relayID }
     projection.markRelay(id: relayID.uuidString, delivery: .pickedUp)
     onRelayDelivery(.pickedUp(relayID: relayID))
+    return true
   }
 
   private func launchEnded(_ launch: Int) {
@@ -551,7 +570,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     activeTurn?.lastOutputAt = now
   }
 
-  private func received(_ line: AgentLine, from handle: AgentProcessHandle) {
+  private func received(_ line: AgentLine, isPickup: Bool = false, from handle: AgentProcessHandle) {
     switch line {
     case .result(let durationMs, let isError, let text):
       guard let turn = activeTurn else { return }
@@ -562,7 +581,9 @@ final class ChatTabModel: ViewModel, Identifiable {
       // Not awaited, so a full stdin pipe can't stall the lines behind this one.
       let reply = ClaudeInvocation.reply(requestID: requestID, subtype: subtype, input: input)
       Task { try? await handle.write(reply) }
-    case .echo:
+    case .echo(let uuid):
+      guard echoes.insert(uuid).inserted else { return }
+      if !isPickup { queuedSends = max(0, queuedSends - 1) }
       // A message queued behind a finished or stopped turn starts a turn of its own.
       if activeTurn == nil { beginTurn() } else { activeTurn?.isEchoed = true }
     default:
@@ -598,15 +619,16 @@ final class ChatTabModel: ViewModel, Identifiable {
     onReadinessChanged()
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
-    if reloadWhenIdle, !hasUnreadRelays { retireProcess() }
+    if reloadWhenIdle, !hasUnreadInput { retireProcess() }
     titleRefresh?.cancel()
     let generation = generation
     titleRefresh = Task { [weak self] in await self?.refreshTitle(generation: generation) }
   }
 
-  /// A process that predates a link stays up until it has read every relay sent to it.
-  private var hasUnreadRelays: Bool {
-    handle != nil && !(unreadRelays[handleGeneration] ?? []).isEmpty
+  /// A process that predates a link stays up until it has read every relay sent to it, and
+  /// every send queued behind one.
+  private var hasUnreadInput: Bool {
+    handle != nil && (queuedSends > 0 || !(unreadRelays[handleGeneration] ?? []).isEmpty)
   }
 
   private func duration(of turn: ActiveTurn) -> Duration {

@@ -140,7 +140,7 @@ public struct TranscriptProjection: Equatable, Sendable {
     var replies: [String] = []
     for item in items[..<footerIndex].reversed() {
       switch item.kind {
-      case .turnFooter, .userMessage: return replies.reversed().joined(separator: "\n\n")
+      case .turnFooter, .userMessage(_, relay: nil): return replies.reversed().joined(separator: "\n\n")
       case .reply(let text): replies.append(text)
       default: break
       }
