@@ -89,6 +89,8 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var fileHeaderOffsets: [Seq: CGFloat] = [:]
 
   @ObservationIgnored private(set) var lastAppliedSeq: Seq = .zero
+  /// Where the log stood when this feed started from the beginning; events up to it are replay.
+  @ObservationIgnored private var replayEndSeq: Seq = .zero
   @ObservationIgnored private(set) var watchTask: Task<Void, Never>?
   @ObservationIgnored private var cardContentOrder: [Seq] = []
   @ObservationIgnored private var cardLoadGenerations: [Seq: Int] = [:]
@@ -783,7 +785,8 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
-      for sessionID in Set(instantAsk.pending.map(\.sessionID)) where sessions[id: sessionID] == nil {
+      let askSessionIDs = instantAsk.pending.map(\.sessionID) + instantAsk.relayRuns.values.map(\.sessionID)
+      for sessionID in Set(askSessionIDs) where sessions[id: sessionID] == nil {
         instantAsk.captureDeleted(sessionID)
       }
       if bindingMovedWhileAwaitingSnapshot {
@@ -963,6 +966,7 @@ final class ChangeStreamPageModel: ViewModel {
     let generation = watchGeneration
     connection = .connecting
     let after = lastAppliedSeq
+    if after == .zero { replayEndSeq = selectedSession?.readinessSeq ?? .zero }
     let daemon = daemon
     let clock = clock
     let random = withRandomNumberGenerator
@@ -1004,6 +1008,7 @@ final class ChangeStreamPageModel: ViewModel {
     case .connecting: connection = .connecting
     case .live:
       connection = .live
+      Task { [instantAsk, storeID = daemon.storeID] in await instantAsk.daemonConnected(storeID: storeID) }
       if needsReadinessRefresh {
         needsReadinessRefresh = false
         Task { [weak self] in await self?.loadSessions() }
@@ -1071,6 +1076,9 @@ final class ChangeStreamPageModel: ViewModel {
       )
       newestFileID = event.seq
       follow.fileCardAppended()
+      let threadsBefore = questionThreads
+      questionThreads.apply(event)
+      if questionThreads != threadsBefore { threadsFolded() }
     case .taskStarted(let task):
       taskCount += 1
       sections.append(
@@ -1100,6 +1108,9 @@ final class ChangeStreamPageModel: ViewModel {
       shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
       threadsFolded()
       if follow == .following { scrollToLatestRequest += 1 }
+    case .questionRelayUpdated:
+      questionThreads.apply(event)
+      threadsFolded()
     case .questionDispatchAttempted, .agentUnlinked:
       questionThreads.apply(event)
       openReplyUpdated()
@@ -1118,9 +1129,13 @@ final class ChangeStreamPageModel: ViewModel {
     } else if shouldRefreshBinding {
       Task { [weak self] in await self?.loadSessions() }
     }
+    let wasReplaying = isReplaying
     lastAppliedSeq = event.seq
+    if wasReplaying, !isReplaying { threadsFolded() }
     return true
   }
+
+  private var isReplaying: Bool { lastAppliedSeq < replayEndSeq }
 
   private func captureStatus(of session: SessionOption) -> CaptureStatus {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
@@ -1200,8 +1215,10 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// A new question's panel moves from its request id to the recorded thread once its answer folds in.
   private func threadsFolded() {
-    if let sessionID = selectedSession?.id {
-      instantAsk.threadsFolded(sessionID: sessionID, threads: questionThreads.threads)
+    if let session = selectedSession {
+      instantAsk.threadsFolded(
+        storeID: daemon.storeID, sessionID: session.id, folder: session.root, isReplaying: isReplaying,
+        threads: questionThreads.threads)
     }
     if let reply, !reply.isDismissed,
       let thread = questionThreads.threads.first(where: { $0.turns.first?.requestID == reply.key.rootQuestionID }) {
@@ -1277,8 +1294,10 @@ final class ChangeStreamPageModel: ViewModel {
   private func status(of thread: QuestionThread) -> QuestionBarStatus {
     let sessionID = selectedSession?.id ?? ""
     let hasUnread = thread.turns.contains { turn in
-      guard let answer = turn.answer else { return false }
-      return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
+      [turn.answer?.seq, turn.relays.last?.report?.seq].contains { seq in
+        seq.map { !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: $0)) }
+          ?? false
+      }
     }
     if hasUnread { return .newReply }
     if let entry = instantAsk.pending.first(where: {
@@ -1287,7 +1306,11 @@ final class ChangeStreamPageModel: ViewModel {
     }) {
       return status(of: entry)
     }
+    let relays = thread.turns.compactMap { $0.relays.last.map(instantAsk.relayStatus) }
+    if relays.contains(where: { [.sent, .pickedUp, .working, .notDoneYet, .couldntCheck].contains($0) }) { return .working }
     if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
+    if relays.contains(where: { $0 == .notDelivered || $0 == .deliveryUnknown }) { return .notDelivered }
+    if !relays.isEmpty && relays.allSatisfy({ $0 == .done }) { return .done }
     return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }
 

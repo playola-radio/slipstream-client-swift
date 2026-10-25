@@ -32,6 +32,14 @@ final class ForkFake: Sendable {
     self.reply(.success(.answer(forkSessionID: forkSessionID, reply: reply, isChangeRequest: false)), to: run)
   }
 
+  func changeRequest(_ reply: String = "On it.", forkSessionID: String = "fork-1") {
+    self.reply(.success(.answer(forkSessionID: forkSessionID, reply: reply, isChangeRequest: true)))
+  }
+
+  func report(_ outcome: ReportOutcome, _ reply: String = "Done. It greets a friend now.") {
+    self.reply(.success(.report(reply: reply, outcome: outcome)))
+  }
+
   func holdStops() { state.withLock { $0.holdsStops = true } }
 
   func releaseStops() {
@@ -64,21 +72,34 @@ final class ForkFake: Sendable {
   }
 }
 
-/// Answers `QuestionClient.record` from a script, one outcome per call, and keeps every request.
+/// Answers `QuestionClient.record` and `updateRelay` from scripts, one outcome per call, and keeps
+/// every request. Updates succeed once their script runs out; the daemon has no relays until told.
 final class RecordFake: Sendable {
   private struct State {
     var requests: [QuestionRequest] = []
     var outcomes: [Result<String, QuestionError>] = []
+    var updates: [QuestionRelayUpdateRequest] = []
+    var updateOutcomes: [Result<Void, QuestionError>] = []
+    var relaySupport: Result<Bool, QuestionError> = .success(false)
+    var capabilityChecks: [String] = []
   }
 
   private let state = Mutex(State())
 
   var requests: [QuestionRequest] { state.withLock { $0.requests } }
+  var updates: [QuestionRelayUpdateRequest] { state.withLock { $0.updates } }
+  var capabilityChecks: [String] { state.withLock { $0.capabilityChecks } }
 
   /// Each outcome is a question id, or the error the daemon gave.
   func script(_ outcomes: Result<String, QuestionError>...) {
     state.withLock { $0.outcomes.append(contentsOf: outcomes) }
   }
+
+  func scriptUpdates(_ outcomes: Result<Void, QuestionError>...) {
+    state.withLock { $0.updateOutcomes.append(contentsOf: outcomes) }
+  }
+
+  func setRelaySupport(_ support: Result<Bool, QuestionError>) { state.withLock { $0.relaySupport = support } }
 
   var client: QuestionClient {
     QuestionClient(
@@ -92,6 +113,22 @@ final class RecordFake: Sendable {
         return ExchangeAcknowledgment(
           sessionID: request.sessionID, requestID: request.requestID, questionID: questionID, seq: Seq("42")!,
           duplicate: false)
+      },
+      updateRelay: { request in
+        let outcome = self.state.withLock { state in
+          state.updates.append(request)
+          return state.updateOutcomes.isEmpty ? .success(()) : state.updateOutcomes.removeFirst()
+        }
+        try outcome.get()
+        return RelayAcknowledgment(
+          sessionID: request.sessionID, requestID: request.requestID, questionID: request.questionID,
+          relayID: request.relayID, seq: Seq("57")!, duplicate: false)
+      },
+      supportsRelays: { sessionID in
+        try self.state.withLock { state in
+          state.capabilityChecks.append(sessionID)
+          return state.relaySupport
+        }.get()
       }
     )
   }

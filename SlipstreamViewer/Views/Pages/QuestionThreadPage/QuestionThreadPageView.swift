@@ -44,6 +44,9 @@ struct QuestionThreadPageView: View {
             .font(DesignTokens.Reply.agentFont)
             .foregroundStyle(DesignTokens.Reply.waitingColor)
         }
+        if let progress = model.progress(turn) {
+          RelayProgressView(model: model, progress: progress)
+        }
       }
       if let pending = model.pendingTurn {
         Text(pending.text)
@@ -145,6 +148,76 @@ struct QuestionThreadPageView: View {
       Button(model.errorDismissText, role: .cancel) {}
     } message: {
       Text(model.errorMessage)
+    }
+  }
+}
+
+private struct RelayProgressView: View {
+  let model: QuestionThreadPageModel
+  let progress: RelayProgress
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: DesignTokens.Reply.progressGap) {
+      ForEach(progress.lines, id: \.self) { line in
+        let icon = DesignTokens.Reply.progressIcon(line.mark)
+        HStack(spacing: DesignTokens.Reply.progressRowGap) {
+          IconView(icon: icon)
+          Text(line.label)
+            .font(DesignTokens.Reply.agentFont)
+            .foregroundStyle(icon.color)
+          Text(line.detail)
+            .font(DesignTokens.Reply.agentFont)
+            .foregroundStyle(DesignTokens.Reply.progressDetailColor)
+            .lineLimit(1)
+            .truncationMode(.middle)
+        }
+      }
+      if let action = progress.action {
+        Button {
+          Task {
+            switch action {
+            case .sendAgain: await model.sendAgainTapped(progress)
+            case .checkAgain: await model.checkAgainTapped(progress)
+            }
+          }
+        } label: {
+          Text(model.actionText(action))
+            .font(DesignTokens.Reply.tryAgainFont)
+            .foregroundStyle(DesignTokens.Reply.tryAgainText)
+            .padding(.vertical, DesignTokens.Reply.tryAgainVerticalPadding)
+            .padding(.horizontal, DesignTokens.Reply.tryAgainHorizontalPadding)
+            .background(DesignTokens.Reply.tryAgainFill, in: RoundedRectangle(cornerRadius: DesignTokens.Reply.tryAgainRadius))
+            .overlay {
+              RoundedRectangle(cornerRadius: DesignTokens.Reply.tryAgainRadius)
+                .strokeBorder(DesignTokens.Reply.tryAgainStroke, lineWidth: DesignTokens.Reply.strokeWidth)
+            }
+        }
+        .disabled(progress.isActionDisabled)
+        .padding(DesignTokens.Reply.progressActionsPadding)
+      }
+    }
+    .padding(DesignTokens.Reply.progressPadding)
+    .overlay(alignment: .leading) {
+      DesignTokens.Reply.progressStroke.frame(width: DesignTokens.Reply.progressStrokeWidth)
+    }
+    if let report = progress.report {
+      VStack(alignment: .leading, spacing: DesignTokens.Reply.answerGap) {
+        Text(report.agentText)
+          .font(DesignTokens.Reply.agentFont)
+          .foregroundStyle(DesignTokens.Reply.agentColor)
+        Text(report.text)
+          .font(DesignTokens.Reply.answerFont)
+          .foregroundStyle(DesignTokens.Reply.answerColor)
+          .lineSpacing(DesignTokens.Reply.answerLineSpacing)
+          .fixedSize(horizontal: false, vertical: true)
+          .textSelection(.enabled)
+          .background(alignment: .bottom) {
+            Color.clear.frame(height: 1).onScrollVisibilityChange(threshold: 1) { isVisible in
+              if isVisible { model.answerDisplayed(report.seq) }
+            }
+          }
+      }
+      .id(report.seq)
     }
   }
 }

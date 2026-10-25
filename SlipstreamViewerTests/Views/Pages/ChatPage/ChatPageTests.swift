@@ -2205,6 +2205,23 @@ struct ChatPageTests {
     #expect(model.records[id: Self.saved]?.isWaiting == false)
   }
 
+  @Test func cancelledRelayIsNotWritten() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    agent.hold(.environment)
+
+    let relaying = Task { try await tab.relay(relayMessage()) }
+    await Task.megaYield()
+    relaying.cancel()
+    agent.release(.environment)
+
+    await #expect(throws: RelayNotWritten.self) { try await relaying.value }
+    expectNoDifference(agent.launches.indices.flatMap(agent.writes), [])
+    expectNoDifference(tab.projection.items, [])
+    #expect(!tab.isWorking)
+  }
+
   @Test func relayMidTurnWritesNow() async throws {
     let model = await workingModel()
     let tab = try #require(model.selectedTab)

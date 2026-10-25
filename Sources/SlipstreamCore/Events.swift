@@ -118,10 +118,11 @@ public struct QuestionExchangeRecorded: Equatable, Sendable {
   public var source: QuestionSource
   public var replyToQuestionID: String?
   public var recordedAtMs: Int64
+  public var relay: ExchangeRelay?
 
   public init(
     questionID: String, requestID: String, text: String, answerText: String, chatSessionID: String,
-    source: QuestionSource, replyToQuestionID: String?, recordedAtMs: Int64
+    source: QuestionSource, replyToQuestionID: String?, recordedAtMs: Int64, relay: ExchangeRelay? = nil
   ) {
     self.questionID = questionID
     self.requestID = requestID
@@ -130,6 +131,21 @@ public struct QuestionExchangeRecorded: Equatable, Sendable {
     self.chatSessionID = chatSessionID
     self.source = source
     self.replyToQuestionID = replyToQuestionID
+    self.recordedAtMs = recordedAtMs
+    self.relay = relay
+  }
+}
+
+public struct QuestionRelayUpdated: Equatable, Sendable {
+  public var questionID: String
+  public var relayID: String
+  public var update: RelayUpdate
+  public var recordedAtMs: Int64
+
+  public init(questionID: String, relayID: String, update: RelayUpdate, recordedAtMs: Int64) {
+    self.questionID = questionID
+    self.relayID = relayID
+    self.update = update
     self.recordedAtMs = recordedAtMs
   }
 }
@@ -152,6 +168,7 @@ public enum EventPayload: Equatable, Sendable {
   case questionDispatchAttempted(QuestionDispatchAttempted)
   case questionAnswered(QuestionAnswered)
   case questionExchangeRecorded(QuestionExchangeRecorded)
+  case questionRelayUpdated(QuestionRelayUpdated)
   case agentConnection(AgentConnection)
   case agentUnlinked(AgentUnlinked)
   case recordedWithoutRow
@@ -278,9 +295,16 @@ extension SlipstreamEvent {
           chatSessionID: exchange.conversation.parent_session_id,
           source: exchange.context.source,
           replyToQuestionID: exchange.reply_to_question_id,
-          recordedAtMs: exchange.recorded_at_ms
+          recordedAtMs: exchange.recorded_at_ms,
+          relay: exchange.relay
         )
       )
+    case "slipstream.question.relay_updated.v1":
+      let relay = try decoder.decode(Envelope<QuestionRelayUpdatedData>.self, from: data).data
+      return .questionRelayUpdated(
+        QuestionRelayUpdated(
+          questionID: relay.question_id, relayID: relay.relay_id, update: try relay.update.relayUpdate,
+          recordedAtMs: relay.recorded_at_ms))
     case "slipstream.agent.connection.v1":
       let connection = try decoder.decode(Envelope<AgentConnectionWire>.self, from: data).data
       return .agentConnection(connection.connection)
@@ -429,6 +453,33 @@ extension SlipstreamEvent {
     var recorded_at_ms: Int64
     var reply_to_question_id: String?
     var conversation: ConversationData
+    var relay: ExchangeRelay?
+  }
+
+  private struct QuestionRelayUpdatedData: Decodable {
+    var question_id: String
+    var relay_id: String
+    var update: RelayUpdateData
+    var recorded_at_ms: Int64
+  }
+
+  private struct RelayUpdateData: Decodable {
+    var kind: String
+    var chat_session_id: String?
+    var outcome: String?
+    var text: String?
+
+    var relayUpdate: RelayUpdate {
+      get throws {
+        switch (kind, chat_session_id, outcome.flatMap(ReportOutcome.init(rawValue:)), text) {
+        case ("sent", let chatSessionID?, nil, nil): return .sent(chatSessionID: chatSessionID)
+        case ("picked_up", nil, nil, nil): return .pickedUp
+        case ("not_delivered", nil, nil, nil): return .notDelivered
+        case ("reported", nil, let outcome?, let text?): return .reported(outcome, text: text)
+        default: throw EventDecodingError(seq: nil, type: nil)
+        }
+      }
+    }
   }
 
   private struct ConversationData: Decodable {

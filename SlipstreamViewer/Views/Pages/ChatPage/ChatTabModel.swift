@@ -265,14 +265,14 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// is left alone. Throws when nothing reached the process.
   func relay(_ message: AskRelayMessage) async throws {
     if activeTurn == nil { await awaitRetired() }
-    guard !isClosed else { throw RelayNotWritten() }
+    guard !isClosed, !Task.isCancelled else { throw RelayNotWritten() }
     let startedTurn = activeTurn == nil ? beginTurn() : nil
     if handle == nil, startedTurn != nil {
       _ = await start()
     } else if handle == nil {
       for task in starting { _ = await task.value }
     }
-    guard let handle, !isClosed else {
+    guard let handle, !isClosed, !Task.isCancelled else {
       if let startedTurn, activeTurn?.id == startedTurn { activeTurn = nil }
       throw RelayNotWritten()
     }

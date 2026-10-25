@@ -445,6 +445,7 @@ extension AskAgentPageTests {
       $0.defaultFileStorage = .inMemory
       $0.agentEnvironment = AgentFake().environmentClient
       $0.askFork = fork.client
+      $0.questionClient = RecordFake().client
       $0.uuid = .incrementing
     } operation: {
       @Shared(.chatTabs) var stored

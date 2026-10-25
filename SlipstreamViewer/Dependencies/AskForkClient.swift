@@ -30,6 +30,8 @@ extension AskForkClient: DependencyKey {
       switch request.kind {
       case .answer(let allowsChangeRequests):
         schema = AskPrompt.answerSchema(allowsChangeRequests: allowsChangeRequests)
+      case .report:
+        schema = AskPrompt.reportSchema
       }
       let handle: AgentProcessHandle
       do {

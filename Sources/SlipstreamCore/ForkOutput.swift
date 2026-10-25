@@ -2,10 +2,12 @@ import Foundation
 
 public enum AskForkKind: Equatable, Sendable {
   case answer(allowsChangeRequests: Bool)
+  case report
 }
 
 public enum AskForkResult: Equatable, Sendable {
   case answer(forkSessionID: String, reply: String, isChangeRequest: Bool)
+  case report(reply: String, outcome: ReportOutcome)
 }
 
 public enum AskForkError: Error, Equatable, Sendable {
@@ -55,6 +57,10 @@ public struct ForkOutput: Sendable {
     switch kind {
     case .answer(let allowsChangeRequests):
       return try answer(output, reply: reply, forkSessionID: forkSessionID, allowsChangeRequests: allowsChangeRequests)
+    case .report:
+      guard output.count == 2, case .string(let raw)? = output["outcome"], let outcome = ReportOutcome(rawValue: raw)
+      else { throw .badReply }
+      return .report(reply: reply, outcome: outcome)
     }
   }
 

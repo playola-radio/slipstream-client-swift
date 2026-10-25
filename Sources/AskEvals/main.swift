@@ -7,15 +7,22 @@ import SlipstreamCore
 /// `CLAUDE_CONFIG_DIR`; it never touches the real one.
 
 struct EvalCase {
-  enum Chat { case finished, unfinishedToolCall }
+  /// The last two are built on first use, after the cases before them, since one edits the repo.
+  enum Chat { case finished, unfinishedToolCall, couldntMakeTheChange, madeTheChange }
+  /// Stage 1 answers, stage 2 answers that flag change requests, or a report after a relay.
+  enum Ask { case stage1, stage2, report }
   enum Check {
     case keepsInternalsHidden, neverSaysInterrupted, pointsToTheChat
     case mentions(String)
+    case isChangeRequest(Bool)
+    case outcome(ReportOutcome)
   }
 
   let name: String
   let chat: Chat
+  var ask = Ask.stage1
   let earlier: [AskPrompt.Exchange]
+  /// The user's message, or for a report the change request that was relayed.
   let words: String
   let checks: [Check]
 }
@@ -35,6 +42,9 @@ let appSource = """
 let selection = QuestionSource(
   context: QuestionContext(changeSeq: "1", path: "app.py", snapshotSHA256: sha256(Data(appSource.utf8)), lineStart: 4, lineEnd: 5),
   selectedText: "def shout(name):\n    return greet(name).upper()")
+
+let couldntMakeRequest = "Add a docstring to shout."
+let madeRequest = "Rename whisper to murmur."
 
 let cases = [
   EvalCase(
@@ -58,6 +68,27 @@ let cases = [
   EvalCase(
     name: "unfinished tool call isn't called interrupted", chat: .unfinishedToolCall, earlier: [],
     words: "Did the tests pass?", checks: [.keepsInternalsHidden, .neverSaysInterrupted]),
+  EvalCase(
+    name: "stage 2: a question isn't a change request", chat: .finished, ask: .stage2, earlier: [],
+    words: "Why does shout call greet instead of building the string itself?",
+    checks: [.keepsInternalsHidden, .isChangeRequest(false)]),
+  EvalCase(
+    name: "stage 2: a change request is flagged", chat: .finished, ask: .stage2, earlier: [],
+    words: "Rename shout to yell.", checks: [.keepsInternalsHidden, .isChangeRequest(true)]),
+  EvalCase(
+    name: "stage 2: yes after an offer is a change request", chat: .finished, ask: .stage2,
+    earlier: [
+      .init(
+        question: "Does greet handle an empty name?",
+        answer: "No. It would return \"Hello, \". Want me to add a guard for empty names?")
+    ],
+    words: "yes", checks: [.keepsInternalsHidden, .isChangeRequest(true)]),
+  EvalCase(
+    name: "report: a change the chat couldn't make isn't done", chat: .couldntMakeTheChange, ask: .report,
+    earlier: [], words: couldntMakeRequest, checks: [.keepsInternalsHidden, .outcome(.notDoneYet)]),
+  EvalCase(
+    name: "report: a change in the repo is done", chat: .madeTheChange, ask: .report, earlier: [],
+    words: madeRequest, checks: [.keepsInternalsHidden, .outcome(.done)]),
 ]
 
 let environment = ProcessInfo.processInfo.environment
@@ -88,19 +119,21 @@ guard chatTurn(.new(unfinished), "Read app.py and tell me in one sentence what i
   hasUnfinishedToolCall(transcript(unfinished))
 else { fail("setup: couldn't leave a tool call unfinished.") }
 print("setup  two chats in a scratch repo; one has an unfinished tool call")
+var chats: [EvalCase.Chat: UUID] = [.finished: finished, .unfinishedToolCall: unfinished]
 
 var passed = 0
 for evalCase in cases {
-  let parent = evalCase.chat == .finished ? finished : unfinished
+  let parent = chats[evalCase.chat] ?? relayChat(evalCase.chat)
+  chats[evalCase.chat] = parent
   let before = (transcriptHash(parent), sha256(try Data(contentsOf: scratch.appendingPathComponent("app.py"))))
   let outcome = ask(parent, evalCase)
   let after = (transcriptHash(parent), sha256(try Data(contentsOf: scratch.appendingPathComponent("app.py"))))
   var problems: [String] = []
   if before != after { problems.append("the chat or the repo changed") }
   switch outcome {
-  case .success(let reply):
-    problems += evalCase.checks.compactMap { problem(reply, $0) }
-    report(evalCase.name, problems, reply: reply)
+  case .success(let result):
+    problems += evalCase.checks.compactMap { problem(result, $0) }
+    report(evalCase.name, problems, reply: result.reply)
   case .failure(let error):
     report(evalCase.name, problems + ["no reply (\(error))"], reply: nil)
   }
@@ -112,7 +145,8 @@ if passed != cases.count { exit(1) }
 
 // MARK: - Checks
 
-func problem(_ reply: String, _ check: EvalCase.Check) -> String? {
+func problem(_ result: AskForkResult, _ check: EvalCase.Check) -> String? {
+  let reply = result.reply
   switch check {
   case .keepsInternalsHidden:
     // "Copy" is ordinary in answers about code, so only a copy of the chat itself counts.
@@ -129,6 +163,22 @@ func problem(_ reply: String, _ check: EvalCase.Check) -> String? {
     return reply.localizedCaseInsensitiveContains("chat") ? nil : "doesn't point to the chat"
   case .mentions(let word):
     return reply.localizedCaseInsensitiveContains(word) ? nil : "doesn't mention \"\(word)\""
+  case .isChangeRequest(let expected):
+    guard case .answer(_, _, let isChangeRequest) = result, isChangeRequest == expected else {
+      return expected ? "isn't flagged as a change request" : "is flagged as a change request"
+    }
+    return nil
+  case .outcome(let expected):
+    guard case .report(_, let outcome) = result, outcome == expected else { return "isn't \(expected.rawValue)" }
+    return nil
+  }
+}
+
+extension AskForkResult {
+  var reply: String {
+    switch self {
+    case .answer(_, let reply, _), .report(let reply, _): reply
+    }
   }
 }
 
@@ -144,17 +194,30 @@ func report(_ name: String, _ problems: [String], reply: String?) {
 
 // MARK: - Claude
 
-func ask(_ parent: UUID, _ evalCase: EvalCase) -> Result<String, AskForkError> {
-  let kind = AskForkKind.answer(allowsChangeRequests: false)
-  let prompt = AskPrompt.answer(source: selection, earlier: evalCase.earlier, words: evalCase.words, allowsChangeRequests: false)
-  let arguments = ClaudeInvocation.forkArguments(
-    parentSessionID: parent, model: model, effort: effort, schema: AskPrompt.answerSchema(allowsChangeRequests: false))
+func ask(_ parent: UUID, _ evalCase: EvalCase) -> Result<AskForkResult, AskForkError> {
+  let (kind, prompt, schema) =
+    switch evalCase.ask {
+    case .stage1, .stage2:
+      (
+        AskForkKind.answer(allowsChangeRequests: evalCase.ask == .stage2),
+        AskPrompt.answer(
+          source: selection, earlier: evalCase.earlier, words: evalCase.words,
+          allowsChangeRequests: evalCase.ask == .stage2),
+        AskPrompt.answerSchema(allowsChangeRequests: evalCase.ask == .stage2)
+      )
+    case .report:
+      (
+        AskForkKind.report, AskPrompt.report(source: selection, earlier: evalCase.earlier, request: evalCase.words),
+        AskPrompt.reportSchema
+      )
+    }
+  let arguments = ClaudeInvocation.forkArguments(parentSessionID: parent, model: model, effort: effort, schema: schema)
   var output = ForkOutput(kind: kind)
-  var result: Result<String, AskForkError> = .failure(.unavailable)
+  var result: Result<AskForkResult, AskForkError> = .failure(.unavailable)
   let status = run(arguments, input: prompt, timeLimit: 120) { line in
     do throws(AskForkError) {
-      guard case .answer(_, let reply, _)? = try output.read(line) else { return false }
-      result = .success(reply)
+      guard let answer = try output.read(line) else { return false }
+      result = .success(answer)
     } catch {
       result = .failure(error)
     }
@@ -164,8 +227,26 @@ func ask(_ parent: UUID, _ evalCase: EvalCase) -> Result<String, AskForkError> {
   return result
 }
 
+/// A chat that was sent its case's change request the way the app relays it. One may edit files;
+/// the other can only read them, so it can't make the change.
+func relayChat(_ chat: EvalCase.Chat) -> UUID {
+  let canEdit = chat == .madeTheChange
+  let request = canEdit ? madeRequest : couldntMakeRequest
+  let id = UUID()
+  let appFile = scratch.appendingPathComponent("app.py")
+  let before = try? Data(contentsOf: appFile)
+  guard let message = AskPrompt.relayMessage(source: selection, earlier: [], words: request),
+    chatTurn(.new(id), message, allowedTools: canEdit ? "Read,Grep,Glob,Edit" : "Read,Grep,Glob"),
+    (try? Data(contentsOf: appFile) != before) == canEdit
+  else { fail("setup: the chat \(canEdit ? "didn't make" : "made") the change \"\(request)\".") }
+  print("setup  a chat that \(canEdit ? "made" : "couldn't make") the change \"\(request)\"")
+  return id
+}
+
 /// True when the turn ran to its result; false when it was killed at its first tool call.
-func chatTurn(_ session: ClaudeSessionStart, _ text: String, killAtToolCall: Bool = false) -> Bool {
+func chatTurn(
+  _ session: ClaudeSessionStart, _ text: String, allowedTools: String = "Read,Grep,Glob,Bash", killAtToolCall: Bool = false
+) -> Bool {
   let sessionArgument =
     switch session {
     case .new(let id): "--session-id=\(id.uuidString.lowercased())"
@@ -174,7 +255,7 @@ func chatTurn(_ session: ClaudeSessionStart, _ text: String, killAtToolCall: Boo
   var finished = false
   run(
     ["-p", sessionArgument, "--model=\(model)", "--effort=low", "--output-format", "stream-json", "--verbose",
-     "--allowedTools", "Read,Grep,Glob,Bash"],
+     "--allowedTools", allowedTools],
     input: text, timeLimit: 300
   ) { line in
     guard case .object(let object)? = try? JSONDecoder().decode(JSONValue.self, from: line) else { return false }

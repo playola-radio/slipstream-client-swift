@@ -353,7 +353,7 @@ enum Fixture {
 
   static func questionExchangeRecorded(
     _ value: Int, id: String, text: String = "Why did this change?", answer: String = "Because.",
-    replyTo parentID: String? = nil, requestID: String? = nil, chat: String = "chat-1"
+    replyTo parentID: String? = nil, requestID: String? = nil, chat: String = "chat-1", relay relayID: String? = nil
   ) -> StreamItem {
     var data: [String: Any] = [
       "session_id": session,
@@ -371,7 +371,17 @@ enum Fixture {
       ],
     ]
     if let parentID { data["reply_to_question_id"] = parentID }
+    if let relayID { data["relay"] = ["relay_id": relayID, "chat_session_id": chat] }
     return frame(value, type: "slipstream.question.exchange_recorded.v1", data: data)
+  }
+
+  static func questionRelayUpdated(_ value: Int, id: String, relay relayID: String, update: [String: Any]) -> StreamItem {
+    frame(
+      value, type: "slipstream.question.relay_updated.v1",
+      data: [
+        "session_id": session, "question_id": id, "relay_id": relayID, "request_id": "r-\(relayID)-\(value)",
+        "update": update, "recorded_at_ms": observedAtMs,
+      ])
   }
 
   static func questionDispatchAttempted(_ value: Int, id: String, queuedSeq: Int) -> StreamItem {

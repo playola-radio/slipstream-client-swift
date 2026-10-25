@@ -13,17 +13,27 @@ public struct ControlTransport: Sendable {
   }
 
   public func ask(_ request: QuestionRequest) async throws -> QuestionAcknowledgment {
-    try await send(request) { try QuestionAcknowledgment.decode($0, for: request) }
+    try await send(request.encoded()) { try QuestionAcknowledgment.decode($0, for: request) }
   }
 
   public func recordExchange(_ request: QuestionRequest) async throws -> ExchangeAcknowledgment {
-    try await send(request) { try ExchangeAcknowledgment.decode($0, for: request) }
+    try await send(request.encoded()) { try ExchangeAcknowledgment.decode($0, for: request) }
+  }
+
+  public func updateRelay(_ request: QuestionRelayUpdateRequest) async throws -> RelayAcknowledgment {
+    try await send(request.encoded()) { try RelayAcknowledgment.decode($0, for: request) }
+  }
+
+  public func supportsRelays(sessionID: String) async throws -> Bool {
+    try await send(ControlLine.encode(RelayCapabilityRequest(sessionID: sessionID))) {
+      try RelayCapabilityRequest.supportsRelays($0)
+    }
   }
 
   private func send<Reply: Sendable>(
-    _ request: QuestionRequest, decode: @escaping @Sendable (Data) throws -> Reply
+    _ line: Data, decode: @escaping @Sendable (Data) throws -> Reply
   ) async throws -> Reply {
-    let bytes = try request.encoded() + Data([10])
+    let bytes = line + Data([10])
     let cancellation = Mutex(false)
     return try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in

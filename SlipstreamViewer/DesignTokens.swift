@@ -281,7 +281,12 @@ enum DesignTokens {
     }
 
     static func accent(_ status: QuestionBarStatus) -> Color {
-      status == .waiting || status == .notDelivered ? Color(hex: 0xD8BE89) : Color(hex: 0xC6E7FF)
+      switch status {
+      case .waiting, .notDelivered: Color(hex: 0xD8BE89)
+      case .working: Color(hex: 0xE4C282)
+      case .done: Color(hex: 0x8DD9B1)
+      case .newReply, .answered: Color(hex: 0xC6E7FF)
+      }
     }
   }
 
@@ -350,6 +355,18 @@ enum DesignTokens {
     static let tryAgainRadius: CGFloat = 4
     static let tryAgainVerticalPadding: CGFloat = 6
     static let tryAgainHorizontalPadding: CGFloat = 10
+    static let progressDetailColor = sourceColor
+
+    static func progressIcon(_ mark: RelayProgress.Mark) -> Icons.Icon {
+      switch mark {
+      case .done: Icons.Icon(assetName: "Check", size: progressIconSize, color: Color(hex: 0x8DD9B1))
+      case .waiting: Icons.Icon(assetName: "Hourglass", size: progressIconSize, color: Color(hex: 0xE4C282))
+      case .working: Icons.Icon(assetName: "LoaderCircle", size: progressIconSize, color: Color(hex: 0xE4C282))
+      case .notDoneYet: Icons.Icon(assetName: "CircleDashed", size: progressIconSize, color: Color(hex: 0xE4C282))
+      case .warning: Icons.Icon(assetName: "CircleAlert", size: progressIconSize, color: Color(hex: 0xE4C282))
+      case .failed: Icons.Icon(assetName: "X", size: progressIconSize, color: failureColor)
+      }
+    }
   }
 
   enum Fonts {

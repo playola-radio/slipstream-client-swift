@@ -51,7 +51,7 @@ enum QuestionFixture {
 
   static func recorded(
     _ seq: Int, id: String, text: String = "Why?", answer: String = "Because.", replyTo: String? = nil,
-    chat: String = "chat-1"
+    chat: String = "chat-1", relay: ExchangeRelay? = nil
   ) -> SlipstreamEvent {
     SlipstreamEvent(
       seq: Seq(String(seq))!,
@@ -59,8 +59,25 @@ enum QuestionFixture {
       payload: .questionExchangeRecorded(
         QuestionExchangeRecorded(
           questionID: id, requestID: "r-\(id)", text: text, answerText: answer, chatSessionID: chat, source: source,
-          replyToQuestionID: replyTo, recordedAtMs: Int64(seq))
+          replyToQuestionID: replyTo, recordedAtMs: Int64(seq), relay: relay)
       )
+    )
+  }
+
+  static func relayUpdated(_ seq: Int, question: String = "q1", relay: String = "rl1", update: RelayUpdate) -> SlipstreamEvent {
+    SlipstreamEvent(
+      seq: Seq(String(seq))!,
+      type: "slipstream.question.relay_updated.v1",
+      payload: .questionRelayUpdated(
+        QuestionRelayUpdated(questionID: question, relayID: relay, update: update, recordedAtMs: Int64(seq)))
+    )
+  }
+
+  static func changed(_ seq: Int, path: String) -> SlipstreamEvent {
+    SlipstreamEvent(
+      seq: Seq(String(seq))!,
+      type: "slipstream.file.changed.v1",
+      payload: .fileChanged(FileChange(path: path, before: .absent, after: .absent, observedAtMs: Int64(seq)))
     )
   }
 
@@ -123,8 +140,8 @@ struct QuestionEventDecodingTests {
     )
   }
 
-  private static func exchangeRecordedJSON(answer: String) throws -> Data {
-    let data: [String: Any] = [
+  private static func exchangeRecordedJSON(answer: String, relay: [String: Any]? = nil) throws -> Data {
+    var data: [String: Any] = [
       "session_id": "6f3c1e0a-2b4d-4c8e-9a1f-3d5e7b9c0a12",
       "question_id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
       "request_id": "0d7e4b52-8a19-4c3f-b6e2-91f0a4c3d8e7",
@@ -141,6 +158,7 @@ struct QuestionEventDecodingTests {
         "fork_session_id": "7e3431be-1c2d-4e5f-8a9b-0c1d2e3f4a5b", "reported_by": "client",
       ],
     ]
+    data["relay"] = relay
     let envelope: [String: Any] = [
       "specversion": "1.0", "id": "42", "seq": "42", "type": "slipstream.question.exchange_recorded.v1",
       "datacontenttype": "application/json", "time": "2026-09-26T13:08:50.772Z",
@@ -164,11 +182,50 @@ struct QuestionEventDecodingTests {
     )
   }
 
+  @Test func decodesExchangeWithRelay() throws {
+    let relay: [String: Any] = [
+      "relay_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", "chat_session_id": "5896f28c-f4a9-46c2-b481-7ca57e8714a8",
+    ]
+    guard case .questionExchangeRecorded(let exchange) = try SlipstreamEvent.decode(
+      Self.exchangeRecordedJSON(answer: "On it.", relay: relay)).payload
+    else { Issue.record("Not an exchange"); return }
+    expectNoDifference(
+      exchange.relay,
+      ExchangeRelay(relayID: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", chatSessionID: "5896f28c-f4a9-46c2-b481-7ca57e8714a8"))
+  }
+
+  @Test(arguments: [
+    (#"{"kind":"sent","chat_session_id":"5896f28c-f4a9-46c2-b481-7ca57e8714a8"}"#,
+     RelayUpdate.sent(chatSessionID: "5896f28c-f4a9-46c2-b481-7ca57e8714a8")),
+    (#"{"kind":"picked_up"}"#, .pickedUp),
+    (#"{"kind":"not_delivered"}"#, .notDelivered),
+    (#"{"kind":"reported","outcome":"done","text":"Renamed it."}"#, .reported(.done, text: "Renamed it.")),
+    (#"{"kind":"reported","outcome":"not_done_yet","text":"Not yet."}"#, .reported(.notDoneYet, text: "Not yet.")),
+  ])
+  func decodesRelayUpdated(_ update: String, _ expected: RelayUpdate) throws {
+    let json = #"""
+      {"specversion":"1.0","id":"43","seq":"43","type":"slipstream.question.relay_updated.v1","datacontenttype":"application/json",
+       "time":"2026-09-26T13:08:50.772Z","source":"urn:slipstream:session:6f3c1e0a-2b4d-4c8e-9a1f-3d5e7b9c0a12",
+       "subject":"question/b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+       "data":{"session_id":"6f3c1e0a-2b4d-4c8e-9a1f-3d5e7b9c0a12","question_id":"b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+        "relay_id":"9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d","request_id":"0d7e4b52-8a19-4c3f-b6e2-91f0a4c3d8e7",
+        "update":\#(update),"recorded_at_ms":1790428130772}}
+      """#
+    expectNoDifference(
+      try SlipstreamEvent.decode(Data(json.utf8)).payload,
+      .questionRelayUpdated(
+        QuestionRelayUpdated(
+          questionID: "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e", relayID: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+          update: expected, recordedAtMs: 1_790_428_130_772))
+    )
+  }
+
   @Test(arguments: [
     "slipstream.question.queued.v1",
     "slipstream.question.dispatch_attempted.v1",
     "slipstream.question.answered.v1",
     "slipstream.question.exchange_recorded.v1",
+    "slipstream.question.relay_updated.v1",
   ])
   func malformedQuestionEventThrowsWithSeqAndType(_ type: String) {
     #expect(throws: EventDecodingError(seq: "7", type: type)) {
@@ -501,5 +558,198 @@ extension QuestionThreadsTests {
       events + [QuestionFixture.unlinked(3), QuestionFixture.resumed(4), QuestionFixture.unlinked(5)])
     expectNoDifference(threads.threads, QuestionThreads(events).threads)
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered, .answered])
+  }
+}
+
+struct QuestionRelayFoldTests {
+  static let relay = ExchangeRelay(relayID: "rl1", chatSessionID: "chat-1")
+
+  static func step(_ seq: Int) -> RelayStep { RelayStep(seq: Seq(String(seq))!, atMs: Int64(seq)) }
+
+  static func relays(_ events: [SlipstreamEvent], turn: Int = 0) -> [QuestionRelay]? {
+    QuestionThreads(events).threads[id: "q1"]?.turns[turn].relays
+  }
+
+  @Test func exchangeWithRelayAddsSentRelay() {
+    expectNoDifference(
+      Self.relays([QuestionFixture.recorded(4, id: "q1", relay: Self.relay)]),
+      [QuestionRelay(id: "rl1", questionID: "q1", chatSessionID: "chat-1", sent: Self.step(4))]
+    )
+  }
+
+  @Test func sendAgainAddsNewRelayToSameTurn() {
+    var threads = QuestionThreads([
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.relayUpdated(5, update: .notDelivered),
+    ])
+    expectDifference(threads.threads[id: "q1"]?.turns[0].relays) {
+      threads.apply(QuestionFixture.relayUpdated(6, relay: "rl2", update: .sent(chatSessionID: "chat-2")))
+    } changes: {
+      $0?.append(QuestionRelay(id: "rl2", questionID: "q1", chatSessionID: "chat-2", sent: Self.step(6)))
+    }
+  }
+
+  @Test func pickedUpAndReportsFold() {
+    var threads = QuestionThreads([QuestionFixture.recorded(4, id: "q1", relay: Self.relay)])
+    expectDifference(threads.threads[id: "q1"]?.turns[0].relays[0]) {
+      threads.apply(QuestionFixture.relayUpdated(5, update: .pickedUp))
+      threads.apply(QuestionFixture.relayUpdated(6, update: .pickedUp))
+      threads.apply(QuestionFixture.relayUpdated(7, update: .reported(.notDoneYet, text: "Not yet.")))
+    } changes: {
+      $0?.pickedUp = Self.step(5)
+      $0?.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("7")!, atMs: 7)
+    }
+  }
+
+  @Test func doneIsFinal() {
+    let events = [
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.relayUpdated(5, update: .pickedUp),
+      QuestionFixture.changed(6, path: "a.py"),
+      QuestionFixture.relayUpdated(7, update: .reported(.done, text: "Renamed it.")),
+    ]
+    let later = [
+      QuestionFixture.relayUpdated(8, update: .notDelivered),
+      QuestionFixture.changed(9, path: "b.py"),
+      QuestionFixture.relayUpdated(10, update: .reported(.done, text: "Again.")),
+    ]
+    expectNoDifference(Self.relays(events + later), Self.relays(events))
+    expectNoDifference(
+      Self.relays(events + later)?[0].status(livePickup: false, liveWrite: false, lastCheckFailed: true), .done)
+  }
+
+  @Test func changedPathsAfterSentUntilDone() {
+    let relays = Self.relays([
+      QuestionFixture.changed(3, path: "a.py"),
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.changed(5, path: "c.py"),
+      QuestionFixture.changed(6, path: "b.py"),
+      QuestionFixture.changed(7, path: "c.py"),
+      QuestionFixture.relayUpdated(8, update: .reported(.done, text: "Done.")),
+      QuestionFixture.changed(9, path: "d.py"),
+    ])
+    expectNoDifference(relays?[0].changedPaths, ["c.py", "b.py"])
+  }
+
+  @Test func relaysListedPerTurn() {
+    let threads = QuestionThreads([
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.recorded(5, id: "q2", replyTo: "q1"),
+      QuestionFixture.recorded(6, id: "q3", replyTo: "q1", relay: ExchangeRelay(relayID: "rl3", chatSessionID: "chat-1")),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map { $0.relays.map(\.id) }, [["rl1"], [], ["rl3"]])
+  }
+
+  @Test func updateForUnknownRelayIgnored() {
+    let events = [QuestionFixture.recorded(4, id: "q1", relay: Self.relay)]
+    let threads = QuestionThreads(
+      events + [
+        QuestionFixture.relayUpdated(5, relay: "missing", update: .pickedUp),
+        QuestionFixture.relayUpdated(6, question: "q9", update: .pickedUp),
+        QuestionFixture.relayUpdated(7, question: "q9", relay: "rl9", update: .sent(chatSessionID: "chat-1")),
+        QuestionFixture.relayUpdated(8, relay: "rl1", update: .sent(chatSessionID: "chat-2")),
+      ])
+    expectNoDifference(threads, QuestionThreads(events))
+  }
+
+  @Test func pickedUpAfterNotDeliveredCountsAsPickedUp() {
+    let relay = Self.relays([
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.relayUpdated(5, update: .notDelivered),
+      QuestionFixture.relayUpdated(6, update: .pickedUp),
+    ])?[0]
+    expectNoDifference(relay?.isNotDelivered, false)
+    expectNoDifference(relay?.status(livePickup: false, liveWrite: false, lastCheckFailed: false), .pickedUp)
+  }
+
+  @Test func reportBeforePickupInLogStillFolds() {
+    let relay = Self.relays([
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.relayUpdated(5, update: .reported(.done, text: "Renamed it.")),
+      QuestionFixture.relayUpdated(6, update: .pickedUp),
+    ])?[0]
+    expectNoDifference(relay?.pickedUp, Self.step(6))
+    expectNoDifference(relay?.report, RelayReport(outcome: .done, text: "Renamed it.", seq: Seq("5")!, atMs: 5))
+  }
+
+  @Test func doneStaysDoneAfterLaterNotDoneYet() {
+    let relay = Self.relays([
+      QuestionFixture.recorded(4, id: "q1", relay: Self.relay),
+      QuestionFixture.relayUpdated(5, update: .reported(.done, text: "Renamed it.")),
+      QuestionFixture.relayUpdated(6, update: .reported(.notDoneYet, text: "Not yet.")),
+    ])?[0]
+    expectNoDifference(relay?.report, RelayReport(outcome: .done, text: "Renamed it.", seq: Seq("5")!, atMs: 5))
+  }
+}
+
+struct QuestionRelayStatusTests {
+  static let sent = QuestionRelay(
+    id: "rl1", questionID: "q1", chatSessionID: "chat-1", sent: QuestionRelayFoldTests.step(4))
+  static var pickedUp: QuestionRelay {
+    var relay = sent
+    relay.pickedUp = QuestionRelayFoldTests.step(5)
+    return relay
+  }
+
+  @Test func doneWinsOverAFailedCheck() {
+    var relay = Self.pickedUp
+    relay.report = RelayReport(outcome: .done, text: "Done.", seq: Seq("6")!, atMs: 6)
+    expectNoDifference(relay.status(livePickup: false, liveWrite: false, lastCheckFailed: true), .done)
+  }
+
+  @Test func failedCheckIsCouldntCheck() {
+    var relay = Self.pickedUp
+    relay.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("6")!, atMs: 6)
+    expectNoDifference(relay.status(livePickup: false, liveWrite: true, lastCheckFailed: true), .couldntCheck)
+  }
+
+  @Test func notDeliveredWinsOverALiveWrite() {
+    var relay = Self.sent
+    relay.isNotDelivered = true
+    expectNoDifference(relay.status(livePickup: false, liveWrite: true, lastCheckFailed: false), .notDelivered)
+  }
+
+  @Test func latestNotDoneYetReportIsNotDoneYet() {
+    var relay = Self.pickedUp
+    relay.changedPaths = ["a.py"]
+    relay.lastChangeSeq = Seq("5")
+    relay.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("6")!, atMs: 6)
+    expectNoDifference(relay.status(livePickup: false, liveWrite: true, lastCheckFailed: false), .notDoneYet)
+  }
+
+  @Test func changedPathsAfterPickupIsWorking() {
+    var relay = Self.pickedUp
+    relay.changedPaths = ["a.py"]
+    relay.lastChangeSeq = Seq("6")
+    expectNoDifference(relay.status(livePickup: false, liveWrite: true, lastCheckFailed: false), .working)
+  }
+
+  @Test func pickupIsPickedUp() {
+    expectNoDifference(Self.pickedUp.status(livePickup: false, liveWrite: false, lastCheckFailed: false), .pickedUp)
+  }
+
+  @Test func sentWithoutALiveWriteIsDeliveryUnknown() {
+    expectNoDifference(Self.sent.status(livePickup: false, liveWrite: false, lastCheckFailed: false), .deliveryUnknown)
+  }
+
+  @Test func sentWithALiveWriteIsSent() {
+    expectNoDifference(Self.sent.status(livePickup: false, liveWrite: true, lastCheckFailed: false), .sent)
+  }
+
+  @Test func notDoneYetYieldsToLaterFileChange() {
+    let relay = QuestionRelayFoldTests.relays([
+      QuestionFixture.recorded(4, id: "q1", relay: QuestionRelayFoldTests.relay),
+      QuestionFixture.relayUpdated(5, update: .pickedUp),
+      QuestionFixture.relayUpdated(6, update: .reported(.notDoneYet, text: "Not yet.")),
+      QuestionFixture.changed(7, path: "a.py"),
+    ])?[0]
+    expectNoDifference(relay?.status(livePickup: false, liveWrite: true, lastCheckFailed: false), .working)
+  }
+
+  @Test func livePickupCountsBeforeLogHasIt() {
+    expectNoDifference(Self.sent.status(livePickup: true, liveWrite: true, lastCheckFailed: false), .pickedUp)
+    var relay = Self.sent
+    relay.isNotDelivered = true
+    expectNoDifference(relay.status(livePickup: true, liveWrite: true, lastCheckFailed: false), .pickedUp)
   }
 }
