@@ -45,6 +45,35 @@ enum AskFailure: Equatable, Sendable {
   case noReply, chatUnavailable, badReply, notSaved
 }
 
+/// A change request written to a chat tab, from the write until its report says it is done.
+struct RelayRun: Equatable, Sendable {
+  let storeID: String
+  let sessionID: String
+  let questionID: String
+  let chatSessionID: UUID
+  let folder: String?
+  let source: QuestionSource
+  let earlier: [AskPrompt.Exchange]
+  let request: String
+  /// `nil` when this app run never wrote it.
+  var delivery: Delivery?
+  var report: Report = .idle
+  var isDone = false
+  /// Steps whose retries ran out, sent again when the daemon reconnects.
+  var unrecorded: [QuestionRelayUpdateRequest] = []
+
+  enum Delivery: Equatable, Sendable {
+    case writing, waitingForEcho, pickedUp, exitedUnread
+  }
+
+  enum Report: Equatable, Sendable {
+    case idle
+    /// `rerun` is set when the chat's turn ends again before this check finishes.
+    case checking(rerun: Bool)
+    case failed
+  }
+}
+
 /// Answers questions from a read-only copy of a chat tab, then records each question with its
 /// answer. One per app: it owns every copy run and recording, so closing the panel or selecting
 /// another capture cancels nothing. Work stops only when its capture is deleted or the app quits.
@@ -64,6 +93,8 @@ final class InstantAskModel: ViewModel {
   init(chat: ChatPageModel) {
     self.chat = chat
     super.init()
+    chat.onRelayDelivery = { [weak self] _, delivery in self?.relayDelivered(delivery) }
+    chat.onTabTurnEnded = { [weak self] tabID in self?.tabTurnEnded(tabID) }
   }
 
   // MARK: - Properties
@@ -73,6 +104,8 @@ final class InstantAskModel: ViewModel {
 
   /// Questions whose answer hasn't folded into a thread yet.
   private(set) var pending: IdentifiedArrayOf<PendingAsk> = []
+  /// Keyed by lowercase relay id.
+  private(set) var relayRuns: [String: RelayRun] = [:]
 
   @ObservationIgnored private let chat: ChatPageModel
   @ObservationIgnored private var questions: [String: InstantQuestion] = [:]
@@ -80,6 +113,22 @@ final class InstantAskModel: ViewModel {
   /// Keyed by request id. Each run bumps the attempt, so only the latest run can publish.
   @ObservationIgnored private var runs: [String: Run] = [:]
   @ObservationIgnored private var isQuitting = false
+  /// Whether each store's daemon can record relays, asked once per connection.
+  @ObservationIgnored private var relaySupport: [String: Bool] = [:]
+  @ObservationIgnored private var relayTasks: [Int: RelayTask] = [:]
+  @ObservationIgnored private var nextRelayTaskID = 0
+  @ObservationIgnored private var sendingAgain: Set<String> = []
+
+  // MARK: - View Helpers
+
+  /// What the log says, overridden by what this app run has seen and not yet logged.
+  func relayStatus(_ relay: QuestionRelay) -> QuestionRelayStatus {
+    var relay = relay
+    let run = relayRuns[relay.id]
+    if run?.delivery == .exitedUnread { relay.isNotDelivered = true }
+    return relay.status(
+      livePickup: run?.delivery == .pickedUp, liveWrite: run?.delivery != nil, lastCheckFailed: run?.report == .failed)
+  }
 
   // MARK: - User Actions
 
@@ -114,11 +163,68 @@ final class InstantAskModel: ViewModel {
   }
 
   /// An entry leaves once its exchange is in the capture's log, even if an error showed first.
-  func threadsFolded(sessionID: String, threads: IdentifiedArrayOf<QuestionThread>) {
-    let folded = Set(threads.flatMap { $0.turns.map(\.requestID) })
-    for entry in pending where entry.sessionID == sessionID && folded.contains(entry.id) {
+  /// Relays this app run didn't write are taken over: a pickup without a done report is checked
+  /// at the chat's next idle, and one never picked up is left for the user to send again.
+  func threadsFolded(storeID: String, sessionID: String, folder: String?, threads: IdentifiedArrayOf<QuestionThread>) {
+    let questionIDs = Dictionary(
+      threads.flatMap { $0.turns.map { ($0.requestID, $0.questionID) } }, uniquingKeysWith: { first, _ in first })
+    for entry in pending where entry.sessionID == sessionID {
+      guard let questionID = questionIDs[entry.id] else { continue }
+      startRelay(for: entry.id, questionID: questionID)
       forget(entry.id)
     }
+    for thread in threads {
+      for (index, turn) in thread.turns.enumerated() {
+        let earlier = thread.turns[..<index].compactMap { turn in
+          turn.answer.map { AskPrompt.Exchange(question: turn.text, answer: $0.text) }
+        }
+        for relay in turn.relays {
+          relayFolded(
+            relay, storeID: storeID, sessionID: sessionID, folder: folder, source: thread.source, earlier: earlier,
+            request: turn.text)
+        }
+      }
+    }
+  }
+
+  /// The daemon may have restarted, so its relay support is asked again and steps it never
+  /// recorded are sent again under their original request ids.
+  func daemonConnected(storeID: String) async {
+    relaySupport[storeID] = nil
+    var retries: [Task<Void, Never>] = []
+    for (relayID, run) in relayRuns where run.storeID == storeID && !run.unrecorded.isEmpty {
+      relayRuns[relayID]?.unrecorded = []
+      for request in run.unrecorded {
+        retries.append(track(run.sessionID) { await self.send(request) })
+      }
+    }
+    for retry in retries { await retry.value }
+  }
+
+  func checkAgainTapped(relayID: String) async {
+    guard !isQuitting, let run = relayRuns[relayID], !run.isDone else { return }
+    if case .checking = run.report { return }
+    await startCheck(relayID)?.value
+  }
+
+  /// Writes the request again under a new relay id, once the daemon has recorded it as sent.
+  /// A closed chat hands it to the tab the folder is linked to.
+  func sendAgainTapped(relayID: String) async {
+    guard !isQuitting, let run = relayRuns[relayID], !sendingAgain.contains(relayID),
+      let tab = chat.tabs[id: run.chatSessionID] ?? run.folder.flatMap(chat.linkedAppTab(forFolder:))
+    else { return }
+    sendingAgain.insert(relayID)
+    defer { sendingAgain.remove(relayID) }
+    let newRelayID = uuid()
+    let isRecorded = await send(
+      QuestionRelayUpdateRequest(
+        sessionID: run.sessionID, requestID: uuid().uuidString.lowercased(), questionID: run.questionID,
+        relayID: newRelayID.uuidString.lowercased(), update: .sent(chatSessionID: tab.id.uuidString.lowercased())))
+    guard isRecorded, !isQuitting, relayRuns[relayID] != nil else { return }
+    relayRuns[newRelayID.uuidString.lowercased()] = RelayRun(
+      storeID: run.storeID, sessionID: run.sessionID, questionID: run.questionID, chatSessionID: tab.id,
+      folder: run.folder, source: run.source, earlier: run.earlier, request: run.request)
+    await track(run.sessionID) { await self.write(newRelayID) }.value
   }
 
   /// Selecting the capture again replays its log, which brings recorded answers back.
@@ -130,13 +236,20 @@ final class InstantAskModel: ViewModel {
 
   func captureDeleted(_ sessionID: String) {
     for entry in pending where entry.sessionID == sessionID { forget(entry.id) }
+    for (id, relayTask) in relayTasks where relayTask.sessionID == sessionID {
+      relayTask.task.cancel()
+      relayTasks[id] = nil
+    }
+    relayRuns = relayRuns.filter { $0.value.sessionID != sessionID }
   }
 
   /// Stops every copy and returns once they have all exited.
   func quitConfirmed() async {
     isQuitting = true
-    let running = runs.values.map(\.task)
+    let running = runs.values.map(\.task) + relayTasks.values.map(\.task)
     for id in pending.ids { forget(id) }
+    for relayTask in relayTasks.values { relayTask.task.cancel() }
+    relayTasks = [:]
     for task in running { await task.value }
   }
 
@@ -144,6 +257,11 @@ final class InstantAskModel: ViewModel {
 
   private struct Run {
     let attempt: Int
+    let task: Task<Void, Never>
+  }
+
+  private struct RelayTask {
+    let sessionID: String
     let task: Task<Void, Never>
   }
 
@@ -193,6 +311,7 @@ final class InstantAskModel: ViewModel {
   }
 
   private func answer(_ requestID: String, question: InstantQuestion, tab: ChatTabRecord, attempt: Int) async {
+    let allowsChangeRequests = await supportsRelays(question)
     guard let environment = try? await agentEnvironment.resolve() else {
       return publish(requestID, attempt, .couldntAnswer(.chatUnavailable))
     }
@@ -206,14 +325,19 @@ final class InstantAskModel: ViewModel {
           model: tab.model,
           effort: tab.effort,
           prompt: AskPrompt.answer(
-            source: question.source, earlier: question.earlier, words: question.text, allowsChangeRequests: false),
-          kind: .answer(allowsChangeRequests: false)
+            source: question.source, earlier: question.earlier, words: question.text,
+            allowsChangeRequests: allowsChangeRequests),
+          kind: .answer(allowsChangeRequests: allowsChangeRequests)
         )
       )
     } catch {
       return publish(requestID, attempt, .couldntAnswer(Self.failure(error)))
     }
-    guard isCurrent(requestID, attempt), case .answer(let forkSessionID, let reply, _) = result else { return }
+    guard isCurrent(requestID, attempt), case .answer(let forkSessionID, let reply, let isChangeRequest) = result
+    else { return }
+    let relaysRequest =
+      allowsChangeRequests && isChangeRequest
+      && AskPrompt.relayMessage(source: question.source, earlier: question.earlier, words: question.text) != nil
     pending[id: requestID]?.state = .recording
     recordings[requestID] = QuestionRequest(
       sessionID: question.sessionID,
@@ -223,7 +347,10 @@ final class InstantAskModel: ViewModel {
       replyToQuestionID: question.replyToQuestionID,
       verb: .recordExchange(
         answerText: reply,
-        conversation: ExchangeConversation(parentSessionID: tab.id.uuidString, forkSessionID: forkSessionID)
+        conversation: ExchangeConversation(parentSessionID: tab.id.uuidString, forkSessionID: forkSessionID),
+        relay: relaysRequest
+          ? ExchangeRelay(relayID: uuid().uuidString.lowercased(), chatSessionID: tab.id.uuidString.lowercased())
+          : nil
       )
     )
     await record(requestID, attempt: attempt, isOutcomeUnknown: false)
@@ -236,7 +363,9 @@ final class InstantAskModel: ViewModel {
     var isOutcomeUnknown = isOutcomeUnknown
     for remaining in (0..<Self.recordingAttempts).reversed() {
       do {
-        _ = try await questionClient.record(request)
+        let acknowledgment = try await questionClient.record(request)
+        guard isCurrent(requestID, attempt) else { return }
+        startRelay(for: requestID, questionID: acknowledgment.questionID)
         return publish(requestID, attempt, .recorded)
       } catch where QuestionFailure.isOutcomeUnknown(error) {
         isOutcomeUnknown = true
@@ -260,6 +389,171 @@ final class InstantAskModel: ViewModel {
     pending.remove(id: requestID)
     questions[requestID] = nil
     recordings[requestID] = nil
+  }
+
+  /// An error leaves the answer stage-1 only for this question; the next one asks again.
+  private func supportsRelays(_ question: InstantQuestion) async -> Bool {
+    if let isSupported = relaySupport[question.storeID] { return isSupported }
+    guard let isSupported = try? await questionClient.supportsRelays(question.sessionID) else { return false }
+    relaySupport[question.storeID] = isSupported
+    return isSupported
+  }
+
+  /// Runs once the exchange carrying the relay is recorded, whether its ack or its event comes first.
+  private func startRelay(for requestID: String, questionID: String) {
+    guard let question = questions[requestID], let request = recordings[requestID],
+      case .recordExchange(_, _, let relay?) = request.verb, relayRuns[relay.relayID] == nil,
+      let relayID = UUID(uuidString: relay.relayID), let chatSessionID = UUID(uuidString: relay.chatSessionID)
+    else { return }
+    relayRuns[relay.relayID] = RelayRun(
+      storeID: question.storeID, sessionID: question.sessionID, questionID: questionID, chatSessionID: chatSessionID,
+      folder: question.folder, source: question.source, earlier: question.earlier, request: question.text)
+    track(question.sessionID) { await self.write(relayID) }
+  }
+
+  private func relayFolded(
+    _ relay: QuestionRelay, storeID: String, sessionID: String, folder: String?, source: QuestionSource,
+    earlier: [AskPrompt.Exchange], request: String
+  ) {
+    let isNew = relayRuns[relay.id] == nil
+    if isNew {
+      guard let chatSessionID = UUID(uuidString: relay.chatSessionID) else { return }
+      relayRuns[relay.id] = RelayRun(
+        storeID: storeID, sessionID: sessionID, questionID: relay.questionID, chatSessionID: chatSessionID,
+        folder: folder, source: source, earlier: earlier, request: request)
+    }
+    if relay.pickedUp != nil { relayRuns[relay.id]?.delivery = .pickedUp }
+    if relay.isDone { relayRuns[relay.id]?.isDone = true }
+    guard isNew, let run = relayRuns[relay.id], run.delivery == .pickedUp, !run.isDone,
+      chat.tabs[id: run.chatSessionID]?.isWorking == false
+    else { return }
+    startCheck(relay.id)
+  }
+
+  private func write(_ relayID: UUID) async {
+    let key = relayID.uuidString.lowercased()
+    guard let run = relayRuns[key], let tab = chat.tabs[id: run.chatSessionID],
+      let text = AskPrompt.relayMessage(source: run.source, earlier: run.earlier, words: run.request)
+    else { return notDelivered(key) }
+    relayRuns[key]?.delivery = .writing
+    do {
+      try await tab.relay(AskRelayMessage(relayID: relayID, text: text, label: Self.relayLabel(run.source)))
+    } catch {
+      return notDelivered(key)
+    }
+    if relayRuns[key]?.delivery == .writing { relayRuns[key]?.delivery = .waitingForEcho }
+  }
+
+  /// Published at once, so the turn end that follows a pickup already sees it.
+  private func relayDelivered(_ delivery: RelayDelivery) {
+    switch delivery {
+    case .pickedUp(let relayID):
+      let key = relayID.uuidString.lowercased()
+      guard let run = relayRuns[key], run.delivery != .pickedUp else { return }
+      relayRuns[key]?.delivery = .pickedUp
+      recordUpdate(key, .pickedUp)
+    case .exitedUnread(let relayID):
+      notDelivered(relayID.uuidString.lowercased())
+    }
+  }
+
+  private func notDelivered(_ relayID: String) {
+    guard let run = relayRuns[relayID], run.delivery != .pickedUp, run.delivery != .exitedUnread else { return }
+    relayRuns[relayID]?.delivery = .exitedUnread
+    recordUpdate(relayID, .notDelivered)
+  }
+
+  /// Only a turn that ends after the pickup can have done the work, so earlier ones start nothing.
+  private func tabTurnEnded(_ tabID: UUID) {
+    for (relayID, run) in relayRuns where run.chatSessionID == tabID && run.delivery == .pickedUp && !run.isDone {
+      switch run.report {
+      case .idle, .failed: startCheck(relayID)
+      case .checking: relayRuns[relayID]?.report = .checking(rerun: true)
+      }
+    }
+  }
+
+  @discardableResult
+  private func startCheck(_ relayID: String) -> Task<Void, Never>? {
+    guard !isQuitting, let run = relayRuns[relayID] else { return nil }
+    relayRuns[relayID]?.report = .checking(rerun: false)
+    return track(run.sessionID) { await self.check(relayID) }
+  }
+
+  /// Asks a copy of the chat whether it made the change, then records its answer.
+  private func check(_ relayID: String) async {
+    guard let run = relayRuns[relayID] else { return }
+    var result: AskForkResult?
+    if let tab = chat.tabs[id: run.chatSessionID]?.record, let environment = try? await agentEnvironment.resolve() {
+      result = try? await askFork.run(
+        AskForkRequest(
+          parentSessionID: tab.id,
+          folder: tab.folder,
+          environment: environment,
+          model: tab.model,
+          effort: tab.effort,
+          prompt: AskPrompt.report(source: run.source, earlier: run.earlier, request: run.request),
+          kind: .report
+        )
+      )
+    }
+    guard !Task.isCancelled, case .checking(let rerun) = relayRuns[relayID]?.report else { return }
+    guard case .report(let reply, let outcome) = result else {
+      relayRuns[relayID]?.report = .failed
+      return
+    }
+    recordUpdate(relayID, .reported(outcome, text: reply))
+    relayRuns[relayID]?.report = .idle
+    if outcome == .done {
+      relayRuns[relayID]?.isDone = true
+    } else if rerun {
+      startCheck(relayID)
+    }
+  }
+
+  /// Each step is recorded on its own, so one that fails never holds back the next.
+  private func recordUpdate(_ relayID: String, _ update: RelayUpdate) {
+    guard !isQuitting, let run = relayRuns[relayID] else { return }
+    let request = QuestionRelayUpdateRequest(
+      sessionID: run.sessionID, requestID: uuid().uuidString.lowercased(), questionID: run.questionID,
+      relayID: relayID, update: update)
+    track(run.sessionID) { await self.send(request) }
+  }
+
+  /// Anything but a refusal may have been recorded, so it is retried with the identical body and
+  /// kept for the next connection once the retries run out. A refusal is dropped.
+  @discardableResult
+  private func send(_ request: QuestionRelayUpdateRequest) async -> Bool {
+    for remaining in (0..<Self.recordingAttempts).reversed() {
+      do {
+        _ = try await questionClient.updateRelay(request)
+        return true
+      } catch QuestionError.rejected(let code, _) where code != "STORAGE_UNAVAILABLE" {
+        return false
+      } catch {
+        guard remaining > 0, (try? await clock.sleep(for: Self.recordingRetryDelay)) != nil else {
+          relayRuns[request.relayID]?.unrecorded.append(request)
+          return false
+        }
+      }
+    }
+    return false
+  }
+
+  @discardableResult
+  private func track(_ sessionID: String, _ work: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+    let id = nextRelayTaskID
+    nextRelayTaskID += 1
+    let task = Task {
+      await work()
+      self.relayTasks[id] = nil
+    }
+    relayTasks[id] = RelayTask(sessionID: sessionID, task: task)
+    return task
+  }
+
+  private static func relayLabel(_ source: QuestionSource) -> String {
+    "From Ask · \(source.context.path):\(source.context.lineStart)-\(source.context.lineEnd)"
   }
 
   private static func failure(_ error: AskForkError) -> AskFailure {

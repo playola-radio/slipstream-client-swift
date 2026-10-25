@@ -1206,8 +1206,9 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// A new question's panel moves from its request id to the recorded thread once its answer folds in.
   private func threadsFolded() {
-    if let sessionID = selectedSession?.id {
-      instantAsk.threadsFolded(sessionID: sessionID, threads: questionThreads.threads)
+    if let session = selectedSession {
+      instantAsk.threadsFolded(
+        storeID: daemon.storeID, sessionID: session.id, folder: session.root, threads: questionThreads.threads)
     }
     if let reply, !reply.isDismissed,
       let thread = questionThreads.threads.first(where: { $0.turns.first?.requestID == reply.key.rootQuestionID }) {

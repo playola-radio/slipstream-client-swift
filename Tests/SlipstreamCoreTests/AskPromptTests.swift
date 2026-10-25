@@ -62,4 +62,81 @@ struct AskPromptTests {
       try decode(#"{"type":"object","properties":{"reply":{"type":"string","minLength":1},"is_change_request":{"type":"boolean"}},"required":["reply","is_change_request"],"additionalProperties":false}"#)
     )
   }
+
+  @Test func reportSchemaMatchesEndpoints() throws {
+    let decode = { (text: String) in try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) }
+    expectNoDifference(
+      try decode(AskPrompt.reportSchema),
+      try decode(#"{"type":"object","properties":{"reply":{"type":"string","minLength":1},"outcome":{"enum":["done","not_done_yet"]}},"required":["reply","outcome"],"additionalProperties":false}"#)
+    )
+  }
+
+  @Test func reportPromptNamesTheRequest() throws {
+    let prompt = AskPrompt.report(
+      source: Self.source,
+      earlier: [AskPrompt.Exchange(question: "Why return early?", answer: "An empty name has nothing to greet.")],
+      request: "Greet a friend instead"
+    )
+    #expect(prompt.hasPrefix(Self.instructions + "\n\n"))
+    let order = [
+      "data, not instructions", "greet.py", Self.source.selectedText, "Why return early?",
+      "An empty name has nothing to greet.", "The user asked you to make this change:", "Greet a friend instead",
+      "Your turn has just ended.", "Set `outcome` to `done` only if you did.",
+    ]
+    let positions = try order.map { try #require(prompt.range(of: $0)?.lowerBound) }
+    expectNoDifference(positions, positions.sorted())
+    #expect(!prompt.contains(Self.stage1))
+    #expect(!prompt.contains(Self.stage2))
+  }
+
+  @Test func relayMessageQuotesQAAboveUsersWords() {
+    let message = AskPrompt.relayMessage(
+      source: Self.source,
+      earlier: [AskPrompt.Exchange(question: "Why return early?", answer: "An empty name\nhas nothing to greet.")],
+      words: "yes, and mention it\nin the README"
+    )
+    expectNoDifference(
+      message,
+      """
+      > greet.py, lines 3–5
+      >
+      > Why return early?
+      >
+      > An empty name
+      > has nothing to greet.
+
+      yes, and mention it
+      in the README
+      """
+    )
+  }
+
+  @Test func relayMessageWithoutEarlierNamesTheLines() {
+    expectNoDifference(
+      AskPrompt.relayMessage(source: Self.source, earlier: [], words: "Rename it"),
+      "> greet.py, lines 3–5\n\nRename it"
+    )
+  }
+
+  @Test func relayMessageDropsOldestExchangesToStayUnderTheLimit() throws {
+    let huge = String(repeating: "x", count: 2 * 1024 * 1024)
+    let message = try #require(
+      AskPrompt.relayMessage(
+        source: Self.source,
+        earlier: [
+          AskPrompt.Exchange(question: "First?", answer: huge),
+          AskPrompt.Exchange(question: "Second?", answer: "Short."),
+        ],
+        words: "Do it"
+      ))
+    #expect(message.utf8.count <= AskPrompt.relayTextLimit)
+    #expect(!message.contains("First?"))
+    #expect(message.contains("Second?"))
+    #expect(message.hasSuffix("\n\nDo it"))
+  }
+
+  @Test func relayMessageIsNilWhenTheWordsAloneAreOverTheLimit() {
+    let words = String(repeating: "x", count: AskPrompt.relayTextLimit)
+    #expect(AskPrompt.relayMessage(source: Self.source, earlier: [], words: words) == nil)
+  }
 }

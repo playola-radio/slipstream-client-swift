@@ -100,4 +100,26 @@ struct ForkOutputTests {
       nil
     )
   }
+
+  @Test func parsesReportResult() throws {
+    expectNoDifference(
+      try read(
+        [ForkLines.initLine(), ForkLines.result(#"{"reply":"Done. greet now greets a friend.","outcome":"done"}"#)],
+        kind: .report),
+      .report(reply: "Done. greet now greets a friend.", outcome: .done)
+    )
+    expectNoDifference(
+      try read([ForkLines.initLine(), ForkLines.result(#"{"reply":"Not yet.","outcome":"not_done_yet"}"#)], kind: .report),
+      .report(reply: "Not yet.", outcome: .notDoneYet)
+    )
+  }
+
+  @Test func reportOutsideItsSchemaIsBadReply() {
+    for structured in [
+      #"{"reply":"Done.","outcome":"maybe"}"#, #"{"reply":"Done."}"#,
+      #"{"reply":"Done.","outcome":"done","is_change_request":false}"#,
+    ] {
+      #expect(throws: AskForkError.badReply) { try read([ForkLines.initLine(), ForkLines.result(structured)], kind: .report) }
+    }
+  }
 }

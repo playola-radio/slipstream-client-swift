@@ -19,15 +19,35 @@ public enum AskPrompt {
 
   public static func answer(source: QuestionSource, earlier: [Exchange], words: String, allowsChangeRequests: Bool) -> String {
     let role = answerInstructions + " " + (allowsChangeRequests ? flagChangeRequests : changesGoToChat)
-    var sections = [role, snapshot(source)]
-    if !earlier.isEmpty {
-      sections.append(
-        "The conversation about these lines so far, quoted:\n\n"
-          + earlier.map { "The user asked:\n\(quoted($0.question))\n\nYou answered:\n\(quoted($0.answer))" }
-          .joined(separator: "\n\n"))
+    return ([role, snapshot(source)] + conversation(earlier) + ["The user's message:\n\n\(words)"])
+      .joined(separator: "\n\n")
+  }
+
+  /// For a copy taken after the turn that may have made the requested change.
+  public static func report(source: QuestionSource, earlier: [Exchange], request: String) -> String {
+    let ask =
+      "The user asked you to make this change:\n\n\(request)\n\nYour turn has just ended. Say plainly, in one or two sentences, whether you made it and what changed. Set `outcome` to `done` only if you did."
+    return ([answerInstructions, snapshot(source)] + conversation(earlier) + [ask]).joined(separator: "\n\n")
+  }
+
+  public static let reportSchema =
+    #"{"type":"object","properties":{"reply":{"type":"string","minLength":1},"outcome":{"enum":["done","not_done_yet"]}},"required":["reply","outcome"],"additionalProperties":false}"#
+
+  /// Well under the 1 MiB stdout line cap even after JSON escaping, so the agent's echo stays readable.
+  public static let relayTextLimit = 128 * 1024
+
+  /// The message a change request is written to the chat as: the lines and the conversation it
+  /// refers to, quoted, then the user's words unchanged. The oldest exchanges are dropped to keep
+  /// it under `relayTextLimit`; `nil` when the words alone don't fit.
+  public static func relayMessage(source: QuestionSource, earlier: [Exchange], words: String) -> String? {
+    let context = source.context
+    let location = "\(context.path), lines \(context.lineStart)–\(context.lineEnd)"
+    for start in earlier.indices + [earlier.endIndex] {
+      let quotes = ([location] + earlier[start...].flatMap { [$0.question, $0.answer] }).map(quoted)
+      let message = quotes.joined(separator: "\n>\n") + "\n\n" + words
+      if message.utf8.count <= relayTextLimit { return message }
     }
-    sections.append("The user's message:\n\n\(words)")
-    return sections.joined(separator: "\n\n")
+    return nil
   }
 
   public static func answerSchema(allowsChangeRequests: Bool) -> String {
@@ -46,6 +66,15 @@ public enum AskPrompt {
       \(source.selectedText)
       \(fence)
       """
+  }
+
+  private static func conversation(_ earlier: [Exchange]) -> [String] {
+    guard !earlier.isEmpty else { return [] }
+    return [
+      "The conversation about these lines so far, quoted:\n\n"
+        + earlier.map { "The user asked:\n\(quoted($0.question))\n\nYou answered:\n\(quoted($0.answer))" }
+        .joined(separator: "\n\n")
+    ]
   }
 
   private static func quoted(_ text: String) -> String {
