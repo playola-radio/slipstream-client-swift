@@ -1047,7 +1047,7 @@ final class ChangeStreamPageModel: ViewModel {
       askAgent?.questionsUpdated(questionThreads.threads)
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
-    case .questionQueued, .questionAnswered:
+    case .questionQueued, .questionAnswered, .questionExchangeRecorded:
       let previousTurnCount = previousTurnCount(beforeApplying: event)
       questionThreads.apply(event)
       shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)

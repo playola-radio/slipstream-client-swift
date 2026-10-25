@@ -351,6 +351,29 @@ enum Fixture {
     return frame(value, type: "slipstream.question.queued.v1", data: data)
   }
 
+  static func questionExchangeRecorded(
+    _ value: Int, id: String, text: String = "Why did this change?", answer: String = "Because.",
+    replyTo parentID: String? = nil, requestID: String? = nil, chat: String = "chat-1"
+  ) -> StreamItem {
+    var data: [String: Any] = [
+      "session_id": session,
+      "question_id": id,
+      "request_id": requestID ?? "r-\(id)",
+      "text": text,
+      "answer_text": answer,
+      "recorded_at_ms": observedAtMs,
+      "context": [
+        "change_seq": "1", "path": "src/user.ts", "snapshot_sha256": shaB, "line_start": 7, "line_end": 9,
+        "selected_text": "a",
+      ],
+      "conversation": [
+        "harness": "claude-code", "parent_session_id": chat, "fork_session_id": "fork-\(id)", "reported_by": "client",
+      ],
+    ]
+    if let parentID { data["reply_to_question_id"] = parentID }
+    return frame(value, type: "slipstream.question.exchange_recorded.v1", data: data)
+  }
+
   static func questionDispatchAttempted(_ value: Int, id: String, queuedSeq: Int) -> StreamItem {
     frame(value, type: "slipstream.question.dispatch_attempted.v1", data: ["question_id": id, "queued_seq": String(queuedSeq)])
   }

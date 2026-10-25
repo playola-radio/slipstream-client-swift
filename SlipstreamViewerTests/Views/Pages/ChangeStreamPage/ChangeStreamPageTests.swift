@@ -1664,6 +1664,16 @@ extension ChangeStreamPageTests {
     #expect(model.sections[0].items.ids == [Fixture.seq(1), Fixture.seq(2)])
   }
 
+  @Test func exchangeRecordedAddsNoFeedRow() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1"))
+    #expect(model.sections.flatMap(\.items).map(\.id) == [Fixture.seq(1)])
+    expectNoDifference(try bars(model, 1), [
+      QuestionBar(id: "q1", preview: "Why did this change?", status: .newReply, isOpen: false)
+    ])
+  }
+
   @Test func headerKeepsItsSubtitleUntilSomeoneAsks() async {
     let model = await connectedModel()
     defer { model.viewDisappeared() }

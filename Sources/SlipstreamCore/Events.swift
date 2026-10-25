@@ -109,6 +109,31 @@ public struct QuestionAnswered: Equatable, Sendable {
   }
 }
 
+public struct QuestionExchangeRecorded: Equatable, Sendable {
+  public var questionID: String
+  public var requestID: String
+  public var text: String
+  public var answerText: String
+  public var chatSessionID: String
+  public var source: QuestionSource
+  public var replyToQuestionID: String?
+  public var recordedAtMs: Int64
+
+  public init(
+    questionID: String, requestID: String, text: String, answerText: String, chatSessionID: String,
+    source: QuestionSource, replyToQuestionID: String?, recordedAtMs: Int64
+  ) {
+    self.questionID = questionID
+    self.requestID = requestID
+    self.text = text
+    self.answerText = answerText
+    self.chatSessionID = chatSessionID
+    self.source = source
+    self.replyToQuestionID = replyToQuestionID
+    self.recordedAtMs = recordedAtMs
+  }
+}
+
 public struct AgentUnlinked: Equatable, Sendable {
   public var reason: String
 
@@ -126,6 +151,7 @@ public enum EventPayload: Equatable, Sendable {
   case questionQueued(QuestionQueued)
   case questionDispatchAttempted(QuestionDispatchAttempted)
   case questionAnswered(QuestionAnswered)
+  case questionExchangeRecorded(QuestionExchangeRecorded)
   case agentConnection(AgentConnection)
   case agentUnlinked(AgentUnlinked)
   case recordedWithoutRow
@@ -239,6 +265,20 @@ extension SlipstreamEvent {
           attemptSeq: answer.attempt_seq,
           text: answer.text,
           answeredAtMs: answer.answered_at_ms
+        )
+      )
+    case "slipstream.question.exchange_recorded.v1":
+      let exchange = try decoder.decode(Envelope<QuestionExchangeRecordedData>.self, from: data).data
+      return .questionExchangeRecorded(
+        QuestionExchangeRecorded(
+          questionID: exchange.question_id,
+          requestID: exchange.request_id,
+          text: exchange.text,
+          answerText: exchange.answer_text,
+          chatSessionID: exchange.conversation.parent_session_id,
+          source: exchange.context.source,
+          replyToQuestionID: exchange.reply_to_question_id,
+          recordedAtMs: exchange.recorded_at_ms
         )
       )
     case "slipstream.agent.connection.v1":
@@ -378,6 +418,21 @@ extension SlipstreamEvent {
   private struct QuestionDispatchAttemptedData: Decodable {
     var question_id: String
     var queued_seq: Seq
+  }
+
+  private struct QuestionExchangeRecordedData: Decodable {
+    var question_id: String
+    var request_id: String
+    var text: String
+    var context: QuestionSourceData
+    var answer_text: String
+    var recorded_at_ms: Int64
+    var reply_to_question_id: String?
+    var conversation: ConversationData
+  }
+
+  private struct ConversationData: Decodable {
+    var parent_session_id: String
   }
 
   private struct AgentUnlinkedData: Decodable {

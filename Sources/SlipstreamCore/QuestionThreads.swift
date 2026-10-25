@@ -48,15 +48,22 @@ public struct QuestionTurn: Equatable, Sendable {
   }
 }
 
+public enum QuestionThreadLink: Equatable, Sendable {
+  case hook
+  case recorded(chatSessionID: String)
+}
+
 public struct QuestionThread: Identifiable, Equatable, Sendable {
   public let id: String
   public let source: QuestionSource
   public var turns: [QuestionTurn]
+  public let link: QuestionThreadLink
 
-  public init(id: String, source: QuestionSource, turns: [QuestionTurn]) {
+  public init(id: String, source: QuestionSource, turns: [QuestionTurn], link: QuestionThreadLink = .hook) {
     self.id = id
     self.source = source
     self.turns = turns
+    self.link = link
   }
 }
 
@@ -91,6 +98,23 @@ public struct QuestionThreads: Equatable, Sendable {
       }
       undispatchedQuestionIDs.insert(question.questionID)
       queuedSinceResumeIDs.insert(question.questionID)
+    case .questionExchangeRecorded(let exchange):
+      guard rootByQuestionID[exchange.questionID] == nil else { return }
+      let turn = QuestionTurn(
+        questionID: exchange.questionID, requestID: exchange.requestID, text: exchange.text,
+        queuedAtMs: exchange.recordedAtMs,
+        answer: QuestionAnswer(seq: event.seq, text: exchange.answerText, answeredAtMs: exchange.recordedAtMs))
+      if let parentID = exchange.replyToQuestionID {
+        guard let rootID = rootByQuestionID[parentID], case .recorded = threads[id: rootID]?.link else { return }
+        rootByQuestionID[exchange.questionID] = rootID
+        threads[id: rootID]?.turns.append(turn)
+      } else {
+        rootByQuestionID[exchange.questionID] = exchange.questionID
+        threads.append(
+          QuestionThread(
+            id: exchange.questionID, source: exchange.source, turns: [turn],
+            link: .recorded(chatSessionID: exchange.chatSessionID)))
+      }
     case .questionDispatchAttempted(let attempt):
       undispatchedQuestionIDs.remove(attempt.questionID)
       updateTurn(attempt.questionID) { $0.isMoved = false }
