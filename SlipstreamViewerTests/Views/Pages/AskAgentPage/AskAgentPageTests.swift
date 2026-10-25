@@ -360,7 +360,7 @@ extension AskAgentPageTests {
     })
     model.draftChanged("Why?")
     #expect(await model.askTapped())
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["7"])
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7")])
   }
 
   @Test func aRelinkedChatRejectionSaysToRefreshAndTheComposerKeepsItsOriginalLink() async {
@@ -376,7 +376,7 @@ extension AskAgentPageTests {
       "This workspace's chat was relinked after the app last checked. Refresh to see which chat is linked now, then ask again. Your draft is kept.")
     model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), isAppTabLinked: false)
     #expect(!(await model.askTapped()))
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["7", "7"])
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7"), .ask(bindingGeneration: "7")])
   }
 
   @Test func aComposerOpenedBeforeAChatIsLinkedNamesTheFirstLinkItSees() async {
@@ -389,7 +389,7 @@ extension AskAgentPageTests {
     model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), isAppTabLinked: false)
     model.captureChanged(Self.capture(binding: CaptureBinding(generation: "9", state: .connected)), isAppTabLinked: false)
     #expect(await model.askTapped())
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["8"])
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "8")])
   }
 
   @Test func askingWhileNotConnectedSendsNothing() async {

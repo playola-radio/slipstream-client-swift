@@ -13,14 +13,23 @@ public struct ControlTransport: Sendable {
   }
 
   public func ask(_ request: QuestionRequest) async throws -> QuestionAcknowledgment {
+    try await send(request) { try QuestionAcknowledgment.decode($0, for: request) }
+  }
+
+  public func recordExchange(_ request: QuestionRequest) async throws -> ExchangeAcknowledgment {
+    try await send(request) { try ExchangeAcknowledgment.decode($0, for: request) }
+  }
+
+  private func send<Reply: Sendable>(
+    _ request: QuestionRequest, decode: @escaping @Sendable (Data) throws -> Reply
+  ) async throws -> Reply {
     let bytes = try request.encoded() + Data([10])
     let cancellation = Mutex(false)
     return try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
           continuation.resume(with: Result {
-            let response = try exchange(bytes, cancelled: { cancellation.withLock { $0 } })
-            return try QuestionAcknowledgment.decode(response, for: request)
+            try decode(exchange(bytes, cancelled: { cancellation.withLock { $0 } }))
           })
         }
       }

@@ -40,11 +40,91 @@ struct QuestionsTests {
 
   @Test func askNamesTheBindingGenerationOnlyWhenPresent() throws {
     let ask = QuestionRequest(sessionID: Self.session, requestID: Self.requestID, text: "Why?",
-      context: Self.request.context, bindingGeneration: "3")
+      context: Self.request.context, verb: .ask(bindingGeneration: "3"))
     let json = try #require(JSONSerialization.jsonObject(with: ask.encoded()) as? [String: Any])
     expectNoDifference(json["binding_generation"] as? String, "3")
     let reply = try #require(JSONSerialization.jsonObject(with: Self.request.encoded()) as? [String: Any])
     #expect(reply["binding_generation"] == nil)
+  }
+
+  static func json(_ data: Data) throws -> JSONValue { try JSONDecoder().decode(JSONValue.self, from: data) }
+  static let contextJSON = #"{"change_seq":"9007199254740993","path":"a.swift","snapshot_sha256":"\#(String(repeating: "a", count: 64))","line_start":7,"line_end":9}"#
+
+  @Test func encodesAskUnchanged() throws {
+    expectNoDifference(
+      try Self.json(Self.request.encoded()),
+      try Self.json(Data(#"{"v":1,"verb":"ask","session_id":"\#(Self.session)","request_id":"\#(Self.requestID)","text":"Why?","context":\#(Self.contextJSON)}"#.utf8))
+    )
+    let followUp = QuestionRequest(
+      sessionID: Self.session, requestID: Self.requestID, text: "And?", context: Self.request.context,
+      replyToQuestionID: Self.questionID, verb: .ask(bindingGeneration: "3"))
+    expectNoDifference(
+      try Self.json(followUp.encoded()),
+      try Self.json(Data(#"{"v":1,"verb":"ask","session_id":"\#(Self.session)","request_id":"\#(Self.requestID)","text":"And?","context":\#(Self.contextJSON),"reply_to_question_id":"\#(Self.questionID)","binding_generation":"3"}"#.utf8))
+    )
+  }
+
+  static let parentSessionID = "5896f28c-f4a9-46c2-b481-7ca57e8714a8"
+  static let forkSessionID = "7e3431be-1c2d-4e5f-8a9b-0c1d2e3f4a5b"
+  static func exchange(answer: String = "It returns early.", replyTo: String? = nil) -> QuestionRequest {
+    QuestionRequest(
+      sessionID: session, requestID: requestID, text: "Why?", context: request.context, replyToQuestionID: replyTo,
+      verb: .recordExchange(
+        answerText: answer,
+        conversation: ExchangeConversation(parentSessionID: parentSessionID.uppercased(), forkSessionID: forkSessionID)))
+  }
+  static var exchangeAcknowledgment: String {
+    """
+    {"v":1,"ok":true,"session_id":"\(session)","request_id":"\(requestID)","question_id":"\(questionID)","seq":"42","duplicate":false}
+    """
+  }
+
+  @Test func encodesRecordExchangeExactly() throws {
+    expectNoDifference(
+      try Self.json(Self.exchange(replyTo: Self.questionID).encoded()),
+      try Self.json(Data(#"""
+        {"v":1,"verb":"record_question_exchange","session_id":"\#(Self.session)","request_id":"\#(Self.requestID)",
+         "text":"Why?","context":\#(Self.contextJSON),"answer_text":"It returns early.",
+         "conversation":{"harness":"claude-code","parent_session_id":"\#(Self.parentSessionID)","fork_session_id":"\#(Self.forkSessionID)"},
+         "reply_to_question_id":"\#(Self.questionID)"}
+        """#.utf8))
+    )
+  }
+
+  @Test func recordExchangeRefusesOverOneMiB() {
+    #expect(throws: QuestionError.rejected(code: "PROTOCOL", message: "The request is too large.")) {
+      try Self.exchange(answer: String(repeating: "a", count: ControlTransport.maximumMessageBytes)).encoded()
+    }
+  }
+
+  @Test func decodesExchangeAcknowledgment() throws {
+    expectNoDifference(
+      try ExchangeAcknowledgment.decode(Data(Self.exchangeAcknowledgment.utf8), for: Self.exchange()),
+      ExchangeAcknowledgment(
+        sessionID: Self.session, requestID: Self.requestID, questionID: Self.questionID, seq: Seq("42")!, duplicate: false)
+    )
+  }
+
+  @Test func ackWithOtherRequestIDIsMalformed() {
+    let reply = Self.exchangeAcknowledgment.replacingOccurrences(of: Self.requestID, with: Self.questionID)
+    #expect(throws: QuestionError.outcomeUnknown) {
+      try ExchangeAcknowledgment.decode(Data(reply.utf8), for: Self.exchange())
+    }
+  }
+
+  @Test func ackWithOtherSessionIDIsMalformed() {
+    let reply = Self.exchangeAcknowledgment.replacingOccurrences(of: Self.session, with: Self.questionID)
+    #expect(throws: QuestionError.outcomeUnknown) {
+      try ExchangeAcknowledgment.decode(Data(reply.utf8), for: Self.exchange())
+    }
+  }
+
+  @Test(arguments: ["STORAGE_UNAVAILABLE", "INVALID_CONTEXT"])
+  func flatErrorReplyDecodes(_ code: String) {
+    #expect(throws: QuestionError.rejected(code: code, message: "Refused")) {
+      try ExchangeAcknowledgment.decode(
+        Data(#"{"v":1,"ok":false,"code":"\#(code)","message":"Refused"}"#.utf8), for: Self.exchange())
+    }
   }
 
   @Test func malformedParentNeverEncodes() {

@@ -168,7 +168,7 @@ final class AskAgentPageModel: ViewModel {
     let intent = QuestionRequest(
       sessionID: sessionID, requestID: request?.requestID ?? uuid().uuidString.lowercased(),
       text: request?.text ?? draft, context: context,
-      bindingGeneration: bindingGeneration
+      verb: .ask(bindingGeneration: bindingGeneration)
     )
     request = intent
     let operation = generation

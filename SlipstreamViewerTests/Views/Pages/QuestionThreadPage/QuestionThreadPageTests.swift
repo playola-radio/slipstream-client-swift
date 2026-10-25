@@ -137,7 +137,7 @@ struct QuestionThreadPageTests {
     model.captureChanged(Fixture.capture(binding: CaptureBinding(generation: "8", state: .connected)))
     #expect(model.canSendReply)
     await model.sendReplyTapped()
-    expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
+    expectNoDifference(requests.value.map(\.verb), [.ask(bindingGeneration: "8")])
   }
 
   @Test func followUpUsesCurrentGeneration() async {
@@ -150,7 +150,7 @@ struct QuestionThreadPageTests {
     model.captureChanged(nil)
     model.draft = "And then?"
     await model.sendReplyTapped()
-    expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
+    expectNoDifference(requests.value.map(\.verb), [.ask(bindingGeneration: "8")])
   }
 
   @Test func inFlightFollowUpKeepsItsBody() async {
@@ -166,7 +166,7 @@ struct QuestionThreadPageTests {
     await model.sendReplyTapped()
     expectNoDifference(requests.value.count, 2)
     expectNoDifference(requests.value[1], requests.value[0])
-    expectNoDifference(requests.value[1].bindingGeneration, "7")
+    expectNoDifference(requests.value[1].verb, .ask(bindingGeneration: "7"))
   }
 
   @Test func displayingAnAnswerMarksOnlyThatAnswerRead() {
@@ -200,7 +200,7 @@ extension QuestionThreadPageTests {
       QuestionRequest(
         sessionID: Fixture.session, requestID: "00000000-0000-0000-0000-000000000000",
         text: "Could this suspend an account?", context: Self.source().context, replyToQuestionID: "q2",
-        bindingGeneration: "7"),
+        verb: .ask(bindingGeneration: "7")),
     ])
     expectNoDifference(model.draft, "")
     #expect(!model.isErrorPresented)

@@ -128,7 +128,8 @@ final class QuestionThreadPageModel: ViewModel {
     }
     let intent = replyDraft.request ?? QuestionRequest(
       sessionID: key.sessionID, requestID: uuid().uuidString.lowercased(), text: draft,
-      context: thread.source.context, replyToQuestionID: parent.questionID, bindingGeneration: bindingGeneration)
+      context: thread.source.context, replyToQuestionID: parent.questionID,
+      verb: .ask(bindingGeneration: bindingGeneration))
     updateReplyDraft { draft in
       draft.request = intent
       draft.isSubmitting = true

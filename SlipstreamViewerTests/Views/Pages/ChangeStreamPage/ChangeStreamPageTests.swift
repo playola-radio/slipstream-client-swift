@@ -2604,9 +2604,8 @@ extension ChangeStreamPageTests {
       composer.draftChanged("Why?")
       await model.askQuestionTapped(composer)
     }
-    expectNoDifference(
-      requests.value.map { [$0.sessionID, $0.bindingGeneration] },
-      [[Fixture.session, "7"], [Fixture.otherSession, "9"]])
+    expectNoDifference(requests.value.map(\.sessionID), [Fixture.session, Fixture.otherSession])
+    expectNoDifference(requests.value.map(\.verb), [.ask(bindingGeneration: "7"), .ask(bindingGeneration: "9")])
   }
 
   @Test func returningToAStoppedWorkspaceRefreshesItsCaptureState() async {
