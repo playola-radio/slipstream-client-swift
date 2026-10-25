@@ -32,6 +32,17 @@ struct ClaudeInvocationTests {
     )
   }
 
+  @Test func forkArgumentsExact() {
+    expectNoDifference(
+      ClaudeInvocation.forkArguments(parentSessionID: sessionID, model: "claude-opus-5-5", effort: "high", schema: "{}"),
+      [
+        "-p", "--resume=4bad416c-1d04-4063-9e76-61ebb936ae06", "--fork-session", "--no-session-persistence",
+        "--output-format", "stream-json", "--verbose", "--restricted", "--tools", "Read,Grep,Glob",
+        "--strict-mcp-config", "--model=claude-opus-5-5", "--effort=high", "--json-schema", "{}",
+      ]
+    )
+  }
+
   @Test func userMessageLine() throws {
     expectNoDifference(
       try json(ClaudeInvocation.userMessage("Fix \"it\"\nplease / now")),
