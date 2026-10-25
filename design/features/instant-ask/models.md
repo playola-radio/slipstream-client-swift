@@ -358,7 +358,7 @@ thread is in progress.
 | `userMessage(_ text: String, uuid: UUID? = nil)` | A relay passes its `relay_id` as a top-level `uuid`; ordinary sends are unchanged |
 | `--replay-user-messages` added to `arguments` | The tab echoes each user message when the agent reads it |
 | `AgentLine.echo(uuid: String)` | New: a `user` line with `isReplay == true`. Ordinary sends are echoed too, with a uuid Claude makes up (spec.md "Probes before stage 2", A) |
-| `AgentLine.queuedMessage(text: String)` | New: a transcript `attachment` of type `queued_command`, a message read mid-turn (B). Not a prompt line: it doesn't start a turn |
+| `AgentLine.queuedMessage(uuid: String, text: String)` | New: a transcript `attachment` of type `queued_command`, a message read mid-turn (B). Not a prompt line: it doesn't start a turn |
 
 ## TranscriptProjection — Changed (stage 2)
 

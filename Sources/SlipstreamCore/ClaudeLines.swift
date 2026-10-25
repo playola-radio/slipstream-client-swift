@@ -14,6 +14,10 @@ public enum UserBlock: Equatable, Sendable {
 public enum AgentLine: Equatable, Sendable {
   case assistant(uuid: String, timestamp: Date?, blocks: [AssistantBlock])
   case user(uuid: String, timestamp: Date?, isPrompt: Bool, blocks: [UserBlock])
+  /// `--replay-user-messages` repeats each message from stdin when the agent reads it.
+  case echo(uuid: String)
+  /// A transcript's record of a message the agent read in the middle of a turn.
+  case queuedMessage(uuid: String, text: String)
   case result(durationMs: Int, isError: Bool, text: String?)
   case controlRequest(requestID: String, subtype: String, input: JSONValue?)
   case title(String)
@@ -33,6 +37,8 @@ extension AgentLine {
         return .assistant(
           uuid: wire.uuid, timestamp: parseTimestamp(wire.timestamp),
           blocks: wire.message.content.blocks.compactMap(assistantBlock))
+      case "user" where envelope.isReplay == true:
+        return .echo(uuid: try decoder.decode(EchoWire.self, from: line).uuid)
       case "user":
         let wire = try decoder.decode(UserWire.self, from: line)
         let blocks = wire.message.content.blocks.compactMap(userBlock)
@@ -49,6 +55,12 @@ extension AgentLine {
         let wire = try decoder.decode(ControlRequestWire.self, from: line)
         if wire.request.subtype == "can_use_tool" && wire.request.input == nil { return .gap }
         return .controlRequest(requestID: wire.requestID, subtype: wire.request.subtype, input: wire.request.input)
+      case "attachment":
+        let wire = try decoder.decode(AttachmentWire.self, from: line)
+        guard wire.attachment.type == "queued_command", let prompt = wire.attachment.prompt else { return .ignored }
+        let text = prompt.blocks.compactMap { if case .text(let text) = $0 { text } else { nil } }
+          .joined(separator: "\n")
+        return .queuedMessage(uuid: wire.uuid, text: text)
       case "ai-title":
         return .title(try decoder.decode(TitleWire.self, from: line).aiTitle)
       default:
@@ -102,6 +114,21 @@ private struct Envelope: Decodable {
   var type: String?
   var isSidechain: Bool?
   var isMeta: Bool?
+  var isReplay: Bool?
+}
+
+private struct EchoWire: Decodable {
+  var uuid: String
+}
+
+private struct AttachmentWire: Decodable {
+  struct Attachment: Decodable {
+    var type: String
+    var prompt: ContentWire?
+  }
+
+  var uuid: String
+  var attachment: Attachment
 }
 
 private struct AssistantWire: Decodable {

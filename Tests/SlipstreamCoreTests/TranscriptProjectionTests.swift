@@ -212,4 +212,93 @@ struct TranscriptProjectionTests {
     expectNoDifference(first.items.map(\.id), second.items.map(\.id))
     expectNoDifference(first.items.map(\.id), ["a-1#0", "toolu_01", "a-2#0", "a-3#0"])
   }
+
+  @Test func echoesAreNeverDrawn() {
+    var live = TranscriptProjection()
+    live.userSent("hi", id: "local-1")
+    live.apply(.echo(uuid: "e-1"))
+    let reloaded = TranscriptProjection.history([
+      .user(uuid: "u1", timestamp: t0, isPrompt: true, blocks: [.text("hi")]),
+      .echo(uuid: "u1"),
+    ])
+    expectNoDifference(kinds(live), [.userMessage("hi")])
+    expectNoDifference(
+      kinds(reloaded),
+      [.userMessage("hi"), .turnFooter(ending: .completed, duration: .zero, time: t0)]
+    )
+  }
+
+  @Test func relayMarkShownAndUpdated() {
+    var projection = TranscriptProjection()
+    let waiting = RelayMark(label: "From Ask · greet.py:3-5", delivery: .waiting)
+    projection.userSent("Rename it", id: "relay-1", relay: waiting)
+    expectNoDifference(projection.items, [TranscriptItem(id: "relay-1", kind: .userMessage("Rename it", relay: waiting))])
+
+    projection.markRelay(id: "relay-1", delivery: .pickedUp)
+
+    expectNoDifference(
+      projection.items,
+      [
+        TranscriptItem(
+          id: "relay-1",
+          kind: .userMessage("Rename it", relay: RelayMark(label: "From Ask · greet.py:3-5", delivery: .pickedUp)))
+      ]
+    )
+  }
+
+  @Test func markRelayLeavesOtherMessagesAlone() {
+    var projection = TranscriptProjection()
+    projection.userSent("plain", id: "local-1")
+    projection.markRelay(id: "local-1", delivery: .notDelivered)
+    projection.markRelay(id: "missing", delivery: .notDelivered)
+    expectNoDifference(projection.items, [TranscriptItem(id: "local-1", kind: .userMessage("plain"))])
+  }
+
+  @Test func reloadedRelayShowsUnmarked() {
+    let projection = TranscriptProjection.history([
+      .user(uuid: "c9d8e7f6-a5b4-4c3d-8e2f-1a0b9c8d7e6f", timestamp: t0, isPrompt: true, blocks: [.text("Rename it")]),
+      .assistant(uuid: "a1", timestamp: t0.addingTimeInterval(2), blocks: [.text("Done.")]),
+    ])
+    expectNoDifference(
+      kinds(projection),
+      [
+        .userMessage("Rename it"),
+        .reply("Done."),
+        .turnFooter(ending: .completed, duration: .seconds(2), time: t0.addingTimeInterval(2)),
+      ]
+    )
+  }
+
+  @Test func reloadDrawsMidTurnRelayInsideItsTurn() {
+    let projection = TranscriptProjection.history([
+      .user(uuid: "u1", timestamp: t0, isPrompt: true, blocks: [.text("go")]),
+      .assistant(
+        uuid: "a1", timestamp: t0.addingTimeInterval(1),
+        blocks: [.toolUse(id: "toolu_1", name: "Bash", input: .object(["command": .string("sleep 15")]))]),
+      .queuedMessage(uuid: "q1", text: "Also add a test."),
+      .user(
+        uuid: "u2", timestamp: t0.addingTimeInterval(16), isPrompt: false,
+        blocks: [.toolResult(toolUseID: "toolu_1", text: "", isError: false)]),
+      .assistant(uuid: "a2", timestamp: t0.addingTimeInterval(18), blocks: [.text("Done, with a test.")]),
+    ])
+    expectNoDifference(
+      projection.items,
+      [
+        TranscriptItem(id: "u1#0", kind: .userMessage("go")),
+        TranscriptItem(id: "toolu_1", kind: .toolCall(name: "Bash", target: "sleep 15", status: .done, detail: "")),
+        TranscriptItem(id: "q1#0", kind: .userMessage("Also add a test.")),
+        TranscriptItem(id: "a2#0", kind: .reply("Done, with a test.")),
+        TranscriptItem(
+          id: "a2#footer",
+          kind: .turnFooter(ending: .completed, duration: .seconds(18), time: t0.addingTimeInterval(18))),
+      ]
+    )
+  }
+
+  @Test func liveQueuedCommandNotDrawn() {
+    var projection = TranscriptProjection()
+    projection.userSent("Also add a test.", id: "relay-1")
+    projection.apply(.queuedMessage(uuid: "q1", text: "Also add a test."))
+    expectNoDifference(kinds(projection), [.userMessage("Also add a test.")])
+  }
 }

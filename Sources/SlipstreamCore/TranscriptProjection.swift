@@ -4,9 +4,21 @@ public enum TurnEnding: Equatable, Sendable { case completed, failed, stopped }
 
 public enum ToolStatus: Equatable, Sendable { case running, done, failed, stopped }
 
+public struct RelayMark: Equatable, Sendable {
+  public enum Delivery: Equatable, Sendable { case waiting, pickedUp, notDelivered }
+
+  public var label: String
+  public var delivery: Delivery
+
+  public init(label: String, delivery: Delivery) {
+    self.label = label
+    self.delivery = delivery
+  }
+}
+
 public struct TranscriptItem: Identifiable, Equatable, Sendable {
   public enum Kind: Equatable, Sendable {
-    case userMessage(String)
+    case userMessage(String, relay: RelayMark? = nil)
     case reply(String)
     case thinking(String)
     case toolCall(name: String, target: String?, status: ToolStatus, detail: String?)
@@ -40,6 +52,9 @@ public struct TranscriptProjection: Equatable, Sendable {
         if let turn { projection.closeHistoryTurn(turn) }
         turn = HistoryTurn()
       }
+      if case .queuedMessage(let uuid, let text) = line {
+        projection.items.append(TranscriptItem(id: "\(uuid)#0", kind: .userMessage(text)))
+      }
       projection.apply(line)
       switch line {
       case .assistant(let uuid, let timestamp, _):
@@ -58,8 +73,17 @@ public struct TranscriptProjection: Equatable, Sendable {
     return projection
   }
 
-  public mutating func userSent(_ text: String, id: String) {
-    items.append(TranscriptItem(id: id, kind: .userMessage(text)))
+  public mutating func userSent(_ text: String, id: String, relay: RelayMark? = nil) {
+    items.append(TranscriptItem(id: id, kind: .userMessage(text, relay: relay)))
+  }
+
+  public mutating func markRelay(id: String, delivery: RelayMark.Delivery) {
+    guard
+      let index = items.lastIndex(where: { $0.id == id }),
+      case .userMessage(let text, var relay?) = items[index].kind
+    else { return }
+    relay.delivery = delivery
+    items[index].kind = .userMessage(text, relay: relay)
   }
 
   public mutating func removeUserMessage(id: String) {
@@ -101,7 +125,7 @@ public struct TranscriptProjection: Equatable, Sendable {
     case .gap:
       items.append(TranscriptItem(id: "gap#\(gapCount)", kind: .gap))
       gapCount += 1
-    case .result, .controlRequest, .title, .ignored:
+    case .echo, .queuedMessage, .result, .controlRequest, .title, .ignored:
       break
     }
   }

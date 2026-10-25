@@ -593,7 +593,7 @@ queued message. Brian approved amendments A–C (spec.md decision log, "Task 9 p
   public static func userMessage(_ text: String, uuid: UUID? = nil) -> Data   // only relays pass a uuid
   // AgentLine gains
   case echo(uuid: String)                // a `user` line with isReplay == true (A)
-  case queuedMessage(text: String)       // a `queued_command` attachment (B)
+  case queuedMessage(uuid: String, text: String)   // a `queued_command` attachment (B)
   // TranscriptItem.Kind.userMessage gains
   public var relay: RelayMark?
   public struct RelayMark: Equatable, Sendable {

@@ -163,6 +163,10 @@ enum Line {
     #"{"type":"result","subtype":"error_during_execution","duration_ms":\#(durationMs),"is_error":true,"errors":["interrupted"]}"#
   }
 
+  static func echo(_ uuid: String, _ text: String = "hi") -> String {
+    #"{"type":"user","uuid":"\#(uuid)","isReplay":true,"session_id":"s","parent_tool_use_id":null,"message":{"role":"user","content":[{"type":"text","text":"\#(text)"}]}}"#
+  }
+
   static let idle = #"{"type":"system","subtype":"session_state_changed","state":"idle"}"#
 
   static func canUseTool(_ requestID: String) -> String {

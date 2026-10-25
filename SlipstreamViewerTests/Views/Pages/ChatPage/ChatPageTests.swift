@@ -244,6 +244,48 @@ struct ChatPageTests {
     #expect(model.records[id: Self.saved]?.isWaiting == false)
   }
 
+  @Test func liveEchoIsNotDrawnAgain() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "Hello")
+    await line(Line.echo("0b4f6f2e-1111-4c3d-8e2f-1a0b9c8d7e6f", "Hello"))
+    await line(Line.assistantText("a1", "Hi"))
+    await line(Line.result())
+
+    expectNoDifference(
+      try #require(model.selectedTab).projection.items.map(\.kind),
+      [
+        .userMessage("Hello"),
+        .reply("Hi"),
+        .turnFooter(ending: .completed, duration: .seconds(41), time: Self.start),
+      ])
+  }
+
+  @Test func reloadDrawsEachMessageOnce() async throws {
+    agent.setTranscript(
+      Self.saved,
+      .found([
+        .user(uuid: "u1", timestamp: Self.start, isPrompt: true, blocks: [.text("Fix the build")]),
+        .assistant(uuid: "a1", timestamp: Self.start, blocks: [.text("Fixing.")]),
+        .queuedMessage(uuid: "q1", text: "And the tests"),
+        .assistant(uuid: "a2", timestamp: Self.start, blocks: [.text("Both fixed.")]),
+        .user(uuid: "u2", timestamp: Self.start, isPrompt: true, blocks: [.text("Thanks")]),
+      ]))
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.viewAppeared()
+
+    await send(model, "One more")
+    await line(Line.echo("0b4f6f2e-2222-4c3d-8e2f-1a0b9c8d7e6f", "One more"))
+
+    let messages = try #require(model.selectedTab).projection.items.compactMap { item -> String? in
+      if case .userMessage(let text, _) = item.kind { return text }
+      return nil
+    }
+    expectNoDifference(messages, ["Fix the build", "And the tests", "Thanks", "One more"])
+  }
+
   @Test func failedWriteKeepsDraftAndWaiting() async throws {
     agent.setWriteError(WriteFailed())
     let model = makeModel(records: [record(isWaiting: true)])
