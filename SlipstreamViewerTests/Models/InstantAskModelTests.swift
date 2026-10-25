@@ -803,7 +803,8 @@ struct InstantAskModelTests {
     fork.reply(.failure(.timedOut))
     await Task.megaYield()
 
-    expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .failed)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .idle)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
     expectNoDifference(model.relayStatus(loggedRelay(pickedUp: true)), .couldntCheck)
     expectNoDifference(steps.map(\.update), [.pickedUp])
   }
@@ -816,10 +817,10 @@ struct InstantAskModelTests {
     _ = chat
 
     expectNoDifference(fork.requests, [])
-    expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .failed)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
   }
 
-  @Test func checkAgainClearsFailureAndRuns() async {
+  @Test func checkAgainKeepsFailureUntilItsReport() async {
     let (model, chat) = makeModelAndChat()
     await askingChangeRequest(model)
     pickedUp(chat)
@@ -830,11 +831,13 @@ struct InstantAskModelTests {
     let checking = Task { await model.checkAgainTapped(relayID: Self.firstRelay) }
     await Task.megaYield()
     expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .checking(rerun: false))
+    expectNoDifference(model.relayStatus(loggedRelay(pickedUp: true)), .couldntCheck)
     expectNoDifference(fork.requests.count, 3)
     fork.report(.done)
     await checking.value
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .idle)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, nil)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, true)
   }
 
@@ -913,7 +916,7 @@ struct InstantAskModelTests {
   @Test func doneRelayIsNeverChecked() async {
     let (model, chat) = makeModelAndChat()
 
-    handOver(model, loggedRelay(pickedUp: true, report: RelayReport(outcome: .done, text: "Done.", seq: Seq("45")!)))
+    handOver(model, loggedRelay(pickedUp: true, report: RelayReport(outcome: .done, text: "Done.", seq: Seq("45")!, atMs: 45)))
     await turnEnded(chat)
 
     expectNoDifference(fork.requests, [])

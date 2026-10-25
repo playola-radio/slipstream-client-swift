@@ -1,8 +1,10 @@
+import Clocks
 import ConcurrencyExtras
 import CustomDump
 import Dependencies
 import DependenciesTestSupport
 import Foundation
+import IdentifiedCollections
 import Sharing
 import SlipstreamCore
 import Testing
@@ -613,5 +615,270 @@ extension QuestionThreadPageTests {
     #expect(retried.id != requestID)
     expectNoDifference(model.key.rootQuestionID, retried.id)
     expectNoDifference(model.pendingTurn?.state, .answering)
+  }
+}
+
+extension QuestionThreadPageTests {
+  static let at1402: Int64 = 1_699_970_520_000
+  static let at1403: Int64 = 1_699_970_580_000
+  static let at1405: Int64 = 1_699_970_700_000
+  static let loggedRelay = "aaaaaaaa-0000-4000-8000-000000000001"
+
+  static func relay(
+    _ id: String = loggedRelay, pickedUp: Bool = false, notDelivered: Bool = false, paths: [String] = [],
+    report: RelayReport? = nil
+  ) -> QuestionRelay {
+    QuestionRelay(
+      id: id, questionID: "q2", chatSessionID: tab.uuidString.lowercased(), sent: RelayStep(seq: Fixture.seq(6), atMs: at1402),
+      pickedUp: pickedUp ? RelayStep(seq: Fixture.seq(7), atMs: at1403) : nil, isNotDelivered: notDelivered,
+      report: report, changedPaths: paths)
+  }
+
+  static func report(_ outcome: ReportOutcome, _ text: String) -> RelayReport {
+    RelayReport(outcome: outcome, text: text, seq: Fixture.seq(9), atMs: at1405)
+  }
+
+  static func onIt(requestID: String = "r-q2", _ relays: QuestionRelay...) -> QuestionTurn {
+    QuestionTurn(
+      questionID: "q2", requestID: requestID, text: "Rename it", queuedAtMs: at1402,
+      answer: QuestionAnswer(seq: Fixture.seq(5), text: "On it.", answeredAtMs: at1402), relays: relays)
+  }
+
+  static func recordedThread(_ turns: [QuestionTurn]) -> IdentifiedArrayOf<QuestionThread> {
+    [QuestionThread(id: "q1", source: source(), turns: turns, link: recorded)]
+  }
+
+  /// The thread's chat is an idle tab the agent can be written to, and it is 14:05.
+  func makeRelayingInstantAsk(_ agent: AgentFake) -> (instantAsk: InstantAskModel, chat: ChatPageModel) {
+    withDependencies {
+      $0.defaultFileStorage = .inMemory
+      $0.agentEnvironment = agent.environmentClient
+      $0.agentProcess = agent.processClient
+      $0.transcripts = agent.transcriptClient
+      $0.askFork = fork.client
+      $0.questionClient = recorder.client
+      $0.continuousClock = TestClock()
+      $0.date = .constant(Date(timeIntervalSince1970: Double(Self.at1405) / 1000))
+      $0.uuid = .incrementing
+    } operation: {
+      @Shared(.chatTabs) var stored
+      $stored.withLock {
+        $0 = [ChatTabRecord(id: Self.tab, folder: "/w", model: "claude-opus-5-5", effort: .high, isWaiting: false)]
+      }
+      let chat = ChatPageModel()
+      return (InstantAskModel(chat: chat), chat)
+    }
+  }
+
+  func handOver(_ instantAsk: InstantAskModel, _ turns: [QuestionTurn]) {
+    instantAsk.threadsFolded(
+      storeID: Self.key.storeID, sessionID: Self.key.sessionID, folder: "/w", threads: Self.recordedThread(turns))
+  }
+
+  func progress(_ model: QuestionThreadPageModel, turn: Int = 1) -> RelayProgress? {
+    model.progress(model.thread.turns[turn])
+  }
+
+  @Test func sentLineWhileAgentBusy() async throws {
+    let (instantAsk, _) = makeRelayingInstantAsk(AgentFake())
+    let turns = [Self.answered, Self.onIt(Self.relay())]
+    handOver(instantAsk, turns)
+    let model = makeModel(turns, link: Self.recorded, instantAsk: instantAsk)
+
+    await model.sendAgainTapped(try #require(progress(model)))
+    let resent = Self.relay(UUID(0).uuidString.lowercased())
+    model.threadUpdated(Self.thread([Self.answered, Self.onIt(Self.relay(), resent)]))
+
+    expectNoDifference(
+      progress(model),
+      RelayProgress(
+        relayID: resent.id,
+        lines: [.init(mark: .waiting, label: "Sent", detail: "14:02 · the agent will read this after its current step")],
+        action: nil, isActionDisabled: false, report: nil))
+  }
+
+  @Test func pickedUpLine() {
+    let model = makeModel([Self.answered, Self.onIt(Self.relay(pickedUp: true))], link: Self.recorded)
+
+    expectNoDifference(
+      progress(model)?.lines,
+      [.init(mark: .done, label: "Sent", detail: "14:02"), .init(mark: .done, label: "Picked up", detail: "14:03")])
+  }
+
+  @Test func workingLineForEachChangedFile() {
+    let model = makeModel(
+      [Self.answered, Self.onIt(Self.relay(pickedUp: true, paths: ["greet.py", "app/main.py"]))], link: Self.recorded)
+
+    expectNoDifference(
+      progress(model)?.lines,
+      [
+        .init(mark: .done, label: "Sent", detail: "14:02"),
+        .init(mark: .done, label: "Picked up", detail: "14:03"),
+        .init(mark: .working, label: "Working", detail: "changes seen in greet.py"),
+        .init(mark: .working, label: "Working", detail: "changes seen in app/main.py"),
+      ])
+  }
+
+  @Test func notDoneYetLineThenReport() {
+    let model = makeModel(
+      [Self.answered, Self.onIt(Self.relay(pickedUp: true, report: Self.report(.notDoneYet, "Not yet.\n")))],
+      link: Self.recorded)
+
+    expectNoDifference(
+      progress(model),
+      RelayProgress(
+        relayID: Self.loggedRelay,
+        lines: [
+          .init(mark: .done, label: "Sent", detail: "14:02"),
+          .init(mark: .done, label: "Picked up", detail: "14:03"),
+          .init(mark: .notDoneYet, label: "Not done yet", detail: "checking again when the agent's next turn ends"),
+        ],
+        action: nil, isActionDisabled: false,
+        report: RelayProgress.Report(seq: Fixture.seq(9), agentText: "AGENT · 14:05", text: "Not yet.")))
+  }
+
+  @Test func doneFoldsProgressToOneLineThenReport() {
+    let model = makeModel(
+      [Self.answered, Self.onIt(Self.relay(pickedUp: true, paths: ["greet.py"], report: Self.report(.done, "Renamed it.")))],
+      link: Self.recorded)
+
+    expectNoDifference(
+      progress(model),
+      RelayProgress(
+        relayID: Self.loggedRelay,
+        lines: [.init(mark: .done, label: "Done", detail: "sent 14:02 · picked up 14:03 · greet.py")],
+        action: nil, isActionDisabled: false,
+        report: RelayProgress.Report(seq: Fixture.seq(9), agentText: "AGENT · 14:05", text: "Renamed it.")))
+  }
+
+  @Test func notDeliveredLine() {
+    let model = makeModel([Self.answered, Self.onIt(Self.relay(notDelivered: true))], link: Self.recorded)
+
+    expectNoDifference(
+      progress(model)?.lines,
+      [
+        .init(mark: .done, label: "Sent", detail: "14:02"),
+        .init(mark: .failed, label: "Not delivered", detail: "the chat stopped before the agent read this"),
+      ])
+  }
+
+  @Test func deliveryUnknownLine() {
+    let model = makeModel([Self.answered, Self.onIt(Self.relay())], link: Self.recorded)
+
+    expectNoDifference(
+      progress(model)?.lines,
+      [
+        .init(mark: .done, label: "Sent", detail: "14:02"),
+        .init(mark: .failed, label: "Delivery unknown", detail: "the app restarted before delivery was confirmed"),
+      ])
+  }
+
+  @Test func sendAgainShownForNotDeliveredAndDeliveryUnknown() {
+    let notDelivered = makeModel([Self.answered, Self.onIt(Self.relay(notDelivered: true))], link: Self.recorded)
+    let deliveryUnknown = makeModel([Self.answered, Self.onIt(Self.relay())], link: Self.recorded)
+    let pickedUp = makeModel([Self.answered, Self.onIt(Self.relay(pickedUp: true))], link: Self.recorded)
+
+    expectNoDifference(progress(notDelivered)?.action, .sendAgain)
+    expectNoDifference(progress(deliveryUnknown)?.action, .sendAgain)
+    expectNoDifference(progress(pickedUp)?.action, nil)
+    expectNoDifference(notDelivered.actionText(.sendAgain), "Send again")
+  }
+
+  @Test func couldntCheckLine() async {
+    let (instantAsk, _) = makeRelayingInstantAsk(AgentFake())
+    let turns = [Self.answered, Self.onIt(Self.relay(pickedUp: true))]
+    handOver(instantAsk, turns)
+    await Task.megaYield()
+    fork.reply(.failure(.timedOut))
+    await Task.megaYield()
+    let model = makeModel(turns, link: Self.recorded, instantAsk: instantAsk)
+
+    expectNoDifference(
+      progress(model),
+      RelayProgress(
+        relayID: Self.loggedRelay,
+        lines: [
+          .init(mark: .done, label: "Sent", detail: "14:02"),
+          .init(mark: .done, label: "Picked up", detail: "14:03"),
+          .init(mark: .warning, label: "Couldn't check whether this was done", detail: "14:05"),
+        ],
+        action: .checkAgain, isActionDisabled: false, report: nil))
+    expectNoDifference(model.actionText(.checkAgain), "Check again")
+  }
+
+  @Test func checkAgainDisabledWhileChecking() async throws {
+    let (instantAsk, _) = makeRelayingInstantAsk(AgentFake())
+    let turns = [Self.answered, Self.onIt(Self.relay(pickedUp: true))]
+    handOver(instantAsk, turns)
+    await Task.megaYield()
+    fork.reply(.failure(.timedOut))
+    await Task.megaYield()
+    let model = makeModel(turns, link: Self.recorded, instantAsk: instantAsk)
+
+    let checking = Task { [progress = try #require(progress(model))] in await model.checkAgainTapped(progress) }
+    await Task.megaYield()
+
+    expectNoDifference(fork.requests.count, 2)
+    expectNoDifference(progress(model)?.action, .checkAgain)
+    expectNoDifference(progress(model)?.isActionDisabled, true)
+    fork.report(.notDoneYet, "Not yet.")
+    await checking.value
+    expectNoDifference(progress(model)?.action, nil)
+  }
+
+  @Test func idleAgentGoesFromOnItToPickedUp() async throws {
+    let (instantAsk, chat) = makeRelayingInstantAsk(AgentFake())
+    recorder.setRelaySupport(.success(true))
+    recorder.script(.success("q2"))
+    let model = makeModel([Self.answered], link: Self.recorded, instantAsk: instantAsk)
+    await followUpSent(model, "Rename it")
+    fork.changeRequest()
+    await Task.megaYield()
+    let relayID = UUID(1)
+    let requestID = UUID(0).uuidString.lowercased()
+    let turns = [Self.answered, Self.onIt(requestID: requestID, Self.relay(relayID.uuidString.lowercased()))]
+    handOver(instantAsk, turns)
+    model.threadUpdated(Self.thread(turns))
+    expectNoDifference(model.pendingTurn, nil)
+    expectNoDifference(progress(model)?.lines.map(\.label), ["Sent"])
+
+    chat.onRelayDelivery(Self.tab, .pickedUp(relayID: relayID))
+
+    expectNoDifference(
+      progress(model)?.lines,
+      [.init(mark: .done, label: "Sent", detail: "14:02"), .init(mark: .done, label: "Picked up", detail: "")])
+    model.threadUpdated(
+      Self.thread([Self.answered, Self.onIt(requestID: requestID, Self.relay(relayID.uuidString.lowercased(), pickedUp: true))]))
+    expectNoDifference(progress(model)?.lines.last, .init(mark: .done, label: "Picked up", detail: "14:03"))
+  }
+
+  @Test func twoRequestsShowUnderTheirOwnTurns() {
+    let firstTurn = QuestionTurn(
+      questionID: "q1", requestID: "r-q1", text: "Why?", queuedAtMs: Self.at1402,
+      answer: QuestionAnswer(seq: Fixture.seq(3), text: "On it.", answeredAtMs: Self.at1402),
+      relays: [Self.relay("rl-old", notDelivered: true), Self.relay("rl-new", pickedUp: true)])
+    let secondTurn = Self.onIt(Self.relay("rl-2", pickedUp: true, report: Self.report(.done, "Done.")))
+    let model = makeModel([firstTurn, secondTurn, Self.followUp], link: Self.recorded)
+
+    expectNoDifference(model.thread.turns.map { model.progress($0)?.relayID }, ["rl-new", "rl-2", nil])
+    expectNoDifference(model.progress(firstTurn)?.lines.map(\.label), ["Sent", "Picked up"])
+    expectNoDifference(model.progress(secondTurn)?.lines.map(\.label), ["Done"])
+  }
+
+  @Test func sourceLineCountsShownReports() {
+    let model = makeModel(
+      [Self.answered, Self.onIt(Self.relay(pickedUp: true, report: Self.report(.notDoneYet, "Not yet.")))],
+      link: Self.recorded)
+
+    expectNoDifference(model.sourceText, "user.ts:7–9 · 5 messages")
+  }
+
+  @Test func displayingReportMarksItRead() {
+    let model = makeModel(
+      [Self.answered, Self.onIt(Self.relay(pickedUp: true, report: Self.report(.done, "Done.")))], link: Self.recorded)
+
+    model.answerDisplayed(Fixture.seq(9))
+
+    expectNoDifference(readAnswers(), [AnswerReadMarker(storeID: "store-a", sessionID: Fixture.session, seq: Fixture.seq(9))])
   }
 }

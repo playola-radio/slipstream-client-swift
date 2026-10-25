@@ -58,6 +58,8 @@ struct RelayRun: Equatable, Sendable {
   /// `nil` when this app run never wrote it.
   var delivery: Delivery?
   var report: Report = .idle
+  /// When the last check failed; it stays shown while a new check runs.
+  var checkFailedAtMs: Int64?
   var isDone = false
   /// Steps whose retries ran out, sent again when the daemon reconnects.
   var unrecorded: [QuestionRelayUpdateRequest] = []
@@ -70,7 +72,6 @@ struct RelayRun: Equatable, Sendable {
     case idle
     /// `rerun` is set when the chat's turn ends again before this check finishes.
     case checking(rerun: Bool)
-    case failed
   }
 }
 
@@ -85,6 +86,7 @@ final class InstantAskModel: ViewModel {
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.askFork) var askFork
   @ObservationIgnored @Dependency(\.continuousClock) var clock
+  @ObservationIgnored @Dependency(\.date.now) var now
   @ObservationIgnored @Dependency(\.questionClient) var questionClient
   @ObservationIgnored @Dependency(\.uuid) var uuid
 
@@ -127,7 +129,7 @@ final class InstantAskModel: ViewModel {
     let run = relayRuns[relay.id]
     if run?.delivery == .exitedUnread { relay.isNotDelivered = true }
     return relay.status(
-      livePickup: run?.delivery == .pickedUp, liveWrite: run?.delivery != nil, lastCheckFailed: run?.report == .failed)
+      livePickup: run?.delivery == .pickedUp, liveWrite: run?.delivery != nil, lastCheckFailed: run?.checkFailedAtMs != nil)
   }
 
   // MARK: - User Actions
@@ -467,7 +469,7 @@ final class InstantAskModel: ViewModel {
   private func tabTurnEnded(_ tabID: UUID) {
     for (relayID, run) in relayRuns where run.chatSessionID == tabID && run.delivery == .pickedUp && !run.isDone {
       switch run.report {
-      case .idle, .failed: startCheck(relayID)
+      case .idle: startCheck(relayID)
       case .checking: relayRuns[relayID]?.report = .checking(rerun: true)
       }
     }
@@ -498,12 +500,13 @@ final class InstantAskModel: ViewModel {
       )
     }
     guard !Task.isCancelled, case .checking(let rerun) = relayRuns[relayID]?.report else { return }
+    relayRuns[relayID]?.report = .idle
     guard case .report(let reply, let outcome) = result else {
-      relayRuns[relayID]?.report = .failed
+      relayRuns[relayID]?.checkFailedAtMs = Int64(now.timeIntervalSince1970 * 1000)
       return
     }
     recordUpdate(relayID, .reported(outcome, text: reply))
-    relayRuns[relayID]?.report = .idle
+    relayRuns[relayID]?.checkFailedAtMs = nil
     if outcome == .done {
       relayRuns[relayID]?.isDone = true
     } else if rerun {

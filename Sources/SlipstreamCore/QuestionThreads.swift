@@ -26,11 +26,13 @@ public struct RelayReport: Equatable, Sendable {
   public let outcome: ReportOutcome
   public let text: String
   public let seq: Seq
+  public let atMs: Int64
 
-  public init(outcome: ReportOutcome, text: String, seq: Seq) {
+  public init(outcome: ReportOutcome, text: String, seq: Seq, atMs: Int64) {
     self.outcome = outcome
     self.text = text
     self.seq = seq
+    self.atMs = atMs
   }
 }
 
@@ -99,7 +101,7 @@ public struct QuestionRelay: Identifiable, Equatable, Sendable {
       isNotDelivered = pickedUp == nil
     case .reported(let outcome, let text):
       guard !isDone else { return }
-      report = RelayReport(outcome: outcome, text: text, seq: seq)
+      report = RelayReport(outcome: outcome, text: text, seq: seq, atMs: atMs)
     }
   }
 

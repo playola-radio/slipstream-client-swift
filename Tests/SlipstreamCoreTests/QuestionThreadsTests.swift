@@ -597,7 +597,7 @@ struct QuestionRelayFoldTests {
       threads.apply(QuestionFixture.relayUpdated(7, update: .reported(.notDoneYet, text: "Not yet.")))
     } changes: {
       $0?.pickedUp = Self.step(5)
-      $0?.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("7")!)
+      $0?.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("7")!, atMs: 7)
     }
   }
 
@@ -669,7 +669,7 @@ struct QuestionRelayFoldTests {
       QuestionFixture.relayUpdated(6, update: .pickedUp),
     ])?[0]
     expectNoDifference(relay?.pickedUp, Self.step(6))
-    expectNoDifference(relay?.report, RelayReport(outcome: .done, text: "Renamed it.", seq: Seq("5")!))
+    expectNoDifference(relay?.report, RelayReport(outcome: .done, text: "Renamed it.", seq: Seq("5")!, atMs: 5))
   }
 
   @Test func doneStaysDoneAfterLaterNotDoneYet() {
@@ -678,7 +678,7 @@ struct QuestionRelayFoldTests {
       QuestionFixture.relayUpdated(5, update: .reported(.done, text: "Renamed it.")),
       QuestionFixture.relayUpdated(6, update: .reported(.notDoneYet, text: "Not yet.")),
     ])?[0]
-    expectNoDifference(relay?.report, RelayReport(outcome: .done, text: "Renamed it.", seq: Seq("5")!))
+    expectNoDifference(relay?.report, RelayReport(outcome: .done, text: "Renamed it.", seq: Seq("5")!, atMs: 5))
   }
 }
 
@@ -693,13 +693,13 @@ struct QuestionRelayStatusTests {
 
   @Test func doneWinsOverAFailedCheck() {
     var relay = Self.pickedUp
-    relay.report = RelayReport(outcome: .done, text: "Done.", seq: Seq("6")!)
+    relay.report = RelayReport(outcome: .done, text: "Done.", seq: Seq("6")!, atMs: 6)
     expectNoDifference(relay.status(livePickup: false, liveWrite: false, lastCheckFailed: true), .done)
   }
 
   @Test func failedCheckIsCouldntCheck() {
     var relay = Self.pickedUp
-    relay.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("6")!)
+    relay.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("6")!, atMs: 6)
     expectNoDifference(relay.status(livePickup: false, liveWrite: true, lastCheckFailed: true), .couldntCheck)
   }
 
@@ -713,7 +713,7 @@ struct QuestionRelayStatusTests {
     var relay = Self.pickedUp
     relay.changedPaths = ["a.py"]
     relay.lastChangeSeq = Seq("5")
-    relay.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("6")!)
+    relay.report = RelayReport(outcome: .notDoneYet, text: "Not yet.", seq: Seq("6")!, atMs: 6)
     expectNoDifference(relay.status(livePickup: false, liveWrite: true, lastCheckFailed: false), .notDoneYet)
   }
 

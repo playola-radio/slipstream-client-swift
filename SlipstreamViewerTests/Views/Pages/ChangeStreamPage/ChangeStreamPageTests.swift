@@ -1689,6 +1689,74 @@ extension ChangeStreamPageTests {
     #expect(model.sections.flatMap(\.items).map(\.id) == [Fixture.seq(1)])
   }
 
+  func relayUpdated(_ value: Int, id: String = "q1", relay: String = "rl1", _ kind: String, outcome: String? = nil)
+    -> StreamItem
+  {
+    var update: [String: Any] = ["kind": kind]
+    if let outcome {
+      update["outcome"] = outcome
+      update["text"] = "Renamed it."
+    }
+    return Fixture.questionRelayUpdated(value, id: id, relay: relay, update: update)
+  }
+
+  func readEverything(_ model: ChangeStreamPageModel, _ seqs: Int...) throws {
+    let reply = try open(model, "q1")
+    for seq in seqs { reply.answerDisplayed(Fixture.seq(seq)) }
+  }
+
+  @Test func barWorkingWhileAnyTurnInProgress() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1", relay: "rl1"), relayUpdated(3, "picked_up"),
+      Fixture.questionExchangeRecorded(4, id: "q2", replyTo: "q1", relay: "rl2"),
+      relayUpdated(5, id: "q2", relay: "rl2", "picked_up"), relayUpdated(6, id: "q2", relay: "rl2", "reported", outcome: "done"))
+    try readEverything(model, 2, 4, 6)
+
+    expectNoDifference(try bar(model, "q1").status, .working)
+    expectNoDifference(try bar(model, "q1").statusText, "Working")
+  }
+
+  @Test func barDoneWhenAllDoneAndSeen() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1", relay: "rl1"), relayUpdated(3, "picked_up"),
+      relayUpdated(4, "reported", outcome: "done"))
+    try readEverything(model, 2, 4)
+
+    expectNoDifference(try bar(model, "q1").status, .done)
+    expectNoDifference(try bar(model, "q1").statusText, "Done")
+  }
+
+  @Test func unseenReportShowsNewReply() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1", relay: "rl1"), relayUpdated(3, "picked_up"),
+      relayUpdated(4, "reported", outcome: "not_done_yet"))
+    try readEverything(model, 2)
+
+    expectNoDifference(try bar(model, "q1").status, .newReply)
+    expectNoDifference(model.paneSubtitle, "1 question · 1 new reply")
+  }
+
+  @Test func notDeliveredBarWhenNothingElseInProgress() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1), Fixture.questionExchangeRecorded(2, id: "q1", relay: "rl1"), relayUpdated(3, "not_delivered"))
+    try readEverything(model, 2)
+    expectNoDifference(try bar(model, "q1").status, .notDelivered)
+
+    await send(
+      Fixture.questionExchangeRecorded(4, id: "q2", replyTo: "q1", relay: "rl2"),
+      relayUpdated(5, id: "q2", relay: "rl2", "picked_up"))
+    model.reply?.answerDisplayed(Fixture.seq(4))
+    expectNoDifference(try bar(model, "q1").status, .working)
+  }
+
   @Test func headerKeepsItsSubtitleUntilSomeoneAsks() async {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
@@ -3588,6 +3656,23 @@ extension ChangeStreamPageTests {
     await model.instantAsk.quitConfirmed()
     #expect(model.instantAsk.pending.isEmpty)
     expectNoDifference(fork.stopCount, 1)
+  }
+
+  @Test func reconnectAsksTheDaemonAboutRelaysAgain() async {
+    let fork = ForkFake()
+    let recorder = RecordFake()
+    recorder.setRelaySupport(.success(true))
+    let model = await linkedModel(fork: fork, recorder: recorder)
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1))
+    await askedRightAway(model, "Why?")
+    expectNoDifference(recorder.capabilityChecks.count, 1)
+    fake.close()
+    await Task.megaYield()
+    await clock.advance(by: .milliseconds(500))
+    await send(Fixture.edited(2))
+    await askedRightAway(model, "And why here?")
+    expectNoDifference(recorder.capabilityChecks.count, 2)
   }
 
   @Test func deletedCaptureDropsItsPendingQuestions() async throws {

@@ -783,7 +783,8 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
-      for sessionID in Set(instantAsk.pending.map(\.sessionID)) where sessions[id: sessionID] == nil {
+      let askSessionIDs = instantAsk.pending.map(\.sessionID) + instantAsk.relayRuns.values.map(\.sessionID)
+      for sessionID in Set(askSessionIDs) where sessions[id: sessionID] == nil {
         instantAsk.captureDeleted(sessionID)
       }
       if bindingMovedWhileAwaitingSnapshot {
@@ -1004,6 +1005,7 @@ final class ChangeStreamPageModel: ViewModel {
     case .connecting: connection = .connecting
     case .live:
       connection = .live
+      Task { [instantAsk, storeID = daemon.storeID] in await instantAsk.daemonConnected(storeID: storeID) }
       if needsReadinessRefresh {
         needsReadinessRefresh = false
         Task { [weak self] in await self?.loadSessions() }
@@ -1284,8 +1286,10 @@ final class ChangeStreamPageModel: ViewModel {
   private func status(of thread: QuestionThread) -> QuestionBarStatus {
     let sessionID = selectedSession?.id ?? ""
     let hasUnread = thread.turns.contains { turn in
-      guard let answer = turn.answer else { return false }
-      return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
+      [turn.answer?.seq, turn.relays.last?.report?.seq].contains { seq in
+        seq.map { !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: $0)) }
+          ?? false
+      }
     }
     if hasUnread { return .newReply }
     if let entry = instantAsk.pending.first(where: {
@@ -1294,7 +1298,11 @@ final class ChangeStreamPageModel: ViewModel {
     }) {
       return status(of: entry)
     }
+    let relays = thread.turns.compactMap { $0.relays.last.map(instantAsk.relayStatus) }
+    if relays.contains(where: { [.sent, .pickedUp, .working, .notDoneYet, .couldntCheck].contains($0) }) { return .working }
     if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
+    if relays.contains(where: { $0 == .notDelivered || $0 == .deliveryUnknown }) { return .notDelivered }
+    if !relays.isEmpty && relays.allSatisfy({ $0 == .done }) { return .done }
     return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }
 

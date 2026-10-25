@@ -3,6 +3,36 @@ import Foundation
 import Sharing
 import SlipstreamCore
 
+/// What a turn's change request has got to, from its newest attempt.
+struct RelayProgress: Equatable {
+  let relayID: String
+  let lines: [Line]
+  let action: Action?
+  let isActionDisabled: Bool
+  /// The agent's answer to whether it made the change.
+  let report: Report?
+
+  struct Line: Equatable, Hashable {
+    let mark: Mark
+    let label: String
+    let detail: String
+  }
+
+  enum Mark: Equatable, Hashable {
+    case done, waiting, working, notDoneYet, failed, warning
+  }
+
+  enum Action: Equatable {
+    case sendAgain, checkAgain
+  }
+
+  struct Report: Equatable {
+    let seq: Seq
+    let agentText: String
+    let text: String
+  }
+}
+
 @MainActor
 @Observable
 final class QuestionThreadPageModel: ViewModel {
@@ -78,12 +108,16 @@ final class QuestionThreadPageModel: ViewModel {
   let thinkingText = "AGENT · thinking…"
   let couldntAnswerText = "Couldn't get an answer"
   let tryAgainText = "Try again"
+  let sendAgainText = "Send again"
+  let checkAgainText = "Check again"
 
   var sourceText: String {
     let context = thread.source.context
     let file = (context.path as NSString).lastPathComponent
     let lines = context.lineStart == context.lineEnd ? "\(context.lineStart)" : "\(context.lineStart)–\(context.lineEnd)"
-    let messages = thread.turns.count + thread.turns.filter { $0.answer != nil }.count + (pendingTurn == nil ? 0 : 1)
+    let messages =
+      thread.turns.count + thread.turns.filter { $0.answer != nil }.count
+      + thread.turns.filter { $0.relays.last?.report != nil }.count + (pendingTurn == nil ? 0 : 1)
     return "\(file):\(lines) · \(messages) \(messages == 1 ? "message" : "messages")"
   }
 
@@ -117,11 +151,64 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   func agentText(_ answer: QuestionAnswer) -> String {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = timeZone
-    formatter.dateFormat = "HH:mm"
-    return "AGENT · " + formatter.string(from: Date(timeIntervalSince1970: Double(answer.answeredAtMs) / 1000))
+    "AGENT · " + clockTime(answer.answeredAtMs)
+  }
+
+  func progress(_ turn: QuestionTurn) -> RelayProgress? {
+    guard let relay = turn.relays.last else { return nil }
+    let status = instantAsk.relayStatus(relay)
+    let run = instantAsk.relayRuns[relay.id]
+    let report = relay.report.map { report in
+      RelayProgress.Report(
+        seq: report.seq, agentText: "AGENT · " + clockTime(report.atMs),
+        text: report.text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+    let pickedUpTime = relay.pickedUp.map { clockTime($0.atMs) }
+    if status == .done {
+      let detail = ["sent \(clockTime(relay.sent.atMs))"] + (pickedUpTime.map { ["picked up \($0)"] } ?? [])
+        + relay.changedPaths
+      return RelayProgress(
+        relayID: relay.id, lines: [.init(mark: .done, label: "Done", detail: detail.joined(separator: " · "))],
+        action: nil, isActionDisabled: false, report: report)
+    }
+    var lines = [
+      status == .sent
+        ? .init(
+          mark: .waiting, label: "Sent", detail: "\(clockTime(relay.sent.atMs)) · the agent will read this after its current step")
+        : RelayProgress.Line(mark: .done, label: "Sent", detail: clockTime(relay.sent.atMs))
+    ]
+    if [.pickedUp, .working, .notDoneYet, .couldntCheck].contains(status) {
+      lines.append(.init(mark: .done, label: "Picked up", detail: pickedUpTime ?? ""))
+      lines += relay.changedPaths.map { .init(mark: .working, label: "Working", detail: "changes seen in \($0)") }
+    }
+    var action: RelayProgress.Action?
+    switch status {
+    case .notDoneYet:
+      lines.append(.init(mark: .notDoneYet, label: "Not done yet", detail: "checking again when the agent's next turn ends"))
+    case .couldntCheck:
+      let failedAt = run?.checkFailedAtMs.map(clockTime) ?? ""
+      lines.append(.init(mark: .warning, label: "Couldn't check whether this was done", detail: failedAt))
+      action = .checkAgain
+    case .notDelivered:
+      lines.append(.init(mark: .failed, label: "Not delivered", detail: "the chat stopped before the agent read this"))
+      action = .sendAgain
+    case .deliveryUnknown:
+      lines.append(.init(mark: .failed, label: "Delivery unknown", detail: "the app restarted before delivery was confirmed"))
+      action = .sendAgain
+    case .done, .working, .pickedUp, .sent:
+      break
+    }
+    let isChecking = if case .checking = run?.report { true } else { false }
+    return RelayProgress(
+      relayID: relay.id, lines: lines, action: action, isActionDisabled: action == .checkAgain && isChecking,
+      report: report)
+  }
+
+  func actionText(_ action: RelayProgress.Action) -> String {
+    switch action {
+    case .sendAgain: sendAgainText
+    case .checkAgain: checkAgainText
+    }
   }
 
   // MARK: - View Helpers
@@ -149,9 +236,21 @@ final class QuestionThreadPageModel: ViewModel {
   // MARK: - User Actions
 
   func answerDisplayed(_ seq: Seq) {
-    guard !isDismissed, thread.turns.contains(where: { $0.answer?.seq == seq }) else { return }
+    guard !isDismissed,
+      thread.turns.contains(where: { $0.answer?.seq == seq || $0.relays.last?.report?.seq == seq })
+    else { return }
     let marker = AnswerReadMarker(storeID: key.storeID, sessionID: key.sessionID, seq: seq)
     $readAnswers.withLock { _ = $0.insert(marker) }
+  }
+
+  func sendAgainTapped(_ progress: RelayProgress) async {
+    guard !isDismissed else { return }
+    await instantAsk.sendAgainTapped(relayID: progress.relayID)
+  }
+
+  func checkAgainTapped(_ progress: RelayProgress) async {
+    guard !isDismissed else { return }
+    await instantAsk.checkAgainTapped(relayID: progress.relayID)
   }
 
   func sendReplyTapped() async {
@@ -231,6 +330,14 @@ final class QuestionThreadPageModel: ViewModel {
     )
     guard instantAsk.ask(question) != nil else { return }
     updateReplyDraft { $0 = ReplyDraft() }
+  }
+
+  private func clockTime(_ ms: Int64) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "HH:mm"
+    return formatter.string(from: Date(timeIntervalSince1970: Double(ms) / 1000))
   }
 
   private var isRetainedRequestDropped: Bool {
