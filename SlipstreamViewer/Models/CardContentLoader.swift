@@ -92,7 +92,7 @@ enum CardContentLoader {
     var codeLine = CodeLine(
       id: line.number, number: String(line.number),
       text: line.text.replacingOccurrences(of: "\t", with: String(repeating: " ", count: tabWidth)),
-      isChanged: line.isChanged, isVerified: isVerified
+      sourceText: line.text, isChanged: line.isChanged, isVerified: isVerified
     )
     guard let changedText = line.changedText else { return codeLine }
     var displayOffsets = [0]

@@ -4,6 +4,7 @@ import SlipstreamCore
 
 struct QuestionClient: Sendable {
   var send: @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment
+  var record: @Sendable (QuestionRequest) async throws -> ExchangeAcknowledgment
 }
 
 extension QuestionClient: DependencyKey {
@@ -13,10 +14,12 @@ extension QuestionClient: DependencyKey {
       home: FileManager.default.homeDirectoryForCurrentUser
     )
     let transport = ControlTransport(store: store)
-    return Self(send: { try await transport.ask($0) })
+    return Self(send: { try await transport.ask($0) }, record: { try await transport.recordExchange($0) })
   }
 
-  static var testValue: Self { Self(send: unimplemented("QuestionClient.send")) }
+  static var testValue: Self {
+    Self(send: unimplemented("QuestionClient.send"), record: unimplemented("QuestionClient.record"))
+  }
 }
 
 extension DependencyValues {

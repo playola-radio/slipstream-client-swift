@@ -436,7 +436,7 @@ fails. Every PR targets `develop`. Titles follow the PR-title rules:
 
 **Interfaces:**
 - Consumes: Task 5's `InstantAskModel`.
-- Produces: `AskRoute` (`.app(tabID: UUID)`, `.outside`, `.none`), decided once from the folder's
+- Produces: `AskRoute` (`.app`, `.outside`, `.none`), decided once from the folder's
   binding and tabs. `askNotice` and `askTapped` both read that one value: the app route's notice
   is `nil` once the tab `hasSentMessage`; the outside route keeps today's checks. Pending roots show as `QuestionBar`s
   with `id` = `request_id`.

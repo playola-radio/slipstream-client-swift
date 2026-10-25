@@ -22,6 +22,14 @@ public enum ClaudeInvocation {
     ]
   }
 
+  public static func forkArguments(parentSessionID: UUID, model: String, effort: String, schema: String) -> [String] {
+    [
+      "-p", "--resume=\(parentSessionID.uuidString.lowercased())", "--fork-session", "--no-session-persistence",
+      "--output-format", "stream-json", "--verbose", "--restricted", "--tools", "Read,Grep,Glob",
+      "--strict-mcp-config", "--model=\(model)", "--effort=\(effort)", "--json-schema", schema,
+    ]
+  }
+
   public static func userMessage(_ text: String) -> Data {
     line(
       .object([

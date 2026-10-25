@@ -19,17 +19,24 @@ final class QuestionThreadPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(key: QuestionThreadKey, thread: QuestionThread, bindingGeneration: String?) {
+  init(
+    key: QuestionThreadKey, thread: QuestionThread, bindingGeneration: String?, folder: String?,
+    instantAsk: InstantAskModel
+  ) {
     self.key = key
     self.thread = thread
     self.bindingGeneration = bindingGeneration
+    self.folder = folder
+    self.instantAsk = instantAsk
     super.init()
   }
 
   // MARK: - Properties
 
-  let key: QuestionThreadKey
+  private(set) var key: QuestionThreadKey
   private var bindingGeneration: String?
+  private let folder: String?
+  @ObservationIgnored private let instantAsk: InstantAskModel
   private(set) var thread: QuestionThread
   private(set) var isDismissed = false
   var isErrorPresented = false
@@ -48,6 +55,15 @@ final class QuestionThreadPageModel: ViewModel {
 
   private var replyDraft: ReplyDraft { replyDrafts[key] ?? ReplyDraft() }
 
+  /// A question still being answered shows as the thread's last turn until its answer folds in.
+  var pendingTurn: PendingAsk? {
+    let questionIDs = Set(thread.turns.map(\.questionID))
+    return instantAsk.pending.first { entry in
+      entry.storeID == key.storeID && entry.sessionID == key.sessionID
+        && (entry.replyToQuestionID.map(questionIDs.contains) ?? (entry.id == thread.id))
+    }
+  }
+
   // MARK: - Display Text
 
   let title = "Talk to the agent"
@@ -59,12 +75,15 @@ final class QuestionThreadPageModel: ViewModel {
   let sendText = "Send reply"
   let errorTitle = "Reply not confirmed"
   let errorDismissText = "OK"
+  let thinkingText = "AGENT · thinking…"
+  let couldntAnswerText = "Couldn't get an answer"
+  let tryAgainText = "Try again"
 
   var sourceText: String {
     let context = thread.source.context
     let file = (context.path as NSString).lastPathComponent
     let lines = context.lineStart == context.lineEnd ? "\(context.lineStart)" : "\(context.lineStart)–\(context.lineEnd)"
-    let messages = thread.turns.count + thread.turns.filter { $0.answer != nil }.count
+    let messages = thread.turns.count + thread.turns.filter { $0.answer != nil }.count + (pendingTurn == nil ? 0 : 1)
     return "\(file):\(lines) · \(messages) \(messages == 1 ? "message" : "messages")"
   }
 
@@ -72,6 +91,17 @@ final class QuestionThreadPageModel: ViewModel {
     replyDraft.hasUncertainSubmission && !isRetainedRequestDropped
       ? "An earlier reply may already be queued. Send it unchanged to reuse its request ID; editing sends a separate question."
       : nil
+  }
+
+  /// Why the pending turn has no answer, or `nil` while it is still being answered.
+  var pendingFailureText: String? {
+    switch pendingTurn?.state {
+    case .couldntAnswer(.noReply): "no reply within 120 seconds"
+    case .couldntAnswer(.chatUnavailable): "the chat couldn't be reached"
+    case .couldntAnswer(.badReply): "the reply couldn't be read"
+    case .couldntAnswer(.notSaved), .couldntRecord: "it couldn't be saved"
+    case .answering, .recording, .recorded, nil: nil
+    }
   }
 
   func unansweredText(_ turn: QuestionTurn) -> String {
@@ -101,13 +131,19 @@ final class QuestionThreadPageModel: ViewModel {
     let isAwaitingQueuedTurn = draft.queuedTurn.map { queued in
       !thread.turns.contains { $0.questionID == queued.questionID }
     } ?? false
-    return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn
+    return isDismissed || draft.isSubmitting || isAwaitingQueuedTurn || pendingTurn != nil
       || [.waiting, .resending].contains(thread.turns.last?.status ?? .waiting)
   }
 
   var canSendReply: Bool {
-    !isFollowUpDisabled && thread.source.context.isValid && !QuestionRequest.trim(draft).isEmpty
-      && (replyDraft.request != nil || bindingGeneration != nil)
+    let text = QuestionRequest.trim(draft)
+    guard !isFollowUpDisabled, thread.source.context.isValid, !text.isEmpty,
+      text.utf8.count <= QuestionRequest.maximumTextBytes
+    else { return false }
+    switch thread.link {
+    case .recorded: return folder != nil
+    case .hook: return replyDraft.request != nil || bindingGeneration != nil
+    }
   }
 
   // MARK: - User Actions
@@ -120,6 +156,9 @@ final class QuestionThreadPageModel: ViewModel {
 
   func sendReplyTapped() async {
     guard canSendReply, let parent = thread.turns.last else { return }
+    if case .recorded(let chatSessionID) = thread.link, let folder {
+      return followUpAsked(parent: parent, folder: folder, chatSessionID: chatSessionID)
+    }
     if isRetainedRequestDropped {
       updateReplyDraft { draft in
         draft.request = nil
@@ -128,7 +167,8 @@ final class QuestionThreadPageModel: ViewModel {
     }
     let intent = replyDraft.request ?? QuestionRequest(
       sessionID: key.sessionID, requestID: uuid().uuidString.lowercased(), text: draft,
-      context: thread.source.context, replyToQuestionID: parent.questionID, bindingGeneration: bindingGeneration)
+      context: thread.source.context, replyToQuestionID: parent.questionID,
+      verb: .ask(bindingGeneration: bindingGeneration))
     updateReplyDraft { draft in
       draft.request = intent
       draft.isSubmitting = true
@@ -150,6 +190,17 @@ final class QuestionThreadPageModel: ViewModel {
     }
   }
 
+  /// A new question that failed starts over under a new request id, which its panel follows.
+  func tryAgainTapped() {
+    guard !isDismissed, let entry = pendingTurn,
+      let requestID = instantAsk.tryAgainTapped(requestID: entry.id),
+      entry.replyToQuestionID == nil, requestID != entry.id,
+      let retried = instantAsk.pending[id: requestID]
+    else { return }
+    key = QuestionThreadKey(storeID: key.storeID, sessionID: key.sessionID, rootQuestionID: requestID)
+    thread = retried.rootThread
+  }
+
   func threadUpdated(_ thread: QuestionThread) {
     guard !isDismissed, thread.id == key.rootQuestionID else { return }
     self.thread = thread
@@ -164,6 +215,23 @@ final class QuestionThreadPageModel: ViewModel {
   }
 
   // MARK: - Private Helpers
+
+  private func followUpAsked(parent: QuestionTurn, folder: String, chatSessionID: String) {
+    let question = InstantQuestion(
+      storeID: key.storeID,
+      sessionID: key.sessionID,
+      folder: folder,
+      source: thread.source,
+      replyToQuestionID: parent.questionID,
+      threadChatSessionID: chatSessionID,
+      earlier: thread.turns.compactMap { turn in
+        turn.answer.map { AskPrompt.Exchange(question: turn.text, answer: $0.text) }
+      },
+      text: draft
+    )
+    guard instantAsk.ask(question) != nil else { return }
+    updateReplyDraft { $0 = ReplyDraft() }
+  }
 
   private var isRetainedRequestDropped: Bool {
     guard let request = replyDraft.request else { return false }

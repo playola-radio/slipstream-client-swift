@@ -67,6 +67,8 @@ struct CodeLine: Identifiable, Equatable, Sendable {
   var id: Int
   var number: String
   var text: String
+  /// The line as written in the file; `text` is laid out for display.
+  var sourceText: String
   var isChanged: Bool
   var isVerified: Bool = true
   /// UTF-16 offsets into `text`.
@@ -76,12 +78,13 @@ struct CodeLine: Identifiable, Equatable, Sendable {
   var accessibilityText: String
 
   init(
-    id: Int, number: String, text: String, isChanged: Bool, isVerified: Bool = true,
+    id: Int, number: String, text: String, sourceText: String? = nil, isChanged: Bool, isVerified: Bool = true,
     changedRanges: [Range<Int>] = [], removalOffsets: [Int] = [], accessibilityText: String? = nil
   ) {
     self.id = id
     self.number = number
     self.text = text
+    self.sourceText = sourceText ?? text
     self.isChanged = isChanged
     self.isVerified = isVerified
     self.changedRanges = changedRanges

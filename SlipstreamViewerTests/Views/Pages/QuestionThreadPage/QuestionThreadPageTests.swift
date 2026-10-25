@@ -33,9 +33,16 @@ struct QuestionThreadPageTests {
       selectedText: "a")
   }
 
+  static let tab = UUID(uuidString: "4BAD416C-1D04-4063-9E76-61EBB936AE06")!
+  static let recorded = QuestionThreadLink.recorded(chatSessionID: tab.uuidString.lowercased())
+
+  let fork = ForkFake()
+  let recorder = RecordFake()
+
   func makeModel(
     _ turns: [QuestionTurn], source: QuestionSource = source(), timeZone: String = "UTC", uuid: UUIDGenerator? = nil,
-    bindingGeneration: String? = "7",
+    bindingGeneration: String? = "7", link: QuestionThreadLink = .hook, folder: String? = "/w",
+    instantAsk: InstantAskModel? = nil,
     send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }
   ) -> QuestionThreadPageModel {
     withDependencies {
@@ -45,8 +52,26 @@ struct QuestionThreadPageTests {
       $0.questionClient.send = send
     } operation: {
       QuestionThreadPageModel(
-        key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns), bindingGeneration: bindingGeneration)
+        key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns, link: link),
+        bindingGeneration: bindingGeneration, folder: folder, instantAsk: instantAsk ?? makeInstantAsk())
     }
+  }
+
+  /// The thread's chat is open as a tab in `/w`.
+  func makeInstantAsk() -> InstantAskModel {
+    withDependencies { $0.defaultFileStorage = .inMemory } operation: {
+      @Shared(.chatTabs) var stored
+      $stored.withLock {
+        $0 = [ChatTabRecord(id: Self.tab, folder: "/w", model: "claude-opus-5-5", effort: .high, isWaiting: false)]
+      }
+      return InstantAskModel.fake(chat: ChatPageModel(), fork: fork, recorder: recorder)
+    }
+  }
+
+  func followUpSent(_ model: QuestionThreadPageModel, _ text: String = "And then?") async {
+    model.draft = text
+    await model.sendReplyTapped()
+    await Task.megaYield()
   }
 
   func readAnswers() -> Set<AnswerReadMarker> {
@@ -137,7 +162,7 @@ struct QuestionThreadPageTests {
     model.captureChanged(Fixture.capture(binding: CaptureBinding(generation: "8", state: .connected)))
     #expect(model.canSendReply)
     await model.sendReplyTapped()
-    expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
+    expectNoDifference(requests.value.map(\.verb), [.ask(bindingGeneration: "8")])
   }
 
   @Test func followUpUsesCurrentGeneration() async {
@@ -150,7 +175,7 @@ struct QuestionThreadPageTests {
     model.captureChanged(nil)
     model.draft = "And then?"
     await model.sendReplyTapped()
-    expectNoDifference(requests.value.map(\.bindingGeneration), ["8"])
+    expectNoDifference(requests.value.map(\.verb), [.ask(bindingGeneration: "8")])
   }
 
   @Test func inFlightFollowUpKeepsItsBody() async {
@@ -166,7 +191,7 @@ struct QuestionThreadPageTests {
     await model.sendReplyTapped()
     expectNoDifference(requests.value.count, 2)
     expectNoDifference(requests.value[1], requests.value[0])
-    expectNoDifference(requests.value[1].bindingGeneration, "7")
+    expectNoDifference(requests.value[1].verb, .ask(bindingGeneration: "7"))
   }
 
   @Test func displayingAnAnswerMarksOnlyThatAnswerRead() {
@@ -200,7 +225,7 @@ extension QuestionThreadPageTests {
       QuestionRequest(
         sessionID: Fixture.session, requestID: "00000000-0000-0000-0000-000000000000",
         text: "Could this suspend an account?", context: Self.source().context, replyToQuestionID: "q2",
-        bindingGeneration: "7"),
+        verb: .ask(bindingGeneration: "7")),
     ])
     expectNoDifference(model.draft, "")
     #expect(!model.isErrorPresented)
@@ -462,5 +487,131 @@ extension QuestionThreadPageTests {
     resume.yield()
     await retry.value
     expectNoDifference(Set(requests.value.map(\.requestID)).count, 1)
+  }
+}
+
+extension QuestionThreadPageTests {
+  @Test func answeringTurnShowsThinking() async throws {
+    let model = makeModel([Self.answered], link: Self.recorded)
+    await followUpSent(model)
+    let pending = try #require(model.pendingTurn)
+    expectNoDifference(pending.text, "And then?")
+    expectNoDifference(pending.state, .answering)
+    #expect(model.pendingFailureText == nil)
+    expectNoDifference(model.thinkingText, "AGENT · thinking…")
+    expectNoDifference(model.sourceText, "user.ts:7–9 · 3 messages")
+  }
+
+  @Test func sendReplyDisabledWhileAnswering() async {
+    let model = makeModel([Self.answered], link: Self.recorded)
+    await followUpSent(model)
+    model.draft = "One more?"
+    #expect(model.isFollowUpDisabled)
+    #expect(!model.canSendReply)
+    expectNoDifference(model.draft, "")
+  }
+
+  @Test func oversizedRecordedFollowUpKeepsItsDraftAndDoesNotStartAnAnswer() async {
+    let model = makeModel([Self.answered], link: Self.recorded)
+    let text = String(repeating: "😀", count: 2049)
+    model.draft = text
+
+    #expect(!model.canSendReply)
+    await model.sendReplyTapped()
+
+    expectNoDifference(model.draft, text)
+    expectNoDifference(fork.requests, [])
+  }
+
+  @Test(arguments: [
+    (AskForkError.timedOut, "no reply within 120 seconds"),
+    (.unavailable, "the chat couldn't be reached"),
+    (.badReply, "the reply couldn't be read"),
+  ])
+  func couldntAnswerShowsReasonAndTryAgain(error: AskForkError, reason: String) async {
+    let model = makeModel([Self.answered], link: Self.recorded)
+    await followUpSent(model)
+    fork.reply(.failure(error))
+    await Task.megaYield()
+    expectNoDifference(model.pendingFailureText, reason)
+    expectNoDifference(model.couldntAnswerText, "Couldn't get an answer")
+    expectNoDifference(model.tryAgainText, "Try again")
+    model.tryAgainTapped()
+    await Task.megaYield()
+    #expect(model.pendingFailureText == nil)
+    expectNoDifference(fork.requests.count, 2)
+  }
+
+  @Test func couldntSaveShowsReasonAndTryAgain() async {
+    recorder.script(.failure(.rejected(code: "INVALID_CONTEXT", message: "No.")))
+    let model = makeModel([Self.answered], link: Self.recorded)
+    await followUpSent(model)
+    fork.answer()
+    await Task.megaYield()
+    expectNoDifference(model.pendingFailureText, "it couldn't be saved")
+  }
+
+  @Test func followUpOnRecordedThreadUsesInstantAsk() async throws {
+    let model = makeModel([Self.answered], link: Self.recorded)
+    await followUpSent(model)
+    let request = try #require(fork.requests.first)
+    expectNoDifference(request.parentSessionID, Self.tab)
+    expectNoDifference(
+      request.prompt,
+      AskPrompt.answer(
+        source: Self.source(), earlier: [AskPrompt.Exchange(question: "Why?", answer: "Because.")], words: "And then?",
+        allowsChangeRequests: false))
+    expectNoDifference(model.pendingTurn?.replyToQuestionID, "q1")
+  }
+
+  @Test func recordedThreadNeverSendsAsk() async {
+    let sent = LockIsolated(0)
+    let model = makeModel([Self.answered], link: Self.recorded) { _ in
+      sent.withValue { $0 += 1 }
+      throw QuestionError.unavailable
+    }
+    await followUpSent(model)
+    let noFolder = makeModel([Self.answered], link: Self.recorded, folder: nil) { _ in
+      sent.withValue { $0 += 1 }
+      throw QuestionError.unavailable
+    }
+    noFolder.draft = "And then?"
+    #expect(!noFolder.canSendReply)
+    await noFolder.sendReplyTapped()
+    expectNoDifference(sent.value, 0)
+  }
+
+  @Test func hookThreadKeepsTodayFollowUp() async {
+    let sent = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      sent.withValue { $0.append(request) }
+      throw QuestionError.unavailable
+    }
+    await followUpSent(model)
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7")])
+    #expect(fork.requests.isEmpty)
+  }
+
+  @Test func newQuestionTryAgainFollowsNewRequest() async throws {
+    let instantAsk = makeInstantAsk()
+    let requestID = try #require(
+      instantAsk.ask(
+        InstantQuestion(
+          storeID: Self.key.storeID, sessionID: Self.key.sessionID, folder: "/w", source: Self.source(),
+          replyToQuestionID: nil, threadChatSessionID: Self.tab.uuidString.lowercased(), earlier: [], text: "Why?")))
+    let entry = try #require(instantAsk.pending[id: requestID])
+    let model = withDependencies { $0.defaultInMemoryStorage = storage } operation: {
+      QuestionThreadPageModel(
+        key: QuestionThreadKey(storeID: Self.key.storeID, sessionID: Self.key.sessionID, rootQuestionID: requestID),
+        thread: entry.rootThread, bindingGeneration: nil, folder: "/w", instantAsk: instantAsk)
+    }
+    await Task.megaYield()
+    fork.reply(.failure(.timedOut))
+    await Task.megaYield()
+    model.tryAgainTapped()
+    let retried = try #require(instantAsk.pending.first)
+    #expect(retried.id != requestID)
+    expectNoDifference(model.key.rootQuestionID, retried.id)
+    expectNoDifference(model.pendingTurn?.state, .answering)
   }
 }

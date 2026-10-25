@@ -2,6 +2,7 @@ import ConcurrencyExtras
 import CustomDump
 import Dependencies
 import Foundation
+import Sharing
 import SlipstreamCore
 import Testing
 @testable import SlipstreamViewer
@@ -19,16 +20,31 @@ struct AskAgentPageTests {
       capture: CaptureSummary(sessionID: session, root: "/work/nairobi", state: state, binding: binding))
   }
 
-  func model(agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), isAppTabLinked: Bool = false, add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
+  static let tab = UUID(uuidString: "5896F28C-F4A9-46C2-B481-7CA57E8714A8")!
+
+  /// The Ask panel as the change stream opens it; the instant-answer model is idle unless a test
+  /// passes one in.
+  static func composer(
+    sessionID: String = session, folder: String = "/work/nairobi", context: QuestionContext = context,
+    agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), route: AskRoute = .outside,
+    instantAsk: InstantAskModel? = nil
+  ) -> AskAgentPageModel {
+    AskAgentPageModel(
+      sessionID: sessionID, folder: folder, source: QuestionSource(context: context, selectedText: "return user"),
+      agentConnection: agentConnection, captureStatus: captureStatus, route: route,
+      instantAsk: instantAsk ?? withDependencies { $0.defaultFileStorage = .inMemory } operation: {
+        InstantAskModel(chat: ChatPageModel())
+      })
+  }
+
+  func model(agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), route: AskRoute = .outside, instantAsk: InstantAskModel? = nil, add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
     withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = send
       $0.savedQuestions.load = { [] }
       $0.savedQuestions.add = add
     } operation: {
-      AskAgentPageModel(
-        sessionID: Self.session, context: Self.context, agentConnection: agentConnection, captureStatus: captureStatus,
-        isAppTabLinked: isAppTabLinked)
+      Self.composer(agentConnection: agentConnection, captureStatus: captureStatus, route: route, instantAsk: instantAsk)
     }
   }
 
@@ -90,17 +106,33 @@ struct AskAgentPageTests {
       throw QuestionError.outcomeUnknown
     })
     model.draftChanged("Why?")
-    #expect(await model.askTapped() == false)
-    #expect(await model.askTapped() == false)
+    #expect(await model.askTapped() == nil)
+    #expect(await model.askTapped() == nil)
     expectNoDifference(requests.value.count, 2)
     expectNoDifference(requests.value[0], requests.value[1])
     expectNoDifference(model.draft, "Why?")
     #expect(model.hasUncertainSubmission)
     model.draftChanged("What next?")
-    #expect(await model.askTapped() == false)
+    #expect(await model.askTapped() == nil)
     #expect(requests.value[2].requestID != requests.value[0].requestID)
     expectNoDifference(requests.value[2].context, Self.context)
     #expect(model.hasUncertainSubmission)
+  }
+
+  @Test func retryAfterRouteTurnsAppResendsRetainedRequest() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = model(route: .outside, send: { request in
+      requests.withValue { $0.append(request) }
+      throw QuestionError.outcomeUnknown
+    })
+    model.draftChanged("Why?")
+    #expect(await model.askTapped() == nil)
+    let first = requests.value
+
+    model.captureChanged(Self.capture(), route: .app)
+    #expect(await model.askTapped() == nil)
+
+    expectNoDifference(requests.value, first + first)
   }
 
   @Test func inFlightDuplicateAndDismissedCompletionCannotSucceed() async {
@@ -115,11 +147,11 @@ struct AskAgentPageTests {
     let send = Task { await model.askTapped() }
     await Task.megaYield()
     #expect(model.isSubmitting)
-    #expect(await model.askTapped() == false)
+    #expect(await model.askTapped() == nil)
     expectNoDifference(requests.value.count, 1)
     model.dismissed()
     resume.yield()
-    #expect(await send.value == false)
+    #expect(await send.value == nil)
     expectNoDifference(model.draft, "Why?")
   }
 
@@ -142,7 +174,7 @@ struct AskAgentPageTests {
       )
     ])
     resume.yield()
-    #expect(await send.value == false)
+    #expect(await send.value == nil)
     #expect(!model.isSubmitting)
     #expect(!model.isErrorPresented)
     expectNoDifference(model.draft, "Why?")
@@ -167,7 +199,7 @@ struct AskAgentPageTests {
       )
     ])
     resume.yield()
-    #expect(await send.value == false)
+    #expect(await send.value == nil)
     #expect(!model.isSubmitting)
     #expect(!model.isErrorPresented)
     #expect(!model.hasUncertainSubmission)
@@ -177,7 +209,7 @@ struct AskAgentPageTests {
   @Test func acknowledgmentConfirmsQueueOnly() async {
     let model = model(send: { try Self.ack($0) })
     model.draftChanged("Why?")
-    #expect(await model.askTapped())
+    #expect(await model.askTapped() == .queued)
     #expect(!model.isSubmitting)
   }
 
@@ -190,7 +222,7 @@ struct AskAgentPageTests {
   func failurePreservesDraft(_ failure: QuestionError) async {
     let model = model(send: { _ in throw failure })
     model.draftChanged("Why?")
-    #expect(await model.askTapped() == false)
+    #expect(await model.askTapped() == nil)
     expectNoDifference(model.draft, "Why?")
     expectNoDifference(model.context, Self.context)
     #expect(model.isErrorPresented)
@@ -213,9 +245,7 @@ extension AskAgentPageTests {
         return ["Already saved"]
       }
       $0.savedQuestions.add = { [$0] }
-    } operation: { AskAgentPageModel(
-      sessionID: Self.session, context: Self.context, agentConnection: .connected, captureStatus: Self.capture(),
-      isAppTabLinked: false) }
+    } operation: { Self.composer() }
     let load = Task { await model.viewAppeared() }
     await Task.megaYield()
     model.addQuestionTapped()
@@ -237,9 +267,7 @@ extension AskAgentPageTests {
         store.withValue { $0.append(text) }
         return store.value
       }
-    } operation: { AskAgentPageModel(
-      sessionID: Self.session, context: Self.context, agentConnection: .connected, captureStatus: Self.capture(),
-      isAppTabLinked: false) }
+    } operation: { Self.composer() }
     await model.viewAppeared()
     model.addQuestionTapped()
     model.newPreset = "From window B"
@@ -253,9 +281,7 @@ extension AskAgentPageTests {
   @Test func preferenceFailureHasItsOwnTitleAndDoesNotPromiseReopeningWillRepairData() async {
     let model = withDependencies {
       $0.savedQuestions.load = { throw CocoaError(.fileReadCorruptFile) }
-    } operation: { AskAgentPageModel(
-      sessionID: Self.session, context: Self.context, agentConnection: .connected, captureStatus: Self.capture(),
-      isAppTabLinked: false) }
+    } operation: { Self.composer() }
     await model.viewAppeared()
     expectNoDifference(model.errorTitle, "Saved questions unavailable")
     #expect(!model.errorMessage.contains("reopening"))
@@ -266,8 +292,6 @@ extension AskAgentPageTests {
 
 extension AskAgentPageTests {
   static let nothingConnectedText = "No chat is connected yet. Send a message in a chat tab to connect it."
-  static let tabWaitingText =
-    "The chat tab connected to this stream hasn't confirmed it can answer yet. It confirms the next time the agent works — send it a message to confirm now."
 
   @Test(arguments: [nil, CaptureBinding(generation: "7", state: .unlinked)])
   func askNoticeNothingConnected(binding: CaptureBinding?) {
@@ -279,9 +303,9 @@ extension AskAgentPageTests {
     (AgentConnection.connected, CaptureBinding(generation: "7", state: .setupPending)),
     (.setupPending, CaptureBinding(generation: "7", state: .connected)),
   ])
-  func askNoticeTabWaiting(agentConnection: AgentConnection, binding: CaptureBinding) {
-    let model = model(agentConnection: agentConnection, captureStatus: Self.capture(binding: binding), isAppTabLinked: true)
-    expectNoDifference(model.askNoticeText, Self.tabWaitingText)
+  func askNoticeAppTabIsReadyBeforeTheLinkConfirms(agentConnection: AgentConnection, binding: CaptureBinding) {
+    let model = model(agentConnection: agentConnection, captureStatus: Self.capture(binding: binding), route: .app)
+    expectNoDifference(model.askNoticeText, nil)
   }
 
   @Test func askNoticeOutsideChatKeepsTodayWording() {
@@ -290,7 +314,7 @@ extension AskAgentPageTests {
   }
 
   @Test func askNoticeConnectedTabIsNil() {
-    let model = model(isAppTabLinked: true)
+    let model = model(route: .app)
     model.draftChanged("Why?")
     #expect(model.askNoticeText == nil)
     #expect(model.canSubmit)
@@ -299,8 +323,8 @@ extension AskAgentPageTests {
   @Test func askNoticeFollowsTheLinkMovingToATab() {
     let pending = Self.capture(binding: CaptureBinding(generation: "8", state: .setupPending))
     let model = model(captureStatus: pending)
-    model.captureChanged(pending, isAppTabLinked: true)
-    expectNoDifference(model.askNoticeText, Self.tabWaitingText)
+    model.captureChanged(pending, route: .app)
+    expectNoDifference(model.askNoticeText, nil)
   }
 
   static let waitingText = "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."
@@ -338,7 +362,7 @@ extension AskAgentPageTests {
   @Test func aCaptureThatStopsRecordingDisablesAskAndKeepsTheDraft() {
     let model = model(agentConnection: .connected)
     model.draftChanged("Why?")
-    model.captureChanged(Self.capture(.stopped), isAppTabLinked: false)
+    model.captureChanged(Self.capture(.stopped), route: .outside)
     #expect(!model.canSubmit)
     expectNoDifference(model.askNoticeText, "This workspace isn't recording, so its chat can't receive questions.")
     expectNoDifference(model.draft, "Why?")
@@ -359,8 +383,8 @@ extension AskAgentPageTests {
       return try Self.ack(request)
     })
     model.draftChanged("Why?")
-    #expect(await model.askTapped())
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["7"])
+    #expect(await model.askTapped() == .queued)
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7")])
   }
 
   @Test func aRelinkedChatRejectionSaysToRefreshAndTheComposerKeepsItsOriginalLink() async {
@@ -370,13 +394,13 @@ extension AskAgentPageTests {
       throw QuestionError.rejected(code: "STALE_BINDING", message: "relinked")
     })
     model.draftChanged("Why?")
-    #expect(!(await model.askTapped()))
+    #expect(await model.askTapped() == nil)
     expectNoDifference(
       model.errorMessage,
       "This workspace's chat was relinked after the app last checked. Refresh to see which chat is linked now, then ask again. Your draft is kept.")
-    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), isAppTabLinked: false)
-    #expect(!(await model.askTapped()))
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["7", "7"])
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), route: .outside)
+    #expect(await model.askTapped() == nil)
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7"), .ask(bindingGeneration: "7")])
   }
 
   @Test func aComposerOpenedBeforeAChatIsLinkedNamesTheFirstLinkItSees() async {
@@ -386,10 +410,10 @@ extension AskAgentPageTests {
       return try Self.ack(request)
     })
     model.draftChanged("Why?")
-    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), isAppTabLinked: false)
-    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "9", state: .connected)), isAppTabLinked: false)
-    #expect(await model.askTapped())
-    expectNoDifference(sent.value.map(\.bindingGeneration), ["8"])
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), route: .outside)
+    model.captureChanged(Self.capture(binding: CaptureBinding(generation: "9", state: .connected)), route: .outside)
+    #expect(await model.askTapped() == .queued)
+    expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "8")])
   }
 
   @Test func askingWhileNotConnectedSendsNothing() async {
@@ -400,7 +424,7 @@ extension AskAgentPageTests {
     })
     model.draftChanged("Why?")
     let queued = await model.askTapped()
-    #expect(!queued)
+    #expect(queued == nil)
     expectNoDifference(sent.value, 0)
   }
 
@@ -413,5 +437,62 @@ extension AskAgentPageTests {
       "The agent chat for this capture hasn't confirmed it can answer. Run `slipstream attach` inside that chat. The question stays bound to its original capture. Your draft is kept."
     )
     expectNoDifference(model.draft, "Why?")
+  }
+
+  @Test func askTappedOnAppRouteUsesInstantAsk() async {
+    let fork = ForkFake()
+    let instantAsk = withDependencies {
+      $0.defaultFileStorage = .inMemory
+      $0.agentEnvironment = AgentFake().environmentClient
+      $0.askFork = fork.client
+      $0.uuid = .incrementing
+    } operation: {
+      @Shared(.chatTabs) var stored
+      $stored.withLock {
+        $0 = [ChatTabRecord(id: Self.tab, folder: "/work/nairobi", model: "claude-opus-5-5", effort: .high, isWaiting: false)]
+      }
+      let chat = ChatPageModel()
+      chat.capturesArrived([
+        CaptureSummary(
+          sessionID: Self.session, root: "/work/nairobi", state: .recording,
+          binding: CaptureBinding(generation: "7", state: .connected, harnessSessionID: Self.tab.uuidString.lowercased()))
+      ])
+      return InstantAskModel(chat: chat)
+    }
+    let sent = LockIsolated(0)
+    let model = model(route: .app, instantAsk: instantAsk, send: { request in
+      sent.withValue { $0 += 1 }
+      return try Self.ack(request)
+    })
+    model.draftChanged("Why?")
+
+    let outcome = await model.askTapped()
+    await Task.megaYield()
+
+    expectNoDifference(outcome, .answering(requestID: "00000000-0000-0000-0000-000000000000"))
+    expectNoDifference(
+      instantAsk.pending.map(\.text), ["Why?"])
+    expectNoDifference(fork.requests.map(\.parentSessionID), [Self.tab])
+    expectNoDifference(sent.value, 0)
+  }
+
+  @Test func askTappedOnOutsideRouteSendsAsk() async {
+    let sent = LockIsolated<[QuestionRequest]>([])
+    let model = model(route: .outside, send: { request in
+      sent.withValue { $0.append(request) }
+      return try Self.ack(request)
+    })
+    model.draftChanged("Why?")
+
+    let outcome = await model.askTapped()
+
+    expectNoDifference(outcome, .queued)
+    expectNoDifference(
+      sent.value,
+      [
+        QuestionRequest(
+          sessionID: Self.session, requestID: "00000000-0000-0000-0000-000000000000", text: "Why?", context: Self.context,
+          verb: .ask(bindingGeneration: "7"))
+      ])
   }
 }

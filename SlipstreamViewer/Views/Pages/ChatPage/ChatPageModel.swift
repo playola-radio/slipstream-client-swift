@@ -45,6 +45,7 @@ final class ChatPageModel: ViewModel {
 
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
   @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
+  @ObservationIgnored var onReadinessChanged: @MainActor () -> Void = {}
 
   var visibleTabs: [ChatTabModel] {
     guard let folder else { return [] }
@@ -159,10 +160,16 @@ final class ChatPageModel: ViewModel {
     return .waiting
   }
 
-  /// For the Ask notice: the link belongs to one of this workspace's tabs.
-  var isAppTabLinked: Bool {
-    guard let folder, let binding = bindings?[folder] else { return false }
-    return tabs(in: folder).contains { binding.isLinked(toChat: $0.id) }
+  /// A linked app tab answers once it has sent a message; anything else keeps the outside chat's checks.
+  func askRoute(forFolder folder: String) -> AskRoute {
+    guard let tab = linkedAppTab(forFolder: folder) else { return .outside }
+    return tab.hasSentMessage ? .app : .none
+  }
+
+  /// The tab the folder's binding names, if it is one of the app's tabs.
+  func linkedAppTab(forFolder folder: String) -> ChatTabModel? {
+    guard let binding = bindings?[folder] else { return nil }
+    return tabs(in: folder).first { binding.isLinked(toChat: $0.id) }
   }
 
   // MARK: - User Actions
@@ -426,6 +433,7 @@ final class ChatPageModel: ViewModel {
       ChatTabModel(record: record, needsHistory: needsHistory)
     }
     tab.onTurnEnded = { [weak self] in self?.turnEnded(id) }
+    tab.onReadinessChanged = { [weak self] in self?.onReadinessChanged() }
     tabs.append(tab)
   }
 

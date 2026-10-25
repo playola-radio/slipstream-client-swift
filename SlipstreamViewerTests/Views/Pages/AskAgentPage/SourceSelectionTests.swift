@@ -31,6 +31,16 @@ struct SourceSelectionTests {
     #expect(SourceSelection.make(sessionID: "capture", row: absent, block: block, startY: 1, endY: 30, lineHeight: 22) == nil)
   }
 
+  @Test func selectedTextKeepsTheSourceTabs() {
+    let tabbed = CodeBlock(id: 0, separatorText: nil, lines: [
+      CodeLine(id: 3, number: "3", text: "    return", sourceText: "\treturn", isChanged: false)
+    ], truncationText: nil)
+
+    let selected = SourceSelection.make(sessionID: "capture", row: row, block: tabbed, startY: 1, endY: 1, lineHeight: 22)
+
+    expectNoDifference(selected?.selectedText, "\treturn")
+  }
+
   @Test func largerTextMapsDragsWithTheScaledLineHeight() {
     let selected = SourceSelection.make(sessionID: "capture", row: row, block: block, startY: 45, endY: 100, lineHeight: 44)
     expectNoDifference(selected?.context.lineStart, 8)

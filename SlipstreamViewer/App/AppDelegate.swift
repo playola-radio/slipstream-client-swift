@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   var chat: ChatPageModel?
+  var instantAsk: InstantAskModel?
   var reopenWindow: () -> Void = {}
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -24,8 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateCancel
       }
     }
+    let instantAsk = instantAsk
     Task {
-      await chat.quitConfirmed()
+      async let chatStopped: Void = chat.quitConfirmed()
+      async let copiesStopped: Void? = instantAsk?.quitConfirmed()
+      _ = await (chatStopped, copiesStopped)
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater

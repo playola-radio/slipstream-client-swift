@@ -44,6 +44,22 @@ struct ControlTransportTests {
     try await serving.value
   }
 
+  @Test func recordExchangeSendsOneLineAndDecodesTheReply() async throws {
+    let server = try SocketFixture()
+    let serving = server.serve { fd in
+      var request = Data()
+      var byte: UInt8 = 0
+      while Darwin.read(fd, &byte, 1) == 1, byte != 10 { request.append(byte) }
+      let json = try #require(JSONSerialization.jsonObject(with: request) as? [String: Any])
+      expectNoDifference(json["verb"] as? String, "record_question_exchange")
+      let reply = Array((QuestionsTests.exchangeAcknowledgment + "\n").utf8)
+      _ = reply.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+    }
+    let reply = try await ControlTransport(store: server.store).recordExchange(QuestionsTests.exchange())
+    expectNoDifference(reply.questionID, QuestionsTests.questionID)
+    try await serving.value
+  }
+
   @Test func postSendDisconnectIsUnknown() async throws {
     let server = try SocketFixture()
     let serving = server.serve { fd in

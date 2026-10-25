@@ -334,6 +334,22 @@ enum DesignTokens {
     static let connectorWidth: CGFloat = 2
     static let connectorLength: CGFloat = 44
     static let viewportInset: CGFloat = 16
+    static let progressIconSize: CGFloat = 12
+    static let progressRowGap: CGFloat = 8
+    static let progressGap: CGFloat = 6
+    static let progressStroke = Color(hex: 0x34414E)
+    static let progressStrokeWidth: CGFloat = 1
+    static let progressPadding = EdgeInsets(top: 2, leading: 10, bottom: 2, trailing: 0)
+    static let failureColor = Color(hex: 0xF0A4AB)
+    static let failureDetailColor = sourceColor
+    static let progressActionsPadding = EdgeInsets(top: 4, leading: 20, bottom: 0, trailing: 0)
+    static let tryAgainFill = Color(hex: 0x192631)
+    static let tryAgainStroke = Color(hex: 0x516579)
+    static let tryAgainText = Color(hex: 0xDBE9F3)
+    static let tryAgainFont = variableFont(family: geistFamily, size: 12, weight: 550)
+    static let tryAgainRadius: CGFloat = 4
+    static let tryAgainVerticalPadding: CGFloat = 6
+    static let tryAgainHorizontalPadding: CGFloat = 10
   }
 
   enum Fonts {

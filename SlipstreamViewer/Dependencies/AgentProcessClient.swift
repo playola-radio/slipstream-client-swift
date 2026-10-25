@@ -26,6 +26,7 @@ enum AgentProcessError: Error, Equatable {
 struct AgentProcessHandle: Sendable {
   var events: AsyncStream<AgentProcessEvent>
   var write: @Sendable (Data) async throws -> Void
+  var closeInput: @Sendable () async -> Void
   var shutdown: @Sendable () async -> Void
 }
 
@@ -40,6 +41,7 @@ extension AgentProcessClient: DependencyKey {
       return AgentProcessHandle(
         events: process.events,
         write: { try await process.input.write($0) },
+        closeInput: { await process.input.close() },
         shutdown: { await process.shutdown() }
       )
     })

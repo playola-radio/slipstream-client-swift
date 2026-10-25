@@ -1579,7 +1579,13 @@ struct ChatPageTests {
     #expect(model.linkHoverText(for: tab) == nil)
     #expect(model.linkHelpText(for: tab) == "Connected to Stream")
     #expect(model.outsideChatText == nil)
-    #expect(model.isAppTabLinked)
+    #expect(model.askRoute(forFolder: "/w") == .app)
+  }
+
+  @Test func linkedTabWithoutMessageCannotBeAsked() async throws {
+    let model = await openWindow(records: [record()], withMessage: [], captures: captures(binding(.connected)))
+
+    #expect(model.askRoute(forFolder: "/w") == AskRoute.none)
   }
 
   @Test func setupPendingShowsWaitingIcon() async throws {
@@ -1594,7 +1600,7 @@ struct ChatPageTests {
     #expect(
       model.linkHelpText(for: tab)
         == "Connected to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
-    #expect(model.isAppTabLinked)
+    #expect(model.askRoute(forFolder: "/w") == .app)
   }
 
   @Test func unlinkedWithOldIDShowsNoIcon() async throws {
@@ -1606,7 +1612,7 @@ struct ChatPageTests {
     #expect(model.linkHoverTitle(for: tab) == nil)
     #expect(model.linkHelpText(for: tab) == nil)
     #expect(model.outsideChatText == nil)
-    #expect(model.isAppTabLinked == false)
+    #expect(model.askRoute(forFolder: "/w") == .outside)
   }
 
   @Test func outsideChatShowsLabelAndNoIcon() async throws {
@@ -1615,7 +1621,7 @@ struct ChatPageTests {
 
     #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
     #expect(model.outsideChatText == "Stream: outside chat")
-    #expect(model.isAppTabLinked == false)
+    #expect(model.askRoute(forFolder: "/w") == .outside)
     #expect(link.calls.isEmpty)
   }
 
@@ -1648,7 +1654,7 @@ struct ChatPageTests {
     #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
     #expect(model.linkIcon(for: try tab(model, UUID(50))) == nil)
     #expect(model.outsideChatText == nil)
-    #expect(model.isAppTabLinked == false)
+    #expect(model.askRoute(forFolder: "/w") == .outside)
     #expect(link.calls.isEmpty)
   }
 
@@ -1965,7 +1971,7 @@ struct ChatPageTests {
 
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == .failed)
-    #expect(model.isAppTabLinked)
+    #expect(model.askRoute(forFolder: "/w") == .app)
     model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
     #expect(model.linkIcon(for: tab) == .failed)
 
@@ -2004,7 +2010,7 @@ struct ChatPageTests {
     #expect(model.linkIcon(for: try tab(model, UUID(50))) == .failed)
     #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
     #expect(model.outsideChatText == nil)
-    #expect(model.isAppTabLinked == false)
+    #expect(model.askRoute(forFolder: "/w") == .outside)
   }
 
   @Test(arguments: [LinkOutcome.linked, .unlinked, .skipped, .retryLater, .refused(.other("no."))])

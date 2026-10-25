@@ -25,11 +25,13 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(chat: ChatPageModel, isFunctionDemoVisible: Bool = false) {
+  init(chat: ChatPageModel, instantAsk: InstantAskModel, isFunctionDemoVisible: Bool = false) {
     self.chat = chat
+    self.instantAsk = instantAsk
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
+    chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
   }
 
   // MARK: - Properties
@@ -37,6 +39,7 @@ final class ChangeStreamPageModel: ViewModel {
   static let cardContentLimit = 64
 
   let chat: ChatPageModel
+  let instantAsk: InstantAskModel
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -257,7 +260,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func questionBars(for row: FileChangeRow) -> [QuestionBar] {
-    questionThreads.threads
+    let threads = questionThreads.threads
       .filter { $0.source.context.changeSeq == row.id.decimal }
       .map { thread in
         QuestionBar(
@@ -267,6 +270,17 @@ final class ChangeStreamPageModel: ViewModel {
           isOpen: reply?.key.rootQuestionID == thread.id
         )
       }
+    let pending = pendingRoots
+      .filter { $0.source.context.changeSeq == row.id.decimal }
+      .map { entry in
+        QuestionBar(
+          id: entry.id,
+          preview: entry.text,
+          status: status(of: entry),
+          isOpen: reply?.key.rootQuestionID == entry.id
+        )
+      }
+    return threads + pending
   }
 
   func replyMeasured(_ size: CGSize) { replySize = size }
@@ -322,11 +336,13 @@ final class ChangeStreamPageModel: ViewModel {
     askAgent = withDependencies(from: self) {
       AskAgentPageModel(
         sessionID: selection.sessionID,
-        context: selection.context,
+        folder: sessions[id: selection.sessionID]?.root ?? "",
+        source: QuestionSource(context: selection.context, selectedText: selection.selectedText),
         agentConnection: selectedSession?.agentConnection ?? .unreported,
         captureStatus: sessions[id: selection.sessionID].map(captureStatus(of:))
           ?? CaptureStatus(availability: captureAvailability, capture: nil),
-        isAppTabLinked: isAppTabLinked(selection.sessionID)
+        route: askRoute(selection.sessionID),
+        instantAsk: instantAsk
       )
     }
   }
@@ -364,15 +380,10 @@ final class ChangeStreamPageModel: ViewModel {
   func questionBarTapped(_ bar: QuestionBar) {
     let isOpen = reply?.key.rootQuestionID == bar.id
     replyCollapsed()
-    guard !isOpen, askAgent == nil, let sessionID = selectedSession?.id,
-      let thread = questionThreads.threads[id: bar.id]
+    guard !isOpen, askAgent == nil,
+      let thread = questionThreads.threads[id: bar.id] ?? pendingRoots[id: bar.id]?.rootThread
     else { return }
-    let key = QuestionThreadKey(storeID: daemon.storeID, sessionID: sessionID, rootQuestionID: thread.id)
-    reply = withDependencies(from: self) {
-      QuestionThreadPageModel(key: key, thread: thread, bindingGeneration: selectedSession?.capture?.binding?.generation)
-    }
-    replyBarFrame = barFrames[thread.id] ?? .zero
-    isReplyBarVisible = barFrames[thread.id] != nil
+    replyOpened(on: thread)
   }
 
   func replyDismissTapped() {
@@ -381,8 +392,13 @@ final class ChangeStreamPageModel: ViewModel {
 
   func askQuestionTapped(_ composer: AskAgentPageModel) async {
     guard askAgent === composer else { return }
-    let queued = await composer.askTapped()
-    guard askAgent === composer, queued else { return }
+    let sent = await composer.askTapped()
+    guard askAgent === composer, let sent else { return }
+    if case .answering(let requestID) = sent {
+      questionDismissed()
+      if let entry = pendingRoots[id: requestID] { replyOpened(on: entry.rootThread) }
+      return
+    }
     if composer.sessionID == selectedSession?.id {
       queuedQuestionNotice = "Question queued (delivery not confirmed)"
     } else {
@@ -686,8 +702,11 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func select(_ id: String) -> Bool {
     guard let session = sessions[id: id], session.id != selectedSession?.id else { return false }
-    if let outgoing = selectedSession, let composer = askAgent, composer.sessionID == outgoing.id {
-      composer.agentConnectionChanged(.disconnected(reason: nil))
+    if let outgoing = selectedSession {
+      instantAsk.captureDeselected(outgoing.id)
+      if let composer = askAgent, composer.sessionID == outgoing.id {
+        composer.agentConnectionChanged(.disconnected(reason: nil))
+      }
     }
     selectedSession = session
     awaitsFreshSnapshot = false
@@ -764,6 +783,9 @@ final class ChangeStreamPageModel: ViewModel {
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
+      for sessionID in Set(instantAsk.pending.map(\.sessionID)) where sessions[id: sessionID] == nil {
+        instantAsk.captureDeleted(sessionID)
+      }
       if bindingMovedWhileAwaitingSnapshot {
         bindingMovedWhileAwaitingSnapshot = false
         Task { [weak self] in await self?.loadSessions() }
@@ -801,7 +823,7 @@ final class ChangeStreamPageModel: ViewModel {
           isWatched ? sessions[id: composer.sessionID]?.agentConnection ?? .disconnected(reason: nil) : .disconnected(reason: nil))
         composer.captureChanged(
           CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture),
-          isAppTabLinked: isAppTabLinked(composer.sessionID))
+          route: askRoute(composer.sessionID))
       }
       if selectedSession == nil, sessions.count == 1,
         !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
@@ -890,7 +912,7 @@ final class ChangeStreamPageModel: ViewModel {
     if let composer = askAgent {
       composer.captureChanged(
         CaptureStatus(availability: captureAvailability, capture: capturesByID[composer.sessionID]),
-        isAppTabLinked: isAppTabLinked(composer.sessionID))
+        route: askRoute(composer.sessionID))
     }
   }
 
@@ -898,12 +920,37 @@ final class ChangeStreamPageModel: ViewModel {
     captureAvailability = .failed
     chat.capturesArrived(nil)
     reply?.captureChanged(nil)
-    askAgent?.captureChanged(CaptureStatus(availability: .failed, capture: nil), isAppTabLinked: false)
+    if let composer = askAgent {
+      composer.captureChanged(CaptureStatus(availability: .failed, capture: nil), route: askRoute(composer.sessionID))
+    }
   }
 
-  /// The chat strip shows the selected workspace, so its link only speaks for that session.
-  private func isAppTabLinked(_ sessionID: String) -> Bool {
-    sessions[id: sessionID]?.root == chat.folder && chat.isAppTabLinked
+  private func askRoute(_ sessionID: String) -> AskRoute {
+    sessions[id: sessionID]?.root.map(chat.askRoute(forFolder:)) ?? .outside
+  }
+
+  private func askRouteChanged() {
+    guard let composer = askAgent else { return }
+    composer.routeChanged(askRoute(composer.sessionID))
+  }
+
+  /// New questions on the selected capture still being answered, shown as bars at their lines.
+  private var pendingRoots: IdentifiedArrayOf<PendingAsk> {
+    instantAsk.pending.filter { entry in
+      entry.replyToQuestionID == nil && entry.storeID == daemon.storeID && entry.sessionID == selectedSession?.id
+    }
+  }
+
+  private func replyOpened(on thread: QuestionThread) {
+    guard let sessionID = selectedSession?.id else { return }
+    let key = QuestionThreadKey(storeID: daemon.storeID, sessionID: sessionID, rootQuestionID: thread.id)
+    reply = withDependencies(from: self) {
+      QuestionThreadPageModel(
+        key: key, thread: thread, bindingGeneration: selectedSession?.capture?.binding?.generation,
+        folder: selectedSession?.root, instantAsk: instantAsk)
+    }
+    replyBarFrame = barFrames[thread.id] ?? .zero
+    isReplyBarVisible = barFrames[thread.id] != nil
   }
 
   private func startWatching() {
@@ -1047,11 +1094,11 @@ final class ChangeStreamPageModel: ViewModel {
       askAgent?.questionsUpdated(questionThreads.threads)
     case .unsupported(let type):
       append(.marker(FeedMarker(id: event.seq, text: "Unsupported event: \(type)")))
-    case .questionQueued, .questionAnswered:
+    case .questionQueued, .questionAnswered, .questionExchangeRecorded:
       let previousTurnCount = previousTurnCount(beforeApplying: event)
       questionThreads.apply(event)
       shareQueuedFollowUp(event, previousTurnCount: previousTurnCount)
-      openReplyUpdated()
+      threadsFolded()
       if follow == .following { scrollToLatestRequest += 1 }
     case .questionDispatchAttempted, .agentUnlinked:
       questionThreads.apply(event)
@@ -1151,6 +1198,20 @@ final class ChangeStreamPageModel: ViewModel {
     reply.threadUpdated(thread)
   }
 
+  /// A new question's panel moves from its request id to the recorded thread once its answer folds in.
+  private func threadsFolded() {
+    if let sessionID = selectedSession?.id {
+      instantAsk.threadsFolded(sessionID: sessionID, threads: questionThreads.threads)
+    }
+    if let reply, !reply.isDismissed,
+      let thread = questionThreads.threads.first(where: { $0.turns.first?.requestID == reply.key.rootQuestionID }) {
+      let (frame, isBarVisible) = (replyBarFrame, isReplyBarVisible)
+      replyOpened(on: thread)
+      if barFrames[thread.id] == nil { (replyBarFrame, isReplyBarVisible) = (frame, isBarVisible) }
+    }
+    openReplyUpdated()
+  }
+
   private func shareQueuedFollowUp(_ event: SlipstreamEvent, previousTurnCount: Int?) {
     guard case .questionQueued(let question) = event.payload, question.replyToQuestionID != nil,
       let sessionID = selectedSession?.id,
@@ -1206,6 +1267,13 @@ final class ChangeStreamPageModel: ViewModel {
     isReplyBarVisible = false
   }
 
+  private func status(of entry: PendingAsk) -> QuestionBarStatus {
+    switch entry.state {
+    case .answering, .recording, .recorded: .waiting
+    case .couldntAnswer, .couldntRecord: .notDelivered
+    }
+  }
+
   private func status(of thread: QuestionThread) -> QuestionBarStatus {
     let sessionID = selectedSession?.id ?? ""
     let hasUnread = thread.turns.contains { turn in
@@ -1213,6 +1281,12 @@ final class ChangeStreamPageModel: ViewModel {
       return !readAnswers.contains(AnswerReadMarker(storeID: daemon.storeID, sessionID: sessionID, seq: answer.seq))
     }
     if hasUnread { return .newReply }
+    if let entry = instantAsk.pending.first(where: {
+      $0.storeID == daemon.storeID && $0.sessionID == selectedSession?.id
+        && $0.replyToQuestionID.map { id in thread.turns.contains { $0.questionID == id } } == true
+    }) {
+      return status(of: entry)
+    }
     if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
     return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }

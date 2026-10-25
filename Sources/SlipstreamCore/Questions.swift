@@ -29,26 +29,71 @@ public struct QuestionContext: Codable, Equatable, Sendable {
   }
 }
 
+public enum QuestionVerb: Equatable, Sendable {
+  case ask(bindingGeneration: String?)
+  case recordExchange(answerText: String, conversation: ExchangeConversation)
+}
+
+public struct ExchangeConversation: Encodable, Equatable, Sendable {
+  public let parentSessionID: String
+  public let forkSessionID: String
+
+  public init(parentSessionID: String, forkSessionID: String) {
+    self.parentSessionID = parentSessionID
+    self.forkSessionID = forkSessionID
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode("claude-code", forKey: .harness)
+    try container.encode(parentSessionID.lowercased(), forKey: .parentSessionID)
+    try container.encode(forkSessionID.lowercased(), forKey: .forkSessionID)
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case harness, parentSessionID = "parent_session_id", forkSessionID = "fork_session_id"
+  }
+}
+
 public struct QuestionRequest: Encodable, Equatable, Sendable {
+  public static let maximumTextBytes = 8192
+
   public let sessionID: String
   public let requestID: String
   public let text: String
   public let context: QuestionContext
   public let replyToQuestionID: String?
-  public let bindingGeneration: String?
-  let v = 1
-  let verb = "ask"
+  public let verb: QuestionVerb
 
   public init(
     sessionID: String, requestID: String, text: String, context: QuestionContext, replyToQuestionID: String? = nil,
-    bindingGeneration: String? = nil
+    verb: QuestionVerb = .ask(bindingGeneration: nil)
   ) {
     self.sessionID = sessionID
     self.requestID = requestID
     self.text = text
     self.context = context
     self.replyToQuestionID = replyToQuestionID
-    self.bindingGeneration = bindingGeneration
+    self.verb = verb
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(1, forKey: .v)
+    try container.encode(sessionID, forKey: .sessionID)
+    try container.encode(requestID, forKey: .requestID)
+    try container.encode(text, forKey: .text)
+    try container.encode(context, forKey: .context)
+    try container.encodeIfPresent(replyToQuestionID, forKey: .replyToQuestionID)
+    switch verb {
+    case .ask(let bindingGeneration):
+      try container.encode("ask", forKey: .verb)
+      try container.encodeIfPresent(bindingGeneration, forKey: .bindingGeneration)
+    case .recordExchange(let answerText, let conversation):
+      try container.encode("record_question_exchange", forKey: .verb)
+      try container.encode(answerText, forKey: .answerText)
+      try container.encode(conversation, forKey: .conversation)
+    }
   }
 
   public func encoded() throws -> Data {
@@ -61,7 +106,7 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
       throw QuestionError.rejected(code: "INVALID_CONTEXT", message: "Select 1–200 source lines from one change.")
     }
     let normalized = Self.trim(text)
-    guard !normalized.isEmpty, normalized.utf8.count <= 8192 else {
+    guard !normalized.isEmpty, normalized.utf8.count <= Self.maximumTextBytes else {
       throw QuestionError.rejected(code: "INVALID_QUESTION", message: "Use a question of 1–8192 UTF-8 bytes.")
     }
     let bytes = try JSONEncoder().encode(self)
@@ -84,6 +129,7 @@ public struct QuestionRequest: Encodable, Equatable, Sendable {
     case v, verb, sessionID = "session_id", requestID = "request_id", text, context
     case replyToQuestionID = "reply_to_question_id"
     case bindingGeneration = "binding_generation"
+    case answerText = "answer_text", conversation
   }
 }
 
@@ -103,15 +149,8 @@ public struct QuestionAcknowledgment: Decodable, Equatable, Sendable {
   public let duplicate: Bool
 
   public static func decode(_ data: Data, for request: QuestionRequest) throws -> Self {
-    let decoder = JSONDecoder()
-    guard let envelope = try? decoder.decode(Envelope.self, from: data), envelope.v == 1 else {
-      throw QuestionError.outcomeUnknown
-    }
-    if !envelope.ok {
-      guard let error = try? decoder.decode(Rejection.self, from: data) else { throw QuestionError.outcomeUnknown }
-      throw QuestionError.rejected(code: error.code, message: error.message)
-    }
-    guard let result = try? decoder.decode(Self.self, from: data),
+    try ControlReply.check(data)
+    guard let result = try? JSONDecoder().decode(Self.self, from: data),
       result.sessionID == request.sessionID, result.requestID == request.requestID,
       QuestionRequest.isCanonicalUUID(result.questionID), result.seq > .zero,
       result.queuedAtMs >= 0, result.expiresAtMs > result.queuedAtMs,
@@ -120,10 +159,53 @@ public struct QuestionAcknowledgment: Decodable, Equatable, Sendable {
     return result
   }
 
-  private struct Envelope: Decodable { let v: Int; let ok: Bool }
-  private struct Rejection: Decodable { let code: String; let message: String }
   enum CodingKeys: String, CodingKey {
     case sessionID = "session_id", requestID = "request_id", questionID = "question_id", seq
     case queuedAtMs = "queued_at_ms", expiresAtMs = "expires_at_ms", duplicate
   }
+}
+
+public struct ExchangeAcknowledgment: Decodable, Equatable, Sendable {
+  public let sessionID: String
+  public let requestID: String
+  public let questionID: String
+  public let seq: Seq
+  public let duplicate: Bool
+
+  public init(sessionID: String, requestID: String, questionID: String, seq: Seq, duplicate: Bool) {
+    self.sessionID = sessionID
+    self.requestID = requestID
+    self.questionID = questionID
+    self.seq = seq
+    self.duplicate = duplicate
+  }
+
+  public static func decode(_ data: Data, for request: QuestionRequest) throws -> Self {
+    try ControlReply.check(data)
+    guard let result = try? JSONDecoder().decode(Self.self, from: data),
+      result.sessionID == request.sessionID, result.requestID == request.requestID,
+      QuestionRequest.isCanonicalUUID(result.questionID), result.seq > .zero
+    else { throw QuestionError.outcomeUnknown }
+    return result
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case sessionID = "session_id", requestID = "request_id", questionID = "question_id", seq, duplicate
+  }
+}
+
+enum ControlReply {
+  static func check(_ data: Data) throws {
+    let decoder = JSONDecoder()
+    guard let envelope = try? decoder.decode(Envelope.self, from: data), envelope.v == 1 else {
+      throw QuestionError.outcomeUnknown
+    }
+    if !envelope.ok {
+      guard let error = try? decoder.decode(Rejection.self, from: data) else { throw QuestionError.outcomeUnknown }
+      throw QuestionError.rejected(code: error.code, message: error.message)
+    }
+  }
+
+  private struct Envelope: Decodable { let v: Int; let ok: Bool }
+  private struct Rejection: Decodable { let code: String; let message: String }
 }

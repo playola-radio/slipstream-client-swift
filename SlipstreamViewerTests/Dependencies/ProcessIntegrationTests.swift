@@ -29,6 +29,17 @@ struct ProcessIntegrationTests {
     )
   }
 
+  @Test func closeInputClosesStdin() async throws {
+    let handle = try await launchFake("count-stdin")
+
+    try await handle.write(Data("hello\n".utf8))
+    await handle.closeInput()
+    let events = try await collect(handle.events, count: 1)
+    await handle.shutdown()
+
+    expectNoDifference(events, [.line(Data(#"{"length":6}"#.utf8))])
+  }
+
   @Test func exitCarriesStatusAndStderrTail() async throws {
     let handle = try await launchFake("stderr-then-exit")
 

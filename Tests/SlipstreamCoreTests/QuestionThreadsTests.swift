@@ -49,6 +49,21 @@ enum QuestionFixture {
       seq: Seq(String(seq))!, type: "slipstream.agent.unlinked.v1", payload: .agentUnlinked(AgentUnlinked(reason: reason)))
   }
 
+  static func recorded(
+    _ seq: Int, id: String, text: String = "Why?", answer: String = "Because.", replyTo: String? = nil,
+    chat: String = "chat-1"
+  ) -> SlipstreamEvent {
+    SlipstreamEvent(
+      seq: Seq(String(seq))!,
+      type: "slipstream.question.exchange_recorded.v1",
+      payload: .questionExchangeRecorded(
+        QuestionExchangeRecorded(
+          questionID: id, requestID: "r-\(id)", text: text, answerText: answer, chatSessionID: chat, source: source,
+          replyToQuestionID: replyTo, recordedAtMs: Int64(seq))
+      )
+    )
+  }
+
   static func answered(_ seq: Int, id: String, text: String = "Because.") -> SlipstreamEvent {
     SlipstreamEvent(
       seq: Seq(String(seq))!,
@@ -108,10 +123,52 @@ struct QuestionEventDecodingTests {
     )
   }
 
+  private static func exchangeRecordedJSON(answer: String) throws -> Data {
+    let data: [String: Any] = [
+      "session_id": "6f3c1e0a-2b4d-4c8e-9a1f-3d5e7b9c0a12",
+      "question_id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "request_id": "0d7e4b52-8a19-4c3f-b6e2-91f0a4c3d8e7",
+      "text": "Why does greet use a template literal?",
+      "context": [
+        "change_seq": "4", "path": "user.ts", "snapshot_sha256": QuestionFixture.sha, "line_start": 1, "line_end": 3,
+        "selected_text": QuestionFixture.source.selectedText,
+      ],
+      "answer_text": answer,
+      "recorded_at_ms": 1_790_428_130_772,
+      "reply_to_question_id": "a1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "conversation": [
+        "harness": "claude-code", "parent_session_id": "5896f28c-f4a9-46c2-b481-7ca57e8714a8",
+        "fork_session_id": "7e3431be-1c2d-4e5f-8a9b-0c1d2e3f4a5b", "reported_by": "client",
+      ],
+    ]
+    let envelope: [String: Any] = [
+      "specversion": "1.0", "id": "42", "seq": "42", "type": "slipstream.question.exchange_recorded.v1",
+      "datacontenttype": "application/json", "time": "2026-09-26T13:08:50.772Z",
+      "source": "urn:slipstream:session:6f3c1e0a-2b4d-4c8e-9a1f-3d5e7b9c0a12",
+      "subject": "question/b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e", "data": data,
+    ]
+    return try JSONSerialization.data(withJSONObject: envelope)
+  }
+
+  @Test func decodesExchangeRecorded() throws {
+    let answer = String(repeating: "x", count: 20_000) + "  \n"
+    expectNoDifference(
+      try SlipstreamEvent.decode(Self.exchangeRecordedJSON(answer: answer)).payload,
+      .questionExchangeRecorded(
+        QuestionExchangeRecorded(
+          questionID: "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e", requestID: "0d7e4b52-8a19-4c3f-b6e2-91f0a4c3d8e7",
+          text: "Why does greet use a template literal?", answerText: answer,
+          chatSessionID: "5896f28c-f4a9-46c2-b481-7ca57e8714a8", source: QuestionFixture.source,
+          replyToQuestionID: "a1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e", recordedAtMs: 1_790_428_130_772)
+      )
+    )
+  }
+
   @Test(arguments: [
     "slipstream.question.queued.v1",
     "slipstream.question.dispatch_attempted.v1",
     "slipstream.question.answered.v1",
+    "slipstream.question.exchange_recorded.v1",
   ])
   func malformedQuestionEventThrowsWithSeqAndType(_ type: String) {
     #expect(throws: EventDecodingError(seq: "7", type: type)) {
@@ -384,5 +441,65 @@ extension QuestionThreadsTests {
     ])
     threads.apply(QuestionFixture.answered(5, id: "q1"))
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
+  }
+}
+
+extension QuestionThreadsTests {
+  @Test func hookThreadLinkIsHook() {
+    let threads = QuestionThreads([QuestionFixture.queued(1, id: "q1")])
+    expectNoDifference(threads.threads[id: "q1"]?.link, .hook)
+  }
+
+  @Test func recordedRootStartsRecordedThread() {
+    let threads = QuestionThreads([QuestionFixture.recorded(4, id: "q1", text: "Why?", answer: "Because.")])
+    expectNoDifference(
+      threads.threads,
+      [
+        QuestionThread(
+          id: "q1", source: QuestionFixture.source,
+          turns: [
+            QuestionTurn(
+              questionID: "q1", requestID: "r-q1", text: "Why?", queuedAtMs: 4,
+              answer: QuestionAnswer(seq: Seq("4")!, text: "Because.", answeredAtMs: 4))
+          ],
+          link: .recorded(chatSessionID: "chat-1"))
+      ]
+    )
+  }
+
+  @Test func recordedFollowUpAppendsAnsweredTurn() {
+    var threads = QuestionThreads([QuestionFixture.recorded(4, id: "q1")])
+    expectDifference(threads.threads) {
+      threads.apply(QuestionFixture.recorded(6, id: "q2", text: "And?", answer: "Also.", replyTo: "q1", chat: "chat-2"))
+    } changes: {
+      $0[id: "q1"]?.turns.append(
+        QuestionTurn(
+          questionID: "q2", requestID: "r-q2", text: "And?", queuedAtMs: 6,
+          answer: QuestionAnswer(seq: Seq("6")!, text: "Also.", answeredAtMs: 6)))
+    }
+    expectNoDifference(threads.threads[id: "q1"]?.link, .recorded(chatSessionID: "chat-1"))
+  }
+
+  @Test func recordedFollowUpWithUnknownParentIgnored() {
+    let events = [QuestionFixture.recorded(4, id: "q1")]
+    expectNoDifference(
+      QuestionThreads(events + [QuestionFixture.recorded(6, id: "q2", replyTo: "missing")]), QuestionThreads(events))
+  }
+
+  @Test func recordedFollowUpOnHookThreadIgnored() {
+    let events = [QuestionFixture.queued(1, id: "q1"), QuestionFixture.answered(3, id: "q1")]
+    expectNoDifference(
+      QuestionThreads(events + [QuestionFixture.recorded(6, id: "q2", replyTo: "q1")]), QuestionThreads(events))
+  }
+
+  @Test func resumeAndUnlinkLeaveRecordedTurnsAlone() {
+    let events = [
+      QuestionFixture.recorded(1, id: "q1"),
+      QuestionFixture.recorded(2, id: "q2", replyTo: "q1"),
+    ]
+    let threads = QuestionThreads(
+      events + [QuestionFixture.unlinked(3), QuestionFixture.resumed(4), QuestionFixture.unlinked(5)])
+    expectNoDifference(threads.threads, QuestionThreads(events).threads)
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered, .answered])
   }
 }

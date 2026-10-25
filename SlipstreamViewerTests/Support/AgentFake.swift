@@ -23,6 +23,8 @@ final class AgentFake: Sendable {
     var launches: [AgentLaunch] = []
     var continuations: [AsyncStream<AgentProcessEvent>.Continuation] = []
     var writes: [[Data]] = []
+    var inputClosed: [Bool] = []
+    var launchError: (any Error)?
     var shutdowns: [Int] = []
     var writeError: (any Error)?
     var holding: Set<Hold> = []
@@ -38,12 +40,15 @@ final class AgentFake: Sendable {
   var shutdownCount: Int { state.withLock { $0.shutdowns.reduce(0, +) } }
   /// Decoded, because the encoder orders object keys differently from call to call.
   func writes(_ launch: Int) -> [JSONValue] { state.withLock { $0.writes[launch] }.map(json) }
+  func rawWrites(_ launch: Int) -> [Data] { state.withLock { $0.writes[launch] } }
+  func isInputClosed(_ launch: Int) -> Bool { state.withLock { $0.inputClosed[launch] } }
   func shutdowns(_ launch: Int) -> Int { state.withLock { $0.shutdowns[launch] } }
 
   func setEnvironmentError(_ error: AgentEnvironmentError?) { state.withLock { $0.environmentError = error } }
   func setTranscript(_ id: UUID, _ lookup: TranscriptLookup) { state.withLock { $0.transcripts[id] = lookup } }
   func setUnreadable(_ id: UUID) { state.withLock { _ = $0.unreadable.insert(id) } }
   func setWriteError(_ error: (any Error)?) { state.withLock { $0.writeError = error } }
+  func setLaunchError(_ error: (any Error)?) { state.withLock { $0.launchError = error } }
 
   /// Makes those calls wait until `release(_:)`, like a slow login shell or a full pipe.
   func hold(_ hold: Hold) { state.withLock { _ = $0.holding.insert(hold) } }
@@ -109,11 +114,13 @@ final class AgentFake: Sendable {
   var processClient: AgentProcessClient {
     AgentProcessClient(launch: { launch in
       await self.wait(.launches)
+      if let error = self.state.withLock({ $0.launchError }) { throw error }
       let (events, continuation) = AsyncStream<AgentProcessEvent>.makeStream()
       let index = self.state.withLock { state in
         state.launches.append(launch)
         state.continuations.append(continuation)
         state.writes.append([])
+        state.inputClosed.append(false)
         state.shutdowns.append(0)
         return state.launches.count - 1
       }
@@ -123,9 +130,11 @@ final class AgentFake: Sendable {
           await self.wait(.writes)
           try self.state.withLock { state in
             if let error = state.writeError { throw error }
+            if state.inputClosed[index] { throw WriteFailed() }
             state.writes[index].append(data)
           }
         },
+        closeInput: { self.state.withLock { $0.inputClosed[index] = true } },
         shutdown: {
           self.state.withLock { $0.shutdowns[index] += 1 }
           await self.wait(.shutdowns)
