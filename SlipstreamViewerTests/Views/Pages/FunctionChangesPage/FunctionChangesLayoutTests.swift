@@ -39,7 +39,7 @@ struct FunctionChangesLayoutTests {
       window.contentView?.layoutSubtreeIfNeeded()
     }
     let resize = ContinuousClock().measure {
-      window.setContentSize(NSSize(width: 1361, height: 799))
+      window.setContentSize(NSSize(width: 1360, height: 799))
       window.updateConstraintsIfNeeded()
       window.contentView?.layoutSubtreeIfNeeded()
     }
@@ -54,7 +54,7 @@ private struct FileViewerStandIn: View {
 
   var body: some View {
     HStack(spacing: 0) {
-      Color.clear.frame(width: DesignTokens.FeedPane.width)
+      Color.clear.frame(width: DesignTokens.Workspace.sidebarWidth)
       VStack(spacing: DesignTokens.FileViewer.gap) {
         HStack {}.frame(height: DesignTokens.FileViewer.toolbarHeight)
         VStack(spacing: 0) {
@@ -68,8 +68,10 @@ private struct FileViewerStandIn: View {
         }
       }
       .padding(DesignTokens.FileViewer.padding)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .frame(width: DesignTokens.Workspace.chatMinWidth)
+      .frame(maxHeight: .infinity)
+      Color.clear.frame(width: DesignTokens.FeedPane.width)
     }
-    .frame(minWidth: 1000, minHeight: 480)
+    .frame(minWidth: 1360, minHeight: 480)
   }
 }
