@@ -1,10 +1,11 @@
 import AppKit
 
-/// Quitting, or closing the window, stops every agent first and asks only when one is mid-turn.
+/// Quitting, or closing the window, stops every agent and terminal first and asks only when an agent is mid-turn.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   var chat: ChatPageModel?
   var instantAsk: InstantAskModel?
+  var terminals: TerminalPageModel?
   var reopenWindow: () -> Void = {}
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -26,10 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
     }
     let instantAsk = instantAsk
+    let terminals = terminals
     Task {
       async let chatStopped: Void = chat.quitConfirmed()
       async let copiesStopped: Void? = instantAsk?.quitConfirmed()
-      _ = await (chatStopped, copiesStopped)
+      async let terminalsStopped: Void? = terminals?.quitConfirmed()
+      _ = await (chatStopped, copiesStopped, terminalsStopped)
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater

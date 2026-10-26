@@ -38,7 +38,9 @@ struct SlipstreamViewerApp: App {
         }
       }
       .environment(\.fontScale, fontSize.scale)
-      .modifier(QuitFlowHandoff(chat: chat, instantAsk: instantAsk, appDelegate: appDelegate, windowID: Self.windowID))
+      .task { await terminals.launched() }
+      .modifier(QuitFlowHandoff(
+        chat: chat, instantAsk: instantAsk, terminals: terminals, appDelegate: appDelegate, windowID: Self.windowID))
       .background {
         Button("Make Text Bigger") { fontSize.biggerTapped() }
           .keyboardShortcut("=")
@@ -53,10 +55,12 @@ struct SlipstreamViewerApp: App {
   private static let windowID = "main"
 }
 
-/// Gives the quit flow the chat and instant answers, and a way back to the window when closing it is cancelled.
+/// Gives the quit flow the chat, instant answers and terminals, and a way back to the window when closing it
+/// is cancelled.
 private struct QuitFlowHandoff: ViewModifier {
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
+  let terminals: TerminalPageModel
   let appDelegate: AppDelegate
   let windowID: String
   @Environment(\.openWindow) private var openWindow
@@ -65,6 +69,7 @@ private struct QuitFlowHandoff: ViewModifier {
     content.onAppear {
       appDelegate.chat = chat
       appDelegate.instantAsk = instantAsk
+      appDelegate.terminals = terminals
       appDelegate.reopenWindow = { openWindow(id: windowID) }
     }
   }
