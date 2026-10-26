@@ -32,6 +32,9 @@ packages:
   swift-sharing:
     url: https://github.com/pointfreeco/swift-sharing
     exactVersion: 2.9.1
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.19.0
 targets:
   SlipstreamViewer:
     type: application
@@ -53,6 +56,7 @@ targets:
         product: IssueReporting
       - package: swift-sharing
         product: Sharing
+      - package: SwiftTerm
     info:
       path: SlipstreamViewer/Info.plist
       properties:
