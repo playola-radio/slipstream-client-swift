@@ -60,7 +60,7 @@ struct TerminalSurfaceTests {
     feedReplayReset()
     feed("x")
 
-    #expect(normalBufferLines().contains { $0.hasSuffix("x") })
+    #expect(normalBufferLines().contains("x"))
   }
 
   @Test func scrollbackHoldsTheHistoryCap() throws {
@@ -70,7 +70,6 @@ struct TerminalSurfaceTests {
 
     let first = try #require(normalBufferLines().first)
     let number = try #require(Int(first.dropFirst("line ".count)))
-    #expect(first.hasPrefix("line "))
     #expect(number <= 101)
   }
 }

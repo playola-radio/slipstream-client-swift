@@ -32,9 +32,7 @@ final class TerminalSurface {
     view.nativeForegroundColor = NSColor(DesignTokens.TerminalPane.foreground)
     self.view = view
     view.terminalDelegate = self
-    view.onFocusChange = { [weak self] hasFocus in
-      MainActor.assumeIsolated { self?.onFocusChange(hasFocus) }
-    }
+    view.onFocusChange = { [weak self] hasFocus in self?.onFocusChange(hasFocus) }
   }
 
   func feed(_ bytes: [UInt8]) {
@@ -62,7 +60,7 @@ extension TerminalSurface: @MainActor TerminalViewDelegate {
 }
 
 private final class FocusReportingTerminalView: TerminalView {
-  var onFocusChange: (Bool) -> Void = { _ in }
+  var onFocusChange: @MainActor (Bool) -> Void = { _ in }
 
   override var hasFocus: Bool {
     didSet { onFocusChange(hasFocus) }
