@@ -4,6 +4,7 @@ import Dependencies
 import DependenciesTestSupport
 import Foundation
 import IdentifiedCollections
+import IssueReporting
 import Sharing
 import SlipstreamCore
 import Testing
@@ -17,13 +18,18 @@ struct TerminalPageTests {
   let a = "/tmp/workspace-a"
   let b = "/tmp/workspace-b"
 
-  func makeModel(_ records: [TerminalTabRecord] = [], selected: [String: UUID] = [:]) -> TerminalPageModel {
+  func makeModel(
+    _ records: [TerminalTabRecord] = [],
+    selected: [String: UUID] = [:],
+    state: Shared<TerminalState>? = nil
+  ) -> TerminalPageModel {
     withDependencies {
       $0.defaultFileStorage = fake.fileStorage
       $0.terminalRuntime = fake.runtimeClient
       $0.terminalHistory = fake.historyClient
       $0.uuid = .incrementing
     } operation: {
+      if let state { return TerminalPageModel(state: state) }
       @Shared(.terminalState) var state
       $state.withLock { $0 = TerminalState(tabs: IdentifiedArray(uniqueElements: records), selectedTabIDs: selected) }
       return TerminalPageModel()
@@ -85,6 +91,21 @@ struct TerminalPageTests {
 
     #expect(fake.savedState(at: .read(UUID(0)))?.tabs[id: UUID(0)] != nil)
     #expect(fake.savedState(at: .launch(directory: a))?.tabs[id: UUID(0)] != nil)
+  }
+
+  @Test func failedNewTerminalSaveDoesNotLaunchOrShowNewTab() async {
+    @Shared(wrappedValue: TerminalState(), FailingTerminalStateKey()) var state
+    let model = makeModel(state: $state)
+
+    await expectReportsIssue {
+      await model.workspaceChanged(folder: a)
+    } matching: { issue in
+      issue.description.contains("Caught error")
+    }
+
+    expectNoDifference(model.shownTabs, [])
+    #expect(model.selectedTab == nil)
+    expectNoDifference(fake.launches, [])
   }
 
   @Test func closeDeletesLogThenRecord() async {
@@ -337,5 +358,25 @@ struct TerminalPageTests {
 
     model.terminalFocusChanged(UUID(100), isFocused: false)
     #expect(!model.hasKeyboardFocus)
+  }
+}
+
+private struct FailingTerminalStateKey: SharedKey {
+  struct SaveError: Error {}
+
+  let id = UUID()
+
+  func load(context: LoadContext<TerminalState>, continuation: LoadContinuation<TerminalState>) {
+    continuation.resumeReturningInitialValue()
+  }
+
+  func subscribe(
+    context: LoadContext<TerminalState>, subscriber: SharedSubscriber<TerminalState>
+  ) -> SharedSubscription {
+    SharedSubscription {}
+  }
+
+  func save(_ value: TerminalState, context: SaveContext, continuation: SaveContinuation) {
+    continuation.resume(throwing: SaveError())
   }
 }

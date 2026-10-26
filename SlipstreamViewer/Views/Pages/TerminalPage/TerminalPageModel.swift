@@ -14,11 +14,12 @@ final class TerminalPageModel: ViewModel {
 
   // MARK: - Shared State
 
-  @ObservationIgnored @Shared(.terminalState) var state
+  @ObservationIgnored @Shared var state: TerminalState
 
   // MARK: - Initialization
 
-  override init() {
+  init(state: Shared<TerminalState>? = nil) {
+    _state = state ?? Shared(.terminalState)
     super.init()
   }
 
@@ -88,7 +89,7 @@ final class TerminalPageModel: ViewModel {
         state.tabs[id: record.id]?.kind = .setup(.interrupted)
       }
     }
-    await save()
+    _ = await save()
   }
 
   func workspaceChanged(folder: String?) async {
@@ -178,7 +179,7 @@ final class TerminalPageModel: ViewModel {
       state.tabs.removeAll { $0.folder == folder }
       state.selectedTabIDs[folder] = nil
     }
-    await save()
+    _ = await save()
     stoppedFolders.remove(folder)
   }
 
@@ -190,7 +191,7 @@ final class TerminalPageModel: ViewModel {
         group.addTask { await tab.stop() }
       }
     }
-    await save()
+    _ = await save()
   }
 
   // MARK: - Private Helpers
@@ -215,11 +216,18 @@ final class TerminalPageModel: ViewModel {
     guard canStartTabs(in: folder) else { return }
     let record = TerminalTabRecord(
       id: uuid(), folder: folder, kind: .terminal(number: state.nextTerminalNumber(in: folder)))
+    let selectedTabID = state.selectedTabIDs[folder]
     $state.withLock { state in
       state.tabs.append(record)
       state.selectedTabIDs[folder] = record.id
     }
-    await save()
+    guard await save() else {
+      $state.withLock { state in
+        state.tabs.remove(id: record.id)
+        state.selectedTabIDs[folder] = selectedTabID
+      }
+      return
+    }
     await startShownTabs()
   }
 
@@ -251,14 +259,17 @@ final class TerminalPageModel: ViewModel {
       if let folder, state.selectedTabIDs[folder] == tab.id { state.selectedTabIDs[folder] = nil }
     }
     tabs[id: tab.id] = nil
-    await save()
+    _ = await save()
     if let folder, folder == self.folder, !hasTerminalTab(in: folder) {
       await addTerminal(in: folder)
     }
   }
 
-  private func save() async {
-    await withErrorReporting { try await $state.save() }
+  private func save() async -> Bool {
+    await withErrorReporting {
+      try await $state.save()
+      return true
+    } ?? false
   }
 }
 
