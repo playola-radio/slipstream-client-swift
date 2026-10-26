@@ -46,6 +46,11 @@ struct ChangeStreamPageView: View {
     } message: {
       Text(model.archiveConfirmationText)
     }
+    .alert(model.openIn.failureTitle, isPresented: Bindable(model.openIn).isFailurePresented) {
+      Button(model.openIn.failureDismissText, role: .cancel) {}
+    } message: {
+      Text(model.openIn.failureText)
+    }
     .alert(model.workspaceFailureTitle, isPresented: $model.isWorkspaceFailurePresented) {
       Button(model.workspaceFailureDismissText, role: .cancel) {}
     } message: {
@@ -54,10 +59,12 @@ struct ChangeStreamPageView: View {
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
     .task { await model.viewAppeared() }
+    .task { model.openIn.viewAppeared() }
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
     .task { await model.chat.clockTask() }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       model.chat.appActivityChanged(isActive: true)
+      model.openIn.viewAppeared()
     }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
       model.chat.appActivityChanged(isActive: false)
@@ -409,6 +416,32 @@ struct ChangeStreamPageView: View {
       Button(model.compareFunctionsText) { model.compareFunctionsTapped() }
         .disabled(!model.canCompareFunctions)
     }
+    ToolbarItem {
+      OpenInButton(model: model.openIn)
+    }
+  }
+}
+
+private struct OpenInButton: View {
+  let model: OpenInModel
+
+  var body: some View {
+    Menu {
+      ForEach(model.apps) { app in
+        Button { Task { await model.appSelected(app.id) } } label: {
+          Label { Text(app.name) } icon: { Image(nsImage: model.icon(for: app)) }
+        }
+      }
+    } label: {
+      if let app = model.selectedApp {
+        Image(nsImage: model.icon(for: app))
+      }
+    } primaryAction: {
+      Task { await model.openTapped() }
+    }
+    .help(model.openHelpText)
+    .accessibilityLabel(model.openHelpText)
+    .disabled(model.isOpenDisabled)
   }
 }
 

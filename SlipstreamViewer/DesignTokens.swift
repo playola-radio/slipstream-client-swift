@@ -546,6 +546,10 @@ enum DesignTokens {
     static let toolbarHeight: CGFloat = 34
   }
 
+  enum OpenInButton {
+    static let iconSize: CGFloat = 16
+  }
+
   enum Stream {
     static let groupGap: CGFloat = 28
     static let itemGap: CGFloat = 24

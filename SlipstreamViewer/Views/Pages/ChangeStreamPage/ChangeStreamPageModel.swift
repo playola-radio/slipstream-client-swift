@@ -46,6 +46,7 @@ final class ChangeStreamPageModel: ViewModel {
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
+  let openIn = OpenInModel()
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -75,7 +76,12 @@ final class ChangeStreamPageModel: ViewModel {
   var sessions: IdentifiedArrayOf<SessionOption> = [] { didSet { chatWorkspaceMayHaveChanged() } }
   var hasLoadedSessions = false { didSet { chatWorkspaceMayHaveChanged() } }
   var sessionsError: String? { didSet { chatWorkspaceMayHaveChanged() } }
-  var selectedSession: SessionOption? { didSet { chatWorkspaceMayHaveChanged() } }
+  var selectedSession: SessionOption? {
+    didSet {
+      openIn.folder = selectedFolder
+      chatWorkspaceMayHaveChanged()
+    }
+  }
   private(set) var captureAvailability = CaptureAvailability.loading
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
