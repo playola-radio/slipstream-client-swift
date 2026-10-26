@@ -35,6 +35,14 @@ struct TerminalRuntimeClientTests {
     expectNoDifference(environment.variables["LANG"], "fr_FR.UTF-8")
   }
 
+  @Test func environmentSetsUTF8WhenLocaleValuesAreEmpty() throws {
+    let environment = try TerminalRuntimeClient.terminalEnvironment(
+      login: ["PATH": "/nowhere", "LANG": "", "LC_ALL": "", "LC_CTYPE": ""],
+      passwordDatabaseShell: "/bin/zsh")
+
+    expectNoDifference(environment.variables["LANG"], "en_US.UTF-8")
+  }
+
   @Test func environmentFindsSlipstreamOnPath() throws {
     let folder = FileManager.default.temporaryDirectory.appending(path: "terminal-env-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

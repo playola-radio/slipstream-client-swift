@@ -55,7 +55,7 @@ extension TerminalRuntimeClient {
     var variables = login
     variables["TERM"] = "xterm-256color"
     variables["COLORTERM"] = "truecolor"
-    if ["LANG", "LC_ALL", "LC_CTYPE"].allSatisfy({ login[$0] == nil }) {
+    if ["LANG", "LC_ALL", "LC_CTYPE"].allSatisfy({ login[$0]?.isEmpty ?? true }) {
       variables["LANG"] = "en_US.UTF-8"
     }
     return TerminalEnvironment(

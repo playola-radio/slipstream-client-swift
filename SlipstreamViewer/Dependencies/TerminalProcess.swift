@@ -14,8 +14,9 @@ import Synchronization
 /// Reading pauses while more than `bufferLimit` bytes wait in `events`, so a program printing
 /// faster than its output is consumed blocks instead of filling memory.
 ///
-/// The process is reaped as soon as it exits. Reaping and signalling share a lock, so its pid,
-/// and with it the process group id, is never signalled once an unrelated process could reuse it.
+/// The process is reaped as soon as it exits; after that its bare pid is never signalled, since
+/// an unrelated process could reuse it, but its process group still is, because a group id is not
+/// reused while the group has members.
 final class TerminalProcess: Sendable {
   static let hangupGrace = 2.0
   static let outputGrace = 1.0
@@ -168,10 +169,10 @@ final class TerminalProcess: Sendable {
     // has been reaped.
     let foreground = master.withLock { descriptor in descriptor.map(tcgetpgrp) ?? -1 }
     if foreground > 0 && foreground != pid { kill(-foreground, signal) }
+    let isGroupSignalled = kill(-pid, signal) == 0
     isReaped.withLock { isReaped in
-      guard !isReaped else { return }
       // Before the child's setsid there is no group yet; the unreaped pid is still ours.
-      if kill(-pid, signal) != 0 { kill(pid, signal) }
+      if !isGroupSignalled && !isReaped { kill(pid, signal) }
     }
   }
 

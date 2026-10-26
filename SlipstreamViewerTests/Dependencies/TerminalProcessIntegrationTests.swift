@@ -101,6 +101,24 @@ final class TerminalProcessIntegrationTests {
     #expect(kill(pid, 0) == -1 && errno == ESRCH)
   }
 
+  @Test func stopEndsAForegroundChildAfterItsLeaderExits() async throws {
+    let recorder = try launch("trap '' HUP TERM; sleep 100 & echo parent=$$ child=$!; exit")
+    try await recorder.waitForText { $0.contains("parent=") && $0.hasSuffix("\r\n") }
+    let ids = recorder.text.split(separator: " ")
+    let parent = try #require(Int32(ids[0].split(separator: "=")[1]))
+    let child = try #require(Int32(ids[1].trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "=")[1]))
+
+    try await withTimeout(.seconds(2)) {
+      while kill(parent, 0) == 0 { try await Task.sleep(for: .milliseconds(10)) }
+    }
+    await recorder.handle.stop()
+
+    try await withTimeout(.seconds(2)) {
+      while kill(child, 0) == 0 { try await Task.sleep(for: .milliseconds(10)) }
+    }
+    #expect(errno == ESRCH)
+  }
+
   @Test func stopTwiceIsSafe() async throws {
     let recorder = try launch("sleep 100")
 
