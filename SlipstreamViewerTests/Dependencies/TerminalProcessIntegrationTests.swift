@@ -52,13 +52,21 @@ final class TerminalProcessIntegrationTests {
     expectNoDifference(recorder.events.value.last, .finished(.exited(0)))
   }
 
-  @Test func launchFailureThrows() {
+  @Test func launchFailureThrows() throws {
     #expect(throws: TerminalLaunchError.self) {
       _ = try TerminalRuntimeClient.liveValue.launch(self.launchSettings([], executable: "/no/such/shell"))
     }
     #expect(throws: TerminalLaunchError.self) {
       var settings = self.launchSettings([])
       settings.directory = self.folder.appending(path: "missing").path
+      _ = try TerminalRuntimeClient.liveValue.launch(settings)
+    }
+    let locked = folder.appending(path: "locked")
+    try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: false)
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: locked.path)
+    #expect(throws: TerminalLaunchError.self) {
+      var settings = self.launchSettings([])
+      settings.directory = locked.path
       _ = try TerminalRuntimeClient.liveValue.launch(settings)
     }
   }
@@ -103,6 +111,44 @@ final class TerminalProcessIntegrationTests {
 
     try await recorder.waitForEnd()
     expectNoDifference(recorder.events.value.last, .finished(.signalled(SIGHUP)))
+  }
+
+  @Test func exitedProcessIsReapedWithoutStop() async throws {
+    let recorder = try launch("echo pid=$$")
+
+    try await recorder.waitForEnd()
+
+    let pid = try #require(Int32(recorder.text.split(separator: "=")[1].trimmingCharacters(in: .whitespacesAndNewlines)))
+    #expect(kill(pid, 0) == -1 && errno == ESRCH)
+  }
+
+  @Test func stopKeepsOutputPrintedOnHangup() async throws {
+    let recorder = try launch(#"trap 'printf "bye%.0s" $(seq 1 5000); exit 0' HUP; echo ready; sleep 100 & wait"#)
+    try await recorder.waitForText { $0.contains("ready\r\n") }
+
+    await recorder.handle.stop()
+
+    try await recorder.waitForEnd()
+    #expect(recorder.text.hasSuffix(String(repeating: "bye", count: 5000)))
+    expectNoDifference(recorder.events.value.last, .finished(.exited(0)))
+  }
+
+  @Test func unreadOutputPausesTheProgram() async throws {
+    let marker = folder.appending(path: "done")
+    let byteCount = TerminalProcess.bufferLimit * 4
+    let handle = try TerminalRuntimeClient.liveValue.launch(
+      launchSettings(["-c", "head -c \(byteCount) /dev/zero; touch '\(marker.path)'"]))
+
+    await #expect(throws: TimedOut.self) {
+      try await withTimeout(.milliseconds(500)) {
+        while !FileManager.default.fileExists(atPath: marker.path) { try await Task.sleep(for: .milliseconds(10)) }
+      }
+    }
+
+    let recorder = Recorder(handle)
+    try await recorder.waitForEnd()
+    #expect(recorder.text.utf8.count == byteCount)
+    expectNoDifference(recorder.events.value.last, .finished(.exited(0)))
   }
 
   @Test func writeReachesTheChild() async throws {
