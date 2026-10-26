@@ -90,7 +90,9 @@ struct WorkspaceSidebarView: View {
 private struct WorkspaceRowView: View {
   let model: ChangeStreamPageModel
   let session: SessionOption
-  @FocusState private var isFocused: Bool
+  @FocusState private var focus: Focus?
+
+  private enum Focus { case row, archive }
 
   var body: some View {
     let isSelected = model.isSelected(session)
@@ -113,7 +115,7 @@ private struct WorkspaceRowView: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .focused($isFocused)
+      .focused($focus, equals: .row)
       .accessibilityActions {
         if model.isArchivable(session) {
           Button(model.archiveWorkspaceHelpText) { model.archiveTapped(session) }
@@ -127,6 +129,7 @@ private struct WorkspaceRowView: View {
         .buttonStyle(.plain)
         .help(model.archiveWorkspaceHelpText)
         .disabled(model.isWorkspaceBusy)
+        .focused($focus, equals: .archive)
       }
     }
     .padding(.trailing, DesignTokens.Sidebar.rowTrailingPadding)
@@ -139,6 +142,6 @@ private struct WorkspaceRowView: View {
       }
     }
     .onHover { model.rowHoverChanged(session, isHovering: $0) }
-    .onChange(of: isFocused) { model.rowFocusChanged(session, isFocused: isFocused) }
+    .onChange(of: focus) { model.rowFocusChanged(session, isFocused: focus != nil) }
   }
 }

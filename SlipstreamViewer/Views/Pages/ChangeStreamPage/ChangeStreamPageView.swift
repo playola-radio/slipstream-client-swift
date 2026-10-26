@@ -154,8 +154,8 @@ struct ChangeStreamPageView: View {
             Text(model.rightPaneText(pane))
               .font(DesignTokens.RightPane.Tab.font(isSelected: isSelected))
               .foregroundStyle(DesignTokens.RightPane.Tab.color(isSelected: isSelected))
-            if pane == .stream {
-              Text(model.paneSubtitle)
+            if let note = model.rightPaneNote(pane) {
+              Text(note)
                 .font(DesignTokens.Fonts.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
                 .foregroundStyle(DesignTokens.Colors.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
                 .lineLimit(1)

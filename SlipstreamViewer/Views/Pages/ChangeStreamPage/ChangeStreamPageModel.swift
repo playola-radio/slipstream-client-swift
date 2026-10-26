@@ -57,6 +57,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isWorkspaceBusy = false
   private(set) var workspaceRoots: WorkspaceRoots?
   private(set) var archiveTarget: SessionOption?
+  private var archivingSessionID: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
   var isArchiveConfirmationPresented = false
@@ -142,6 +143,10 @@ final class ChangeStreamPageModel: ViewModel {
   let workspaceFailureDismissText = "OK"
 
   var sidebarToggleHelpText: String { isSidebarHidden ? "Show sidebar" : "Hide sidebar" }
+
+  func rightPaneNote(_ pane: RightPane) -> String? {
+    pane == .stream ? paneSubtitle : nil
+  }
 
   func rightPaneText(_ pane: RightPane) -> String {
     switch pane {
@@ -544,7 +549,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func sessionSelected(_ id: String) {
-    guard select(id) else { return }
+    guard id != archivingSessionID, select(id) else { return }
     pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
@@ -589,7 +594,11 @@ final class ChangeStreamPageModel: ViewModel {
     guard !isWorkspaceBusy, let target = archiveTarget, let folder = target.root else { return }
     let isSelected = target.id == selectedSession?.id
     isWorkspaceBusy = true
-    defer { isWorkspaceBusy = false }
+    archivingSessionID = target.id
+    defer {
+      isWorkspaceBusy = false
+      archivingSessionID = nil
+    }
     if isSelected {
       chat.workspaceChanged(folder: nil, emptyText: nil)
       await terminals.workspaceChanged(folder: nil)
@@ -597,18 +606,19 @@ final class ChangeStreamPageModel: ViewModel {
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
+    let isStillSelected = target.id == selectedSession?.id
     if let failure = outcome.failureText {
-      if isSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
+      if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
       terminals.restoreTabs(in: folder)
-      if isSelected { await terminals.workspaceChanged(folder: folder) }
+      if isStillSelected { await terminals.workspaceChanged(folder: folder) }
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
     archivedSessionIDs.insert(target.id)
-    if isSelected {
+    if isStillSelected {
       selectedSession = nil
       resetFeed()
       startWatching()

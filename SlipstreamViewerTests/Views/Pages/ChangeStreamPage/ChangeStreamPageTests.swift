@@ -1361,6 +1361,11 @@ struct ChangeStreamPageTests {
     #expect(!model.isSelected(.terminals))
   }
 
+  @Test func onlyTheStreamTabCarriesANote() {
+    let model = makeModel()
+    expectNoDifference(ChangeStreamPageModel.RightPane.allCases.map(model.rightPaneNote), ["Full functions", nil])
+  }
+
   @Test func aTaskHeadingIsPinnedOnlyWhileItSitsAtTheTop() async throws {
     let model = await connectedModel()
     await send(Fixture.taskStarted(1, "Convert isActive"), Fixture.edited(2))
@@ -3775,6 +3780,44 @@ extension ChangeStreamPageTests {
     expectNoDifference(archived.value, [Self.secondWorkspaceRoot])
     #expect(!model.chat.records.contains { $0.folder == Self.secondWorkspaceRoot })
     #expect(model.selectedSession?.id == Fixture.session)
+  }
+
+  @Test func switchingRowsDuringARefusedArchiveKeepsTheNewRow() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await twoWorkspacesModel(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome(failureText: "refused")
+    })
+    defer { model.viewDisappeared() }
+    model.archiveTapped(try #require(model.selectedSession))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.chat.folder == Self.secondWorkspaceRoot)
+  }
+
+  @Test func theRowBeingArchivedCannotBeSelected() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await twoWorkspacesModel(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+    model.archiveTapped(try #require(model.sessions[id: Fixture.otherSession]))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.session)
+    #expect(!model.chat.records.contains { $0.folder == Self.secondWorkspaceRoot })
   }
 
   @Test func selectingAWorkspaceWhileBusySwitches() async {
