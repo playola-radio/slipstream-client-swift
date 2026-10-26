@@ -606,8 +606,8 @@ final class ChangeStreamPageModel: ViewModel {
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
-    let isStillSelected = target.id == selectedSession?.id
     if let failure = outcome.failureText {
+      let isStillSelected = target.id == selectedSession?.id
       if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
       terminals.restoreTabs(in: folder)
@@ -618,7 +618,7 @@ final class ChangeStreamPageModel: ViewModel {
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
     archivedSessionIDs.insert(target.id)
-    if isStillSelected {
+    if target.id == selectedSession?.id {
       selectedSession = nil
       resetFeed()
       startWatching()

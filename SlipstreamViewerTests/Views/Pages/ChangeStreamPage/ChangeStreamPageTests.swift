@@ -31,9 +31,10 @@ struct ChangeStreamPageTests {
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
-    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil
+    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil,
+    terminals: TerminalPageModel? = nil
   ) -> ChangeStreamPageModel {
-    let terminals = makeTerminals()
+    let terminals = terminals ?? makeTerminals()
     return withDependencies {
       $0.workspace = workspace
       $0.defaultInMemoryStorage = storage ?? self.storage
@@ -50,11 +51,11 @@ struct ChangeStreamPageTests {
     }
   }
 
-  func makeTerminals() -> TerminalPageModel {
+  func makeTerminals(history: TerminalHistoryClient? = nil) -> TerminalPageModel {
     withDependencies {
       $0.defaultFileStorage = terminal.fileStorage
       $0.terminalRuntime = terminal.runtimeClient
-      $0.terminalHistory = terminal.historyClient
+      $0.terminalHistory = history ?? terminal.historyClient
       $0.uuid = .incrementing
     } operation: {
       TerminalPageModel()
@@ -3799,6 +3800,41 @@ extension ChangeStreamPageTests {
 
     #expect(model.selectedSession?.id == Fixture.otherSession)
     #expect(model.chat.folder == Self.secondWorkspaceRoot)
+  }
+
+  @Test func switchingRowsWhileAnArchiveCleansUpKeepsTheNewRow() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    var history = terminal.historyClient
+    history.delete = { _ in for await _ in gate { break } }
+    listTwoWorkspaces()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(), terminals: makeTerminals(history: history))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    model.archiveTapped(try #require(model.selectedSession))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: "third-session", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+        "third-session": SessionStarted(root: "/tmp/third", startedAtMs: 0),
+      ])
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    let watch = try #require(model.watchTask)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.watchTask == watch)
   }
 
   @Test func theRowBeingArchivedCannotBeSelected() async throws {
