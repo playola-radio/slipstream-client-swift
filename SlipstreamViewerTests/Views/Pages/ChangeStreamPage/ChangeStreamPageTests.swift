@@ -3837,6 +3837,90 @@ extension ChangeStreamPageTests {
     #expect(model.watchTask == watch)
   }
 
+  /// Two live sessions share the first workspace's folder; the second workspace is selected.
+  func sharedFolderModel(
+    archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome
+  ) async -> ChangeStreamPageModel {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: "sibling-session", durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        "sibling-session": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: archive))
+    await model.viewAppeared()
+    await Task.megaYield()
+    return model
+  }
+
+  @Test func archivingASharedFolderClearsTheSelectedSibling() async throws {
+    let model = await sharedFolderModel(archive: { _, _ in WorkspaceOutcome() })
+    defer { model.viewDisappeared() }
+    model.sessionSelected("sibling-session")
+    await Task.megaYield()
+
+    model.archiveTapped(try #require(model.sessions[id: Fixture.session]))
+    await model.archiveConfirmed()
+
+    #expect(model.selectedSession == nil)
+    #expect(model.chat.folder == nil)
+  }
+
+  @Test func aSiblingOfTheFolderBeingArchivedCannotBeSelected() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await sharedFolderModel(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    model.archiveTapped(try #require(model.sessions[id: Fixture.session]))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected("sibling-session")
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
+  @Test func aWorkspacePickedWhileCreatingStaysSelected() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let sessions = [
+      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+      SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+    ]
+    let starts = [
+      Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+      Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+    ]
+    fake.setSessions(sessions, starts: starts)
+    let model = makeModel(workspace: workspaceClient(create: { [fake] _, _ in
+      for await _ in gate { break }
+      fake.setSessions(
+        sessions + [SessionSummary(id: "created-session", durableSeq: .zero, removed: false)],
+        starts: starts.merging(["created-session": SessionStarted(root: "/tmp/created", startedAtMs: 0)]) { $1 })
+      return WorkspaceOutcome(workspacePath: "/tmp/created")
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await creating.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
   @Test func theRowBeingArchivedCannotBeSelected() async throws {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let model = await twoWorkspacesModel(archive: { _, _ in

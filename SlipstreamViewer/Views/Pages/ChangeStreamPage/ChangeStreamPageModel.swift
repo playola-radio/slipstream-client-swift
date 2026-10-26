@@ -57,7 +57,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isWorkspaceBusy = false
   private(set) var workspaceRoots: WorkspaceRoots?
   private(set) var archiveTarget: SessionOption?
-  private var archivingSessionID: String?
+  private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
   var isArchiveConfirmationPresented = false
@@ -549,7 +549,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func sessionSelected(_ id: String) {
-    guard id != archivingSessionID, select(id) else { return }
+    guard archivingFolder == nil || sessions[id: id]?.root != archivingFolder, select(id) else { return }
     pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
@@ -592,14 +592,13 @@ final class ChangeStreamPageModel: ViewModel {
   /// the folder they run in. Its conversations come back if the command refuses.
   func archiveConfirmed() async {
     guard !isWorkspaceBusy, let target = archiveTarget, let folder = target.root else { return }
-    let isSelected = target.id == selectedSession?.id
     isWorkspaceBusy = true
-    archivingSessionID = target.id
+    archivingFolder = folder
     defer {
       isWorkspaceBusy = false
-      archivingSessionID = nil
+      archivingFolder = nil
     }
-    if isSelected {
+    if selectedFolder == folder {
       chat.workspaceChanged(folder: nil, emptyText: nil)
       await terminals.workspaceChanged(folder: nil)
     }
@@ -607,7 +606,7 @@ final class ChangeStreamPageModel: ViewModel {
     await terminals.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
     if let failure = outcome.failureText {
-      let isStillSelected = target.id == selectedSession?.id
+      let isStillSelected = selectedFolder == folder
       if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
       terminals.restoreTabs(in: folder)
@@ -617,8 +616,8 @@ final class ChangeStreamPageModel: ViewModel {
     }
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
-    archivedSessionIDs.insert(target.id)
-    if target.id == selectedSession?.id {
+    archivedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
+    if selectedFolder == folder {
       selectedSession = nil
       resetFeed()
       startWatching()
@@ -830,8 +829,11 @@ final class ChangeStreamPageModel: ViewModel {
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
+    let selectedBefore = selectedSession?.id
     let outcome = await workspace.create(repository, daemon.storeID)
-    if let path = outcome.workspacePath { await loadSessions(preferring: path) }
+    if let path = outcome.workspacePath {
+      await loadSessions(preferring: selectedSession?.id == selectedBefore ? path : nil)
+    }
     if let failure = outcome.failureText {
       workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
     }

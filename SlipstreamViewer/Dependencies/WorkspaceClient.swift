@@ -27,10 +27,6 @@ extension WorkspaceClient {
       .appending(path: "slipstream/workspaces").resolvingSymlinksInPath()
   }
 
-  static func conductorRoot(environment: [String: String]) -> URL {
-    URL(filePath: environment["HOME"] ?? NSHomeDirectory()).appending(path: "conductor/workspaces")
-  }
-
   static func outcome(output: String, status: Int32) -> WorkspaceOutcome {
     let lines = output.split(whereSeparator: \.isNewline).map(String.init)
     let path = lines.last { $0.hasPrefix(pathPrefix) }.map { String($0.dropFirst(pathPrefix.count)) }
@@ -50,7 +46,10 @@ extension WorkspaceClient: DependencyKey {
     Self(
       roots: {
         let environment = (try? await AgentEnvironmentClient.loginEnvironment()) ?? ProcessInfo.processInfo.environment
-        return WorkspaceRoots(managed: managedRoot(environment: environment), conductor: conductorRoot(environment: environment))
+        return WorkspaceRoots(
+          managed: managedRoot(environment: environment),
+          conductor: URL(filePath: environment["HOME"] ?? NSHomeDirectory()).appending(path: "conductor/workspaces")
+        )
       },
       chooseRepository: {
         let panel = NSOpenPanel()
