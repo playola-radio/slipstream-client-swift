@@ -50,6 +50,21 @@ struct TerminalHistoryClientTests {
     expectNoDifference(afterSixth, line("4") + line("5") + line("6"))
   }
 
+  @Test func appendAfterFlushReopensTheLog() async {
+    let directory = makeDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let client = TerminalHistoryClient.live(directory: directory, compaction: smallCompaction)
+    let tab = UUID()
+
+    for number in 1...3 { client.append(tab, line("\(number)")) }
+    await client.flush(tab)
+    for number in 4...5 { client.append(tab, line("\(number)")) }
+
+    let saved = await client.read(tab)
+
+    expectNoDifference(saved, line("4") + line("5"))
+  }
+
   @Test func compactsAnExistingLogOnFirstAppend() async throws {
     let directory = makeDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }

@@ -16,7 +16,7 @@ extension TerminalHistoryClient {
     return Self(
       read: { tab in await writer.read(tab) },
       append: { tab, bytes in writer.append(tab, bytes) },
-      flush: { _ in await writer.flush() },
+      flush: { tab in await writer.flush(tab) },
       delete: { tab in await writer.delete(tab) }
     )
   }
@@ -53,9 +53,14 @@ private final class TerminalHistoryWriter: @unchecked Sendable {
     queue.async { self.write(bytes, to: tab) }
   }
 
-  func flush() async {
+  /// Also closes the tab's file, since a flush comes when its output ends; a later append
+  /// reopens it.
+  func flush(_ tab: UUID) async {
     await withCheckedContinuation { continuation in
-      queue.async { continuation.resume() }
+      queue.async {
+        self.close(tab)
+        continuation.resume()
+      }
     }
   }
 
@@ -120,6 +125,16 @@ private final class TerminalHistoryWriter: @unchecked Sendable {
     try log.handle.seekToEnd()
     log.lines = HistoryCompaction.lineCount(kept)
     log.bytes = kept.count
+  }
+
+  private func close(_ tab: UUID) {
+    guard let log = logs.removeValue(forKey: tab) else { return }
+    do {
+      try log.handle.synchronize()
+      try log.handle.close()
+    } catch {
+      reportIssue(error)
+    }
   }
 
   private func contents(of tab: UUID) -> [UInt8] {
