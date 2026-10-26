@@ -91,8 +91,7 @@ final class ChangeStreamPageModel: ViewModel {
   var scrollToLatestRequest = 0
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
-  private(set) var isFeedHidden = false
-  private(set) var isTerminalPaneHidden = false
+  private(set) var rightPane: RightPane = .stream
   private(set) var isFunctionDemoVisible: Bool
   private(set) var pinnedHeadings: Set<Seq> = []
   private(set) var fileHeaderOffsets: [Seq: CGFloat] = [:]
@@ -140,7 +139,13 @@ final class ChangeStreamPageModel: ViewModel {
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
-  let showTerminalsText = "Show terminals"
+
+  func rightPaneText(_ pane: RightPane) -> String {
+    switch pane {
+    case .stream: "Change stream"
+    case .terminals: "Terminals"
+    }
+  }
 
   var archiveConfirmationText: String {
     let text = "Its folder is removed. The branch is kept."
@@ -148,12 +153,9 @@ final class ChangeStreamPageModel: ViewModel {
     return text + " Claude's current reply will be stopped."
   }
 
-  let paneTitle = "Change stream"
   let refreshButtonText = "Refresh"
   let compareFunctionsText = "Compare functions"
   let jumpToLatestText = "Jump to latest ↓"
-  let hideFeedText = "Hide feed"
-  let showFeedText = "◧  Activity"
   let captureStripLabel = "CAPTURE"
   let chatStripLabel = "CHAT"
 
@@ -236,10 +238,15 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - View Helpers
 
-  /// The pane widens the window, but never past the screen's visible width.
+  /// Never past the screen's visible width.
   func minimumWindowWidth(visibleScreenWidth: CGFloat) -> CGFloat {
-    let base: CGFloat = isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000
-    return min(base + (isTerminalPaneHidden ? 0 : DesignTokens.TerminalPane.width), visibleScreenWidth)
+    min(isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000, visibleScreenWidth)
+  }
+
+  var isStreamShown: Bool { rightPane == .stream }
+
+  func isSelected(_ pane: RightPane) -> Bool {
+    rightPane == pane
   }
 
   func rowName(_ session: SessionOption) -> String {
@@ -290,7 +297,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var replyWidth: CGFloat { max(0, min(DesignTokens.Reply.width, viewport.width - 2 * DesignTokens.Reply.viewportInset)) }
   var showsReplyConnector: Bool {
-    reply != nil && isReplyBarVisible && !isFeedHidden && replyPlacement.showsConnector
+    reply != nil && isReplyBarVisible && isStreamShown && replyPlacement.showsConnector
       && !replyBarFrame.intersection(feedViewport).isEmpty
   }
 
@@ -337,7 +344,7 @@ final class ChangeStreamPageModel: ViewModel {
   var sourceLineHeight: CGFloat { DesignTokens.Card.lineHeight * FontSize.scale(step: fontSizeStep) }
   var sourceLineNumberWidth: CGFloat { DesignTokens.Card.lineNumberWidth * FontSize.scale(step: fontSizeStep) }
   var showsSelectionConnector: Bool {
-    sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && !isFeedHidden
+    sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && isStreamShown
       && !selectionFrame.intersection(feedViewport).isEmpty
   }
 
@@ -629,27 +636,18 @@ final class ChangeStreamPageModel: ViewModel {
     startWatching()
   }
 
-  func hideFeedTapped() {
-    replyCollapsed()
-    isFeedHidden = true
+  func rightPaneSelected(_ pane: RightPane) {
+    guard pane != rightPane else { return }
+    rightPane = pane
+    switch pane {
+    case .stream: follow.jumpToLatest()
+    case .terminals: replyCollapsed()
+    }
   }
 
-  func showFeedTapped() {
-    isFeedHidden = false
-    follow.jumpToLatest()
-  }
-
-  func hideTerminalsTapped() {
-    isTerminalPaneHidden = true
-  }
-
-  func showTerminalsTapped() {
-    isTerminalPaneHidden = false
-  }
-
-  /// ⌘W closes the focused terminal's tab, otherwise the chat's.
+  /// ⌘W closes the focused terminal's tab while Terminals shows, otherwise the chat's.
   func closeShortcutPressed() async {
-    if terminals.hasKeyboardFocus {
+    if rightPane == .terminals, terminals.hasKeyboardFocus {
       await terminals.closeShortcutPressed()
     } else {
       await chat.closeShortcutPressed()
@@ -1427,5 +1425,9 @@ final class ChangeStreamPageModel: ViewModel {
   private func touchCardContent(_ id: Seq) {
     cardContentOrder.removeAll { $0 == id }
     cardContentOrder.append(id)
+  }
+
+  enum RightPane: Equatable, CaseIterable {
+    case stream, terminals
   }
 }

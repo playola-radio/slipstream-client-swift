@@ -20,14 +20,8 @@ struct ChangeStreamPageView: View {
     HStack(spacing: 0) {
       WorkspaceSidebarView(model: model)
         .frame(width: DesignTokens.Workspace.sidebarWidth)
-      if !model.isFeedHidden {
-        feedPane.frame(width: DesignTokens.FeedPane.width)
-      }
       detailPane
-      if !model.isTerminalPaneHidden {
-        TerminalPageView(model: model.terminals, hideTapped: { model.hideTerminalsTapped() })
-          .frame(width: DesignTokens.TerminalPane.width)
-      }
+      rightPane.frame(width: DesignTokens.FeedPane.width)
     }
     .frame(
       minWidth: model.minimumWindowWidth(visibleScreenWidth: NSScreen.main?.visibleFrame.width ?? .infinity),
@@ -133,9 +127,60 @@ struct ChangeStreamPageView: View {
     }
   }
 
+  private var rightPane: some View {
+    VStack(spacing: 0) {
+      rightPaneStrip
+      if model.isStreamShown {
+        feedPane
+      } else {
+        TerminalPageView(model: model.terminals)
+      }
+    }
+    .background(DesignTokens.FeedPane.fill)
+    .overlay(alignment: .leading) {
+      Rectangle().fill(DesignTokens.FeedPane.stroke).frame(width: 1)
+    }
+  }
+
+  private var rightPaneStrip: some View {
+    HStack(alignment: .bottom, spacing: DesignTokens.RightPane.Strip.gap) {
+      ForEach(ChangeStreamPageModel.RightPane.allCases, id: \.self) { pane in
+        let isSelected = model.isSelected(pane)
+        Button { model.rightPaneSelected(pane) } label: {
+          HStack(spacing: DesignTokens.RightPane.Tab.gap) {
+            IconView(icon: DesignTokens.RightPane.Tab.icon(pane, isSelected: isSelected))
+            Text(model.rightPaneText(pane))
+              .font(DesignTokens.RightPane.Tab.font(isSelected: isSelected))
+              .foregroundStyle(DesignTokens.RightPane.Tab.color(isSelected: isSelected))
+            if pane == .stream {
+              Text(model.paneSubtitle)
+                .font(DesignTokens.Fonts.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
+                .foregroundStyle(DesignTokens.Colors.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
+                .lineLimit(1)
+            }
+          }
+          .padding(.horizontal, DesignTokens.RightPane.Tab.horizontalPadding)
+          .frame(maxHeight: .infinity)
+          .overlay(alignment: .bottom) {
+            Rectangle().fill(DesignTokens.RightPane.Tab.underline(isSelected: isSelected))
+              .frame(height: DesignTokens.RightPane.Tab.underlineWidth)
+          }
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(.leading, DesignTokens.RightPane.Strip.leadingPadding)
+    .padding(.trailing, DesignTokens.RightPane.Strip.trailingPadding)
+    .frame(height: DesignTokens.RightPane.Strip.height)
+    .overlay(alignment: .bottom) {
+      Rectangle().fill(DesignTokens.RightPane.Strip.stroke).frame(height: 1)
+    }
+  }
+
   private var feedPane: some View {
     VStack(spacing: 0) {
-      header
       if model.isCaptureStripShown {
         captureStrip
       }
@@ -151,10 +196,6 @@ struct ChangeStreamPageView: View {
         footer
       }
     }
-    .background(DesignTokens.FeedPane.fill)
-    .overlay(alignment: .trailing) {
-      Rectangle().fill(DesignTokens.FeedPane.stroke).frame(width: 1)
-    }
   }
 
   @ViewBuilder
@@ -169,81 +210,19 @@ struct ChangeStreamPageView: View {
           .id(functionChanges)
       }
     } else {
-      ChatPageView(model: model.chat) {
-        if model.isFeedHidden {
-          Button(model.showFeedText) { model.showFeedTapped() }
-            .buttonStyle(.plain)
-            .font(DesignTokens.Chat.TabStrip.showFeedFont)
-            .foregroundStyle(DesignTokens.Chat.TabStrip.showFeedColor)
-        }
-      } trailing: {
-        if model.isTerminalPaneHidden {
-          Button { model.showTerminalsTapped() } label: {
-            HStack(spacing: DesignTokens.TerminalPane.ShowButton.gap) {
-              IconView(icon: DesignTokens.TerminalPane.ShowButton.icon)
-              Text(model.showTerminalsText)
-                .font(DesignTokens.TerminalPane.ShowButton.font)
-                .foregroundStyle(DesignTokens.TerminalPane.ShowButton.color)
-            }
-            .padding(.horizontal, DesignTokens.TerminalPane.ShowButton.horizontalPadding)
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-          }
-          .buttonStyle(.plain)
-          .fixedSize()
-        }
-      }
+      ChatPageView(model: model.chat)
     }
   }
 
   private func fileViewer(@ViewBuilder content: () -> some View) -> some View {
     VStack(alignment: .leading, spacing: DesignTokens.FileViewer.gap) {
-      HStack {
-        if model.isFeedHidden {
-          Button(model.showFeedText) { model.showFeedTapped() }
-            .buttonStyle(.plain)
-            .font(DesignTokens.Fonts.restoreFeed)
-            .foregroundStyle(DesignTokens.Colors.restoreFeed)
-        }
-      }
-      .frame(height: DesignTokens.FileViewer.toolbarHeight)
+      Color.clear.frame(height: DesignTokens.FileViewer.toolbarHeight)
       content()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .padding(DesignTokens.FileViewer.padding)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(DesignTokens.FileViewer.fill)
-  }
-
-  private var header: some View {
-    HStack(spacing: DesignTokens.FeedPane.headerGap) {
-      IconView(icon: DesignTokens.Icons.listTree)
-      Text(model.paneTitle)
-        .font(DesignTokens.Fonts.paneTitle)
-        .foregroundStyle(DesignTokens.Colors.paneTitle)
-      Text(model.paneSubtitle)
-        .font(DesignTokens.Fonts.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
-        .foregroundStyle(DesignTokens.Colors.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
-      Spacer()
-      Button { model.hideFeedTapped() } label: {
-        HStack(spacing: DesignTokens.HideFeedButton.gap) {
-          IconView(icon: DesignTokens.Icons.hideFeed)
-          Text(model.hideFeedText)
-            .font(DesignTokens.Fonts.hideFeed)
-            .foregroundStyle(DesignTokens.Colors.hideFeed)
-        }
-        .padding(.vertical, DesignTokens.HideFeedButton.verticalPadding)
-        .padding(.horizontal, DesignTokens.HideFeedButton.horizontalPadding)
-        .overlay {
-          RoundedRectangle(cornerRadius: DesignTokens.HideFeedButton.radius)
-            .strokeBorder(DesignTokens.HideFeedButton.stroke)
-        }
-        .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-    }
-    .padding(.horizontal, DesignTokens.FeedPane.horizontalPadding)
-    .frame(height: DesignTokens.FeedPane.headerHeight)
   }
 
   private var captureStrip: some View {

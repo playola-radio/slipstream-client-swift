@@ -1314,15 +1314,51 @@ struct ChangeStreamPageTests {
     #expect(model.openIndicatorText(for: try #require(fileRow(model, 1))) == nil)
   }
 
-  @Test func showingAHiddenFeedReturnsToTheLatestChange() async {
+  @Test func switchingBackToTheStreamReturnsToTheLatestChange() async {
     let model = await connectedModel()
-    model.hideFeedTapped()
-    #expect(model.isFeedHidden)
+    model.rightPaneSelected(.terminals)
+    #expect(!model.isStreamShown)
     model.scrollPhaseChanged(.interacting)
     model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
-    model.showFeedTapped()
-    #expect(!model.isFeedHidden)
+    model.rightPaneSelected(.stream)
+    #expect(model.isStreamShown)
     #expect(model.follow == .following)
+  }
+
+  @Test func switchingPanesKeepsWatching() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let watchTask = model.watchTask
+    model.rightPaneSelected(.terminals)
+    #expect(model.watchTask == watchTask)
+    #expect(model.watchTask?.isCancelled == false)
+    await send(Fixture.edited(1))
+    #expect(fileRow(model, 1) != nil)
+  }
+
+  @Test func switchingWorkspaceKeepsTheRightPane() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.rightPaneSelected(.terminals)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    #expect(model.rightPane == .terminals)
+  }
+
+  @Test func rightPaneTabsAreLabelled() {
+    let model = makeModel()
+    expectNoDifference(ChangeStreamPageModel.RightPane.allCases.map(model.rightPaneText), ["Change stream", "Terminals"])
+    #expect(model.isSelected(.stream))
+    #expect(!model.isSelected(.terminals))
   }
 
   @Test func aTaskHeadingIsPinnedOnlyWhileItSitsAtTheTop() async throws {
@@ -2117,13 +2153,28 @@ extension ChangeStreamPageTests {
     expectNoDifference(reply.thread.turns.map(\.answer?.text), ["Because."])
   }
 
-  @Test func hidingTheFeedCollapsesTheReply() async throws {
+  @Test func switchingToTerminalsCollapsesTheReply() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
     await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
     _ = try open(model, "q1")
-    model.hideFeedTapped()
+    model.rightPaneSelected(.terminals)
     #expect(model.reply == nil)
+  }
+
+  @Test func connectorsHideWhileTerminalsShows() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    model.viewportChanged(CGSize(width: 1400, height: 900))
+    model.feedViewportChanged(CGRect(x: 680, y: 52, width: 720, height: 800))
+    let bar = try bar(model, "q1")
+    model.questionBarMoved(bar, frame: CGRect(x: 700, y: 300, width: 640, height: 42))
+    model.questionBarTapped(bar)
+    model.replyMeasured(CGSize(width: 420, height: 300))
+    #expect(model.showsReplyConnector)
+    model.rightPaneSelected(.terminals)
+    #expect(!model.showsReplyConnector)
   }
 
   @Test func askingAndReplyingNeverOverlap() async throws {
@@ -2152,14 +2203,21 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
     model.viewportChanged(CGSize(width: 1400, height: 900))
-    model.feedViewportChanged(CGRect(x: 0, y: 52, width: 680, height: 800))
+    model.feedViewportChanged(CGRect(x: 680, y: 52, width: 720, height: 800))
     let bar = try bar(model, "q1")
-    model.questionBarMoved(bar, frame: CGRect(x: 20, y: 300, width: 640, height: 42))
+    model.questionBarMoved(bar, frame: CGRect(x: 700, y: 300, width: 640, height: 42))
     model.questionBarTapped(bar)
     model.replyMeasured(CGSize(width: 420, height: 300))
-    expectNoDifference(model.replyPlacement.popover, CGRect(x: 704, y: 300, width: 420, height: 300))
-    expectNoDifference(model.replyPlacement.barAnchor, CGPoint(x: 660, y: 321))
+    expectNoDifference(model.replyPlacement.popover, CGRect(x: 236, y: 300, width: 420, height: 300))
+    expectNoDifference(model.replyPlacement.barAnchor, CGPoint(x: 700, y: 321))
+    expectNoDifference(model.replyPlacement.popoverAnchor, CGPoint(x: 656, y: 321))
     #expect(model.showsReplyConnector)
+
+    model.questionBarMoved(bar, frame: CGRect(x: 300, y: 300, width: 640, height: 42))
+    expectNoDifference(model.replyPlacement.popover, CGRect(x: 16, y: 300, width: 420, height: 300))
+    #expect(!model.showsReplyConnector)
+
+    model.questionBarMoved(bar, frame: CGRect(x: 700, y: 300, width: 640, height: 42))
     model.questionBarDisappeared(bar)
     #expect(!model.showsReplyConnector)
   }
@@ -3719,6 +3777,34 @@ extension ChangeStreamPageTests {
     #expect(model.selectedSession?.id == Fixture.session)
   }
 
+  @Test func selectingAWorkspaceWhileBusySwitches() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel(workspace: workspaceClient(create: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome()
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    #expect(model.isWorkspaceBusy)
+
+    model.sessionSelected(Fixture.otherSession)
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    release.yield()
+    await creating.value
+  }
+
   @Test func archiveWhileBusyDoesNothing() async throws {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let archived = LockIsolated(0)
@@ -3808,27 +3894,8 @@ extension ChangeStreamPageTests {
     expectNoDifference(terminal.saved?.tabs.elements, [])
   }
 
-  @Test func hideAndShowTerminals() {
+  @Test func minimumWidthWithoutATerminalColumn() {
     let model = makeModel()
-
-    model.hideTerminalsTapped()
-    #expect(model.isTerminalPaneHidden)
-
-    model.showTerminalsTapped()
-    #expect(!model.isTerminalPaneHidden)
-    #expect(model.showTerminalsText == "Show terminals")
-  }
-
-  @Test func minimumWidthWithPane() {
-    let model = makeModel()
-
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1440)
-  }
-
-  @Test func minimumWidthHidden() {
-    let model = makeModel()
-
-    model.hideTerminalsTapped()
 
     #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1000)
   }
@@ -3836,7 +3903,7 @@ extension ChangeStreamPageTests {
   @Test func minimumWidthCappedBySmallScreen() {
     let model = makeModel()
 
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 1280) == 1280)
+    #expect(model.minimumWindowWidth(visibleScreenWidth: 1280) == 1000)
     #expect(model.minimumWindowWidth(visibleScreenWidth: 900) == 900)
   }
 
@@ -3845,12 +3912,28 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     let chatTab = try #require(model.chat.selectedTab?.id)
     let terminalTab = try #require(model.terminals.selectedTab?.id)
+    model.rightPaneSelected(.terminals)
     model.terminals.terminalFocusChanged(terminalTab, isFocused: true)
 
     await model.closeShortcutPressed()
 
     #expect(terminal.calls.contains(.delete(terminalTab)))
     #expect(model.chat.records.contains { $0.id == chatTab })
+  }
+
+  @Test func commandWClosesChatWhileStreamShows() async throws {
+    let model = await workspaceModel()
+    defer { model.viewDisappeared() }
+    let chatTab = try #require(model.chat.selectedTab?.id)
+    let terminalTab = try #require(model.terminals.selectedTab?.id)
+    model.rightPaneSelected(.terminals)
+    model.terminals.terminalFocusChanged(terminalTab, isFocused: true)
+    model.rightPaneSelected(.stream)
+
+    await model.closeShortcutPressed()
+
+    #expect(!model.chat.records.contains { $0.id == chatTab })
+    #expect(!terminal.calls.contains(.delete(terminalTab)))
   }
 
   @Test func commandWClosesChatOtherwise() async throws {

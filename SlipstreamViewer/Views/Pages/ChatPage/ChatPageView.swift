@@ -2,10 +2,8 @@ import AppKit
 import SlipstreamCore
 import SwiftUI
 
-struct ChatPageView<Leading: View, Trailing: View>: View {
+struct ChatPageView: View {
   @Bindable var model: ChatPageModel
-  @ViewBuilder let leading: Leading
-  @ViewBuilder let trailing: Trailing
 
   var body: some View {
     VStack(spacing: 0) {
@@ -34,7 +32,6 @@ struct ChatPageView<Leading: View, Trailing: View>: View {
 
   private var tabStrip: some View {
     HStack(spacing: DesignTokens.Chat.TabStrip.gap) {
-      leading
       ScrollView(.horizontal) {
         HStack(spacing: DesignTokens.Chat.TabStrip.gap) {
           ForEach(model.visibleTabs) { tab in
@@ -75,7 +72,6 @@ struct ChatPageView<Leading: View, Trailing: View>: View {
         }
         .fixedSize()
       }
-      trailing
     }
     .padding(.horizontal, DesignTokens.Chat.TabStrip.horizontalPadding)
     .frame(height: DesignTokens.Chat.TabStrip.height)

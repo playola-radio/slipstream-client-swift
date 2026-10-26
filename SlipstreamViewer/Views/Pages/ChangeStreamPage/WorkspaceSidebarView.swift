@@ -26,7 +26,6 @@ struct WorkspaceSidebarView: View {
     .overlay(alignment: .trailing) {
       Rectangle().fill(DesignTokens.Sidebar.stroke).frame(width: 1)
     }
-    .disabled(model.isWorkspaceBusy)
   }
 
   private var header: some View {
@@ -59,6 +58,7 @@ struct WorkspaceSidebarView: View {
         }
         .buttonStyle(.plain)
         .help(model.newWorkspaceHelpText)
+        .disabled(model.isWorkspaceBusy)
       }
     }
     .padding(.leading, DesignTokens.Sidebar.groupHeaderLeadingPadding)
@@ -80,6 +80,7 @@ struct WorkspaceSidebarView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .disabled(model.isWorkspaceBusy)
     .overlay(alignment: .top) {
       Rectangle().fill(DesignTokens.Sidebar.stroke).frame(height: 1)
     }
@@ -125,6 +126,7 @@ private struct WorkspaceRowView: View {
         }
         .buttonStyle(.plain)
         .help(model.archiveWorkspaceHelpText)
+        .disabled(model.isWorkspaceBusy)
       }
     }
     .padding(.trailing, DesignTokens.Sidebar.rowTrailingPadding)
