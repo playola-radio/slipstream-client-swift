@@ -194,6 +194,9 @@ enum DesignTokens {
     static let font = variableFont(family: geistMonoFamily, size: 12, weight: 400)
     static let shellVerticalPadding: CGFloat = 14
     static let shellHorizontalPadding: CGFloat = 16
+    /// The "Restored" divider is written into the terminal, so its colours are escape codes.
+    static let dividerRuleColor = "\u{1b}[38;2;42;54;64m"
+    static let dividerLabelColor = "\u{1b}[38;2;139;154;166m"
   }
 
   enum Ask {
