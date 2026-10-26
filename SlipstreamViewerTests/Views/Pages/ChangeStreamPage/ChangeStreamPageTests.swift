@@ -298,7 +298,7 @@ struct ChangeStreamPageTests {
     #expect(model.sessions[id: Fixture.session]?.root == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
   }
 
-  @Test func rootIsNilUntilStartLoads() async {
+  @Test func rootAndOpenButtonFolderAreNilUntilStartLoads() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
     daemon.setSessions(
@@ -310,9 +310,11 @@ struct ChangeStreamPageTests {
     await Task.megaYield()
     #expect(model.selectedSession != nil)
     #expect(model.selectedFolder == nil)
+    #expect(model.openIn.folder == nil)
     release.yield()
     await appeared.value
     #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+    #expect(model.openIn.folder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
   }
 
   @Test func selectingStreamTellsChatTheFolder() async {
