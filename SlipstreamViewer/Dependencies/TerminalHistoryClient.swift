@@ -129,9 +129,9 @@ private final class TerminalHistoryWriter: @unchecked Sendable {
 
   private func close(_ tab: UUID) {
     guard let log = logs.removeValue(forKey: tab) else { return }
+    defer { try? log.handle.close() }
     do {
       try log.handle.synchronize()
-      try log.handle.close()
     } catch {
       reportIssue(error)
     }

@@ -8,8 +8,8 @@ import Synchronization
 /// process group id.
 ///
 /// `.finished` is the last event. It is sent once the process has exited and the terminal's
-/// output has been read to the end, or `outputGrace` after the exit if something the process
-/// left behind still holds the terminal open.
+/// output has been read to the end, or `outputGrace` after the exit, closing the terminal, if
+/// something the process left behind still holds it open.
 ///
 /// Reading pauses while more than `bufferLimit` bytes wait in `events`, so a program printing
 /// faster than its output is consumed blocks instead of filling memory.
@@ -147,9 +147,8 @@ final class TerminalProcess: Sendable {
     }
   }
 
-  /// Hangs up the foreground program and the shell, kills both after `hangupGrace`, then closes
-  /// the terminal once its output is read. Returns once `.finished` has been sent. Safe to call
-  /// more than once.
+  /// Hangs up the foreground program and the shell and kills both after `hangupGrace`. Returns
+  /// once `.finished` has been sent. Safe to call more than once.
   func stop() async {
     let isFirst = isStopping.withLock { started in
       defer { started = true }
@@ -160,17 +159,17 @@ final class TerminalProcess: Sendable {
       signalGroups(SIGCONT)
       await exited.wait(timeout: Self.hangupGrace)
       signalGroups(SIGKILL)
-      await finished.wait()
-      reader.cancel()
     }
     await finished.wait()
   }
 
   private func signalGroups(_ signal: Int32) {
+    // The terminal only reports a group that still has members, so this holds even once the shell
+    // has been reaped.
+    let foreground = master.withLock { descriptor in descriptor.map(tcgetpgrp) ?? -1 }
+    if foreground > 0 && foreground != pid { kill(-foreground, signal) }
     isReaped.withLock { isReaped in
       guard !isReaped else { return }
-      let foreground = master.withLock { descriptor in descriptor.map(tcgetpgrp) ?? -1 }
-      if foreground > 0 && foreground != pid { kill(-foreground, signal) }
       // Before the child's setsid there is no group yet; the unreaped pid is still ours.
       if kill(-pid, signal) != 0 { kill(pid, signal) }
     }
@@ -222,10 +221,8 @@ final class TerminalProcess: Sendable {
           total += count
         }
       }
-      state.withLock { state in
-        state.isDrained = true
-        finish(&state)
-      }
+      // Give up on the rest; the cancel handler closes the terminal and finishes.
+      reader.cancel()
     }
   }
 
