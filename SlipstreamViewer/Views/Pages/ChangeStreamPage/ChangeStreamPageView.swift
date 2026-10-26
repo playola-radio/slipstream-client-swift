@@ -66,6 +66,7 @@ struct ChangeStreamPageView: View {
     .task { await model.chat.clockTask() }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       model.chat.appActivityChanged(isActive: true)
+      model.openIn.viewAppeared()
     }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
       model.chat.appActivityChanged(isActive: false)
@@ -475,6 +476,7 @@ private struct OpenInButton: View {
       Task { await model.openTapped() }
     }
     .help(model.openHelpText)
+    .accessibilityLabel(model.openHelpText)
     .disabled(model.isOpenDisabled)
   }
 }
