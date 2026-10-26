@@ -114,6 +114,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var visibleCards: Set<Seq> = []
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
+  @ObservationIgnored private var sessionSelectionGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
@@ -812,6 +813,7 @@ final class ChangeStreamPageModel: ViewModel {
       }
     }
     selectedSession = session
+    sessionSelectionGeneration += 1
     awaitsFreshSnapshot = false
     pendingReadiness = nil
     bindingMovedWhileAwaitingSnapshot = false
@@ -835,10 +837,10 @@ final class ChangeStreamPageModel: ViewModel {
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
-    let selectedBefore = selectedSession?.id
+    let selectionGeneration = sessionSelectionGeneration
     let outcome = await workspace.create(repository, daemon.storeID)
     if let path = outcome.workspacePath {
-      await loadSessions(preferring: selectedSession?.id == selectedBefore ? path : nil)
+      await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? path : nil)
     }
     if let failure = outcome.failureText {
       workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)

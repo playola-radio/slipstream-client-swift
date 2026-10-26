@@ -3338,6 +3338,47 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceFailurePresented)
   }
 
+  @Test func creatingAWorkspaceDoesNotOverrideASelectionChangedDuringCreation() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = makeModel(workspace: workspaceClient(create: { [fake] _, _ in
+      for await _ in gate { break }
+      fake.setSessions(
+        [
+          SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+          SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+          SessionSummary(id: "new", durableSeq: .zero, removed: false),
+        ],
+        starts: [
+          Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+          Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+          "new": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        ])
+      return WorkspaceOutcome(workspacePath: Self.workspaceRoot)
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    model.sessionSelected(Fixture.session)
+    release.yield()
+    await creating.value
+
+    #expect(model.selectedSession?.id == Fixture.session)
+  }
+
   @Test func newWorkspaceCancelledDoesNothing() async {
     let calls = LockIsolated(0)
     let model = makeModel(workspace: workspaceClient(choose: nil, create: { _, _ in

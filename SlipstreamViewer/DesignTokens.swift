@@ -33,6 +33,7 @@ enum DesignTokens {
     static let codeFont = variableFont(family: geistMonoFamily, size: 11, weight: 400)
     static let cardRadius: CGFloat = 5
     static let controlRadius: CGFloat = 4
+    static let controlStackGap: CGFloat = 8
 
     static func mark(_ value: FunctionChangeLine.Mark) -> Color {
       switch value {

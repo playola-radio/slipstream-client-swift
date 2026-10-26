@@ -96,26 +96,40 @@ struct FunctionChangesPageView: View {
   }
 
   private var searchAndMode: some View {
-    HStack(spacing: 18) {
-      TextField(model.searchPrompt, text: $model.searchText)
-        .textFieldStyle(.plain)
-        .font(DesignTokens.FunctionTree.bodyFont)
-        .foregroundStyle(DesignTokens.FunctionTree.title)
-        .padding(.horizontal, 11)
-        .frame(width: 270, height: 30)
-        .background(DesignTokens.FunctionTree.inputFill)
-        .overlay {
-          RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius).stroke(
-            DesignTokens.FunctionTree.cardStroke)
-        }
-      Picker(model.modePickerText, selection: $model.modeSelection) {
-        ForEach(FunctionChangesDisplayMode.allCases, id: \.self) { mode in
-          Text(mode.rawValue).tag(mode)
-        }
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 18) {
+        searchField
+        modePicker
       }
-      .pickerStyle(.segmented)
-      .frame(width: 130)
+      VStack(alignment: .leading, spacing: DesignTokens.FunctionTree.controlStackGap) {
+        searchField
+        modePicker
+      }
     }
+  }
+
+  private var searchField: some View {
+    TextField(model.searchPrompt, text: $model.searchText)
+      .textFieldStyle(.plain)
+      .font(DesignTokens.FunctionTree.bodyFont)
+      .foregroundStyle(DesignTokens.FunctionTree.title)
+      .padding(.horizontal, 11)
+      .frame(width: 270, height: 30)
+      .background(DesignTokens.FunctionTree.inputFill)
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius).stroke(
+          DesignTokens.FunctionTree.cardStroke)
+      }
+  }
+
+  private var modePicker: some View {
+    Picker(model.modePickerText, selection: $model.modeSelection) {
+      ForEach(FunctionChangesDisplayMode.allCases, id: \.self) { mode in
+        Text(mode.rawValue).tag(mode)
+      }
+    }
+    .pickerStyle(.segmented)
+    .frame(width: 130)
   }
 
   private var legendControls: some View {
