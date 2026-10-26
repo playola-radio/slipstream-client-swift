@@ -107,7 +107,7 @@ struct ProcessIntegrationTests {
 
 private final class BundleToken {}
 
-private struct TimedOut: Error {}
+struct TimedOut: Error {}
 
 private actor AsyncGate {
   private var continuation: CheckedContinuation<Void, Never>?
@@ -134,7 +134,7 @@ private func launchFake(_ mode: String) async throws -> AgentProcessHandle {
   )
 }
 
-private func withTimeout<T: Sendable>(
+func withTimeout<T: Sendable>(
   _ limit: Duration = .seconds(5), _ operation: @escaping @Sendable () async throws -> T
 ) async throws -> T {
   try await withCheckedThrowingContinuation { continuation in

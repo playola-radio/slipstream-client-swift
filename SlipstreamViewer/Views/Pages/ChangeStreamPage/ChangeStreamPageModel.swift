@@ -419,9 +419,8 @@ final class ChangeStreamPageModel: ViewModel {
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
   var isArchiveWorkspaceShown: Bool {
     guard let selectedFolder, let managedWorkspaceRoot else { return false }
-    let root = URL(filePath: Self.normalizedFolder(managedWorkspaceRoot.path)).pathComponents
-    let folder = URL(filePath: selectedFolder).pathComponents
-    return folder.count == root.count + 2 && folder.starts(with: root)
+    return ManagedWorkspacePath.contains(
+      selectedFolder, root: Self.normalizedFolder(managedWorkspaceRoot.path))
   }
 
   var canCompareFunctions: Bool {

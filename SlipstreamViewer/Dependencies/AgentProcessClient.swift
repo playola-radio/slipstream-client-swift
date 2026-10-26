@@ -307,7 +307,7 @@ private actor AgentProcessInput {
 }
 
 /// Fires once; any number of callers can wait for it.
-private final class OneShot: Sendable {
+final class OneShot: Sendable {
   private struct State {
     var hasFired = false
     var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]

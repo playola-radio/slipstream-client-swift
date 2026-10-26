@@ -68,7 +68,7 @@ extension AgentEnvironmentClient {
     return "/bin/zsh"
   }
 
-  private static func passwordDatabaseShell() -> String? {
+  static func passwordDatabaseShell() -> String? {
     guard let entry = getpwuid(getuid()), let shell = entry.pointee.pw_shell else { return nil }
     return String(cString: shell)
   }

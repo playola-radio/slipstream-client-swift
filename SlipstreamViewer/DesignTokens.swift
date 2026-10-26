@@ -160,6 +160,10 @@ enum DesignTokens {
     let codeLigatures: Bool
 
     func font(scale: CGFloat) -> Font {
+      nsFont(scale: scale).map(Font.init) ?? .system(size: size * scale)
+    }
+
+    func nsFont(scale: CGFloat) -> NSFont? {
       let wghtAxis = 0x7767_6874 as UInt32
       var attributes: [NSFontDescriptor.AttributeName: Any] = [
         .name: family,
@@ -173,11 +177,7 @@ enum DesignTokens {
           ]
         ]
       }
-      let descriptor = NSFontDescriptor(fontAttributes: attributes)
-      guard let nsFont = NSFont(descriptor: descriptor, size: size * scale) else {
-        return .system(size: size * scale)
-      }
-      return Font(nsFont)
+      return NSFont(descriptor: NSFontDescriptor(fontAttributes: attributes), size: size * scale)
     }
   }
 
@@ -185,6 +185,15 @@ enum DesignTokens {
     family: String, size: CGFloat, weight: CGFloat, codeLigatures: Bool = false
   ) -> FontToken {
     FontToken(family: family, size: size, weight: weight, codeLigatures: codeLigatures)
+  }
+
+  enum TerminalPane {
+    static let width: CGFloat = 440
+    static let background = Color(hex: 0x0E1318)
+    static let foreground = Color(hex: 0xE6EDF3)
+    static let font = variableFont(family: geistMonoFamily, size: 12, weight: 400)
+    static let shellVerticalPadding: CGFloat = 14
+    static let shellHorizontalPadding: CGFloat = 16
   }
 
   enum Ask {

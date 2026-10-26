@@ -18,8 +18,10 @@ jobs:
       - run: swift test
       - run: brew install xcodegen
       - run: xcodegen generate
+      - run: xcodebuild -downloadComponent MetalToolchain
       - run: >
           xcodebuild test
           -project SlipstreamViewer.xcodeproj
           -scheme SlipstreamViewer
           -destination 'platform=macOS'
+          -skipPackagePluginValidation
