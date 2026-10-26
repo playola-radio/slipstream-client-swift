@@ -20,6 +20,7 @@ struct ChangeStreamPageTests {
   let storage = InMemoryStorage()
   let link = ChatLinkFake()
   let agent = AgentFake()
+  let terminal = TerminalFake()
 
   init() {
     fake = DaemonFake()
@@ -32,7 +33,8 @@ struct ChangeStreamPageTests {
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
     chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil
   ) -> ChangeStreamPageModel {
-    withDependencies {
+    let terminals = makeTerminals()
+    return withDependencies {
       $0.workspace = workspace
       $0.defaultInMemoryStorage = storage ?? self.storage
       $0.daemon = (daemon ?? fake).client
@@ -43,7 +45,19 @@ struct ChangeStreamPageTests {
     } operation: {
       let chat = chat ?? makeChat()
       return ChangeStreamPageModel(
-        chat: chat, instantAsk: instantAsk ?? InstantAskModel(chat: chat), isFunctionDemoVisible: isFunctionDemoVisible)
+        chat: chat, instantAsk: instantAsk ?? InstantAskModel(chat: chat), terminals: terminals,
+        isFunctionDemoVisible: isFunctionDemoVisible)
+    }
+  }
+
+  func makeTerminals() -> TerminalPageModel {
+    withDependencies {
+      $0.defaultFileStorage = terminal.fileStorage
+      $0.terminalRuntime = terminal.runtimeClient
+      $0.terminalHistory = terminal.historyClient
+      $0.uuid = .incrementing
+    } operation: {
+      TerminalPageModel()
     }
   }
 
@@ -3510,6 +3524,123 @@ extension ChangeStreamPageTests {
     await model.archiveConfirmed()
 
     #expect(model.chat.selectedTab?.draft == "Keep this draft")
+  }
+}
+
+extension ChangeStreamPageTests {
+  // MARK: - Terminals
+
+  func workspaceModel(archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in
+    WorkspaceOutcome()
+  }) async -> ChangeStreamPageModel {
+    listWorkspace()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: archive))
+    await model.viewAppeared()
+    await Task.megaYield()
+    return model
+  }
+
+  @Test func terminalsFollowTheSelectedWorkspace() async {
+    let model = await workspaceModel()
+    defer { model.viewDisappeared() }
+
+    #expect(model.terminals.folder == Self.workspaceRoot)
+    expectNoDifference(terminal.launches.map(\.directory), [Self.workspaceRoot])
+  }
+
+  @Test func archiveStopsTerminalsBeforeTheCommand() async {
+    let callsAtArchive = LockIsolated<[TerminalFake.Call]>([])
+    let model = await workspaceModel(archive: { [terminal] _, _ in
+      callsAtArchive.setValue(terminal.calls)
+      return WorkspaceOutcome(failureText: "refused")
+    })
+    defer { model.viewDisappeared() }
+
+    await model.archiveConfirmed()
+
+    #expect(callsAtArchive.value.contains(.stop(launch: 0)))
+  }
+
+  @Test func failedArchiveRestoresTerminals() async {
+    let model = await workspaceModel(archive: { _, _ in WorkspaceOutcome(failureText: "refused") })
+    defer { model.viewDisappeared() }
+
+    await model.archiveConfirmed()
+
+    #expect(model.terminals.folder == Self.workspaceRoot)
+    expectNoDifference(model.terminals.shownTabs.map(\.title), ["Terminal 1"])
+    expectNoDifference(terminal.launches.map(\.directory), [Self.workspaceRoot, Self.workspaceRoot])
+  }
+
+  @Test func successfulArchiveForgetsTerminals() async {
+    let model = await workspaceModel(archive: { [self] _, _ in
+      listWorkspace(.stopped, reason: "archived")
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+
+    await model.archiveConfirmed()
+    await Task.megaYield()
+
+    #expect(model.terminals.folder == nil)
+    expectNoDifference(terminal.saved?.tabs.elements, [])
+  }
+
+  @Test func hideAndShowTerminals() {
+    let model = makeModel()
+
+    model.hideTerminalsTapped()
+    #expect(model.isTerminalPaneHidden)
+
+    model.showTerminalsTapped()
+    #expect(!model.isTerminalPaneHidden)
+    #expect(model.showTerminalsText == "Show terminals")
+  }
+
+  @Test func minimumWidthWithPane() {
+    let model = makeModel()
+
+    #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1440)
+  }
+
+  @Test func minimumWidthHidden() {
+    let model = makeModel()
+
+    model.hideTerminalsTapped()
+
+    #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1000)
+  }
+
+  @Test func minimumWidthCappedBySmallScreen() {
+    let model = makeModel()
+
+    #expect(model.minimumWindowWidth(visibleScreenWidth: 1280) == 1280)
+    #expect(model.minimumWindowWidth(visibleScreenWidth: 900) == 900)
+  }
+
+  @Test func commandWClosesTerminalWhenFocused() async throws {
+    let model = await workspaceModel()
+    defer { model.viewDisappeared() }
+    let chatTab = try #require(model.chat.selectedTab?.id)
+    let terminalTab = try #require(model.terminals.selectedTab?.id)
+    model.terminals.terminalFocusChanged(terminalTab, isFocused: true)
+
+    await model.closeShortcutPressed()
+
+    #expect(terminal.calls.contains(.delete(terminalTab)))
+    #expect(model.chat.records.contains { $0.id == chatTab })
+  }
+
+  @Test func commandWClosesChatOtherwise() async throws {
+    let model = await workspaceModel()
+    defer { model.viewDisappeared() }
+    let chatTab = try #require(model.chat.selectedTab?.id)
+    let terminalTab = try #require(model.terminals.selectedTab?.id)
+
+    await model.closeShortcutPressed()
+
+    #expect(!model.chat.records.contains { $0.id == chatTab })
+    #expect(!terminal.calls.contains(.delete(terminalTab)))
   }
 }
 

@@ -194,6 +194,99 @@ enum DesignTokens {
     static let font = variableFont(family: geistMonoFamily, size: 12, weight: 400)
     static let shellVerticalPadding: CGFloat = 14
     static let shellHorizontalPadding: CGFloat = 16
+    /// The "Restored" divider is written into the terminal, so its colours are escape codes.
+    static let dividerRuleColor = "\u{1b}[38;2;42;54;64m"
+    static let dividerLabelColor = "\u{1b}[38;2;139;154;166m"
+    static let stroke = Color(hex: 0x2A3640)
+
+    private static let primary = Color(hex: 0xE6EDF3)
+    private static let secondary = Color(hex: 0x8B9AA6)
+    private static let accent = Color(hex: 0x6CB6FF)
+    private static let danger = Color(hex: 0xF0A4AB)
+    private static let calloutStroke = Color(hex: 0x5C3B32)
+
+    enum TabStrip {
+      static let height: CGFloat = 40
+      static let gap: CGFloat = 2
+      static let leadingPadding: CGFloat = 10
+      static let trailingPadding: CGFloat = 6
+    }
+
+    enum Tab {
+      static let horizontalPadding: CGFloat = 12
+      static let gap: CGFloat = 6
+      static let underlineWidth: CGFloat = 2
+      static let hoverRadius: CGFloat = 6
+      static let titleFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let close = Icons.Icon(assetName: "X", size: 12, color: secondary)
+
+      static func underline(isSelected: Bool) -> Color { isSelected ? accent : .clear }
+
+      static func fill(isHovered: Bool) -> Color { isHovered ? Color(hex: 0x1C232B) : .clear }
+
+      static func titleColor(isSelected: Bool) -> Color { isSelected ? primary : secondary }
+    }
+
+    enum StatusIcon {
+      static let spinner = Chat.Spinner(size: 12, lineWidth: 1.5, color: accent)
+      static let finished = Icons.Icon(assetName: "Check", size: 12, color: Color(hex: 0x8DD9B1))
+      static let failed = Icons.Icon(assetName: "CircleAlert", size: 12, color: danger)
+    }
+
+    enum NewTab {
+      static let horizontalPadding: CGFloat = 10
+      static let plus = Icons.Icon(assetName: "Plus", size: 14, color: secondary)
+    }
+
+    enum HideButton {
+      static let horizontalPadding: CGFloat = 10
+      static let icon = Icons.Icon(assetName: "PanelRightClose", size: 14, color: secondary)
+    }
+
+    /// Sits at the right end of the chat tab strip while the pane is hidden.
+    enum ShowButton {
+      static let gap: CGFloat = 6
+      static let horizontalPadding: CGFloat = 4
+      static let icon = Icons.Icon(assetName: "PanelRightOpen", size: 14, color: secondary)
+      static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let color = secondary
+    }
+
+    enum Message {
+      static let gap: CGFloat = 8
+      static let padding: CGFloat = 24
+      static let titleFont: FontToken = variableFont(family: geistFamily, size: 13, weight: 400)
+      static let titleColor = primary
+      static let detailFont: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let detailColor = secondary
+      static let pathFont: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
+      static let pathColor = secondary
+      static let folderMissing = Icons.Icon(assetName: "FolderX", size: 20, color: secondary)
+    }
+
+    enum CloseBox {
+      static let areaPadding: CGFloat = 12
+      static let fill = Color(hex: 0x2A2220)
+      static let stroke = calloutStroke
+      static let radius: CGFloat = 8
+      static let verticalPadding: CGFloat = 12
+      static let horizontalPadding: CGFloat = 14
+      static let gap: CGFloat = 10
+      static let textGap: CGFloat = 3
+      static let icon = Icons.Icon(assetName: "CircleAlert", size: 15, color: Color(hex: 0xF0A070))
+      static let titleFont: FontToken = variableFont(family: geistFamily, size: 13, weight: 600)
+      static let titleColor = primary
+      static let detailFont: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let detailColor = Color(hex: 0xB7C3CD)
+      static let buttonRadius: CGFloat = 6
+      static let buttonVerticalPadding: CGFloat = 6
+      static let buttonHorizontalPadding: CGFloat = 12
+      static let buttonFont: FontToken = variableFont(family: geistFamily, size: 12, weight: 500)
+      static let keepFill = Color(hex: 0x2F3A45)
+      static let keepColor = primary
+      static let closeStroke = calloutStroke
+      static let closeColor = danger
+    }
   }
 
   enum Ask {

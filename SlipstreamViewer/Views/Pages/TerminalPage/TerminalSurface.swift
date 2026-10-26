@@ -10,7 +10,7 @@ final class TerminalSurface {
       .utf8
   )
 
-  let view: TerminalView
+  let view: FocusReportingTerminalView
   var onInput: @MainActor ([UInt8]) -> Void = { _ in }
   var onResize: @MainActor (TerminalSize) -> Void = { _ in }
   var onFocusChange: @MainActor (Bool) -> Void = { _ in }
@@ -39,8 +39,13 @@ final class TerminalSurface {
     view.feed(byteArray: bytes[...])
   }
 
+  /// A view not yet in a window takes focus once SwiftUI moves it into one.
   func focus() {
-    view.window?.makeFirstResponder(view)
+    guard let window = view.window else {
+      view.wantsFocusInWindow = true
+      return
+    }
+    window.makeFirstResponder(view)
   }
 }
 
@@ -59,8 +64,16 @@ extension TerminalSurface: @MainActor TerminalViewDelegate {
   func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
 }
 
-private final class FocusReportingTerminalView: TerminalView {
+final class FocusReportingTerminalView: TerminalView {
   var onFocusChange: @MainActor (Bool) -> Void = { _ in }
+  var wantsFocusInWindow = false
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    guard wantsFocusInWindow, let window else { return }
+    wantsFocusInWindow = false
+    window.makeFirstResponder(self)
+  }
 
   override var hasFocus: Bool {
     didSet { onFocusChange(hasFocus) }

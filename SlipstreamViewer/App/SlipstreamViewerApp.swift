@@ -6,6 +6,7 @@ struct SlipstreamViewerApp: App {
   @State private var fontSize = FontSizeModel()
   @State private var chat: ChatPageModel
   @State private var instantAsk: InstantAskModel
+  @State private var terminals = TerminalPageModel()
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   init() {
@@ -24,6 +25,7 @@ struct SlipstreamViewerApp: App {
             ChangeStreamPageView(
               chat: chat,
               instantAsk: instantAsk,
+              terminals: terminals,
               functionChangesDemo: FunctionChangesFixtureModel(
                 root: ProcessInfo.processInfo.environment["SLIPSTREAM_INTERFACE_FIXTURE_ROOT"].map {
                   URL(fileURLWithPath: $0)
@@ -31,12 +33,14 @@ struct SlipstreamViewerApp: App {
                 initialCase: String(fixtureArgument.dropFirst("--function-changes-fixture=".count))
               ))
           } else {
-            ChangeStreamPageView(chat: chat, instantAsk: instantAsk)
+            ChangeStreamPageView(chat: chat, instantAsk: instantAsk, terminals: terminals)
           }
         }
       }
       .environment(\.fontScale, fontSize.scale)
-      .modifier(QuitFlowHandoff(chat: chat, instantAsk: instantAsk, appDelegate: appDelegate, windowID: Self.windowID))
+      .task { await terminals.launched() }
+      .modifier(QuitFlowHandoff(
+        chat: chat, instantAsk: instantAsk, terminals: terminals, appDelegate: appDelegate, windowID: Self.windowID))
       .background {
         Button("Make Text Bigger") { fontSize.biggerTapped() }
           .keyboardShortcut("=")
@@ -51,10 +55,12 @@ struct SlipstreamViewerApp: App {
   private static let windowID = "main"
 }
 
-/// Gives the quit flow the chat and instant answers, and a way back to the window when closing it is cancelled.
+/// Gives the quit flow the chat, instant answers and terminals, and a way back to the window when closing it
+/// is cancelled.
 private struct QuitFlowHandoff: ViewModifier {
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
+  let terminals: TerminalPageModel
   let appDelegate: AppDelegate
   let windowID: String
   @Environment(\.openWindow) private var openWindow
@@ -63,6 +69,7 @@ private struct QuitFlowHandoff: ViewModifier {
     content.onAppear {
       appDelegate.chat = chat
       appDelegate.instantAsk = instantAsk
+      appDelegate.terminals = terminals
       appDelegate.reopenWindow = { openWindow(id: windowID) }
     }
   }
