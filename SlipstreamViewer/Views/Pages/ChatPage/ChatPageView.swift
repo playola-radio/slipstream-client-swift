@@ -392,7 +392,7 @@ private struct ToolCallView: View {
   }
 }
 
-private struct SpinnerView: View {
+struct SpinnerView: View {
   let spinner: DesignTokens.Chat.Spinner
   @State private var isSpinning = false
 

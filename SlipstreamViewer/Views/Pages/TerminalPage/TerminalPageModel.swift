@@ -33,6 +33,7 @@ final class TerminalPageModel: ViewModel {
   private var isQuitting = false
   private var isLaunched = false
   private var focusedTabID: TerminalTabRecord.ID?
+  private var hoveredTabID: TerminalTabRecord.ID?
 
   var shownTabs: [TerminalTabModel] {
     state.tabs(shownIn: folder, listed: listedFolders).compactMap { tabs[id: $0.id] }
@@ -50,9 +51,30 @@ final class TerminalPageModel: ViewModel {
 
   let emptyTitle = "Choose a workspace"
   let emptyText = "Its terminals appear here."
+  let newTabAccessibilityLabel = "New terminal"
+  let hideTerminalsText = "Hide terminals"
+
+  // MARK: - View Helpers
 
   var isEmptyStateVisible: Bool {
     folder == nil && state.tabs(shownIn: nil, listed: listedFolders).isEmpty
+  }
+
+  var showsNewTabButton: Bool { folder != nil }
+
+  func isSelected(_ tab: TerminalTabModel) -> Bool { selectedTab?.id == tab.id }
+
+  func isHovered(_ tab: TerminalTabModel) -> Bool { hoveredTabID == tab.id }
+
+  func showsCloseButton(_ tab: TerminalTabModel) -> Bool { isSelected(tab) || isHovered(tab) }
+
+  func tabStatusIcon(_ tab: TerminalTabModel) -> TerminalTabStatusIcon? {
+    switch state.tabs[id: tab.id]?.kind {
+    case .setup(.running): .running
+    case .setup(.finished): .finished
+    case .setup(.failed), .setup(.interrupted): .failed
+    case .terminal, nil: nil
+    }
   }
 
   // MARK: - User Actions
@@ -111,6 +133,14 @@ final class TerminalPageModel: ViewModel {
   func closeShortcutPressed() async {
     guard let id = selectedTab?.id else { return }
     await closeTabTapped(id)
+  }
+
+  func tabHovered(_ id: TerminalTabRecord.ID, isHovering: Bool) {
+    if isHovering {
+      hoveredTabID = id
+    } else if hoveredTabID == id {
+      hoveredTabID = nil
+    }
   }
 
   func terminalFocusChanged(_ id: TerminalTabRecord.ID, isFocused: Bool) {
@@ -231,4 +261,8 @@ final class TerminalPageModel: ViewModel {
   private func save() async {
     await withErrorReporting { try await $state.save() }
   }
+}
+
+enum TerminalTabStatusIcon: Equatable {
+  case running, finished, failed
 }

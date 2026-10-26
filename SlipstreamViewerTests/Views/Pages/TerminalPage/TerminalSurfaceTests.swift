@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftTerm
 import Testing
@@ -71,5 +72,16 @@ struct TerminalSurfaceTests {
     let first = try #require(normalBufferLines().first)
     let number = try #require(Int(first.dropFirst("line ".count)))
     #expect(number <= 101)
+  }
+
+  @Test func focusBeforeAWindowWaitsForOne() {
+    let surface = TerminalSurface()
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [],
+      backing: .buffered, defer: true)
+
+    surface.focus()
+    window.contentView?.addSubview(surface.view)
+
+    #expect(window.firstResponder === surface.view)
   }
 }

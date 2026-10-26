@@ -56,6 +56,12 @@ final class TerminalTabModel: ViewModel, Identifiable {
   }
 
   var closeConfirmationText: String { "Closing stops what's running in \(title)." }
+  var closeAccessibilityLabel: String { "Close \(title)" }
+  let stillRunningText = "Still running"
+  let keepText = "Keep"
+  let closeText = "Close"
+  let folderMissingText = "This folder no longer exists"
+  let noShellText = "No shell was started."
 
   static let restoredText = "Restored — earlier processes ended"
 

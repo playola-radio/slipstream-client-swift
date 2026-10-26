@@ -273,6 +273,47 @@ struct TerminalPageTests {
     #expect(fake.launches.count == 2)
   }
 
+  @Test func tabStatusIconFollowsKindAndStatus() async {
+    let model = makeModel([
+      TerminalTabRecord(id: UUID(100), folder: a, kind: .setup(.running)),
+      TerminalTabRecord(id: UUID(101), folder: a, kind: .setup(.finished(seconds: 14))),
+      TerminalTabRecord(id: UUID(102), folder: a, kind: .setup(.failed(exitStatus: 1))),
+      TerminalTabRecord(id: UUID(103), folder: a, kind: .setup(.interrupted)),
+      terminal(104, in: a, number: 1),
+    ])
+
+    await model.workspaceChanged(folder: a)
+
+    expectNoDifference(model.shownTabs.map(model.tabStatusIcon), [.running, .finished, .failed, .failed, nil])
+  }
+
+  @Test func closeButtonShowsOnSelectedOrHoveredTab() async {
+    let model = makeModel([
+      terminal(100, in: a, number: 1), terminal(101, in: a, number: 2), terminal(102, in: a, number: 3),
+    ])
+    await model.workspaceChanged(folder: a)
+
+    model.tabHovered(UUID(101), isHovering: true)
+
+    expectNoDifference(model.shownTabs.map(model.showsCloseButton), [true, true, false])
+    expectNoDifference(model.shownTabs.map(model.isSelected), [true, false, false])
+    expectNoDifference(model.shownTabs.map(model.isHovered), [false, true, false])
+
+    model.tabHovered(UUID(101), isHovering: false)
+
+    expectNoDifference(model.shownTabs.map(model.showsCloseButton), [true, false, false])
+  }
+
+  @Test func newTabButtonNeedsAWorkspace() async {
+    let model = makeModel()
+
+    await model.workspaceChanged(folder: nil)
+    #expect(!model.showsNewTabButton)
+
+    await model.workspaceChanged(folder: a)
+    #expect(model.showsNewTabButton)
+  }
+
   @Test func focusFollowsTheTerminal() async {
     let model = makeModel([terminal(100, in: a, number: 1)])
     await model.workspaceChanged(folder: a)
