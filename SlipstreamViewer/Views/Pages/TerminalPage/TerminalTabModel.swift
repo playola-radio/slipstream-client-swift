@@ -32,7 +32,6 @@ final class TerminalTabModel: ViewModel, Identifiable {
   let surface: TerminalSurface
   var missingFolderPath: String?
   var isCloseConfirmationVisible = false
-  var isFolderMissing: Bool { missingFolderPath != nil }
 
   var isBusy: Bool {
     if case .setup(.running) = state.tabs[id: id]?.kind { return true }
@@ -80,12 +79,13 @@ final class TerminalTabModel: ViewModel, Identifiable {
     await launchShell(in: folder)
   }
 
-  /// Ends the process within `TerminalProcess.hangupGrace` and flushes the history.
+  /// Ends the process within `TerminalProcess.hangupGrace`, saves the output it was still
+  /// sending, and flushes the history.
   func stop() async {
     isStopped = true
     isCloseConfirmationVisible = false
     await handle?.stop()
-    events?.cancel()
+    await events?.value
     events = nil
     handle = nil
     await history.flush(id)
@@ -107,8 +107,9 @@ final class TerminalTabModel: ViewModel, Identifiable {
   private func replay() async {
     let saved = await history.read(id)
     guard !isStopped, !saved.isEmpty else { return }
-    surface.feed(saved + TerminalSurface.replayReset)
-    write(divider(columns: surface.size.columns))
+    surface.feed(saved)
+    // Saved too, so a full-screen program left open can't hide this session's output next time.
+    write(String(decoding: TerminalSurface.replayReset, as: UTF8.self) + divider(columns: surface.size.columns))
   }
 
   private func launchShell(in folder: String) async {
@@ -126,12 +127,12 @@ final class TerminalTabModel: ViewModel, Identifiable {
         for await event in handle.events { self?.received(event) }
       }
     } catch {
+      guard !isStopped else { return }
       write(note: (error as? TerminalLaunchError)?.text ?? error.localizedDescription)
     }
   }
 
   private func received(_ event: TerminalEvent) {
-    guard !isStopped else { return }
     switch event {
     case .output(let bytes):
       history.append(id, bytes)
@@ -139,6 +140,7 @@ final class TerminalTabModel: ViewModel, Identifiable {
     case .finished(let exit):
       handle = nil
       isCloseConfirmationVisible = false
+      guard !isStopped else { return }
       write(note: exit.noteText)
     }
   }

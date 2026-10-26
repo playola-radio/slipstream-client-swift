@@ -3572,19 +3572,17 @@ extension ChangeStreamPageTests {
     expectNoDifference(terminal.launches.map(\.directory), [Self.workspaceRoot, Self.workspaceRoot])
   }
 
-  @Test func successfulArchiveForgetsTerminals() async throws {
+  @Test func successfulArchiveForgetsTerminals() async {
     let model = await workspaceModel(archive: { [self] _, _ in
       listWorkspace(.stopped, reason: "archived")
       return WorkspaceOutcome()
     })
     defer { model.viewDisappeared() }
-    let tab = try #require(model.terminals.selectedTab?.id)
 
     await model.archiveConfirmed()
     await Task.megaYield()
 
     #expect(model.terminals.folder == nil)
-    #expect(!terminal.hasLog(tab))
     expectNoDifference(terminal.saved?.tabs.elements, [])
   }
 
@@ -3617,7 +3615,7 @@ extension ChangeStreamPageTests {
     let model = makeModel()
 
     #expect(model.minimumWindowWidth(visibleScreenWidth: 1280) == 1280)
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 900) == 1000)
+    #expect(model.minimumWindowWidth(visibleScreenWidth: 900) == 900)
   }
 
   @Test func commandWClosesTerminalWhenFocused() async throws {

@@ -245,11 +245,10 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - View Helpers
 
-  /// The pane widens the window, but never past a small screen and never below the window without it.
+  /// The pane widens the window, but never past the screen's visible width.
   func minimumWindowWidth(visibleScreenWidth: CGFloat) -> CGFloat {
     let base: CGFloat = isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000
-    let width = base + (isTerminalPaneHidden ? 0 : DesignTokens.TerminalPane.width)
-    return max(base, min(width, visibleScreenWidth))
+    return min(base + (isTerminalPaneHidden ? 0 : DesignTokens.TerminalPane.width), visibleScreenWidth)
   }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
@@ -547,8 +546,8 @@ final class ChangeStreamPageModel: ViewModel {
     if let failure = outcome.failureText {
       chat.workspaceChanged(folder: folder, emptyText: nil)
       chat.restoreTabs(in: folder, drafts: drafts)
+      terminals.restoreTabs(in: folder)
       await terminals.workspaceChanged(folder: folder)
-      await terminals.restoreTabs(in: folder)
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }

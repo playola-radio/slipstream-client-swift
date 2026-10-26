@@ -232,12 +232,26 @@ struct TerminalPageTests {
     await model.workspaceChanged(folder: a)
     await model.workspaceChanged(folder: nil)
     await model.stopTabs(in: a)
-    await model.workspaceChanged(folder: a)
 
-    await model.restoreTabs(in: a)
+    model.restoreTabs(in: a)
+    await model.workspaceChanged(folder: a)
 
     expectNoDifference(fake.launches.map(\.directory), [a, a])
     expectNoDifference(model.shownTabs.map(\.id), [UUID(100)])
+  }
+
+  @Test func restoredWorkspaceWhoseLastTabClosedGetsTerminalOne() async {
+    let model = makeModel([terminal(100, in: a, number: 1)])
+    await model.workspaceChanged(folder: a)
+    await model.workspaceChanged(folder: nil)
+    await model.closeConfirmed(UUID(100))
+    await model.stopTabs(in: a)
+
+    model.restoreTabs(in: a)
+    await model.workspaceChanged(folder: a)
+
+    expectNoDifference(model.shownTabs.map(\.title), ["Terminal 1"])
+    #expect(fake.launches.count == 2)
   }
 
   @Test func forgetTabsDeletesRecordsLogsAndSelection() async {

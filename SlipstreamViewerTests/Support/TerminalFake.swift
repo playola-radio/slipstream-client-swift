@@ -24,7 +24,7 @@ final class TerminalFake: Sendable {
     case stop(launch: Int)
   }
 
-  enum Hold { case environment, reads }
+  enum Hold { case environment }
 
   private struct State {
     var calls: [(call: Call, saved: TerminalState?)] = []
@@ -130,7 +130,6 @@ final class TerminalFake: Sendable {
     TerminalHistoryClient(
       read: { tab in
         self.record(.read(tab))
-        await self.wait(.reads)
         return self.state.withLock { $0.logs[tab] ?? [] }
       },
       append: { tab, bytes in

@@ -138,7 +138,6 @@ struct TerminalTabModelTests {
 
     let tab = await startedTab()
 
-    #expect(tab.isFolderMissing)
     #expect(tab.missingFolderPath == "/tmp/project")
     expectNoDifference(fake.calls, [])
   }
@@ -190,6 +189,42 @@ struct TerminalTabModelTests {
       fake.calls,
       [.read(record.id), .launch(directory: "/tmp/project"), .stop(launch: 0), .flush(record.id)])
     #expect(!fake.log(record.id).contains("Process exited"))
+  }
+
+  @Test func outputWaitingAtStopIsSaved() async {
+    let tab = await startedTab()
+    fake.send("bye\r\n")
+
+    await tab.stop()
+
+    expectNoDifference(fake.log(record.id), "bye\r\n")
+    #expect(fake.calls.last == .flush(record.id))
+  }
+
+  @Test func environmentErrorAfterStopWritesNothing() async {
+    fake.hold(.environment)
+    fake.setEnvironmentError(TerminalLaunchError(text: "Couldn't read PATH from your login shell"))
+    let tab = makeTab()
+    let starting = Task { await tab.start() }
+    await Task.megaYield()
+
+    await tab.stop()
+    fake.release(.environment)
+    await starting.value
+
+    expectNoDifference(fake.log(record.id), "")
+    expectNoDifference(bufferLines(tab), [])
+  }
+
+  @Test func outputAfterAnUnfinishedFullScreenProgramReplays() async {
+    fake.setLog(record.id, "earlier\r\n\u{1b}[?1049hvim")
+    let first = await startedTab()
+    fake.send("after\r\n")
+    await first.stop()
+
+    let second = await startedTab()
+
+    #expect(bufferLines(second).contains("after"))
   }
 
   @Test func stopDuringStartLaunchesNothing() async {

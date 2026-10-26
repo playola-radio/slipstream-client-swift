@@ -164,10 +164,9 @@ final class TerminalPageModel: ViewModel {
     for tab in stopping { tabs[id: tab.id] = nil }
   }
 
-  /// Starts the folder's tabs again with fresh shells after a failed archive.
-  func restoreTabs(in folder: String) async {
+  /// Lets the folder's tabs start again after a failed archive; showing the folder starts them.
+  func restoreTabs(in folder: String) {
     stoppedFolders.remove(folder)
-    await startShownTabs()
   }
 
   /// Deletes the folder's logs, then its records and selection, after it was archived.
