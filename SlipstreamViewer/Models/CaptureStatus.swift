@@ -69,24 +69,6 @@ struct CaptureStatus: Equatable, Sendable {
     return "Checked \(Self.format(checkedAt, "HH:mm:ss", timeZone))"
   }
 
-  var pickerSuffix: String? {
-    switch availability {
-    case .loading: return nil
-    case .unavailableFromReader, .failed: return "State unknown"
-    case .available: break
-    }
-    guard let capture else { return "Not captured" }
-    switch capture.state {
-    case .recording: return "Recording"
-    case .notRecording where capture.reason == "capture-limit-reached": return "Waiting for a free slot"
-    case .notRecording: return "Not recording"
-    case .queued: return "Queued"
-    case .baselining: return "Preparing"
-    case .stopped: return "Stopped"
-    case .unknown: return "State unknown"
-    }
-  }
-
   var isInactive: Bool {
     guard case .available = availability else { return false }
     guard let capture else { return true }

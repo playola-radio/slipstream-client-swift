@@ -71,7 +71,6 @@ final class ChangeStreamPageModel: ViewModel {
   var hasLoadedSessions = false { didSet { chatWorkspaceMayHaveChanged() } }
   var sessionsError: String? { didSet { chatWorkspaceMayHaveChanged() } }
   var selectedSession: SessionOption? { didSet { chatWorkspaceMayHaveChanged() } }
-  var isShowingInactiveSessions = false
   private(set) var captureAvailability = CaptureAvailability.loading
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
@@ -132,7 +131,6 @@ final class ChangeStreamPageModel: ViewModel {
   let questionDiscardText = "Discard draft"
   let questionKeepText = "Keep question"
 
-  let newWorkspaceText = "New workspace…"
   let archiveWorkspaceText = "Archive workspace…"
   let archiveConfirmationTitle = "Archive this workspace?"
   let archiveConfirmText = "Archive"
@@ -168,25 +166,14 @@ final class ChangeStreamPageModel: ViewModel {
     return questions + " · \(newReplies) \(newReplies == 1 ? "new reply" : "new replies")"
   }
 
-  var sessionPickerTitle: String {
-    selectedSession?.label ?? "Choose a session"
-  }
+  let sidebarTitleText = "Workspaces"
+  let addRepositoryText = "Add repository…"
 
-  var inactiveSessionsToggleText: String? {
-    if isShowingInactiveSessions { return hiddenInactiveSessionCount > 0 ? "Hide inactive sessions" : nil }
-    switch hiddenInactiveSessionCount {
-    case 0: return nil
-    case 1: return "Show 1 inactive session"
-    case let count: return "Show \(count) inactive sessions"
-    }
-  }
-
-  func isBold(_ session: SessionOption) -> Bool {
-    session.root.map(chat.isWaiting) ?? false
-  }
-
-  func sessionMenuText(for session: SessionOption) -> String {
-    captureStatus(of: session).pickerSuffix.map { "\(session.label) · \($0)" } ?? session.label
+  var toolbarTitleText: String {
+    guard let selectedSession else { return "Slipstream" }
+    let name = rowName(selectedSession)
+    guard let repository = selectedFolder.flatMap({ workspaceRoots?.repository(of: $0) }) else { return name }
+    return "\(repository)  ›  \(name)"
   }
 
   var selectedCaptureStatus: CaptureStatus? {
@@ -229,7 +216,7 @@ final class ChangeStreamPageModel: ViewModel {
     if let sessionsError, selectedSession == nil { return sessionsError }
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
-      return sessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
+      return pickerSessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Refresh to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
@@ -249,6 +236,22 @@ final class ChangeStreamPageModel: ViewModel {
   func minimumWindowWidth(visibleScreenWidth: CGFloat) -> CGFloat {
     let base: CGFloat = isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000
     return min(base + (isTerminalPaneHidden ? 0 : DesignTokens.TerminalPane.width), visibleScreenWidth)
+  }
+
+  func rowName(_ session: SessionOption) -> String {
+    SidebarGroup.rowName(session)
+  }
+
+  func isSelected(_ session: SessionOption) -> Bool {
+    session.id == selectedSession?.id
+  }
+
+  func isBold(_ session: SessionOption) -> Bool {
+    session.root.map(chat.isWaiting) ?? false
+  }
+
+  func isWorking(_ session: SessionOption) -> Bool {
+    session.root.map(chat.hasWorkingTab(in:)) ?? false
   }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
@@ -424,10 +427,12 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var pickerSessions: IdentifiedArrayOf<SessionOption> {
-    isShowingInactiveSessions ? sessions : sessions.filter { !isHideable($0) }
+    sessions.filter { !isHideable($0) }
   }
 
-  var isSessionPickerDisabled: Bool { isWorkspaceBusy }
+  var sidebarGroups: [SidebarGroup] {
+    SidebarGroup.groups(pickerSessions, roots: workspaceRoots)
+  }
 
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
   var isArchiveWorkspaceShown: Bool {
@@ -499,10 +504,6 @@ final class ChangeStreamPageModel: ViewModel {
 
   func refreshTapped() async {
     await loadSessions()
-  }
-
-  func inactiveSessionsToggleTapped() {
-    isShowingInactiveSessions.toggle()
   }
 
   func sessionSelected(_ id: String) {
@@ -1173,10 +1174,6 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func captureStatus(of session: SessionOption) -> CaptureStatus {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
-  }
-
-  private var hiddenInactiveSessionCount: Int {
-    sessions.filter(isHideable).count
   }
 
   private func isHideable(_ session: SessionOption) -> Bool {

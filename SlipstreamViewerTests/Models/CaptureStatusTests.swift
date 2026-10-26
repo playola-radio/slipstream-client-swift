@@ -74,7 +74,6 @@ struct CaptureStatusTests {
     ]
     for status in readings {
       #expect(status.captureText != "Recording")
-      #expect(status.pickerSuffix != "Recording")
       #expect(status.captureDot != .recording)
     }
   }
@@ -111,27 +110,6 @@ struct CaptureStatusTests {
     #expect(CaptureStatus(availability: .loading, capture: nil).checkedText(timeZone: Self.utc) == nil)
     #expect(CaptureStatus(availability: .failed, capture: nil).checkedText(timeZone: Self.utc) == nil)
     #expect(CaptureStatus(availability: .unavailableFromReader, capture: nil).checkedText(timeZone: Self.utc) == nil)
-  }
-
-  @Test(arguments: [
-    (CaptureState.recording, nil, "Recording"),
-    (.notRecording, "capture-limit-reached", "Waiting for a free slot"),
-    (.notRecording, "root-overlap", "Not recording"),
-    (.queued, nil, "Queued"),
-    (.baselining, nil, "Preparing"),
-    (.stopped, "archived", "Stopped"),
-    (.unknown("hibernating"), nil, "State unknown"),
-  ] as [(CaptureState, String?, String)])
-  func pickerSuffixIsShort(state: CaptureState, reason: String?, suffix: String) {
-    expectNoDifference(Self.status(state, reason: reason).pickerSuffix, suffix)
-  }
-
-  @Test func pickerSuffixWithoutACapture() {
-    #expect(CaptureStatus(availability: .loading, capture: nil).pickerSuffix == nil)
-    expectNoDifference(CaptureStatus(availability: .failed, capture: nil).pickerSuffix, "State unknown")
-    expectNoDifference(CaptureStatus(availability: .unavailableFromReader, capture: nil).pickerSuffix, "State unknown")
-    expectNoDifference(
-      CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil).pickerSuffix, "Not captured")
   }
 
   @Test(arguments: [

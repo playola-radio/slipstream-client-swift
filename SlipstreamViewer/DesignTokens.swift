@@ -548,11 +548,59 @@ enum DesignTokens {
     static let itemGap: CGFloat = 24
   }
 
-  enum StreamPicker {
-    /// The menu is a system menu, so a waiting stream is the system font in bold.
-    static func rowFont(isBold: Bool) -> Font {
-      isBold ? .body.bold() : .body
+  enum Workspace {
+    static let sidebarWidth: CGFloat = 260
+  }
+
+  enum Sidebar {
+    static let fill = Color(hex: 0x0E1318)
+    static let stroke = Color(hex: 0x2A3640)
+
+    static let headerHeight: CGFloat = 40
+    static let headerLeadingPadding: CGFloat = 16
+    static let headerTrailingPadding: CGFloat = 10
+    static let titleFont = variableFont(family: geistFamily, size: 12.5, weight: 550)
+    static let titleColor = Color(hex: 0xE6EDF3)
+
+    static let listGap: CGFloat = 14
+    static let listVerticalPadding: CGFloat = 10
+    static let listHorizontalPadding: CGFloat = 8
+    static let groupGap: CGFloat = 2
+
+    static let groupHeaderHeight: CGFloat = 30
+    static let groupHeaderGap: CGFloat = 8
+    static let groupHeaderLeadingPadding: CGFloat = 8
+    static let groupHeaderTrailingPadding: CGFloat = 6
+    static let groupIcon = Icons.Icon(assetName: "FolderGit2", size: 14, color: Color(hex: 0x7D98AD))
+    static let groupNameFont = variableFont(family: geistFamily, size: 12.5, weight: 550)
+    static let groupNameColor = Color(hex: 0xC9D6DF)
+
+    static let rowHeight: CGFloat = 32
+    static let rowRadius: CGFloat = 5
+    static let rowGap: CGFloat = 8
+    static let rowLeadingPadding: CGFloat = 26
+    static let rowTrailingPadding: CGFloat = 10
+    static let selectedRowFill = Color(hex: 0x222A33)
+    static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x6CB6FF))
+
+    static func rowIcon(isSelected: Bool) -> Icons.Icon {
+      Icons.Icon(assetName: "GitBranch", size: 13, color: isSelected ? Color(hex: 0xC9D6DF) : Color(hex: 0x6B7C89))
     }
+
+    static func rowNameFont(isBold: Bool) -> FontToken {
+      variableFont(family: geistFamily, size: 12.5, weight: isBold ? 600 : 400)
+    }
+
+    static func rowNameColor(isBold: Bool, isSelected: Bool) -> Color {
+      isBold || isSelected ? Color(hex: 0xE6EDF3) : Color(hex: 0xA9B7C2)
+    }
+
+    static let footerHeight: CGFloat = 44
+    static let footerGap: CGFloat = 8
+    static let footerHorizontalPadding: CGFloat = 16
+    static let footerIcon = Icons.Icon(assetName: "FolderPlus", size: 14, color: Color(hex: 0x8B9AA6))
+    static let footerFont = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let footerColor = Color(hex: 0x8B9AA6)
   }
 
   enum TaskHeading {

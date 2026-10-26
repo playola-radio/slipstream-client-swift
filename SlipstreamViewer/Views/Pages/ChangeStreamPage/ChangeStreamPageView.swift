@@ -18,6 +18,8 @@ struct ChangeStreamPageView: View {
 
   var body: some View {
     HStack(spacing: 0) {
+      WorkspaceSidebarView(model: model)
+        .frame(width: DesignTokens.Workspace.sidebarWidth)
       if !model.isFeedHidden {
         feedPane.frame(width: DesignTokens.FeedPane.width)
       }
@@ -403,33 +405,16 @@ struct ChangeStreamPageView: View {
     }
   }
 
-  /// A system menu ignores Text modifiers, so the weight rides on the string.
-  private func menuTitle(_ text: String, isBold: Bool) -> AttributedString {
-    var title = AttributedString(text)
-    title.font = DesignTokens.StreamPicker.rowFont(isBold: isBold)
-    return title
-  }
-
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
-      Menu(model.sessionPickerTitle) {
-        ForEach(model.pickerSessions) { session in
-          Button { model.sessionSelected(session.id) } label: {
-            Text(menuTitle(model.sessionMenuText(for: session), isBold: model.isBold(session)))
-          }
-        }
-        if let inactiveSessionsToggleText = model.inactiveSessionsToggleText {
-          Divider()
-          Button(inactiveSessionsToggleText) { model.inactiveSessionsToggleTapped() }
-        }
-        Divider()
-        Button(model.newWorkspaceText) { Task { await model.newWorkspaceTapped() } }
-        if model.isArchiveWorkspaceShown {
-          Button(model.archiveWorkspaceText) { model.archiveWorkspaceTapped() }
-        }
+      Text(model.toolbarTitleText)
+    }
+    if model.isArchiveWorkspaceShown {
+      ToolbarItem(placement: .navigation) {
+        Button(model.archiveWorkspaceText) { model.archiveWorkspaceTapped() }
+          .disabled(model.isWorkspaceBusy)
       }
-      .disabled(model.isSessionPickerDisabled)
     }
     if model.isWorkspaceBusy {
       ToolbarItem(placement: .navigation) {
