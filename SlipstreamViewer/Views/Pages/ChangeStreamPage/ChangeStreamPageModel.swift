@@ -54,6 +54,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
   private(set) var isWorkspaceBusy = false
+  private(set) var workspaceRoots: WorkspaceRoots?
   var isArchiveConfirmationPresented = false
   var isWorkspaceFailurePresented = false
   private(set) var workspaceFailureTitle = ""
@@ -107,9 +108,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
-  @ObservationIgnored private var managedWorkspaceRoot: URL?
-  @ObservationIgnored private var managedWorkspaceTask: Task<Void, Never>?
-  @ObservationIgnored private var managedWorkspaceGeneration = 0
+  @ObservationIgnored private var workspaceRootsTask: Task<Void, Never>?
+  @ObservationIgnored private var workspaceRootsGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
   @ObservationIgnored private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
@@ -431,9 +431,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
   var isArchiveWorkspaceShown: Bool {
-    guard let selectedFolder, let managedWorkspaceRoot else { return false }
-    return ManagedWorkspacePath.contains(
-      selectedFolder, root: Self.normalizedFolder(managedWorkspaceRoot.path))
+    selectedFolder.map { workspaceRoots?.isArchivable($0) ?? false } ?? false
   }
 
   var canCompareFunctions: Bool {
@@ -490,7 +488,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func viewAppeared() async {
     isShown = true
-    loadManagedWorkspaceRoot()
+    loadWorkspaceRoots()
     chatWorkspaceMayHaveChanged()
     chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
     if selectedSession != nil, watchTask?.isCancelled ?? true {
@@ -568,8 +566,8 @@ final class ChangeStreamPageModel: ViewModel {
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
-    managedWorkspaceTask?.cancel()
-    managedWorkspaceGeneration += 1
+    workspaceRootsTask?.cancel()
+    workspaceRootsGeneration += 1
     watchedFollowerLeftLive()
   }
 
@@ -754,15 +752,15 @@ final class ChangeStreamPageModel: ViewModel {
     return true
   }
 
-  private func loadManagedWorkspaceRoot() {
-    managedWorkspaceTask?.cancel()
-    managedWorkspaceGeneration += 1
-    let generation = managedWorkspaceGeneration
+  private func loadWorkspaceRoots() {
+    workspaceRootsTask?.cancel()
+    workspaceRootsGeneration += 1
+    let generation = workspaceRootsGeneration
     let workspace = workspace
-    managedWorkspaceTask = Task { [weak self] in
-      let root = await workspace.managedRoot()
-      guard let self, !Task.isCancelled, isShown, generation == managedWorkspaceGeneration else { return }
-      managedWorkspaceRoot = root
+    workspaceRootsTask = Task { [weak self] in
+      let roots = await workspace.roots()
+      guard let self, !Task.isCancelled, isShown, generation == workspaceRootsGeneration else { return }
+      workspaceRoots = roots
     }
   }
 

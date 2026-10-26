@@ -3219,7 +3219,9 @@ extension ChangeStreamPageTests {
     create: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() },
     archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() }
   ) -> WorkspaceClient {
-    WorkspaceClient(managedRoot: { Self.managedRoot }, chooseRepository: { choose }, create: create, archive: archive)
+    WorkspaceClient(
+      roots: { WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces")) },
+      chooseRepository: { choose }, create: create, archive: archive)
   }
 
   nonisolated func listWorkspace(_ state: CaptureState = .recording, reason: String? = nil) {
@@ -3401,13 +3403,13 @@ extension ChangeStreamPageTests {
     #expect(model.chat.folder == nil)
   }
 
-  @Test func sessionDiscoveryDoesNotWaitForManagedWorkspaceRoot() async {
+  @Test func sessionDiscoveryDoesNotWaitForWorkspaceRoots() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let workspace = workspaceClient()
     let slowWorkspace = WorkspaceClient(
-      managedRoot: {
+      roots: {
         for await _ in gate { break }
-        return Self.managedRoot
+        return await workspace.roots()
       },
       chooseRepository: workspace.chooseRepository,
       create: workspace.create,
