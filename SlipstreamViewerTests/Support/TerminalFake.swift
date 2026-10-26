@@ -15,7 +15,7 @@ final class TerminalFake: Sendable {
     slipstream: "/opt/slipstream/bin/slipstream"
   )
 
-  enum Call: Equatable {
+  enum Call: Hashable {
     case read(UUID)
     case append(UUID)
     case flush(UUID)
