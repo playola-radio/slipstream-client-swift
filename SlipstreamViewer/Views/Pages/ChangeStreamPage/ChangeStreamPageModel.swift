@@ -55,6 +55,9 @@ final class ChangeStreamPageModel: ViewModel {
   var isQuestionDismissConfirmationPresented = false
   private(set) var isWorkspaceBusy = false
   private(set) var workspaceRoots: WorkspaceRoots?
+  private(set) var archiveTarget: SessionOption?
+  private var hoveredRowID: String?
+  private var focusedRowID: String?
   var isArchiveConfirmationPresented = false
   var isWorkspaceFailurePresented = false
   private(set) var workspaceFailureTitle = ""
@@ -131,7 +134,8 @@ final class ChangeStreamPageModel: ViewModel {
   let questionDiscardText = "Discard draft"
   let questionKeepText = "Keep question"
 
-  let archiveWorkspaceText = "Archive workspace…"
+  let newWorkspaceHelpText = "New workspace"
+  let archiveWorkspaceHelpText = "Archive workspace"
   let archiveConfirmationTitle = "Archive this workspace?"
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
@@ -140,7 +144,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var archiveConfirmationText: String {
     let text = "Its folder is removed. The branch is kept."
-    guard let selectedFolder, chat.hasWorkingTab(in: selectedFolder) else { return text }
+    guard let folder = archiveTarget?.root, chat.hasWorkingTab(in: folder) else { return text }
     return text + " Claude's current reply will be stopped."
   }
 
@@ -252,6 +256,19 @@ final class ChangeStreamPageModel: ViewModel {
 
   func isWorking(_ session: SessionOption) -> Bool {
     session.root.map(chat.hasWorkingTab(in:)) ?? false
+  }
+
+  /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
+  func isArchivable(_ session: SessionOption) -> Bool {
+    session.root.map { workspaceRoots?.isArchivable($0) ?? false } ?? false
+  }
+
+  func isHighlighted(_ session: SessionOption) -> Bool {
+    session.id == hoveredRowID || session.id == focusedRowID
+  }
+
+  func isArchiveIconShown(for session: SessionOption) -> Bool {
+    isArchivable(session) && isHighlighted(session)
   }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
@@ -434,11 +451,6 @@ final class ChangeStreamPageModel: ViewModel {
     SidebarGroup.groups(pickerSessions, roots: workspaceRoots)
   }
 
-  /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
-  var isArchiveWorkspaceShown: Bool {
-    selectedFolder.map { workspaceRoots?.isArchivable($0) ?? false } ?? false
-  }
-
   var canCompareFunctions: Bool {
     !isFunctionDemoVisible && selectedSession != nil && baselineCompletedSeq != nil
   }
@@ -517,45 +529,65 @@ final class ChangeStreamPageModel: ViewModel {
 
   func newWorkspaceTapped() async {
     guard !isWorkspaceBusy, let repository = await workspace.chooseRepository() else { return }
-    isWorkspaceBusy = true
-    defer { isWorkspaceBusy = false }
-    let outcome = await workspace.create(repository, daemon.storeID)
-    if let path = outcome.workspacePath { await loadSessions(preferring: path) }
-    if let failure = outcome.failureText {
-      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
+    await createWorkspace(in: repository)
+  }
+
+  func newWorkspaceTapped(in group: SidebarGroup) async {
+    guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
+    await createWorkspace(in: URL(filePath: folder))
+  }
+
+  func rowHoverChanged(_ session: SessionOption, isHovering: Bool) {
+    if isHovering {
+      hoveredRowID = session.id
+    } else if hoveredRowID == session.id {
+      hoveredRowID = nil
     }
   }
 
-  func archiveWorkspaceTapped() {
+  func rowFocusChanged(_ session: SessionOption, isFocused: Bool) {
+    if isFocused {
+      focusedRowID = session.id
+    } else if focusedRowID == session.id {
+      focusedRowID = nil
+    }
+  }
+
+  func archiveTapped(_ session: SessionOption) {
+    archiveTarget = session
     isArchiveConfirmationPresented = true
   }
 
-  /// Hides and stops the workspace's chats first: the command removes the folder they run
-  /// in. Its conversations come back if the command refuses.
+  /// Stops the workspace's chats first, hiding them if it is selected: the command removes
+  /// the folder they run in. Its conversations come back if the command refuses.
   func archiveConfirmed() async {
-    guard !isWorkspaceBusy, let folder = selectedFolder else { return }
-    let archivedSessionID = selectedSession?.id
+    guard !isWorkspaceBusy, let target = archiveTarget, let folder = target.root else { return }
+    let isSelected = target.id == selectedSession?.id
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
-    chat.workspaceChanged(folder: nil, emptyText: nil)
-    await terminals.workspaceChanged(folder: nil)
+    if isSelected {
+      chat.workspaceChanged(folder: nil, emptyText: nil)
+      await terminals.workspaceChanged(folder: nil)
+    }
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
     if let failure = outcome.failureText {
-      chat.workspaceChanged(folder: folder, emptyText: nil)
+      if isSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
       terminals.restoreTabs(in: folder)
-      await terminals.workspaceChanged(folder: folder)
+      if isSelected { await terminals.workspaceChanged(folder: folder) }
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
-    if let archivedSessionID { archivedSessionIDs.insert(archivedSessionID) }
-    selectedSession = nil
-    resetFeed()
-    startWatching()
+    archivedSessionIDs.insert(target.id)
+    if isSelected {
+      selectedSession = nil
+      resetFeed()
+      startWatching()
+    }
     await loadSessions()
   }
 
@@ -762,6 +794,16 @@ final class ChangeStreamPageModel: ViewModel {
       let roots = await workspace.roots()
       guard let self, !Task.isCancelled, isShown, generation == workspaceRootsGeneration else { return }
       workspaceRoots = roots
+    }
+  }
+
+  private func createWorkspace(in repository: URL) async {
+    isWorkspaceBusy = true
+    defer { isWorkspaceBusy = false }
+    let outcome = await workspace.create(repository, daemon.storeID)
+    if let path = outcome.workspacePath { await loadSessions(preferring: path) }
+    if let failure = outcome.failureText {
+      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
     }
   }
 

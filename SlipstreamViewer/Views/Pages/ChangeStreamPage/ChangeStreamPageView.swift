@@ -410,12 +410,6 @@ struct ChangeStreamPageView: View {
     ToolbarItem(placement: .navigation) {
       Text(model.toolbarTitleText)
     }
-    if model.isArchiveWorkspaceShown {
-      ToolbarItem(placement: .navigation) {
-        Button(model.archiveWorkspaceText) { model.archiveWorkspaceTapped() }
-          .disabled(model.isWorkspaceBusy)
-      }
-    }
     if model.isWorkspaceBusy {
       ToolbarItem(placement: .navigation) {
         ProgressView().controlSize(.small)

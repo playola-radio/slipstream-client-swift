@@ -574,6 +574,8 @@ enum DesignTokens {
     static let groupIcon = Icons.Icon(assetName: "FolderGit2", size: 14, color: Color(hex: 0x7D98AD))
     static let groupNameFont = variableFont(family: geistFamily, size: 12.5, weight: 550)
     static let groupNameColor = Color(hex: 0xC9D6DF)
+    static let newWorkspaceIcon = Icons.Icon(assetName: "Plus", size: 14, color: Color(hex: 0x8B9AA6))
+    static let iconButtonPadding: CGFloat = 5
 
     static let rowHeight: CGFloat = 32
     static let rowRadius: CGFloat = 5
@@ -581,6 +583,8 @@ enum DesignTokens {
     static let rowLeadingPadding: CGFloat = 26
     static let rowTrailingPadding: CGFloat = 10
     static let selectedRowFill = Color(hex: 0x222A33)
+    static let highlightedRowFill = Color(hex: 0x1A2129)
+    static let archiveIcon = Icons.Icon(assetName: "Archive", size: 13, color: Color(hex: 0x8B9AA6))
     static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x6CB6FF))
 
     static func rowIcon(isSelected: Bool) -> Icons.Icon {
