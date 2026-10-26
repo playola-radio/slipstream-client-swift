@@ -3894,17 +3894,47 @@ extension ChangeStreamPageTests {
     expectNoDifference(terminal.saved?.tabs.elements, [])
   }
 
-  @Test func minimumWidthWithoutATerminalColumn() {
+  @Test func sidebarHiddenIsRemembered() {
     let model = makeModel()
+    #expect(model.isSidebarShown)
+    #expect(model.sidebarToggleHelpText == "Hide sidebar")
 
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1000)
+    model.sidebarToggleTapped()
+
+    let reopened = makeModel()
+    #expect(!reopened.isSidebarShown)
+    #expect(reopened.sidebarToggleHelpText == "Show sidebar")
   }
 
-  @Test func minimumWidthCappedBySmallScreen() {
+  @Test func chatShrinksBeforeTheStream() {
+    let model = makeModel()
+    var widths: [CGFloat] = []
+    for width in [2040, 1600, 1360, 1200] as [CGFloat] {
+      model.viewportChanged(CGSize(width: width, height: 900))
+      widths.append(model.chatColumnWidth)
+    }
+    expectNoDifference(widths, [720, 660, 420, 420])
+
+    model.viewportChanged(CGSize(width: 1360, height: 900))
+    model.sidebarToggleTapped()
+
+    expectNoDifference(model.chatColumnWidth, 420)
+  }
+
+  @Test func windowMinimumFollowsTheSidebar() {
+    let model = makeModel()
+    #expect(model.windowMinWidth(visibleScreenWidth: 2560) == 1360)
+
+    model.sidebarToggleTapped()
+
+    #expect(model.windowMinWidth(visibleScreenWidth: 2560) == 1100)
+  }
+
+  @Test func windowMinimumCappedBySmallScreen() {
     let model = makeModel()
 
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 1280) == 1000)
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 900) == 900)
+    #expect(model.windowMinWidth(visibleScreenWidth: 1280) == 1280)
+    #expect(model.windowMinWidth(visibleScreenWidth: 900) == 900)
   }
 
   @Test func commandWClosesTerminalWhenFocused() async throws {

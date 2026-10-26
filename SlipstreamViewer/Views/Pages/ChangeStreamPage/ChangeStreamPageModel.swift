@@ -22,6 +22,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Shared(.readAnswers) var readAnswers
   @ObservationIgnored @Shared(.replyDrafts) var replyDrafts
   @ObservationIgnored @Shared(.fontSizeStep) var fontSizeStep
+  @ObservationIgnored @Shared(.isSidebarHidden) var isSidebarHidden
 
   // MARK: - Initialization
 
@@ -140,6 +141,8 @@ final class ChangeStreamPageModel: ViewModel {
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
 
+  var sidebarToggleHelpText: String { isSidebarHidden ? "Show sidebar" : "Hide sidebar" }
+
   func rightPaneText(_ pane: RightPane) -> String {
     switch pane {
     case .stream: "Change stream"
@@ -238,9 +241,24 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - View Helpers
 
+  var isSidebarShown: Bool { !isSidebarHidden }
+
+  /// Always leaves room for the sidebar, so hiding it gives the space to the stream.
+  var chatColumnWidth: CGFloat {
+    min(
+      DesignTokens.Workspace.chatWidth,
+      max(
+        DesignTokens.Workspace.chatMinWidth,
+        viewport.width - DesignTokens.Workspace.sidebarWidth - DesignTokens.FeedPane.width))
+  }
+
   /// Never past the screen's visible width.
-  func minimumWindowWidth(visibleScreenWidth: CGFloat) -> CGFloat {
-    min(isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000, visibleScreenWidth)
+  func windowMinWidth(visibleScreenWidth: CGFloat) -> CGFloat {
+    let width = isFunctionDemoVisible
+      ? DesignTokens.FunctionMap.demoWorkspaceMinWidth
+      : DesignTokens.Workspace.chatMinWidth + DesignTokens.FeedPane.width
+        + (isSidebarShown ? DesignTokens.Workspace.sidebarWidth : 0)
+    return min(width, visibleScreenWidth)
   }
 
   var isStreamShown: Bool { rightPane == .stream }
@@ -634,6 +652,10 @@ final class ChangeStreamPageModel: ViewModel {
       if let selectedSession { sessions[id: selectedSession.id]?.readinessSeq = .zero }
     }
     startWatching()
+  }
+
+  func sidebarToggleTapped() {
+    $isSidebarHidden.withLock { $0.toggle() }
   }
 
   func rightPaneSelected(_ pane: RightPane) {

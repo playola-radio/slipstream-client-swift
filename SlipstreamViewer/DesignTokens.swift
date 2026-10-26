@@ -553,6 +553,8 @@ enum DesignTokens {
 
   enum Workspace {
     static let sidebarWidth: CGFloat = 260
+    static let chatWidth: CGFloat = 720
+    static let chatMinWidth: CGFloat = 420
   }
 
   enum Sidebar {

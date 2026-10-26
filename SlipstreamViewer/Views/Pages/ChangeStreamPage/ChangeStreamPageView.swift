@@ -18,13 +18,15 @@ struct ChangeStreamPageView: View {
 
   var body: some View {
     HStack(spacing: 0) {
-      WorkspaceSidebarView(model: model)
-        .frame(width: DesignTokens.Workspace.sidebarWidth)
-      detailPane
-      rightPane.frame(width: DesignTokens.FeedPane.width)
+      if model.isSidebarShown {
+        WorkspaceSidebarView(model: model)
+          .frame(width: DesignTokens.Workspace.sidebarWidth)
+      }
+      detailPane.frame(width: model.chatColumnWidth)
+      rightPane.frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
     }
     .frame(
-      minWidth: model.minimumWindowWidth(visibleScreenWidth: NSScreen.main?.visibleFrame.width ?? .infinity),
+      minWidth: model.windowMinWidth(visibleScreenWidth: NSScreen.main?.visibleFrame.width ?? .infinity),
       minHeight: functionChangesDemo == nil ? 480 : DesignTokens.FunctionMap.demoWorkspaceMinHeight)
     .coordinateSpace(name: "question-workspace")
     .onGeometryChange(for: CGSize.self) { $0.size } action: { model.viewportChanged($0) }
@@ -386,6 +388,10 @@ struct ChangeStreamPageView: View {
 
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
+    ToolbarItem(placement: .navigation) {
+      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") { model.sidebarToggleTapped() }
+        .help(model.sidebarToggleHelpText)
+    }
     ToolbarItem(placement: .navigation) {
       Text(model.toolbarTitleText)
     }
