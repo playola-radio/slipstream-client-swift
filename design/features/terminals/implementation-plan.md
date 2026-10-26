@@ -1,5 +1,18 @@
 # Terminals Pane Implementation Plan
 
+> **Amended by [workspace-sidebar](../workspace-sidebar/spec.md) (2026-10-26).** The Terminals
+> pane is no longer a third 440pt column. It is the **Terminals** segment of the right side's
+> **Change stream | Terminals** switch, which workspace-sidebar builds with a placeholder. This
+> feature fills that segment.
+>
+> These parts of this design are superseded:
+> - **Hide terminals** / **Show terminals**, `isTerminalPaneHidden`, and the "Hidden" state;
+> - the ~1,440pt window minimum. Widths are set by workspace-sidebar Decision 10.
+>
+> New Workspace (sidebar **+** or **Add repository…**) switches the segment to Terminals so the
+> Setup tab shows. Everything else stands: tabs, Setup, restore, models and the engine (PR #48).
+> Re-check this plan's UI tasks against workspace-sidebar's spec before implementing them.
+
 > **For agentic workers:** this feature spans two repos and four PRs. Drive it with the
 > `orchestrate-feature` skill: one fresh context per PR, in the order below. Inside a PR, use
 > superpowers:subagent-driven-development or superpowers:executing-plans task by task. Steps

@@ -1,0 +1,684 @@
+{
+ "type": "frame",
+ "id": "BkqdP",
+ "x": 0,
+ "y": 43670,
+ "name": "WS \u00b7 Sidebar",
+ "reusable": true,
+ "clip": true,
+ "width": 280,
+ "height": 948,
+ "fill": "#0E1318",
+ "stroke": "#2A3640",
+ "strokeWidth": {
+  "right": 1
+ },
+ "layout": "vertical",
+ "children": [
+  {
+   "type": "frame",
+   "id": "RGGE8",
+   "name": "Sidebar header",
+   "width": "fill_container",
+   "height": 40,
+   "stroke": "#2A3640",
+   "strokeWidth": {
+    "bottom": 1
+   },
+   "padding": [
+    0,
+    10,
+    0,
+    16
+   ],
+   "alignItems": "center",
+   "children": [
+    {
+     "type": "text",
+     "id": "chvh9",
+     "name": "Title",
+     "fill": "#E6EDF3",
+     "content": "Workspaces",
+     "fontFamily": "Geist",
+     "fontSize": 12.5,
+     "fontWeight": "550"
+    }
+   ]
+  },
+  {
+   "type": "frame",
+   "id": "n76O4",
+   "name": "Repo list",
+   "width": "fill_container",
+   "height": "fill_container",
+   "layout": "vertical",
+   "gap": 14,
+   "padding": [
+    10,
+    8
+   ],
+   "children": [
+    {
+     "type": "frame",
+     "id": "wPnII",
+     "name": "Repo \u00b7 playola",
+     "width": "fill_container",
+     "layout": "vertical",
+     "gap": 2,
+     "children": [
+      {
+       "type": "frame",
+       "id": "gbSRg",
+       "name": "Repo header",
+       "width": "fill_container",
+       "height": 30,
+       "gap": 8,
+       "padding": [
+        0,
+        6,
+        0,
+        8
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "Z4FLB",
+         "name": "Repo icon",
+         "width": 14,
+         "height": 14,
+         "icon": "folder-git-2",
+         "library": "lucide",
+         "fill": "#7D98AD"
+        },
+        {
+         "type": "text",
+         "id": "wYAnJ",
+         "name": "Repo name",
+         "fill": "#C9D6DF",
+         "content": "playola",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "550"
+        },
+        {
+         "type": "frame",
+         "id": "qmlns",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        },
+        {
+         "type": "frame",
+         "id": "akk1p",
+         "name": "New workspace",
+         "cornerRadius": 4,
+         "padding": 5,
+         "alignItems": "center",
+         "children": [
+          {
+           "type": "icon",
+           "id": "chWuY",
+           "name": "Plus",
+           "width": 14,
+           "height": 14,
+           "icon": "plus",
+           "library": "lucide",
+           "fill": "#8B9AA6"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "kYPLE",
+       "name": "Workspace \u00b7 workspace-7",
+       "width": "fill_container",
+       "height": 32,
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "h0PAgR",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#6B7C89"
+        },
+        {
+         "type": "text",
+         "id": "O8AvWQ",
+         "name": "Workspace name",
+         "fill": "#A9B7C2",
+         "content": "workspace-7",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "normal"
+        },
+        {
+         "type": "frame",
+         "id": "H5WyKq",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        },
+        {
+         "type": "icon",
+         "id": "f4hFX",
+         "name": "Agent working",
+         "width": 13,
+         "height": 13,
+         "icon": "loader-circle",
+         "library": "lucide",
+         "fill": "#6CB6FF"
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "TwNE3",
+       "name": "Workspace \u00b7 lisbon-v2",
+       "width": "fill_container",
+       "height": 32,
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "xRSMP",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#6B7C89"
+        },
+        {
+         "type": "text",
+         "id": "eqLoM",
+         "name": "Workspace name",
+         "fill": "#A9B7C2",
+         "content": "lisbon-v2",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "normal"
+        },
+        {
+         "type": "frame",
+         "id": "le8Wa",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "PSw6N",
+       "name": "Workspace \u00b7 workspace-9",
+       "width": "fill_container",
+       "height": 32,
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "SKICh",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#6B7C89"
+        },
+        {
+         "type": "text",
+         "id": "Z5jb2t",
+         "name": "Workspace name",
+         "fill": "#E6EDF3",
+         "content": "workspace-9",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "600"
+        },
+        {
+         "type": "frame",
+         "id": "Q9I8S1",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "frame",
+     "id": "AwThp",
+     "name": "Repo \u00b7 slipstream",
+     "width": "fill_container",
+     "layout": "vertical",
+     "gap": 2,
+     "children": [
+      {
+       "type": "frame",
+       "id": "M4qpSC",
+       "name": "Repo header",
+       "width": "fill_container",
+       "height": 30,
+       "gap": 8,
+       "padding": [
+        0,
+        6,
+        0,
+        8
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "WWBK4",
+         "name": "Repo icon",
+         "width": 14,
+         "height": 14,
+         "icon": "folder-git-2",
+         "library": "lucide",
+         "fill": "#7D98AD"
+        },
+        {
+         "type": "text",
+         "id": "EyfMC",
+         "name": "Repo name",
+         "fill": "#C9D6DF",
+         "content": "slipstream",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "550"
+        },
+        {
+         "type": "frame",
+         "id": "QV3GH",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        },
+        {
+         "type": "frame",
+         "id": "OxoxK",
+         "name": "New workspace",
+         "cornerRadius": 4,
+         "padding": 5,
+         "alignItems": "center",
+         "children": [
+          {
+           "type": "icon",
+           "id": "Tbdhb",
+           "name": "Plus",
+           "width": 14,
+           "height": 14,
+           "icon": "plus",
+           "library": "lucide",
+           "fill": "#8B9AA6"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "LzYRy",
+       "name": "Workspace \u00b7 workspace-3",
+       "width": "fill_container",
+       "height": 32,
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "Z5ZtW",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#6B7C89"
+        },
+        {
+         "type": "text",
+         "id": "Hrle1",
+         "name": "Workspace name",
+         "fill": "#E6EDF3",
+         "content": "workspace-3",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "600"
+        },
+        {
+         "type": "frame",
+         "id": "vsocH",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "frame",
+     "id": "x9Rqq0",
+     "name": "Repo \u00b7 slipstream-client-swift",
+     "width": "fill_container",
+     "layout": "vertical",
+     "gap": 2,
+     "children": [
+      {
+       "type": "frame",
+       "id": "C1dy75",
+       "name": "Repo header",
+       "width": "fill_container",
+       "height": 30,
+       "gap": 8,
+       "padding": [
+        0,
+        6,
+        0,
+        8
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "urLiq",
+         "name": "Repo icon",
+         "width": 14,
+         "height": 14,
+         "icon": "folder-git-2",
+         "library": "lucide",
+         "fill": "#7D98AD"
+        },
+        {
+         "type": "text",
+         "id": "kicEu",
+         "name": "Repo name",
+         "fill": "#C9D6DF",
+         "content": "slipstream-client-swift",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "550"
+        },
+        {
+         "type": "frame",
+         "id": "ormda",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        },
+        {
+         "type": "frame",
+         "id": "eoXyh",
+         "name": "New workspace",
+         "cornerRadius": 4,
+         "padding": 5,
+         "alignItems": "center",
+         "children": [
+          {
+           "type": "icon",
+           "id": "i1etx",
+           "name": "Plus",
+           "width": 14,
+           "height": 14,
+           "icon": "plus",
+           "library": "lucide",
+           "fill": "#8B9AA6"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "MVooW",
+       "name": "Workspace \u00b7 belo-horizonte-v6",
+       "width": "fill_container",
+       "height": 32,
+       "fill": "#222A33",
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "QtYtj",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#C9D6DF"
+        },
+        {
+         "type": "text",
+         "id": "ad1Rv",
+         "name": "Workspace name",
+         "fill": "#E6EDF3",
+         "content": "belo-horizonte-v6",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "normal"
+        },
+        {
+         "type": "frame",
+         "id": "sikVz",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        },
+        {
+         "type": "icon",
+         "id": "DxUSd",
+         "name": "Agent working",
+         "width": 13,
+         "height": 13,
+         "icon": "loader-circle",
+         "library": "lucide",
+         "fill": "#6CB6FF"
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "OqONZ",
+       "name": "Workspace \u00b7 workspace-1",
+       "width": "fill_container",
+       "height": 32,
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "JP7Ue",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#6B7C89"
+        },
+        {
+         "type": "text",
+         "id": "m1ler",
+         "name": "Workspace name",
+         "fill": "#A9B7C2",
+         "content": "workspace-1",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "normal"
+        },
+        {
+         "type": "frame",
+         "id": "VTIHp",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        },
+        {
+         "type": "frame",
+         "id": "zpjkI",
+         "x": 0,
+         "y": 0,
+         "name": "Archive workspace",
+         "enabled": false,
+         "cornerRadius": 4,
+         "padding": 5,
+         "alignItems": "center",
+         "children": [
+          {
+           "type": "icon",
+           "id": "USr2Q",
+           "name": "Archive icon",
+           "width": 13,
+           "height": 13,
+           "icon": "archive",
+           "library": "lucide",
+           "fill": "#8B9AA6"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "frame",
+       "id": "jndCb",
+       "name": "Workspace \u00b7 workspace-2",
+       "width": "fill_container",
+       "height": 32,
+       "cornerRadius": 5,
+       "gap": 8,
+       "padding": [
+        0,
+        10,
+        0,
+        26
+       ],
+       "alignItems": "center",
+       "children": [
+        {
+         "type": "icon",
+         "id": "qNu7X",
+         "name": "Branch icon",
+         "width": 13,
+         "height": 13,
+         "icon": "git-branch",
+         "library": "lucide",
+         "fill": "#6B7C89"
+        },
+        {
+         "type": "text",
+         "id": "gE502",
+         "name": "Workspace name",
+         "fill": "#A9B7C2",
+         "content": "workspace-2",
+         "fontFamily": "Geist",
+         "fontSize": 12.5,
+         "fontWeight": "normal"
+        },
+        {
+         "type": "frame",
+         "id": "WYuT1",
+         "name": "spacer",
+         "width": "fill_container",
+         "height": 1
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "frame",
+   "id": "xnBgy",
+   "name": "Sidebar footer",
+   "width": "fill_container",
+   "height": 44,
+   "stroke": "#2A3640",
+   "strokeWidth": {
+    "top": 1
+   },
+   "gap": 8,
+   "padding": [
+    0,
+    16
+   ],
+   "alignItems": "center",
+   "children": [
+    {
+     "type": "icon",
+     "id": "acj2m",
+     "name": "Add repo icon",
+     "width": 14,
+     "height": 14,
+     "icon": "folder-plus",
+     "library": "lucide",
+     "fill": "#8B9AA6"
+    },
+    {
+     "type": "text",
+     "id": "h0iAUA",
+     "name": "Add repo",
+     "fill": "#8B9AA6",
+     "content": "Add repository\u2026",
+     "fontFamily": "Geist",
+     "fontSize": 12,
+     "fontWeight": "normal"
+    }
+   ]
+  }
+ ]
+}

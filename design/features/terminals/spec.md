@@ -1,5 +1,18 @@
 # Terminals — a terminals pane with the setup output and shells per workspace
 
+> **Amended by [workspace-sidebar](../workspace-sidebar/spec.md) (2026-10-26).** The Terminals
+> pane is no longer a third 440pt column. It is the **Terminals** segment of the right side's
+> **Change stream | Terminals** switch, which workspace-sidebar builds with a placeholder. This
+> feature fills that segment.
+>
+> These parts of this design are superseded:
+> - **Hide terminals** / **Show terminals**, `isTerminalPaneHidden`, and the "Hidden" state;
+> - the ~1,440pt window minimum. Widths are set by workspace-sidebar Decision 10.
+>
+> New Workspace (sidebar **+** or **Add repository…**) switches the segment to Terminals so the
+> Setup tab shows. Everything else stands: tabs, Setup, restore, models and the engine (PR #48).
+> Re-check this plan's UI tasks against workspace-sidebar's spec before implementing them.
+
 **Status:** Phase 1 (scope) agreed with Brian 2026-10-24. Architecture consulted with Codex
 2026-10-24. Spec reviewed by Brian 2026-10-25 (switch timing chosen). Screens approved 2026-10-25
 ([screens.md](./screens.md)). Models and endpoints approved 2026-10-25. Phase 5 (Codex adversarial review) ran
