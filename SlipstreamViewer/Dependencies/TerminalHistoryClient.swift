@@ -29,7 +29,6 @@ private final class TerminalHistoryWriter: @unchecked Sendable {
     var handle: FileHandle
     var lines: Int
     var bytes: Int
-    var isFailed = false
 
     init(handle: FileHandle, lines: Int, bytes: Int) {
       self.handle = handle
