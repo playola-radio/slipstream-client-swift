@@ -68,6 +68,27 @@ struct OpenInModelTests {
     expectNoDifference(opened.value, [])
   }
 
+  @Test func failureFromAnEarlierWorkspaceIsNotShownAfterSwitching() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = withDependencies {
+      $0.openIn.installedApps = { [finder] }
+      $0.openIn.open = { _, _ in
+        for await _ in gate { break }
+        throw OpenFailed()
+      }
+    } operation: {
+      OpenInModel()
+    }
+    model.folder = "/tmp/project"
+    model.viewAppeared()
+    let opening = Task { await model.openTapped() }
+    await Task.megaYield()
+    model.folder = "/tmp/other"
+    release.yield()
+    await opening.value
+    #expect(!model.isFailurePresented)
+  }
+
   @Test func failureToOpenIsShown() async {
     let model = makeModel(openError: OpenFailed())
     await model.openTapped()

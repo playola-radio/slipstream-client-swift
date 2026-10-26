@@ -18,9 +18,12 @@ final class OpenInModel: ViewModel {
   // MARK: - Properties
 
   private(set) var apps: IdentifiedArrayOf<OpenInApp> = []
-  var folder: String?
+  var folder: String? {
+    didSet { if folder != oldValue { openGeneration += 1 } }
+  }
   var isFailurePresented = false
   private(set) var failureText = ""
+  @ObservationIgnored private var openGeneration = 0
 
   // MARK: - Display Text
 
@@ -57,9 +60,12 @@ final class OpenInModel: ViewModel {
 
   private func open(in app: OpenInApp) async {
     guard let folder else { return }
+    openGeneration += 1
+    let generation = openGeneration
     do {
       try await openIn.open(URL(filePath: folder), app)
     } catch {
+      guard generation == openGeneration else { return }
       failureText = "\(app.name) couldn't open \(folder): \(error.localizedDescription)"
       isFailurePresented = true
     }
