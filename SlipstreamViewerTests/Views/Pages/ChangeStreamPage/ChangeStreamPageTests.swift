@@ -315,6 +315,22 @@ struct ChangeStreamPageTests {
     #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
   }
 
+  @Test func openButtonFollowsTheSelectedFolder() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel(daemon: daemon)
+    let appeared = Task { await model.viewAppeared() }
+    await daemon.waitForSessionStartCall(1)
+    await Task.megaYield()
+    #expect(model.openIn.folder == nil)
+    release.yield()
+    await appeared.value
+    #expect(model.openIn.folder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
+  }
+
   @Test func selectingStreamTellsChatTheFolder() async {
     fake.setSessions(
       [
