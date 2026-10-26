@@ -4,7 +4,6 @@ import Dependencies
 import DependenciesTestSupport
 import Foundation
 import IdentifiedCollections
-import IssueReporting
 import Sharing
 import SlipstreamCore
 import Testing
@@ -97,10 +96,8 @@ struct TerminalPageTests {
     @Shared(wrappedValue: TerminalState(), FailingTerminalStateKey()) var state
     let model = makeModel(state: $state)
 
-    await expectReportsIssue {
+    await withKnownIssue {
       await model.workspaceChanged(folder: a)
-    } matching: { issue in
-      issue.description.contains("Caught error")
     }
 
     expectNoDifference(model.shownTabs, [])
