@@ -243,6 +243,15 @@ enum DesignTokens {
       static let icon = Icons.Icon(assetName: "PanelRightClose", size: 14, color: secondary)
     }
 
+    /// Sits at the right end of the chat tab strip while the pane is hidden.
+    enum ShowButton {
+      static let gap: CGFloat = 6
+      static let horizontalPadding: CGFloat = 4
+      static let icon = Icons.Icon(assetName: "PanelRightOpen", size: 14, color: secondary)
+      static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let color = secondary
+    }
+
     enum Message {
       static let gap: CGFloat = 8
       static let padding: CGFloat = 24

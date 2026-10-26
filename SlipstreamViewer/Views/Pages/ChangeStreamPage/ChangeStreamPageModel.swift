@@ -25,9 +25,13 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Initialization
 
-  init(chat: ChatPageModel, instantAsk: InstantAskModel, isFunctionDemoVisible: Bool = false) {
+  init(
+    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel,
+    isFunctionDemoVisible: Bool = false
+  ) {
     self.chat = chat
     self.instantAsk = instantAsk
+    self.terminals = terminals
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
@@ -40,6 +44,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
+  let terminals: TerminalPageModel
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -84,6 +89,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
   private(set) var isFeedHidden = false
+  private(set) var isTerminalPaneHidden = false
   private(set) var isFunctionDemoVisible: Bool
   private(set) var pinnedHeadings: Set<Seq> = []
   private(set) var fileHeaderOffsets: [Seq: CGFloat] = [:]
@@ -132,6 +138,7 @@ final class ChangeStreamPageModel: ViewModel {
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
+  let showTerminalsText = "Show terminals"
 
   var archiveConfirmationText: String {
     let text = "Its folder is removed. The branch is kept."
@@ -237,6 +244,13 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   // MARK: - View Helpers
+
+  /// The pane widens the window, but never past a small screen and never below the window without it.
+  func minimumWindowWidth(visibleScreenWidth: CGFloat) -> CGFloat {
+    let base: CGFloat = isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000
+    let width = base + (isTerminalPaneHidden ? 0 : DesignTokens.TerminalPane.width)
+    return max(base, min(width, visibleScreenWidth))
+  }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
   var isFooterShown: Bool { selectedSession?.hasHistory ?? true }
@@ -526,15 +540,20 @@ final class ChangeStreamPageModel: ViewModel {
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
     chat.workspaceChanged(folder: nil, emptyText: nil)
+    await terminals.workspaceChanged(folder: nil)
     let drafts = await chat.stopTabs(in: folder)
+    await terminals.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
     if let failure = outcome.failureText {
       chat.workspaceChanged(folder: folder, emptyText: nil)
       chat.restoreTabs(in: folder, drafts: drafts)
+      await terminals.workspaceChanged(folder: folder)
+      await terminals.restoreTabs(in: folder)
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
     chat.forgetTabs(in: folder)
+    await terminals.forgetTabs(in: folder)
     if let archivedSessionID { archivedSessionIDs.insert(archivedSessionID) }
     selectedSession = nil
     resetFeed()
@@ -588,6 +607,23 @@ final class ChangeStreamPageModel: ViewModel {
   func showFeedTapped() {
     isFeedHidden = false
     follow.jumpToLatest()
+  }
+
+  func hideTerminalsTapped() {
+    isTerminalPaneHidden = true
+  }
+
+  func showTerminalsTapped() {
+    isTerminalPaneHidden = false
+  }
+
+  /// ⌘W closes the focused terminal's tab, otherwise the chat's.
+  func closeShortcutPressed() async {
+    if terminals.hasKeyboardFocus {
+      await terminals.closeShortcutPressed()
+    } else {
+      await chat.closeShortcutPressed()
+    }
   }
 
   func headingMoved(_ section: FeedSection, minY: Double) {
@@ -668,6 +704,7 @@ final class ChangeStreamPageModel: ViewModel {
     guard workspace != chatWorkspace else { return }
     chatWorkspace = workspace
     chat.workspaceChanged(folder: workspace.folder, emptyText: workspace.emptyText)
+    Task { [terminals] in await terminals.workspaceChanged(folder: workspace.folder) }
   }
 
   private func recalculateFileHeaderOffsets() {
@@ -859,6 +896,7 @@ final class ChangeStreamPageModel: ViewModel {
         _ = select(session.id)
         self.pendingPreferredRoot = nil
       }
+      terminals.workspacesListed(Set(sessions.compactMap(\.root)))
     } catch {
       guard generation == sessionsGeneration else {
         if refresh == refreshGeneration { captureRefreshFailed() }

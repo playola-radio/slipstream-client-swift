@@ -7,9 +7,12 @@ struct ChangeStreamPageView: View {
 
   private let bottomID = "feed-bottom"
 
-  init(chat: ChatPageModel, instantAsk: InstantAskModel, functionChangesDemo: FunctionChangesFixtureModel? = nil) {
+  init(
+    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel,
+    functionChangesDemo: FunctionChangesFixtureModel? = nil
+  ) {
     _model = State(initialValue: ChangeStreamPageModel(
-      chat: chat, instantAsk: instantAsk, isFunctionDemoVisible: functionChangesDemo != nil))
+      chat: chat, instantAsk: instantAsk, terminals: terminals, isFunctionDemoVisible: functionChangesDemo != nil))
     _functionChangesDemo = State(initialValue: functionChangesDemo)
   }
 
@@ -19,9 +22,13 @@ struct ChangeStreamPageView: View {
         feedPane.frame(width: DesignTokens.FeedPane.width)
       }
       detailPane
+      if !model.isTerminalPaneHidden {
+        TerminalPageView(model: model.terminals, hideTapped: { model.hideTerminalsTapped() })
+          .frame(width: DesignTokens.TerminalPane.width)
+      }
     }
     .frame(
-      minWidth: functionChangesDemo == nil ? 1000 : DesignTokens.FunctionMap.demoWorkspaceMinWidth,
+      minWidth: model.minimumWindowWidth(visibleScreenWidth: NSScreen.main?.visibleFrame.width ?? .infinity),
       minHeight: functionChangesDemo == nil ? 480 : DesignTokens.FunctionMap.demoWorkspaceMinHeight)
     .coordinateSpace(name: "question-workspace")
     .onGeometryChange(for: CGSize.self) { $0.size } action: { model.viewportChanged($0) }
@@ -59,7 +66,7 @@ struct ChangeStreamPageView: View {
     }
     .onDisappear { model.viewDisappeared() }
     .background {
-      Button { Task { await model.chat.closeShortcutPressed() } } label: { EmptyView() }
+      Button { Task { await model.closeShortcutPressed() } } label: { EmptyView() }
         .keyboardShortcut("w")
         .opacity(0)
         .accessibilityHidden(true)
@@ -166,6 +173,22 @@ struct ChangeStreamPageView: View {
             .buttonStyle(.plain)
             .font(DesignTokens.Chat.TabStrip.showFeedFont)
             .foregroundStyle(DesignTokens.Chat.TabStrip.showFeedColor)
+        }
+      } trailing: {
+        if model.isTerminalPaneHidden {
+          Button { model.showTerminalsTapped() } label: {
+            HStack(spacing: DesignTokens.TerminalPane.ShowButton.gap) {
+              IconView(icon: DesignTokens.TerminalPane.ShowButton.icon)
+              Text(model.showTerminalsText)
+                .font(DesignTokens.TerminalPane.ShowButton.font)
+                .foregroundStyle(DesignTokens.TerminalPane.ShowButton.color)
+            }
+            .padding(.horizontal, DesignTokens.TerminalPane.ShowButton.horizontalPadding)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .fixedSize()
         }
       }
     }

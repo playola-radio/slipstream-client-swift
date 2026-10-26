@@ -6,6 +6,7 @@ struct SlipstreamViewerApp: App {
   @State private var fontSize = FontSizeModel()
   @State private var chat: ChatPageModel
   @State private var instantAsk: InstantAskModel
+  @State private var terminals = TerminalPageModel()
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   init() {
@@ -24,6 +25,7 @@ struct SlipstreamViewerApp: App {
             ChangeStreamPageView(
               chat: chat,
               instantAsk: instantAsk,
+              terminals: terminals,
               functionChangesDemo: FunctionChangesFixtureModel(
                 root: ProcessInfo.processInfo.environment["SLIPSTREAM_INTERFACE_FIXTURE_ROOT"].map {
                   URL(fileURLWithPath: $0)
@@ -31,7 +33,7 @@ struct SlipstreamViewerApp: App {
                 initialCase: String(fixtureArgument.dropFirst("--function-changes-fixture=".count))
               ))
           } else {
-            ChangeStreamPageView(chat: chat, instantAsk: instantAsk)
+            ChangeStreamPageView(chat: chat, instantAsk: instantAsk, terminals: terminals)
           }
         }
       }
