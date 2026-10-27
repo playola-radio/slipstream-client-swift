@@ -81,10 +81,11 @@ final class TerminalPageModel: ViewModel {
   /// that never got a workspace. Returns the workspace folder once the command prints it, or nil
   /// if it ended (or couldn't start) without one. The tab keeps running after this returns.
   func newWorkspaceStarted(repository: URL, store: String, managedRoot: URL) async -> String? {
-    guard canStartTabs(in: nil) else { return nil }
     for record in state.tabs where record.folder == nil {
       await close(record.id)
     }
+    // After the closes, which suspend: quitting may have started meanwhile.
+    guard canStartTabs(in: nil) else { return nil }
     let folder = folder
     let record = TerminalTabRecord(id: uuid(), folder: nil, kind: .setup(.running))
     let selectedTabID = folder.flatMap { state.selectedTabIDs[$0] }

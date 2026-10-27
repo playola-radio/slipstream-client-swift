@@ -3358,6 +3358,24 @@ extension ChangeStreamPageTests {
     #expect(model.terminals.state.tabs.contains { $0.folder == Self.workspaceRoot && $0.kind == .setup(.running) })
   }
 
+  @Test func newWorkspaceAvailableWhileSessionsRefreshAfterMove() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    open.yield()
+    let model = makeModel(daemon: daemon, workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.workspaceRoot)
+    await Task.megaYield()
+
+    #expect(!model.isWorkspaceBusy)
+    open.yield()
+    await creating.value
+  }
+
   @Test func newWorkspaceShowsHiddenPane() async {
     let model = makeModel(workspace: workspaceClient())
     await model.viewAppeared()

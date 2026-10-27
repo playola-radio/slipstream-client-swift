@@ -228,13 +228,15 @@ final class TerminalTabModel: ViewModel, Identifiable {
   /// Only the first absolute path naming an existing folder two levels below the managed root
   /// counts; a setup script can print its own `workspace_path:` lines.
   private func setupPrinted(path: String) async {
-    guard let run = setupRun, run.workspaceFolder != nil else { return }
+    guard !isStopped, let run = setupRun, run.workspaceFolder != nil else { return }
     let folder = ChangeStreamPageModel.normalizedFolder(path)
     guard path.hasPrefix("/"), ManagedWorkspacePath.contains(folder, root: run.managedRoot),
       runtime.folderExists(folder)
     else { return }
     $state.withLock { $0.moveSetup(id, to: folder) }
     await save()
+    // A tab closed or stopped meanwhile resolves with nil when its command ends.
+    guard !isStopped else { return }
     resolveSetup(folder)
   }
 
@@ -250,14 +252,21 @@ final class TerminalTabModel: ViewModel, Identifiable {
       case .exited(let code): .failed(exitStatus: code)
       case .signalled(let signal): .failed(exitStatus: 128 + signal)
       }
-    $state.withLock { $0.tabs[id: id]?.kind = .setup(status) }
-    await save()
+    await setupEnded(status)
   }
 
   private func setupCouldNotStart(_ reason: String) async {
     write(note: reason)
     await history.flush(id)
-    $state.withLock { $0.tabs[id: id]?.kind = .setup(.failed(exitStatus: nil)) }
+    await setupEnded(.failed(exitStatus: nil))
+  }
+
+  /// Archive or quit may have marked it interrupted while the output was flushing.
+  private func setupEnded(_ status: SetupStatus) async {
+    $state.withLock { state in
+      guard state.tabs[id: id]?.kind == .setup(.running) else { return }
+      state.tabs[id: id]?.kind = .setup(status)
+    }
     await save()
   }
 

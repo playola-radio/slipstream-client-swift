@@ -839,13 +839,13 @@ final class ChangeStreamPageModel: ViewModel {
   /// script keeps running in that tab while the window switches to it.
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
-    defer { isWorkspaceBusy = false }
     rightPaneSelected(.terminals)
     let selectionGeneration = sessionSelectionGeneration
     let roots: WorkspaceRoots
     if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
     let folder = await terminals.newWorkspaceStarted(
       repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
+    isWorkspaceBusy = false
     if let folder {
       await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? folder : nil)
     }

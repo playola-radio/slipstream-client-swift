@@ -24,7 +24,7 @@ final class TerminalFake: Sendable {
     case stop(launch: Int)
   }
 
-  enum Hold { case environment }
+  enum Hold { case environment, flush }
 
   private struct State {
     var calls: [(call: Call, saved: TerminalState?)] = []
@@ -140,7 +140,10 @@ final class TerminalFake: Sendable {
         self.record(.append(tab))
         self.state.withLock { $0.logs[tab, default: []] += bytes }
       },
-      flush: { tab in self.record(.flush(tab)) },
+      flush: { tab in
+        await self.wait(.flush)
+        self.record(.flush(tab))
+      },
       delete: { tab in
         self.record(.delete(tab))
         self.state.withLock { _ = $0.logs.removeValue(forKey: tab) }

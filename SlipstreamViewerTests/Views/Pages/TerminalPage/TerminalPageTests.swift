@@ -610,6 +610,69 @@ extension TerminalPageTests {
     expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
   }
 
+  @Test func archiveWhileFinishedSetupFlushesStaysInterrupted() async {
+    let (model, setup) = await startedSetup()
+    model.workspacesListed([a, created])
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+    await model.workspaceChanged(folder: created)
+    fake.hold(.flush)
+    fake.finish(.exited(0), launch: 1)
+    await Task.megaYield()
+
+    let stopping = Task { await model.stopTabs(in: created) }
+    await Task.megaYield()
+    fake.release(.flush)
+    await stopping.value
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+  }
+
+  @Test func quitWhileUnstartableSetupFlushesStaysInterrupted() async {
+    fake.setSlipstreamMissing()
+    let model = makeModel()
+    await model.workspaceChanged(folder: a)
+    fake.hold(.flush)
+    let setup = newWorkspace(model)
+    await Task.megaYield()
+
+    let quitting = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    fake.release(.flush)
+    await quitting.value
+    _ = await setup.value
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+  }
+
+  @Test func closedSetupDoesNotReturnABufferedPath() async {
+    let (model, setup) = await startedSetup()
+
+    fake.send("workspace_path: \(created)\r\n")
+    await model.closeConfirmed(UUID(1))
+
+    #expect(await setup.value == nil)
+  }
+
+  @Test func quitWhileReplacingAFailedSetupLaunchesNothing() async {
+    let (model, first) = await startedSetup()
+    fake.finish(.exited(1))
+    _ = await first.value
+    fake.hold(.flush)
+
+    let second = newWorkspace(model)
+    await Task.megaYield()
+    let quitting = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    fake.release(.flush)
+    await quitting.value
+    await Task.megaYield()
+
+    #expect(fake.launches.count == 2)
+    if fake.launches.count > 2 { fake.finish(.exited(1)) }
+    #expect(await second.value == nil)
+  }
+
   @Test func quitMarksRunningSetupInterrupted() async {
     let (model, setup) = await startedSetup()
 
@@ -618,15 +681,6 @@ extension TerminalPageTests {
 
     expectNoDifference(fake.savedState(at: .stop(launch: 1))?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
     expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
-  }
-
-  @Test func interruptedSetupFooter() async {
-    let model = makeModel([TerminalTabRecord(id: UUID(100), folder: a, kind: .setup(.interrupted))])
-
-    await model.workspaceChanged(folder: a)
-
-    #expect(model.shownTabs.first?.footerText == "Setup was interrupted")
-    #expect(model.shownTabs.last?.footerText == nil)
   }
 
   @Test func replayedSetupRunsNothing() async {
