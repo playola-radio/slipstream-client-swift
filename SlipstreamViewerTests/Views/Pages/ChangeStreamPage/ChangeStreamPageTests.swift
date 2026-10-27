@@ -3376,6 +3376,54 @@ extension ChangeStreamPageTests {
     await creating.value
   }
 
+  @Test func secondNewWorkspaceWinsWhileFirstSessionsRefreshFinishes() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    open.yield()
+    let model = makeModel(daemon: daemon, workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let first = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    daemon.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+      ])
+    terminal.send("workspace_path: \(Self.workspaceRoot)\n", launch: 0)
+    await Task.megaYield()
+
+    let second = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+
+    daemon.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: "new", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        "new": SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    terminal.send("workspace_path: \(Self.secondWorkspaceRoot)\n", launch: 1)
+    open.yield()
+    await first.value
+    await second.value
+
+    #expect(model.selectedSession?.id == "new")
+    #expect(model.chat.folder == Self.secondWorkspaceRoot)
+  }
+
   @Test func newWorkspaceShowsHiddenPane() async {
     let model = makeModel(workspace: workspaceClient())
     await model.viewAppeared()

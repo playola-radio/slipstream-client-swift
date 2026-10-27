@@ -114,7 +114,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var visibleCards: Set<Seq> = []
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
-  @ObservationIgnored private var sessionSelectionGeneration = 0
+  @ObservationIgnored private var userSessionSelectionGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
@@ -559,6 +559,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sessionSelected(_ id: String) {
     guard archivingFolder == nil || sessions[id: id]?.root != archivingFolder, select(id) else { return }
+    userSessionSelectionGeneration += 1
     pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
@@ -814,7 +815,6 @@ final class ChangeStreamPageModel: ViewModel {
       }
     }
     selectedSession = session
-    sessionSelectionGeneration += 1
     awaitsFreshSnapshot = false
     pendingReadiness = nil
     bindingMovedWhileAwaitingSnapshot = false
@@ -840,14 +840,14 @@ final class ChangeStreamPageModel: ViewModel {
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
     rightPaneSelected(.terminals)
-    let selectionGeneration = sessionSelectionGeneration
+    let selectionGeneration = userSessionSelectionGeneration
     let roots: WorkspaceRoots
     if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
     let folder = await terminals.newWorkspaceStarted(
       repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
     isWorkspaceBusy = false
     if let folder {
-      await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? folder : nil)
+      await loadSessions(preferring: userSessionSelectionGeneration == selectionGeneration ? folder : nil)
     }
   }
 
