@@ -673,6 +673,19 @@ extension TerminalPageTests {
     #expect(await second.value == nil)
   }
 
+  @Test func newWorkspaceAfterQuitKeepsTheFailedSetup() async {
+    let (model, first) = await startedSetup()
+    fake.send("fatal: no origin\r\n")
+    fake.finish(.exited(1))
+    _ = await first.value
+    await model.quitConfirmed()
+
+    #expect(await newWorkspace(model).value == nil)
+
+    #expect(fake.hasLog(UUID(1)))
+    #expect(fake.saved?.tabs[id: UUID(1)] != nil)
+  }
+
   @Test func quitMarksRunningSetupInterrupted() async {
     let (model, setup) = await startedSetup()
 
