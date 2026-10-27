@@ -11,48 +11,28 @@ struct WorkspaceClientTests {
       "/nonexistent-home/x/slipstream/workspaces")
   }
 
-  @Test func successReturnsThePathAndNoFailure() {
-    let output = "created /w/workspace-1 on slipstream/workspace-1 from origin/develop\nSETUP-DONE\nworkspace_path: /w/workspace-1\n"
-
-    expectNoDifference(
-      WorkspaceClient.outcome(output: output, status: 0),
-      WorkspaceOutcome(workspacePath: "/w/workspace-1", failureText: nil)
-    )
+  @Test func successHasNoFailureText() {
+    #expect(WorkspaceClient.failureText(output: "archived /w/workspace-1\n", status: 0) == nil)
   }
 
-  @Test func failedSetupReturnsThePathAndTheTail() {
-    let output = "docker: no space left\nslipstream: the setup script exited 2.\nworkspace_path: /w/workspace-1\n"
+  @Test func failureReturnsTheTailWithoutBlankLines() {
+    let output = "\nslipstream: the workspace has uncommitted or untracked changes.\n"
 
     expectNoDifference(
-      WorkspaceClient.outcome(output: output, status: 1),
-      WorkspaceOutcome(
-        workspacePath: "/w/workspace-1",
-        failureText: "docker: no space left\nslipstream: the setup script exited 2."
-      )
-    )
-  }
-
-  @Test func failureWithoutAPathReturnsOnlyTheTail() {
-    let output = "\nslipstream: /r has no \"origin\" remote to branch from.\n"
-
-    expectNoDifference(
-      WorkspaceClient.outcome(output: output, status: 1),
-      WorkspaceOutcome(workspacePath: nil, failureText: "slipstream: /r has no \"origin\" remote to branch from.")
+      WorkspaceClient.failureText(output: output, status: 1),
+      "slipstream: the workspace has uncommitted or untracked changes."
     )
   }
 
   @Test func failureWithoutOutputNamesTheExitStatus() {
-    expectNoDifference(
-      WorkspaceClient.outcome(output: "", status: 9),
-      WorkspaceOutcome(workspacePath: nil, failureText: "slipstream exited with status 9.")
-    )
+    expectNoDifference(WorkspaceClient.failureText(output: "", status: 9), "slipstream exited with status 9.")
   }
 
   @Test func failureTailIsCappedAtTwelveLines() {
     let output = (1...20).map { "line \($0)" }.joined(separator: "\n")
 
     expectNoDifference(
-      WorkspaceClient.outcome(output: output, status: 1).failureText,
+      WorkspaceClient.failureText(output: output, status: 1),
       (9...20).map { "line \($0)" }.joined(separator: "\n")
     )
   }

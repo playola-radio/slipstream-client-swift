@@ -3,22 +3,16 @@ import Darwin
 import Dependencies
 import Foundation
 
-struct WorkspaceOutcome: Equatable, Sendable {
-  var workspacePath: String?
-  var failureText: String?
-}
-
-/// Runs `slipstream workspace create|archive`, which makes, sets up, records and archives
-/// git worktree workspaces under `~/slipstream/workspaces`.
+/// Runs `slipstream workspace archive`, which archives git worktree workspaces under
+/// `~/slipstream/workspaces`. Creating one runs in a Setup terminal tab instead.
 struct WorkspaceClient: Sendable {
   var roots: @Sendable () async -> WorkspaceRoots
   var chooseRepository: @MainActor @Sendable () async -> URL?
-  var create: @Sendable (_ repository: URL, _ store: String) async -> WorkspaceOutcome
-  var archive: @Sendable (_ workspace: URL, _ store: String) async -> WorkspaceOutcome
+  /// Returns why the command failed, or nil once the workspace is archived.
+  var archive: @Sendable (_ workspace: URL, _ store: String) async -> String?
 }
 
 extension WorkspaceClient {
-  static let pathPrefix = "workspace_path: "
   static let failureLineLimit = 12
 
   /// Follows `$HOME` the way the `slipstream` CLI it launches does.
@@ -27,17 +21,12 @@ extension WorkspaceClient {
       .appending(path: "slipstream/workspaces").resolvingSymlinksInPath()
   }
 
-  static func outcome(output: String, status: Int32) -> WorkspaceOutcome {
-    let lines = output.split(whereSeparator: \.isNewline).map(String.init)
-    let path = lines.last { $0.hasPrefix(pathPrefix) }.map { String($0.dropFirst(pathPrefix.count)) }
-    guard status != 0 else { return WorkspaceOutcome(workspacePath: path, failureText: nil) }
-    let tail = lines
-      .filter { !$0.hasPrefix(pathPrefix) && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+  static func failureText(output: String, status: Int32) -> String? {
+    guard status != 0 else { return nil }
+    let tail = output.split(whereSeparator: \.isNewline)
+      .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
       .suffix(failureLineLimit)
-    return WorkspaceOutcome(
-      workspacePath: path,
-      failureText: tail.isEmpty ? "slipstream exited with status \(status)." : tail.joined(separator: "\n")
-    )
+    return tail.isEmpty ? "slipstream exited with status \(status)." : tail.joined(separator: "\n")
   }
 }
 
@@ -60,7 +49,6 @@ extension WorkspaceClient: DependencyKey {
         panel.prompt = "Create Workspace"
         return panel.runModal() == .OK ? panel.url : nil
       },
-      create: { repository, store in await runSlipstream(["workspace", "create", repository.path, "--store", store]) },
       archive: { workspace, store in await runSlipstream(["workspace", "archive", workspace.path, "--store", store]) }
     )
   }
@@ -73,28 +61,25 @@ extension WorkspaceClient: DependencyKey {
           conductor: URL(filePath: "/tmp/conductor-test/workspaces"))
       },
       chooseRepository: unimplemented("WorkspaceClient.chooseRepository", placeholder: nil),
-      create: unimplemented("WorkspaceClient.create", placeholder: WorkspaceOutcome()),
-      archive: unimplemented("WorkspaceClient.archive", placeholder: WorkspaceOutcome())
+      archive: unimplemented("WorkspaceClient.archive", placeholder: nil)
     )
   }
 
   private static let outputLimit = 65_536
 
-  private static func runSlipstream(_ arguments: [String]) async -> WorkspaceOutcome {
+  private static func runSlipstream(_ arguments: [String]) async -> String? {
     let variables: [String: String]
     do {
       variables = try await AgentEnvironmentClient.loginEnvironment()
     } catch {
-      return WorkspaceOutcome(failureText: error.localizedDescription)
+      return error.localizedDescription
     }
-    guard let slipstream = slipstreamExecutable(in: variables) else {
-      return WorkspaceOutcome(failureText: slipstreamNotFoundText)
-    }
+    guard let slipstream = slipstreamExecutable(in: variables) else { return slipstreamNotFoundText }
     do {
       let (output, status) = try await runInBackground(slipstream, arguments, environment: variables)
-      return outcome(output: output, status: status)
+      return failureText(output: output, status: status)
     } catch {
-      return WorkspaceOutcome(failureText: "Couldn't run slipstream: \(error.localizedDescription)")
+      return "Couldn't run slipstream: \(error.localizedDescription)"
     }
   }
 

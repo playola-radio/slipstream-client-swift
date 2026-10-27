@@ -613,8 +613,7 @@ final class ChangeStreamPageModel: ViewModel {
     }
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
-    let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
-    if let failure = outcome.failureText {
+    if let failure = await workspace.archive(URL(filePath: folder), daemon.storeID) {
       let isStillSelected = selectedFolder == folder
       if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
@@ -836,16 +835,19 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  /// Busy only until the Setup tab names the new workspace (or its command ends): the setup
+  /// script keeps running in that tab while the window switches to it.
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
     defer { isWorkspaceBusy = false }
+    rightPaneSelected(.terminals)
     let selectionGeneration = sessionSelectionGeneration
-    let outcome = await workspace.create(repository, daemon.storeID)
-    if let path = outcome.workspacePath {
-      await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? path : nil)
-    }
-    if let failure = outcome.failureText {
-      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
+    let roots: WorkspaceRoots
+    if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
+    let folder = await terminals.newWorkspaceStarted(
+      repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
+    if let folder {
+      await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? folder : nil)
     }
   }
 
