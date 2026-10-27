@@ -1,4 +1,4 @@
-Icons in Assets.xcassets (ListTree, PanelLeftClose, Pin, FileText, Activity) are from Lucide.
+Icons in Assets.xcassets (ListTree, SquareTerminal, Pin, FileText, Activity) are from Lucide.
 
 ISC License
 

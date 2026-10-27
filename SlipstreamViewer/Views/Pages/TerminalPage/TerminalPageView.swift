@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TerminalPageView: View {
   let model: TerminalPageModel
-  let hideTapped: () -> Void
 
   var body: some View {
     VStack(spacing: 0) {
@@ -11,9 +10,6 @@ struct TerminalPageView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(DesignTokens.TerminalPane.background)
-    .overlay(alignment: .leading) {
-      Rectangle().fill(DesignTokens.TerminalPane.stroke).frame(width: 1)
-    }
   }
 
   private var tabStrip: some View {
@@ -40,15 +36,6 @@ struct TerminalPageView: View {
         }
       }
       .scrollIndicators(.hidden)
-      Button(action: hideTapped) {
-        IconView(icon: DesignTokens.TerminalPane.HideButton.icon)
-          .padding(.horizontal, DesignTokens.TerminalPane.HideButton.horizontalPadding)
-          .frame(maxHeight: .infinity)
-          .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel(model.hideTerminalsText)
-      .help(model.hideTerminalsText)
     }
     .padding(.leading, DesignTokens.TerminalPane.TabStrip.leadingPadding)
     .padding(.trailing, DesignTokens.TerminalPane.TabStrip.trailingPadding)

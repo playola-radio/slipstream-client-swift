@@ -53,7 +53,6 @@ final class TerminalPageModel: ViewModel {
   let emptyTitle = "Choose a workspace"
   let emptyText = "Its terminals appear here."
   let newTabAccessibilityLabel = "New terminal"
-  let hideTerminalsText = "Hide terminals"
 
   // MARK: - View Helpers
 

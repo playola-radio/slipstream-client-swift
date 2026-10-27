@@ -591,8 +591,10 @@ Add `-only-testing:SlipstreamViewerTests/<Suite>` or `…/<Suite>/<test>` to nar
 
 ## Unresolved questions
 
-- **For Brian:** Decisions 8–12 and the Hide feed removal were made while resolving the review;
-  Brian has not seen them yet. This includes the 1,360pt minimum with the sidebar.
+- **For Brian:** approved by Brian on 2026-10-26. Decisions 8–12 and the Hide feed removal
+  were made while resolving the review; Brian approved them, the 1,360pt minimum with the
+  sidebar, the reply popover opening to the left, and the stream view being torn down while
+  Terminals shows.
 - **Reply popover direction:** Review Focus 1 and Task 4 mirror it to the left. No approved
   frame shows a popover, so this is a design call.
 - **Accepted:** two sessions with the same folder show two rows with the same name. Inactive

@@ -899,6 +899,18 @@ struct ChatPageTests {
     #expect(model.selectedTab?.id == UUID(50))
   }
 
+  @Test func restoringTabsRecreatesStoppedModels() async {
+    let model = makeModel(records: [record(UUID(60), folder: "/b"), record(folder: "/a")])
+    model.workspaceChanged(folder: "/a", emptyText: nil)
+    model.selectedTab?.draft = "Keep this draft"
+    model.workspaceChanged(folder: "/b", emptyText: nil)
+
+    let drafts = await model.stopTabs(in: "/a")
+    model.restoreTabs(in: "/a", drafts: drafts)
+
+    #expect(model.tabs[id: Self.saved]?.draft == "Keep this draft")
+  }
+
   @Test func forgetTabsInFolderRemovesOnlyThatFolder() {
     let model = makeModel(records: [record(UUID(60), folder: "/b"), record(folder: "/a")])
 

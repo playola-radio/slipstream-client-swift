@@ -33,6 +33,7 @@ enum DesignTokens {
     static let codeFont = variableFont(family: geistMonoFamily, size: 11, weight: 400)
     static let cardRadius: CGFloat = 5
     static let controlRadius: CGFloat = 4
+    static let controlStackGap: CGFloat = 8
 
     static func mark(_ value: FunctionChangeLine.Mark) -> Color {
       switch value {
@@ -188,7 +189,6 @@ enum DesignTokens {
   }
 
   enum TerminalPane {
-    static let width: CGFloat = 440
     static let background = Color(hex: 0x0E1318)
     static let foreground = Color(hex: 0xE6EDF3)
     static let font = variableFont(family: geistMonoFamily, size: 12, weight: 400)
@@ -236,20 +236,6 @@ enum DesignTokens {
     enum NewTab {
       static let horizontalPadding: CGFloat = 10
       static let plus = Icons.Icon(assetName: "Plus", size: 14, color: secondary)
-    }
-
-    enum HideButton {
-      static let horizontalPadding: CGFloat = 10
-      static let icon = Icons.Icon(assetName: "PanelRightClose", size: 14, color: secondary)
-    }
-
-    /// Sits at the right end of the chat tab strip while the pane is hidden.
-    enum ShowButton {
-      static let gap: CGFloat = 6
-      static let horizontalPadding: CGFloat = 4
-      static let icon = Icons.Icon(assetName: "PanelRightOpen", size: 14, color: secondary)
-      static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
-      static let color = secondary
     }
 
     enum Message {
@@ -472,7 +458,6 @@ enum DesignTokens {
   }
 
   enum Fonts {
-    static let paneTitle: FontToken = variableFont(family: geistFamily, size: 16, weight: 400)
     static let paneSubtitle: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
     static let taskTitle: FontToken = variableFont(family: geistFamily, size: 15, weight: 400)
     static let taskBadge: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
@@ -482,9 +467,7 @@ enum DesignTokens {
     static let sourceLine: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400, codeLigatures: true)
     static let liveStatus: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
     static let jumpToLatest: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
-    static let hideFeed: FontToken = variableFont(family: geistFamily, size: 10, weight: 400)
     static let openIndicator: FontToken = variableFont(family: geistMonoFamily, size: 9, weight: 400)
-    static let restoreFeed: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
 
     static func paneSubtitle(isQuestionSummary: Bool) -> FontToken {
       isQuestionSummary ? questionSummary : paneSubtitle
@@ -494,7 +477,6 @@ enum DesignTokens {
   }
 
   enum Colors {
-    static let paneTitle = Color(hex: 0xD9E7EF)
     static let paneSubtitle = Color(hex: 0x7D98AD)
     static let taskTitle = Color(hex: 0xE0EBF1)
     static let taskBadge = Color(hex: 0xB2DEC9)
@@ -503,9 +485,7 @@ enum DesignTokens {
     static let sourceLine = Color(hex: 0xBDCDDF)
     static let liveStatus = Color(hex: 0x789F91)
     static let jumpToLatest = Color(hex: 0x82AAC5)
-    static let hideFeed = Color(hex: 0x9EBACB)
     static let openIndicator = Color(hex: 0x78AAD0)
-    static let restoreFeed = Color(hex: 0xBFCBD9)
 
     static func paneSubtitle(isQuestionSummary: Bool) -> Color {
       isQuestionSummary ? Color(hex: 0xA4D5F1) : paneSubtitle
@@ -523,17 +503,41 @@ enum DesignTokens {
     static let width: CGFloat = 680
     static let fill = Color(hex: 0x191F27)
     static let stroke = Color(hex: 0x405562)
-    static let headerHeight: CGFloat = 52
-    static let horizontalPadding: CGFloat = 20
-    static let headerGap: CGFloat = 10
   }
 
-  enum HideFeedButton {
-    static let stroke = Color(hex: 0x3E5260)
-    static let radius: CGFloat = 4
-    static let verticalPadding: CGFloat = 6
-    static let horizontalPadding: CGFloat = 8
-    static let gap: CGFloat = 6
+  enum RightPane {
+    private static let primary = Color(hex: 0xE6EDF3)
+    private static let secondary = Color(hex: 0x8B9AA6)
+
+    enum Strip {
+      static let height: CGFloat = 40
+      static let gap: CGFloat = 2
+      static let leadingPadding: CGFloat = 12
+      static let trailingPadding: CGFloat = 10
+      static let stroke = Color(hex: 0x2A3640)
+    }
+
+    enum Tab {
+      static let gap: CGFloat = 7
+      static let horizontalPadding: CGFloat = 12
+      static let underlineWidth: CGFloat = 2
+
+      static func icon(_ pane: ChangeStreamPageModel.RightPane, isSelected: Bool) -> Icons.Icon {
+        let color = isSelected ? Color(hex: 0x96B7CA) : secondary
+        switch pane {
+        case .stream: return Icons.Icon(assetName: "ListTree", size: 14, color: color)
+        case .terminals: return Icons.Icon(assetName: "SquareTerminal", size: 14, color: color)
+        }
+      }
+
+      static func font(isSelected: Bool) -> FontToken {
+        variableFont(family: geistFamily, size: 12.5, weight: isSelected ? 550 : 400)
+      }
+
+      static func color(isSelected: Bool) -> Color { isSelected ? primary : secondary }
+
+      static func underline(isSelected: Bool) -> Color { isSelected ? Color(hex: 0x6CB6FF) : .clear }
+    }
   }
 
   enum FileViewer {
@@ -552,11 +556,66 @@ enum DesignTokens {
     static let itemGap: CGFloat = 24
   }
 
-  enum StreamPicker {
-    /// The menu is a system menu, so a waiting stream is the system font in bold.
-    static func rowFont(isBold: Bool) -> Font {
-      isBold ? .body.bold() : .body
+  enum Workspace {
+    static let sidebarWidth: CGFloat = 260
+    static let chatWidth: CGFloat = 720
+    static let chatMinWidth: CGFloat = 420
+    static let chatNarrowScreenMinWidth: CGFloat = 320
+  }
+
+  enum Sidebar {
+    static let fill = Color(hex: 0x0E1318)
+    static let stroke = Color(hex: 0x2A3640)
+
+    static let headerHeight: CGFloat = 40
+    static let headerLeadingPadding: CGFloat = 16
+    static let headerTrailingPadding: CGFloat = 10
+    static let titleFont = variableFont(family: geistFamily, size: 12.5, weight: 550)
+    static let titleColor = Color(hex: 0xE6EDF3)
+
+    static let listGap: CGFloat = 14
+    static let listVerticalPadding: CGFloat = 10
+    static let listHorizontalPadding: CGFloat = 8
+    static let groupGap: CGFloat = 2
+
+    static let groupHeaderHeight: CGFloat = 30
+    static let groupHeaderGap: CGFloat = 8
+    static let groupHeaderLeadingPadding: CGFloat = 8
+    static let groupHeaderTrailingPadding: CGFloat = 6
+    static let groupIcon = Icons.Icon(assetName: "FolderGit2", size: 14, color: Color(hex: 0x7D98AD))
+    static let groupNameFont = variableFont(family: geistFamily, size: 12.5, weight: 550)
+    static let groupNameColor = Color(hex: 0xC9D6DF)
+    static let newWorkspaceIcon = Icons.Icon(assetName: "Plus", size: 14, color: Color(hex: 0x8B9AA6))
+    static let iconButtonPadding: CGFloat = 5
+
+    static let rowHeight: CGFloat = 32
+    static let rowRadius: CGFloat = 5
+    static let rowGap: CGFloat = 8
+    static let rowLeadingPadding: CGFloat = 26
+    static let rowTrailingPadding: CGFloat = 10
+    static let selectedRowFill = Color(hex: 0x222A33)
+    static let highlightedRowFill = Color(hex: 0x1A2129)
+    static let archiveIcon = Icons.Icon(assetName: "Archive", size: 13, color: Color(hex: 0x8B9AA6))
+    static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x6CB6FF))
+
+    static func rowIcon(isSelected: Bool) -> Icons.Icon {
+      Icons.Icon(assetName: "GitBranch", size: 13, color: isSelected ? Color(hex: 0xC9D6DF) : Color(hex: 0x6B7C89))
     }
+
+    static func rowNameFont(isBold: Bool) -> FontToken {
+      variableFont(family: geistFamily, size: 12.5, weight: isBold ? 600 : 400)
+    }
+
+    static func rowNameColor(isBold: Bool, isSelected: Bool) -> Color {
+      isBold || isSelected ? Color(hex: 0xE6EDF3) : Color(hex: 0xA9B7C2)
+    }
+
+    static let footerHeight: CGFloat = 44
+    static let footerGap: CGFloat = 8
+    static let footerHorizontalPadding: CGFloat = 16
+    static let footerIcon = Icons.Icon(assetName: "FolderPlus", size: 14, color: Color(hex: 0x8B9AA6))
+    static let footerFont = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let footerColor = Color(hex: 0x8B9AA6)
   }
 
   enum TaskHeading {
@@ -681,8 +740,6 @@ enum DesignTokens {
       static let height: CGFloat = 40
       static let gap: CGFloat = 4
       static let horizontalPadding: CGFloat = 16
-      static let showFeedFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
-      static let showFeedColor = secondary
     }
 
     enum Tab {
@@ -922,8 +979,6 @@ enum DesignTokens {
       let color: Color
     }
 
-    static let listTree = Icon(assetName: "ListTree", size: 15, color: Color(hex: 0x96B7CA))
-    static let hideFeed = Icon(assetName: "PanelLeftClose", size: 14, color: Color(hex: 0x9EBACB))
     static let fileText = Icon(assetName: "FileText", size: 12, color: Color(hex: 0x789FB9))
     static let activity = Icon(assetName: "Activity", size: 13, color: Color(hex: 0x83BDA4))
 

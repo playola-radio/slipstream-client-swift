@@ -11,7 +11,7 @@ struct WorkspaceOutcome: Equatable, Sendable {
 /// Runs `slipstream workspace create|archive`, which makes, sets up, records and archives
 /// git worktree workspaces under `~/slipstream/workspaces`.
 struct WorkspaceClient: Sendable {
-  var managedRoot: @Sendable () async -> URL
+  var roots: @Sendable () async -> WorkspaceRoots
   var chooseRepository: @MainActor @Sendable () async -> URL?
   var create: @Sendable (_ repository: URL, _ store: String) async -> WorkspaceOutcome
   var archive: @Sendable (_ workspace: URL, _ store: String) async -> WorkspaceOutcome
@@ -44,9 +44,12 @@ extension WorkspaceClient {
 extension WorkspaceClient: DependencyKey {
   static var liveValue: Self {
     Self(
-      managedRoot: {
+      roots: {
         let environment = (try? await AgentEnvironmentClient.loginEnvironment()) ?? ProcessInfo.processInfo.environment
-        return managedRoot(environment: environment)
+        return WorkspaceRoots(
+          managed: managedRoot(environment: environment),
+          conductor: URL(filePath: environment["HOME"] ?? NSHomeDirectory()).appending(path: "conductor/workspaces")
+        )
       },
       chooseRepository: {
         let panel = NSOpenPanel()
@@ -64,7 +67,11 @@ extension WorkspaceClient: DependencyKey {
 
   static var testValue: Self {
     Self(
-      managedRoot: { URL(filePath: "/tmp/slipstream-test/workspaces") },
+      roots: {
+        WorkspaceRoots(
+          managed: URL(filePath: "/tmp/slipstream-test/workspaces"),
+          conductor: URL(filePath: "/tmp/conductor-test/workspaces"))
+      },
       chooseRepository: unimplemented("WorkspaceClient.chooseRepository", placeholder: nil),
       create: unimplemented("WorkspaceClient.create", placeholder: WorkspaceOutcome()),
       archive: unimplemented("WorkspaceClient.archive", placeholder: WorkspaceOutcome())

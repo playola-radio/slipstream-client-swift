@@ -116,7 +116,7 @@ final class TerminalProcessIntegrationTests {
     try await withTimeout(.seconds(2)) {
       while kill(child, 0) == 0 { try await Task.sleep(for: .milliseconds(10)) }
     }
-    #expect(errno == ESRCH)
+    #expect(kill(child, 0) == -1 && errno == ESRCH)
   }
 
   @Test func stopTwiceIsSafe() async throws {

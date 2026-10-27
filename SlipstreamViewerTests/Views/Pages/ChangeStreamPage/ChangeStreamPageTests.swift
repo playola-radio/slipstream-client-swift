@@ -31,9 +31,10 @@ struct ChangeStreamPageTests {
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
-    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil
+    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil,
+    terminals: TerminalPageModel? = nil
   ) -> ChangeStreamPageModel {
-    let terminals = makeTerminals()
+    let terminals = terminals ?? makeTerminals()
     return withDependencies {
       $0.workspace = workspace
       $0.defaultInMemoryStorage = storage ?? self.storage
@@ -50,11 +51,11 @@ struct ChangeStreamPageTests {
     }
   }
 
-  func makeTerminals() -> TerminalPageModel {
+  func makeTerminals(history: TerminalHistoryClient? = nil) -> TerminalPageModel {
     withDependencies {
       $0.defaultFileStorage = terminal.fileStorage
       $0.terminalRuntime = terminal.runtimeClient
-      $0.terminalHistory = terminal.historyClient
+      $0.terminalHistory = history ?? terminal.historyClient
       $0.uuid = .incrementing
     } operation: {
       TerminalPageModel()
@@ -191,7 +192,7 @@ struct ChangeStreamPageTests {
       ]
     )
     #expect(model.selectedSession == nil)
-    #expect(model.emptyStateText == "Choose a capture session to watch its changes")
+    #expect(model.emptyStateText == "No capture sessions yet")
   }
 
   @Test func capturesOfTheSameFolderAreToldApartByStartTime() async {
@@ -279,7 +280,7 @@ struct ChangeStreamPageTests {
 
   @Test func singleSessionIsSelectedAutomatically() async {
     let model = await connectedModel()
-    #expect(model.sessionPickerTitle == "/tmp/project · started Jan 1 00:00:00")
+    #expect(model.selectedSession?.label == "/tmp/project · started Jan 1 00:00:00")
     expectNoDifference(fake.follows, [FollowRequest(token: "token-1", sessionID: Fixture.session, cursor: .zero)])
     #expect(model.statusText == "Connecting…")
     #expect(model.emptyStateText == "Waiting for changes…")
@@ -1316,15 +1317,56 @@ struct ChangeStreamPageTests {
     #expect(model.openIndicatorText(for: try #require(fileRow(model, 1))) == nil)
   }
 
-  @Test func showingAHiddenFeedReturnsToTheLatestChange() async {
+  @Test func switchingBackToTheStreamReturnsToTheLatestChange() async {
     let model = await connectedModel()
-    model.hideFeedTapped()
-    #expect(model.isFeedHidden)
+    model.rightPaneSelected(.terminals)
+    #expect(!model.isStreamShown)
     model.scrollPhaseChanged(.interacting)
     model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
-    model.showFeedTapped()
-    #expect(!model.isFeedHidden)
+    model.rightPaneSelected(.stream)
+    #expect(model.isStreamShown)
     #expect(model.follow == .following)
+  }
+
+  @Test func switchingPanesKeepsWatching() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let watchTask = model.watchTask
+    model.rightPaneSelected(.terminals)
+    #expect(model.watchTask == watchTask)
+    #expect(model.watchTask?.isCancelled == false)
+    await send(Fixture.edited(1))
+    #expect(fileRow(model, 1) != nil)
+  }
+
+  @Test func switchingWorkspaceKeepsTheRightPane() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    model.rightPaneSelected(.terminals)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    #expect(model.rightPane == .terminals)
+  }
+
+  @Test func rightPaneTabsAreLabelled() {
+    let model = makeModel()
+    expectNoDifference(ChangeStreamPageModel.RightPane.allCases.map(model.rightPaneText), ["Change stream", "Terminals"])
+    #expect(model.isSelected(.stream))
+    #expect(!model.isSelected(.terminals))
+  }
+
+  @Test func onlyTheStreamTabCarriesANote() {
+    let model = makeModel()
+    expectNoDifference(ChangeStreamPageModel.RightPane.allCases.map(model.rightPaneNote), ["Full functions", nil])
   }
 
   @Test func aTaskHeadingIsPinnedOnlyWhileItSitsAtTheTop() async throws {
@@ -2119,13 +2161,28 @@ extension ChangeStreamPageTests {
     expectNoDifference(reply.thread.turns.map(\.answer?.text), ["Because."])
   }
 
-  @Test func hidingTheFeedCollapsesTheReply() async throws {
+  @Test func switchingToTerminalsCollapsesTheReply() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
     await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
     _ = try open(model, "q1")
-    model.hideFeedTapped()
+    model.rightPaneSelected(.terminals)
     #expect(model.reply == nil)
+  }
+
+  @Test func connectorsHideWhileTerminalsShows() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    model.viewportChanged(CGSize(width: 1400, height: 900))
+    model.feedViewportChanged(CGRect(x: 680, y: 52, width: 720, height: 800))
+    let bar = try bar(model, "q1")
+    model.questionBarMoved(bar, frame: CGRect(x: 700, y: 300, width: 640, height: 42))
+    model.questionBarTapped(bar)
+    model.replyMeasured(CGSize(width: 420, height: 300))
+    #expect(model.showsReplyConnector)
+    model.rightPaneSelected(.terminals)
+    #expect(!model.showsReplyConnector)
   }
 
   @Test func askingAndReplyingNeverOverlap() async throws {
@@ -2154,14 +2211,21 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
     model.viewportChanged(CGSize(width: 1400, height: 900))
-    model.feedViewportChanged(CGRect(x: 0, y: 52, width: 680, height: 800))
+    model.feedViewportChanged(CGRect(x: 680, y: 52, width: 720, height: 800))
     let bar = try bar(model, "q1")
-    model.questionBarMoved(bar, frame: CGRect(x: 20, y: 300, width: 640, height: 42))
+    model.questionBarMoved(bar, frame: CGRect(x: 700, y: 300, width: 640, height: 42))
     model.questionBarTapped(bar)
     model.replyMeasured(CGSize(width: 420, height: 300))
-    expectNoDifference(model.replyPlacement.popover, CGRect(x: 704, y: 300, width: 420, height: 300))
-    expectNoDifference(model.replyPlacement.barAnchor, CGPoint(x: 660, y: 321))
+    expectNoDifference(model.replyPlacement.popover, CGRect(x: 236, y: 300, width: 420, height: 300))
+    expectNoDifference(model.replyPlacement.barAnchor, CGPoint(x: 700, y: 321))
+    expectNoDifference(model.replyPlacement.popoverAnchor, CGPoint(x: 656, y: 321))
     #expect(model.showsReplyConnector)
+
+    model.questionBarMoved(bar, frame: CGRect(x: 300, y: 300, width: 640, height: 42))
+    expectNoDifference(model.replyPlacement.popover, CGRect(x: 16, y: 300, width: 420, height: 300))
+    #expect(!model.showsReplyConnector)
+
+    model.questionBarMoved(bar, frame: CGRect(x: 700, y: 300, width: 640, height: 42))
     model.questionBarDisappeared(bar)
     #expect(!model.showsReplyConnector)
   }
@@ -2346,27 +2410,7 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureText, "Recording")
     expectNoDifference(model.captureCheckedText, "Checked 10:42:20")
     expectNoDifference(model.chatLinkText, "Linked — changes are possibly the agent's")
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Recording")
     expectNoDifference(model.footerText, "Connected · New changes appear below")
-  }
-
-  @Test func theMenuNamesEachWorkspacesCaptureState() async {
-    let model = await connectedModel()
-    defer { model.viewDisappeared() }
-    let captures: [CaptureSummary?] = [
-      Fixture.capture(), Fixture.capture(.queued), Fixture.capture(.baselining),
-      Fixture.capture(.stopped, reason: "maintenance"),
-      Fixture.capture(.notRecording, reason: "capture-limit-reached"),
-      Fixture.capture(.notRecording, reason: "storage-unavailable"),
-      Fixture.capture(.unknown("paused")), nil,
-    ]
-    expectNoDifference(
-      captures.map { model.sessionMenuText(for: SessionOption(id: "a", label: "alpha", capture: $0)) },
-      [
-        "alpha · Recording", "alpha · Queued", "alpha · Preparing", "alpha · Stopped",
-        "alpha · Waiting for a free slot", "alpha · Not recording", "alpha · State unknown", "alpha · Not captured",
-      ]
-    )
   }
 
   func listThreeSessionsWithOneRecording() {
@@ -2381,50 +2425,57 @@ extension ChangeStreamPageTests {
     ])
   }
 
-  @Test func thePickerHidesInactiveWorkspacesBehindAToggle() async {
+  @Test func theSidebarHidesInactiveWorkspaces() async {
     listThreeSessionsWithOneRecording()
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session])
-    expectNoDifference(model.inactiveSessionsToggleText, "Show 2 inactive sessions")
-
-    model.inactiveSessionsToggleTapped()
-    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
-    expectNoDifference(model.inactiveSessionsToggleText, "Hide inactive sessions")
-
-    model.inactiveSessionsToggleTapped()
-    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session])
+    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session])
   }
 
-  @Test func theWatchedWorkspaceStaysInThePickerWhenItStops() async {
+  @Test func theSelectedWorkspaceStaysInTheSidebarWhenItStops() async {
     listThreeSessionsWithOneRecording()
+    fake.setCaptures([Fixture.capture(), Fixture.capture(session: Fixture.otherSession, root: "/work/old")])
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
-    model.inactiveSessionsToggleTapped()
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
-    model.inactiveSessionsToggleTapped()
-    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session, Fixture.otherSession])
-    expectNoDifference(model.inactiveSessionsToggleText, "Show 1 inactive session")
+    listThreeSessionsWithOneRecording()
+    await model.refreshTapped()
+    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession])
   }
 
-  @Test func thePickerHasNoToggleWhenEveryWorkspaceIsActive() async {
-    let model = await connectedModel()
-    defer { model.viewDisappeared() }
-    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session])
-    #expect(model.inactiveSessionsToggleText == nil)
-  }
-
-  @Test func thePickerHidesNothingWhenCaptureStateIsUnknown() async {
+  @Test func theSidebarHidesNothingWhenCaptureStateIsUnknown() async {
     listThreeSessionsWithOneRecording()
     fake.setCaptures(.failure(.status(500, durableSeq: nil)))
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.pickerSessions.map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
-    #expect(model.inactiveSessionsToggleText == nil)
+    expectNoDifference(
+      model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
+  }
+
+  @Test func allInactiveSessionsReadNoCaptureSessionsYet() async {
+    listThreeSessionsWithOneRecording()
+    fake.setCaptures([
+      Fixture.capture(.stopped, reason: "archived"),
+      Fixture.capture(.stopped, reason: "archived", session: Fixture.otherSession, root: "/work/old", binding: nil),
+    ])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    #expect(model.selectedSession == nil)
+    expectNoDifference(model.emptyStateText, "No capture sessions yet")
+  }
+
+  @Test func aWorkspaceWithoutChatsIsNeitherBoldNorWorking() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let session = try #require(model.selectedSession)
+    #expect(model.isSelected(session))
+    #expect(!model.isBold(session))
+    #expect(!model.isWorking(session))
   }
 
   @Test(arguments: [CaptureState.queued, .baselining, .stopped, .notRecording, .unknown("paused")])
@@ -2435,7 +2486,6 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     let composer = composer(model, agentConnection: .connected)
     #expect(model.captureText?.hasPrefix("Recording") == false)
-    #expect(!model.sessionMenuText(for: model.selectedSession!).hasSuffix("Recording"))
     #expect(!model.footerText.contains("Recording"))
     #expect(!composer.canSubmit)
   }
@@ -2446,7 +2496,6 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     expectNoDifference(model.captureText, "Capture state unavailable from this reader")
     expectNoDifference(model.chatLinkText, "Chat-link state unknown")
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · State unknown")
     #expect(model.captureCheckedText == nil)
     #expect(model.isFooterShown)
   }
@@ -2480,8 +2529,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
-    expectNoDifference(model.sessionPickerTitle, "seventeenth")
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "seventeenth · Waiting for a free slot")
+    expectNoDifference(model.toolbarTitleText, "seventeenth")
     expectNoDifference(model.captureText, "Not recording — waiting for a free capture slot")
     expectNoDifference(
       model.captureDetailText,
@@ -2670,7 +2718,6 @@ extension ChangeStreamPageTests {
     expectNoDifference(fake.capturesCallCount, callsBefore + 1)
     expectNoDifference(model.captureText, "Queued — not recording yet")
     expectNoDifference(model.chatLinkText, "Waiting for setup — the chat hasn't confirmed it can answer yet")
-    expectNoDifference(model.sessionMenuText(for: model.selectedSession!), "\(model.sessionPickerTitle) · Queued")
     #expect(!composer.canSubmit)
   }
 
@@ -3221,7 +3268,9 @@ extension ChangeStreamPageTests {
     create: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() },
     archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() }
   ) -> WorkspaceClient {
-    WorkspaceClient(managedRoot: { Self.managedRoot }, chooseRepository: { choose }, create: create, archive: archive)
+    WorkspaceClient(
+      roots: { WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces")) },
+      chooseRepository: { choose }, create: create, archive: archive)
   }
 
   nonisolated func listWorkspace(_ state: CaptureState = .recording, reason: String? = nil) {
@@ -3253,7 +3302,7 @@ extension ChangeStreamPageTests {
 
     await model.viewAppeared()
 
-    #expect(!model.isSessionPickerDisabled)
+    #expect(!model.isWorkspaceBusy)
   }
 
   @Test func newWorkspaceCreatesThenSelectsIt() async {
@@ -3279,7 +3328,6 @@ extension ChangeStreamPageTests {
     let creating = Task { await model.newWorkspaceTapped() }
     await Task.megaYield()
     #expect(model.isWorkspaceBusy)
-    #expect(model.isSessionPickerDisabled)
     release.yield()
     await creating.value
 
@@ -3288,6 +3336,47 @@ extension ChangeStreamPageTests {
     #expect(model.selectedSession?.id == Fixture.otherSession)
     #expect(model.chat.folder == Self.workspaceRoot)
     #expect(!model.isWorkspaceFailurePresented)
+  }
+
+  @Test func creatingAWorkspaceDoesNotOverrideASelectionChangedDuringCreation() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = makeModel(workspace: workspaceClient(create: { [fake] _, _ in
+      for await _ in gate { break }
+      fake.setSessions(
+        [
+          SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+          SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+          SessionSummary(id: "new", durableSeq: .zero, removed: false),
+        ],
+        starts: [
+          Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+          Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+          "new": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        ])
+      return WorkspaceOutcome(workspacePath: Self.workspaceRoot)
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    model.sessionSelected(Fixture.session)
+    release.yield()
+    await creating.value
+
+    #expect(model.selectedSession?.id == Fixture.session)
   }
 
   @Test func newWorkspaceCancelledDoesNothing() async {
@@ -3321,25 +3410,7 @@ extension ChangeStreamPageTests {
     #expect(model.workspaceFailureText == "slipstream: the setup script exited 2.")
   }
 
-  @Test func archiveIsOnlyOfferedUnderTheManagedRoot() async {
-    func isOffered(_ root: String) async -> Bool {
-      fake.setSessions(
-        [SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false)],
-        starts: [Fixture.otherSession: SessionStarted(root: root, startedAtMs: 0)])
-      fake.setCaptures([])
-      let model = makeModel(workspace: workspaceClient())
-      await model.viewAppeared()
-      defer { model.viewDisappeared() }
-      return model.isArchiveWorkspaceShown
-    }
-
-    #expect(await isOffered(Self.workspaceRoot))
-    #expect(await !isOffered("/Users/x/conductor/workspaces/r/w"))
-    #expect(await !isOffered("/work/slipstream/workspaces-old/r/w"))
-    #expect(await !isOffered("/work/slipstream/workspaces/r"))
-  }
-
-  @Test func archiveConfirmationWarnsWhenClaudeIsWorking() async {
+  @Test func archiveConfirmationWarnsWhenClaudeIsWorking() async throws {
     listWorkspace()
     let agent = AgentFake()
     let model = makeModel(chat: makeWorkingChat(agent), workspace: workspaceClient())
@@ -3350,7 +3421,7 @@ extension ChangeStreamPageTests {
     model.chat.selectedTab?.draft = "hi"
     await model.chat.sendTapped()
     await Task.megaYield()
-    model.archiveWorkspaceTapped()
+    model.archiveTapped(try #require(model.selectedSession))
 
     #expect(model.isArchiveConfirmationPresented)
     #expect(
@@ -3358,7 +3429,7 @@ extension ChangeStreamPageTests {
         == "Its folder is removed. The branch is kept. Claude's current reply will be stopped.")
   }
 
-  @Test func archiveStopsChatsBeforeRunningTheCommand() async {
+  @Test func archiveStopsChatsBeforeRunningTheCommand() async throws {
     listWorkspace()
     let agent = AgentFake()
     let chat = makeWorkingChat(agent)
@@ -3377,6 +3448,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     let sessionsCalls = fake.sessionsCallCount
 
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
 
     #expect(shutdownsAtArchive.value == 1)
@@ -3388,7 +3460,7 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceBusy)
   }
 
-  @Test func archivedWorkspaceIsNotAutomaticallySelectedWhenCaptureLoadingFails() async {
+  @Test func archivedWorkspaceIsNotAutomaticallySelectedWhenCaptureLoadingFails() async throws {
     listWorkspace()
     let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
       WorkspaceOutcome()
@@ -3397,19 +3469,78 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
 
     fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
 
     #expect(model.selectedSession == nil)
     #expect(model.chat.folder == nil)
   }
 
-  @Test func sessionDiscoveryDoesNotWaitForManagedWorkspaceRoot() async {
+  @Test func rowsGroupByRepoOnceTheRootsLoad() async {
+    let conductorRoot = "/work/conductor/workspaces/r/lisbon"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: conductorRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(root: Self.workspaceRoot),
+      Fixture.capture(session: Fixture.otherSession, root: conductorRoot),
+    ])
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let workspace = workspaceClient()
+    let model = makeModel(workspace: WorkspaceClient(
+      roots: {
+        for await _ in gate { break }
+        return await workspace.roots()
+      },
+      chooseRepository: workspace.chooseRepository, create: workspace.create, archive: workspace.archive))
+    let appeared = Task { await model.viewAppeared() }
+    defer { model.viewDisappeared() }
+    await appeared.value
+    await Task.megaYield()
+    let selected = model.selectedSession
+    expectNoDifference(model.sidebarGroups.map(\.name), ["workspace-1", "lisbon"])
+
+    release.yield()
+    await Task.megaYield()
+
+    expectNoDifference(model.sidebarGroups.map(\.name), ["r"])
+    expectNoDifference(model.sidebarGroups.first?.rows.map(\.id), [Fixture.session, Fixture.otherSession])
+    expectNoDifference(model.selectedSession, selected)
+  }
+
+  @Test func toolbarTitleNamesRepoAndWorkspace() async {
+    let project = await connectedModel()
+    expectNoDifference(project.toolbarTitleText, "project")
+    project.viewDisappeared()
+
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    await Task.megaYield()
+    expectNoDifference(model.toolbarTitleText, "r  ›  workspace-1")
+    model.viewDisappeared()
+
+    fake.setSessions([])
+    fake.setCaptures([])
+    let empty = makeModel()
+    await empty.viewAppeared()
+    defer { empty.viewDisappeared() }
+    expectNoDifference(empty.toolbarTitleText, "Slipstream")
+  }
+
+  @Test func sessionDiscoveryDoesNotWaitForWorkspaceRoots() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let workspace = workspaceClient()
     let slowWorkspace = WorkspaceClient(
-      managedRoot: {
+      roots: {
         for await _ in gate { break }
-        return Self.managedRoot
+        return await workspace.roots()
       },
       chooseRepository: workspace.chooseRepository,
       create: workspace.create,
@@ -3473,7 +3604,7 @@ extension ChangeStreamPageTests {
     #expect(model.selectedSession?.id == Fixture.otherSession)
   }
 
-  @Test func archiveHidesTheChatWhileTheCommandRuns() async {
+  @Test func archiveHidesTheChatWhileTheCommandRuns() async throws {
     listWorkspace()
     let (gate, release) = AsyncStream<Void>.makeStream()
     let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
@@ -3484,6 +3615,7 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     #expect(model.chat.showsNewTabButton)
 
+    model.archiveTapped(try #require(model.selectedSession))
     let archiving = Task { await model.archiveConfirmed() }
     await Task.megaYield()
 
@@ -3494,7 +3626,7 @@ extension ChangeStreamPageTests {
     await archiving.value
   }
 
-  @Test func refusedArchiveGivesBackItsConversationsAndShowsTheError() async {
+  @Test func refusedArchiveGivesBackItsConversationsAndShowsTheError() async throws {
     listWorkspace()
     let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: { _, _ in
       WorkspaceOutcome(failureText: "slipstream: the workspace has uncommitted or untracked changes.")
@@ -3503,6 +3635,7 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     let conversations = model.chat.records.map(\.id)
 
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
 
     #expect(model.selectedSession?.id == Fixture.otherSession)
@@ -3523,9 +3656,385 @@ extension ChangeStreamPageTests {
     let tab = try #require(model.chat.selectedTab)
     tab.draft = "Keep this draft"
 
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
 
     #expect(model.chat.selectedTab?.draft == "Keep this draft")
+  }
+
+  nonisolated static let secondWorkspaceRoot = "/work/slipstream/workspaces/r/workspace-2"
+
+  nonisolated func listTwoWorkspaces() {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(session: Fixture.session, root: Self.workspaceRoot),
+      Fixture.capture(session: Fixture.otherSession, root: Self.secondWorkspaceRoot),
+    ])
+  }
+
+  /// The first workspace is selected and the second has a reply running.
+  func twoWorkspacesModel(
+    archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome = { _, _ in WorkspaceOutcome() }
+  ) async -> ChangeStreamPageModel {
+    listTwoWorkspaces()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: archive))
+    await model.viewAppeared()
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    model.chat.selectedTab?.draft = "hi"
+    await model.chat.sendTapped()
+    await Task.megaYield()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    return model
+  }
+
+  @Test func plusCreatesInTheGroupsFirstFolderWithoutTheChooser() async throws {
+    listWorkspace()
+    let calls = LockIsolated<[[String]]>([])
+    let model = makeModel(workspace: workspaceClient(choose: nil, create: { [self] repository, store in
+      calls.withValue { $0.append([repository.path, store]) }
+      listTwoWorkspaces()
+      return WorkspaceOutcome(workspacePath: Self.secondWorkspaceRoot)
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.newWorkspaceTapped(in: try #require(model.sidebarGroups.first))
+
+    expectNoDifference(calls.value, [[Self.workspaceRoot, "store-a"]])
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.chat.folder == Self.secondWorkspaceRoot)
+    #expect(!model.isWorkspaceBusy)
+  }
+
+  @Test func plusFailureShowsTheExistingAlert() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(create: { _, _ in
+      WorkspaceOutcome(failureText: "slipstream: the setup script exited 2.")
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.newWorkspaceTapped(in: try #require(model.sidebarGroups.first))
+
+    #expect(model.isWorkspaceFailurePresented)
+    #expect(model.workspaceFailureTitle == "Couldn't finish creating the workspace")
+  }
+
+  @Test func archiveIconShowsOnHoverOrFocusForManagedRowsOnly() async throws {
+    let conductorRoot = "/work/conductor/workspaces/r/lisbon"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: conductorRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(session: Fixture.session, root: Self.workspaceRoot),
+      Fixture.capture(session: Fixture.otherSession, root: conductorRoot),
+    ])
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let managed = try #require(model.sessions[id: Fixture.session])
+    let conductor = try #require(model.sessions[id: Fixture.otherSession])
+    #expect(!model.isArchiveIconShown(for: managed))
+
+    model.rowHoverChanged(managed, isHovering: true)
+    #expect(model.isArchiveIconShown(for: managed))
+    model.rowFocusChanged(managed, isFocused: true)
+    model.rowHoverChanged(managed, isHovering: false)
+    #expect(model.isArchiveIconShown(for: managed))
+    model.rowFocusChanged(managed, isFocused: false)
+    #expect(!model.isArchiveIconShown(for: managed))
+
+    model.rowHoverChanged(conductor, isHovering: true)
+    model.rowFocusChanged(conductor, isFocused: true)
+    #expect(model.isHighlighted(conductor))
+    #expect(!model.isArchiveIconShown(for: conductor))
+  }
+
+  @Test func archivingAnotherRowKeepsTheSelection() async throws {
+    let archived = LockIsolated<[String]>([])
+    let model = await twoWorkspacesModel(archive: { workspace, _ in
+      archived.withValue { $0.append(workspace.path) }
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+    let second = try #require(model.sessions[id: Fixture.otherSession])
+
+    model.archiveTapped(second)
+    #expect(model.isArchiveConfirmationPresented)
+    #expect(model.archiveConfirmationText.hasSuffix("Claude's current reply will be stopped."))
+    await model.archiveConfirmed()
+
+    expectNoDifference(archived.value, [Self.secondWorkspaceRoot])
+    #expect(model.selectedSession?.id == Fixture.session)
+    #expect(model.chat.folder == Self.workspaceRoot)
+    #expect(!model.chat.records.contains { $0.folder == Self.secondWorkspaceRoot })
+  }
+
+  @Test func refusedArchiveOfAnotherRowRestoresItsTabsAndDrafts() async throws {
+    let model = await twoWorkspacesModel(archive: { _, _ in WorkspaceOutcome(failureText: "refused") })
+    defer { model.viewDisappeared() }
+    let second = try #require(model.sessions[id: Fixture.otherSession])
+    let record = try #require(model.chat.records.first { $0.folder == Self.secondWorkspaceRoot })
+    model.chat.tabs[id: record.id]?.draft = "Keep this draft"
+
+    model.archiveTapped(second)
+    await model.archiveConfirmed()
+
+    #expect(model.chat.tabs[id: record.id]?.draft == "Keep this draft")
+    #expect(model.selectedSession?.id == Fixture.session)
+    #expect(model.isWorkspaceFailurePresented)
+  }
+
+  @Test func archiveTargetSurvivesAReloadDuringTheCommand() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let archived = LockIsolated<[String]>([])
+    let model = await twoWorkspacesModel(archive: { workspace, _ in
+      for await _ in gate { break }
+      archived.withValue { $0.append(workspace.path) }
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+    model.archiveTapped(try #require(model.sessions[id: Fixture.otherSession]))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0)])
+    await model.refreshTapped()
+    release.yield()
+    await archiving.value
+
+    expectNoDifference(archived.value, [Self.secondWorkspaceRoot])
+    #expect(!model.chat.records.contains { $0.folder == Self.secondWorkspaceRoot })
+    #expect(model.selectedSession?.id == Fixture.session)
+  }
+
+  @Test func switchingRowsDuringARefusedArchiveKeepsTheNewRow() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await twoWorkspacesModel(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome(failureText: "refused")
+    })
+    defer { model.viewDisappeared() }
+    model.archiveTapped(try #require(model.selectedSession))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.chat.folder == Self.secondWorkspaceRoot)
+  }
+
+  @Test func switchingRowsWhileAnArchiveCleansUpKeepsTheNewRow() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    var history = terminal.historyClient
+    history.delete = { _ in for await _ in gate { break } }
+    listTwoWorkspaces()
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(), terminals: makeTerminals(history: history))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    model.archiveTapped(try #require(model.selectedSession))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: "third-session", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+        "third-session": SessionStarted(root: "/tmp/third", startedAtMs: 0),
+      ])
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    let watch = try #require(model.watchTask)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.watchTask == watch)
+  }
+
+  /// Two live sessions share the first workspace's folder; the second workspace is selected.
+  func sharedFolderModel(
+    archive: @escaping @Sendable (URL, String) async -> WorkspaceOutcome
+  ) async -> ChangeStreamPageModel {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: "sibling-session", durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        "sibling-session": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: archive))
+    await model.viewAppeared()
+    await Task.megaYield()
+    return model
+  }
+
+  @Test func archivingASharedFolderClearsTheSelectedSibling() async throws {
+    let model = await sharedFolderModel(archive: { _, _ in WorkspaceOutcome() })
+    defer { model.viewDisappeared() }
+    model.sessionSelected("sibling-session")
+    await Task.megaYield()
+
+    model.archiveTapped(try #require(model.sessions[id: Fixture.session]))
+    await model.archiveConfirmed()
+
+    #expect(model.selectedSession == nil)
+    #expect(model.chat.folder == nil)
+  }
+
+  @Test func aSiblingOfTheFolderBeingArchivedCannotBeSelected() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await sharedFolderModel(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    model.archiveTapped(try #require(model.sessions[id: Fixture.session]))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected("sibling-session")
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
+  @Test func aWorkspacePickedWhileCreatingStaysSelected() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let sessions = [
+      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+      SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+    ]
+    let starts = [
+      Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+      Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+    ]
+    fake.setSessions(sessions, starts: starts)
+    let model = makeModel(workspace: workspaceClient(create: { [fake] _, _ in
+      for await _ in gate { break }
+      fake.setSessions(
+        sessions + [SessionSummary(id: "created-session", durableSeq: .zero, removed: false)],
+        starts: starts.merging(["created-session": SessionStarted(root: "/tmp/created", startedAtMs: 0)]) { $1 })
+      return WorkspaceOutcome(workspacePath: "/tmp/created")
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await creating.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
+  @Test func theRowBeingArchivedCannotBeSelected() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await twoWorkspacesModel(archive: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome()
+    })
+    defer { model.viewDisappeared() }
+    model.archiveTapped(try #require(model.sessions[id: Fixture.otherSession]))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.session)
+    #expect(!model.chat.records.contains { $0.folder == Self.secondWorkspaceRoot })
+  }
+
+  @Test func selectingAWorkspaceWhileBusySwitches() async {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel(workspace: workspaceClient(create: { _, _ in
+      for await _ in gate { break }
+      return WorkspaceOutcome()
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    #expect(model.isWorkspaceBusy)
+
+    model.sessionSelected(Fixture.otherSession)
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    release.yield()
+    await creating.value
+  }
+
+  @Test func archiveWhileBusyDoesNothing() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let archived = LockIsolated(0)
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(
+      create: { _, _ in
+        for await _ in gate { break }
+        return WorkspaceOutcome()
+      },
+      archive: { _, _ in
+        archived.withValue { $0 += 1 }
+        return WorkspaceOutcome()
+      }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+
+    model.archiveTapped(try #require(model.selectedSession))
+    await model.archiveConfirmed()
+
+    #expect(archived.value == 0)
+    release.yield()
+    await creating.value
   }
 }
 
@@ -3550,7 +4059,7 @@ extension ChangeStreamPageTests {
     expectNoDifference(terminal.launches.map(\.directory), [Self.workspaceRoot])
   }
 
-  @Test func archiveStopsTerminalsBeforeTheCommand() async {
+  @Test func archiveStopsTerminalsBeforeTheCommand() async throws {
     let callsAtArchive = LockIsolated<[TerminalFake.Call]>([])
     let model = await workspaceModel(archive: { [terminal] _, _ in
       callsAtArchive.setValue(terminal.calls)
@@ -3558,15 +4067,17 @@ extension ChangeStreamPageTests {
     })
     defer { model.viewDisappeared() }
 
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
 
     #expect(callsAtArchive.value.contains(.stop(launch: 0)))
   }
 
-  @Test func failedArchiveRestoresTerminals() async {
+  @Test func failedArchiveRestoresTerminals() async throws {
     let model = await workspaceModel(archive: { _, _ in WorkspaceOutcome(failureText: "refused") })
     defer { model.viewDisappeared() }
 
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
 
     #expect(model.terminals.folder == Self.workspaceRoot)
@@ -3574,13 +4085,14 @@ extension ChangeStreamPageTests {
     expectNoDifference(terminal.launches.map(\.directory), [Self.workspaceRoot, Self.workspaceRoot])
   }
 
-  @Test func successfulArchiveForgetsTerminals() async {
+  @Test func successfulArchiveForgetsTerminals() async throws {
     let model = await workspaceModel(archive: { [self] _, _ in
       listWorkspace(.stopped, reason: "archived")
       return WorkspaceOutcome()
     })
     defer { model.viewDisappeared() }
 
+    model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
     await Task.megaYield()
 
@@ -3588,36 +4100,57 @@ extension ChangeStreamPageTests {
     expectNoDifference(terminal.saved?.tabs.elements, [])
   }
 
-  @Test func hideAndShowTerminals() {
+  @Test func sidebarHiddenIsRemembered() {
     let model = makeModel()
+    #expect(model.isSidebarShown)
+    #expect(model.sidebarToggleHelpText == "Hide sidebar")
 
-    model.hideTerminalsTapped()
-    #expect(model.isTerminalPaneHidden)
+    model.sidebarToggleTapped()
 
-    model.showTerminalsTapped()
-    #expect(!model.isTerminalPaneHidden)
-    #expect(model.showTerminalsText == "Show terminals")
+    let reopened = makeModel()
+    #expect(!reopened.isSidebarShown)
+    #expect(reopened.sidebarToggleHelpText == "Show sidebar")
   }
 
-  @Test func minimumWidthWithPane() {
+  @Test func chatShrinksBeforeTheStream() {
     let model = makeModel()
+    var widths: [CGFloat] = []
+    for width in [2040, 1600, 1360] as [CGFloat] {
+      model.viewportChanged(CGSize(width: width, height: 900))
+      widths.append(model.chatColumnWidth)
+    }
+    expectNoDifference(widths, [720, 660, 420])
 
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1440)
+    model.viewportChanged(CGSize(width: 1360, height: 900))
+    model.sidebarToggleTapped()
+
+    expectNoDifference(model.chatColumnWidth, 420)
   }
 
-  @Test func minimumWidthHidden() {
+  @Test func chatGivesWayOnAScreenTooNarrowForAllThreeColumns() {
     let model = makeModel()
-
-    model.hideTerminalsTapped()
-
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 2560) == 1000)
+    var widths: [CGFloat] = []
+    for width in [1360, 1280, 1200] as [CGFloat] {
+      model.viewportChanged(CGSize(width: width, height: 900))
+      widths.append(model.chatColumnWidth)
+    }
+    expectNoDifference(widths, [420, 340, 320])
   }
 
-  @Test func minimumWidthCappedBySmallScreen() {
+  @Test func windowMinimumFollowsTheSidebar() {
+    let model = makeModel()
+    #expect(model.windowMinWidth(visibleScreenWidth: 2560) == 1360)
+
+    model.sidebarToggleTapped()
+
+    #expect(model.windowMinWidth(visibleScreenWidth: 2560) == 1100)
+  }
+
+  @Test func windowMinimumCappedBySmallScreen() {
     let model = makeModel()
 
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 1280) == 1280)
-    #expect(model.minimumWindowWidth(visibleScreenWidth: 900) == 900)
+    #expect(model.windowMinWidth(visibleScreenWidth: 1280) == 1280)
+    #expect(model.windowMinWidth(visibleScreenWidth: 900) == 900)
   }
 
   @Test func commandWClosesTerminalWhenFocused() async throws {
@@ -3625,12 +4158,28 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     let chatTab = try #require(model.chat.selectedTab?.id)
     let terminalTab = try #require(model.terminals.selectedTab?.id)
+    model.rightPaneSelected(.terminals)
     model.terminals.terminalFocusChanged(terminalTab, isFocused: true)
 
     await model.closeShortcutPressed()
 
     #expect(terminal.calls.contains(.delete(terminalTab)))
     #expect(model.chat.records.contains { $0.id == chatTab })
+  }
+
+  @Test func commandWClosesChatWhileStreamShows() async throws {
+    let model = await workspaceModel()
+    defer { model.viewDisappeared() }
+    let chatTab = try #require(model.chat.selectedTab?.id)
+    let terminalTab = try #require(model.terminals.selectedTab?.id)
+    model.rightPaneSelected(.terminals)
+    model.terminals.terminalFocusChanged(terminalTab, isFocused: true)
+    model.rightPaneSelected(.stream)
+
+    await model.closeShortcutPressed()
+
+    #expect(!model.chat.records.contains { $0.id == chatTab })
+    #expect(!terminal.calls.contains(.delete(terminalTab)))
   }
 
   @Test func commandWClosesChatOtherwise() async throws {

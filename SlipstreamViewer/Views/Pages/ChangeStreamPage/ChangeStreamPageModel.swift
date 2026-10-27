@@ -22,6 +22,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Shared(.readAnswers) var readAnswers
   @ObservationIgnored @Shared(.replyDrafts) var replyDrafts
   @ObservationIgnored @Shared(.fontSizeStep) var fontSizeStep
+  @ObservationIgnored @Shared(.isSidebarHidden) var isSidebarHidden
 
   // MARK: - Initialization
 
@@ -55,6 +56,11 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
   private(set) var isWorkspaceBusy = false
+  private(set) var workspaceRoots: WorkspaceRoots?
+  private(set) var archiveTarget: SessionOption?
+  private var archivingFolder: String?
+  private var hoveredRowID: String?
+  private var focusedRowID: String?
   var isArchiveConfirmationPresented = false
   var isWorkspaceFailurePresented = false
   private(set) var workspaceFailureTitle = ""
@@ -76,7 +82,6 @@ final class ChangeStreamPageModel: ViewModel {
       chatWorkspaceMayHaveChanged()
     }
   }
-  var isShowingInactiveSessions = false
   private(set) var captureAvailability = CaptureAvailability.loading
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
@@ -94,8 +99,7 @@ final class ChangeStreamPageModel: ViewModel {
   var scrollToLatestRequest = 0
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
-  private(set) var isFeedHidden = false
-  private(set) var isTerminalPaneHidden = false
+  private(set) var rightPane: RightPane = .stream
   private(set) var isFunctionDemoVisible: Bool
   private(set) var pinnedHeadings: Set<Seq> = []
   private(set) var fileHeaderOffsets: [Seq: CGFloat] = [:]
@@ -110,12 +114,12 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var visibleCards: Set<Seq> = []
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
+  @ObservationIgnored private var sessionSelectionGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
-  @ObservationIgnored private var managedWorkspaceRoot: URL?
-  @ObservationIgnored private var managedWorkspaceTask: Task<Void, Never>?
-  @ObservationIgnored private var managedWorkspaceGeneration = 0
+  @ObservationIgnored private var workspaceRootsTask: Task<Void, Never>?
+  @ObservationIgnored private var workspaceRootsGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
   @ObservationIgnored private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
@@ -138,26 +142,35 @@ final class ChangeStreamPageModel: ViewModel {
   let questionDiscardText = "Discard draft"
   let questionKeepText = "Keep question"
 
-  let newWorkspaceText = "New workspace…"
-  let archiveWorkspaceText = "Archive workspace…"
+  let newWorkspaceHelpText = "New workspace"
+  let archiveWorkspaceHelpText = "Archive workspace"
   let archiveConfirmationTitle = "Archive this workspace?"
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
-  let showTerminalsText = "Show terminals"
+
+  var sidebarToggleHelpText: String { isSidebarHidden ? "Show sidebar" : "Hide sidebar" }
+
+  func rightPaneNote(_ pane: RightPane) -> String? {
+    pane == .stream ? paneSubtitle : nil
+  }
+
+  func rightPaneText(_ pane: RightPane) -> String {
+    switch pane {
+    case .stream: "Change stream"
+    case .terminals: "Terminals"
+    }
+  }
 
   var archiveConfirmationText: String {
     let text = "Its folder is removed. The branch is kept."
-    guard let selectedFolder, chat.hasWorkingTab(in: selectedFolder) else { return text }
+    guard let folder = archiveTarget?.root, chat.hasWorkingTab(in: folder) else { return text }
     return text + " Claude's current reply will be stopped."
   }
 
-  let paneTitle = "Change stream"
   let refreshButtonText = "Refresh"
   let compareFunctionsText = "Compare functions"
   let jumpToLatestText = "Jump to latest ↓"
-  let hideFeedText = "Hide feed"
-  let showFeedText = "◧  Activity"
   let captureStripLabel = "CAPTURE"
   let chatStripLabel = "CHAT"
 
@@ -174,25 +187,14 @@ final class ChangeStreamPageModel: ViewModel {
     return questions + " · \(newReplies) \(newReplies == 1 ? "new reply" : "new replies")"
   }
 
-  var sessionPickerTitle: String {
-    selectedSession?.label ?? "Choose a session"
-  }
+  let sidebarTitleText = "Workspaces"
+  let addRepositoryText = "Add repository…"
 
-  var inactiveSessionsToggleText: String? {
-    if isShowingInactiveSessions { return hiddenInactiveSessionCount > 0 ? "Hide inactive sessions" : nil }
-    switch hiddenInactiveSessionCount {
-    case 0: return nil
-    case 1: return "Show 1 inactive session"
-    case let count: return "Show \(count) inactive sessions"
-    }
-  }
-
-  func isBold(_ session: SessionOption) -> Bool {
-    session.root.map(chat.isWaiting) ?? false
-  }
-
-  func sessionMenuText(for session: SessionOption) -> String {
-    captureStatus(of: session).pickerSuffix.map { "\(session.label) · \($0)" } ?? session.label
+  var toolbarTitleText: String {
+    guard let selectedSession else { return "Slipstream" }
+    let name = rowName(selectedSession)
+    guard let repository = selectedFolder.flatMap({ workspaceRoots?.repository(of: $0) }) else { return name }
+    return "\(repository)  ›  \(name)"
   }
 
   var selectedCaptureStatus: CaptureStatus? {
@@ -235,7 +237,7 @@ final class ChangeStreamPageModel: ViewModel {
     if let sessionsError, selectedSession == nil { return sessionsError }
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
-      return sessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
+      return pickerSessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Refresh to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
@@ -251,10 +253,61 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - View Helpers
 
-  /// The pane widens the window, but never past the screen's visible width.
-  func minimumWindowWidth(visibleScreenWidth: CGFloat) -> CGFloat {
-    let base: CGFloat = isFunctionDemoVisible ? DesignTokens.FunctionMap.demoWorkspaceMinWidth : 1000
-    return min(base + (isTerminalPaneHidden ? 0 : DesignTokens.TerminalPane.width), visibleScreenWidth)
+  var isSidebarShown: Bool { !isSidebarHidden }
+
+  /// Always leaves room for the sidebar, so hiding it gives the space to the stream. With the
+  /// sidebar shown, only a screen too narrow for all three columns takes the chat under its
+  /// minimum: the chat gives way before the stream does.
+  var chatColumnWidth: CGFloat {
+    min(
+      DesignTokens.Workspace.chatWidth,
+      max(
+        isSidebarShown ? DesignTokens.Workspace.chatNarrowScreenMinWidth : DesignTokens.Workspace.chatMinWidth,
+        viewport.width - DesignTokens.Workspace.sidebarWidth - DesignTokens.FeedPane.width))
+  }
+
+  /// Never past the screen's visible width.
+  func windowMinWidth(visibleScreenWidth: CGFloat) -> CGFloat {
+    let width = isFunctionDemoVisible
+      ? DesignTokens.FunctionMap.demoWorkspaceMinWidth
+      : DesignTokens.Workspace.chatMinWidth + DesignTokens.FeedPane.width
+        + (isSidebarShown ? DesignTokens.Workspace.sidebarWidth : 0)
+    return min(width, visibleScreenWidth)
+  }
+
+  var isStreamShown: Bool { rightPane == .stream }
+
+  func isSelected(_ pane: RightPane) -> Bool {
+    rightPane == pane
+  }
+
+  func rowName(_ session: SessionOption) -> String {
+    SidebarGroup.rowName(session)
+  }
+
+  func isSelected(_ session: SessionOption) -> Bool {
+    session.id == selectedSession?.id
+  }
+
+  func isBold(_ session: SessionOption) -> Bool {
+    session.root.map(chat.isWaiting) ?? false
+  }
+
+  func isWorking(_ session: SessionOption) -> Bool {
+    session.root.map(chat.hasWorkingTab(in:)) ?? false
+  }
+
+  /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
+  func isArchivable(_ session: SessionOption) -> Bool {
+    session.root.map { workspaceRoots?.isArchivable($0) ?? false } ?? false
+  }
+
+  func isHighlighted(_ session: SessionOption) -> Bool {
+    session.id == hoveredRowID || session.id == focusedRowID
+  }
+
+  func isArchiveIconShown(for session: SessionOption) -> Bool {
+    isArchivable(session) && isHighlighted(session)
   }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
@@ -276,7 +329,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var replyWidth: CGFloat { max(0, min(DesignTokens.Reply.width, viewport.width - 2 * DesignTokens.Reply.viewportInset)) }
   var showsReplyConnector: Bool {
-    reply != nil && isReplyBarVisible && !isFeedHidden && replyPlacement.showsConnector
+    reply != nil && isReplyBarVisible && isStreamShown && replyPlacement.showsConnector
       && !replyBarFrame.intersection(feedViewport).isEmpty
   }
 
@@ -323,7 +376,7 @@ final class ChangeStreamPageModel: ViewModel {
   var sourceLineHeight: CGFloat { DesignTokens.Card.lineHeight * FontSize.scale(step: fontSizeStep) }
   var sourceLineNumberWidth: CGFloat { DesignTokens.Card.lineNumberWidth * FontSize.scale(step: fontSizeStep) }
   var showsSelectionConnector: Bool {
-    sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && !isFeedHidden
+    sourceSelection?.sessionID == selectedSession?.id && isSourceBlockVisible && isStreamShown
       && !selectionFrame.intersection(feedViewport).isEmpty
   }
 
@@ -430,16 +483,11 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var pickerSessions: IdentifiedArrayOf<SessionOption> {
-    isShowingInactiveSessions ? sessions : sessions.filter { !isHideable($0) }
+    sessions.filter { !isHideable($0) }
   }
 
-  var isSessionPickerDisabled: Bool { isWorkspaceBusy }
-
-  /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
-  var isArchiveWorkspaceShown: Bool {
-    guard let selectedFolder, let managedWorkspaceRoot else { return false }
-    return ManagedWorkspacePath.contains(
-      selectedFolder, root: Self.normalizedFolder(managedWorkspaceRoot.path))
+  var sidebarGroups: [SidebarGroup] {
+    SidebarGroup.groups(pickerSessions, roots: workspaceRoots)
   }
 
   var canCompareFunctions: Bool {
@@ -496,7 +544,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func viewAppeared() async {
     isShown = true
-    loadManagedWorkspaceRoot()
+    loadWorkspaceRoots()
     chatWorkspaceMayHaveChanged()
     chat.comparisonVisibilityChanged(isShown: functionChanges != nil)
     if selectedSession != nil, watchTask?.isCancelled ?? true {
@@ -509,12 +557,8 @@ final class ChangeStreamPageModel: ViewModel {
     await loadSessions()
   }
 
-  func inactiveSessionsToggleTapped() {
-    isShowingInactiveSessions.toggle()
-  }
-
   func sessionSelected(_ id: String) {
-    guard select(id) else { return }
+    guard archivingFolder == nil || sessions[id: id]?.root != archivingFolder, select(id) else { return }
     pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
@@ -524,45 +568,69 @@ final class ChangeStreamPageModel: ViewModel {
 
   func newWorkspaceTapped() async {
     guard !isWorkspaceBusy, let repository = await workspace.chooseRepository() else { return }
-    isWorkspaceBusy = true
-    defer { isWorkspaceBusy = false }
-    let outcome = await workspace.create(repository, daemon.storeID)
-    if let path = outcome.workspacePath { await loadSessions(preferring: path) }
-    if let failure = outcome.failureText {
-      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
+    await createWorkspace(in: repository)
+  }
+
+  func newWorkspaceTapped(in group: SidebarGroup) async {
+    guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
+    await createWorkspace(in: URL(filePath: folder))
+  }
+
+  func rowHoverChanged(_ session: SessionOption, isHovering: Bool) {
+    if isHovering {
+      hoveredRowID = session.id
+    } else if hoveredRowID == session.id {
+      hoveredRowID = nil
     }
   }
 
-  func archiveWorkspaceTapped() {
+  func rowFocusChanged(_ session: SessionOption, isFocused: Bool) {
+    if isFocused {
+      focusedRowID = session.id
+    } else if focusedRowID == session.id {
+      focusedRowID = nil
+    }
+  }
+
+  func archiveTapped(_ session: SessionOption) {
+    archiveTarget = session
     isArchiveConfirmationPresented = true
   }
 
-  /// Hides and stops the workspace's chats first: the command removes the folder they run
-  /// in. Its conversations come back if the command refuses.
+  /// Stops the workspace's chats first, hiding them if it is selected: the command removes
+  /// the folder they run in. Its conversations come back if the command refuses.
   func archiveConfirmed() async {
-    guard !isWorkspaceBusy, let folder = selectedFolder else { return }
-    let archivedSessionID = selectedSession?.id
+    guard !isWorkspaceBusy, let target = archiveTarget, let folder = target.root else { return }
     isWorkspaceBusy = true
-    defer { isWorkspaceBusy = false }
-    chat.workspaceChanged(folder: nil, emptyText: nil)
-    await terminals.workspaceChanged(folder: nil)
+    archivingFolder = folder
+    defer {
+      isWorkspaceBusy = false
+      archivingFolder = nil
+    }
+    if selectedFolder == folder {
+      chat.workspaceChanged(folder: nil, emptyText: nil)
+      await terminals.workspaceChanged(folder: nil)
+    }
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
     let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
     if let failure = outcome.failureText {
-      chat.workspaceChanged(folder: folder, emptyText: nil)
+      let isStillSelected = selectedFolder == folder
+      if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
       terminals.restoreTabs(in: folder)
-      await terminals.workspaceChanged(folder: folder)
+      if isStillSelected { await terminals.workspaceChanged(folder: folder) }
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
-    if let archivedSessionID { archivedSessionIDs.insert(archivedSessionID) }
-    selectedSession = nil
-    resetFeed()
-    startWatching()
+    archivedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
+    if selectedFolder == folder {
+      selectedSession = nil
+      resetFeed()
+      startWatching()
+    }
     await loadSessions()
   }
 
@@ -574,8 +642,8 @@ final class ChangeStreamPageModel: ViewModel {
     watchTask?.cancel()
     watchGeneration += 1
     sessionsGeneration += 1
-    managedWorkspaceTask?.cancel()
-    managedWorkspaceGeneration += 1
+    workspaceRootsTask?.cancel()
+    workspaceRootsGeneration += 1
     watchedFollowerLeftLive()
   }
 
@@ -604,27 +672,22 @@ final class ChangeStreamPageModel: ViewModel {
     startWatching()
   }
 
-  func hideFeedTapped() {
-    replyCollapsed()
-    isFeedHidden = true
+  func sidebarToggleTapped() {
+    $isSidebarHidden.withLock { $0.toggle() }
   }
 
-  func showFeedTapped() {
-    isFeedHidden = false
-    follow.jumpToLatest()
+  func rightPaneSelected(_ pane: RightPane) {
+    guard pane != rightPane else { return }
+    rightPane = pane
+    switch pane {
+    case .stream: follow.jumpToLatest()
+    case .terminals: replyCollapsed()
+    }
   }
 
-  func hideTerminalsTapped() {
-    isTerminalPaneHidden = true
-  }
-
-  func showTerminalsTapped() {
-    isTerminalPaneHidden = false
-  }
-
-  /// ⌘W closes the focused terminal's tab, otherwise the chat's.
+  /// ⌘W closes the focused terminal's tab while Terminals shows, otherwise the chat's.
   func closeShortcutPressed() async {
-    if terminals.hasKeyboardFocus {
+    if rightPane == .terminals, terminals.hasKeyboardFocus {
       await terminals.closeShortcutPressed()
     } else {
       await chat.closeShortcutPressed()
@@ -752,6 +815,7 @@ final class ChangeStreamPageModel: ViewModel {
       }
     }
     selectedSession = session
+    sessionSelectionGeneration += 1
     awaitsFreshSnapshot = false
     pendingReadiness = nil
     bindingMovedWhileAwaitingSnapshot = false
@@ -760,15 +824,28 @@ final class ChangeStreamPageModel: ViewModel {
     return true
   }
 
-  private func loadManagedWorkspaceRoot() {
-    managedWorkspaceTask?.cancel()
-    managedWorkspaceGeneration += 1
-    let generation = managedWorkspaceGeneration
+  private func loadWorkspaceRoots() {
+    workspaceRootsTask?.cancel()
+    workspaceRootsGeneration += 1
+    let generation = workspaceRootsGeneration
     let workspace = workspace
-    managedWorkspaceTask = Task { [weak self] in
-      let root = await workspace.managedRoot()
-      guard let self, !Task.isCancelled, isShown, generation == managedWorkspaceGeneration else { return }
-      managedWorkspaceRoot = root
+    workspaceRootsTask = Task { [weak self] in
+      let roots = await workspace.roots()
+      guard let self, !Task.isCancelled, isShown, generation == workspaceRootsGeneration else { return }
+      workspaceRoots = roots
+    }
+  }
+
+  private func createWorkspace(in repository: URL) async {
+    isWorkspaceBusy = true
+    defer { isWorkspaceBusy = false }
+    let selectionGeneration = sessionSelectionGeneration
+    let outcome = await workspace.create(repository, daemon.storeID)
+    if let path = outcome.workspacePath {
+      await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? path : nil)
+    }
+    if let failure = outcome.failureText {
+      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
     }
   }
 
@@ -1183,10 +1260,6 @@ final class ChangeStreamPageModel: ViewModel {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
   }
 
-  private var hiddenInactiveSessionCount: Int {
-    sessions.filter(isHideable).count
-  }
-
   private func isHideable(_ session: SessionOption) -> Bool {
     session.id != selectedSession?.id && captureStatus(of: session).isInactive
   }
@@ -1396,5 +1469,9 @@ final class ChangeStreamPageModel: ViewModel {
   private func touchCardContent(_ id: Seq) {
     cardContentOrder.removeAll { $0 == id }
     cardContentOrder.append(id)
+  }
+
+  enum RightPane: Equatable, CaseIterable {
+    case stream, terminals
   }
 }
