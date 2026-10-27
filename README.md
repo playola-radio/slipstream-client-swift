@@ -1,7 +1,8 @@
 # slipstream-client-swift
 
 Native macOS client for [Slipstream](https://github.com/briankeane/slipstream). It watches a
-capture session and shows a live, scrolling feed of the code changes an agent is making.
+capture session and shows a live, scrolling feed of the code changes an agent is making. It
+also creates and archives workspaces and runs agent chats in tabs.
 
 - `SlipstreamCore` (SwiftPM library, `Sources/`): event decoding, arbitrary-precision seq,
   the SSE parser, daemon discovery, the HTTP transport, the single reconnecting follower,
@@ -73,4 +74,6 @@ Escape, Close and Cancel dismiss the composer.
 
 This is queue submission, not answer display or proof of agent delivery. Shared
 `start` + explicit `attach` mode is required; standalone `serve` cannot accept
-questions. See [S1 validation and remaining integration gates](docs/ask-agent/validation.md).
+questions. The app will link one of its own chat tabs as the workspace's linked chat (being
+designed in `design/features/linked-chat/`); linking an outside chat (Conductor or a
+terminal) with `slipstream attach` remains an option. See [S1 validation and remaining integration gates](docs/ask-agent/validation.md).

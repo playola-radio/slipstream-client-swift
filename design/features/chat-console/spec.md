@@ -95,6 +95,9 @@ chats can't be driven from outside, so the client runs the chat agent itself. Th
 - Codex (the next slice).
 - Ask-at-a-line answered from a forked conversation. That gets its own design once daemon
   PR #76 (`record_question_exchange`) lands. The existing inline thread UI is unchanged.
+  > Superseded 2026-10-24 (Brian): Ask goes to the workspace's linked chat instead
+  > (`design/features/linked-chat/`, being designed). `record_question_exchange` stays shipped
+  > in the daemon; the client no longer plans to use it.
 - Any daemon change.
 
 ## Anti-goals
@@ -105,6 +108,8 @@ chats can't be driven from outside, so the client runs the chat agent itself. Th
   binaries or flags (`--session-mirror`, `--plugin-dir`, `--chrome`).
 - Interface bloat: nothing on screen that Conductor's center panel doesn't already have,
   unless this spec names it.
+  > Note 2026-10-24 (Brian): matching Conductor's center panel was the v0.1 visual reference; it
+  > is not the product bar beyond v0.1 now that Slipstream is a standalone tool.
 
 ## Open questions
 

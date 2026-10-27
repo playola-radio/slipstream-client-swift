@@ -23,6 +23,8 @@ attaches.
 - On attach, the agent supplies a short workspace name with `slipstream attach --name "…"`.
   Re-running attach with a new name updates the agent's name.
 - `SKILL.md`, the README and the attach output tell the agent to do this.
+  > Open 2026-10-24: workspaces the app creates or links already know their name, so whether the
+  > agent still supplies one with `--name` (also D5) is undecided.
 - The effective name shows in the stream picker, the picker title, and every other place the
   app labels a stream (the queued-question notice).
 - With no name, the label falls back to the worktree folder name plus start time.

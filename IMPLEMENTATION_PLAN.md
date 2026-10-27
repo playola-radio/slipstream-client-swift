@@ -1,5 +1,31 @@
 # Implementation Plan — `slipstream-client-swift`
 
+## Addendum 2026-10-24: Slipstream is a standalone tool; outside hosts are optional
+
+Brian's direction (2026-10-24). Detailed rows and older records elsewhere point here.
+
+- **Primary path:** the app creates and archives workspaces (`slipstream workspace
+  create|archive`, git worktrees under `~/slipstream/workspaces/<repo>/<name>`, shipped) and
+  runs the agent chat in chat tabs (shipped). Planned, being designed in
+  `design/features/linked-chat/`: the app links one chat tab as the workspace's linked chat, so
+  Ask questions reach it through the existing Ask flow (queued by the daemon, delivered at the
+  agent's next tool call, answered with the Slipstream answer tool).
+- **Optional hosts:** a Conductor chat or a terminal chat can still be linked with
+  `slipstream attach`, and Conductor's setup and archive scripts still work.
+- **Unchanged:** the daemon never launches agents (the app may); capture is watcher-primary; a
+  chat the app runs is never a capture source and never emits file-change events; one linked
+  chat per capture; links name the chat explicitly (root transcript), never inferred; no
+  privileged back channel; views contain zero logic.
+- **Superseded:** ask-at-a-line answered from a forked copy of a tab's conversation
+  (`--fork-session` plus `record_question_exchange`) is no longer the planned route; Ask goes
+  to the linked chat. The daemon verb stays shipped; the client no longer plans to use it.
+- **Open:** (1) setup and archive scripts are read only from Conductor's files
+  (`.conductor/settings.toml`, `conductor.json`) with `CONDUCTOR_*` env vars; whether to add a
+  native Slipstream config is undecided. (2) Which Claude versions and launch modes the daemon
+  accepts for an app-run linked chat is being settled in the linked-chat design.
+
+---
+
 ## Addendum 2026-09-24 — Feature 1 slice 1 (live change feed)
 
 **Status: proposed amendments pending owner ratification.** The ratified text below is
@@ -22,8 +48,9 @@ unchanged; where this slice departs from it, the departure is listed here, one l
 
 ---
 
-The native macOS **watching** client for Slipstream. This is a plan document, not
-production code. It is meant to be reviewed and ratified before any feature code is
+The native macOS client for Slipstream (it **watches** captures, and also creates workspaces
+and runs chats; see the 2026-10-24 addendum above). This is a plan document, not production
+code. It is meant to be reviewed and ratified before any feature code is
 written.
 
 - **Language/framework:** decided — Swift, macOS-first, using the **Point-Free
@@ -81,9 +108,10 @@ written.
 
 ### 1.1 What this client is
 
-A read-only macOS app that **watches** a Slipstream session: it renders the live feed
+A macOS app whose capture view only **watches** a Slipstream session (the app also creates
+workspaces and runs chats; see the 2026-10-24 addendum): it renders the live feed
 of captured changes, a focused two-sided diff of any change, a
-function-interface-change list, and a captured-inventory explorer. It consumes **only**
+function-interface-change list, and a captured-inventory explorer. The capture view consumes **only**
 the public reader API (loopback HTTP/SSE + bearer token) plus the single allowed
 runtime-descriptor bootstrap. It **displays** committed attribution; it never
 **produces** attribution.
@@ -809,7 +837,8 @@ An audit + corrections pass over the whole assembled UI; not a new surface.
 
 - **Depends:** Stage T acceptance **passed**; Stage 3 real-session gap (P4 acceptance +
   P5 PR) closed; P8, P10 passed; a release-candidate build (P9).
-- Live Conductor sessions for both harnesses; task grouping visible; daemon killed and
+- Live agent sessions for both harnesses (app-run, plus Conductor as an optional host); task
+  grouping visible; daemon killed and
   readers reconnected mid-session; **measured capture latency via instrumented
   telemetry, not inferred from event timestamps**; known coverage gaps documented; the
   native UI stopped entirely and the **independent Stage T client reproduces the same
