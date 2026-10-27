@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import IssueReporting
 import Sharing
 import SlipstreamCore
 
@@ -8,6 +9,7 @@ import SlipstreamCore
 final class TerminalTabModel: ViewModel, Identifiable {
   // MARK: - Dependencies
 
+  @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.terminalHistory) var history
   @ObservationIgnored @Dependency(\.terminalRuntime) var runtime
 
@@ -43,6 +45,15 @@ final class TerminalTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var events: Task<Void, Never>?
   @ObservationIgnored private var isStarted = false
   @ObservationIgnored private var isStopped = false
+  @ObservationIgnored private var setupRun: SetupRun?
+
+  private struct SetupRun {
+    var parser = WorkspacePathStreamParser()
+    let managedRoot: String
+    let elapsed: () -> Duration
+    /// Resumed once: with the first valid workspace folder, or nil when the command ends first.
+    var workspaceFolder: CheckedContinuation<String?, Never>?
+  }
 
   // MARK: - Display Text
 
@@ -62,7 +73,34 @@ final class TerminalTabModel: ViewModel, Identifiable {
   let folderMissingText = "This folder no longer exists"
   let noShellText = "No shell was started."
 
+  var footerText: String? {
+    guard let record = state.tabs[id: id], case .setup(let status) = record.kind else { return nil }
+    switch status {
+    case .running:
+      return record.folder.map { "Setting up \(URL(filePath: $0).lastPathComponent)…" } ?? "Setting up…"
+    case .finished(let seconds):
+      return "Setup finished · \(seconds)s"
+    case .failed(let exitStatus?) where record.folder != nil:
+      return "Setup failed — exit \(exitStatus). The workspace was created."
+    case .failed:
+      return "Setup failed — no workspace was created. Close this tab to dismiss."
+    case .interrupted:
+      return "Setup was interrupted"
+    }
+  }
+
   static let restoredText = "Restored — earlier processes ended"
+
+  // MARK: - View Helpers
+
+  var statusIcon: TerminalTabStatusIcon? {
+    switch state.tabs[id: id]?.kind {
+    case .setup(.running): .running
+    case .setup(.finished): .finished
+    case .setup(.failed), .setup(.interrupted): .failed
+    case .terminal, nil: nil
+    }
+  }
 
   // MARK: - User Actions
 
@@ -77,6 +115,38 @@ final class TerminalTabModel: ViewModel, Identifiable {
     await replay()
     guard !isStopped, case .terminal = record.kind, let folder = record.folder else { return }
     await launchShell(in: folder)
+  }
+
+  /// Runs `slipstream workspace create` in this Setup tab. Returns the workspace folder once the
+  /// first valid `workspace_path:` line arrives, or nil if the command ends (or can't start)
+  /// without one. The command keeps running after this returns.
+  func runSetup(repository: URL, store: String, managedRoot: URL) async -> String? {
+    guard !isStarted else { return nil }
+    isStarted = true
+    do {
+      let environment = try await runtime.environment()
+      guard !isStopped else { return nil }
+      guard let slipstream = environment.slipstream else {
+        await setupCouldNotStart(WorkspaceClient.slipstreamNotFoundText)
+        return nil
+      }
+      let handle = try runtime.launch(
+        TerminalLaunch(
+          executable: slipstream, arguments: ["workspace", "create", repository.path, "--store", store],
+          environment: environment.variables, directory: repository.path, size: surface.size))
+      self.handle = handle
+      let clock: any Clock<Duration> = clock
+      setupRun = SetupRun(
+        managedRoot: ChangeStreamPageModel.normalizedFolder(managedRoot.path), elapsed: Self.stopwatch(clock))
+      return await withCheckedContinuation { continuation in
+        setupRun?.workspaceFolder = continuation
+        follow(handle)
+      }
+    } catch {
+      guard !isStopped else { return nil }
+      await setupCouldNotStart((error as? TerminalLaunchError)?.text ?? error.localizedDescription)
+      return nil
+    }
   }
 
   /// Ends the process within `TerminalProcess.hangupGrace`, saves the output it was still
@@ -123,26 +193,86 @@ final class TerminalTabModel: ViewModel, Identifiable {
           executable: environment.shell, arguments: ["-l"], environment: variables, directory: folder,
           size: surface.size))
       self.handle = handle
-      events = Task { [weak self] in
-        for await event in handle.events { self?.received(event) }
-      }
+      follow(handle)
     } catch {
       guard !isStopped else { return }
       write(note: (error as? TerminalLaunchError)?.text ?? error.localizedDescription)
     }
   }
 
-  private func received(_ event: TerminalEvent) {
+  private func follow(_ handle: TerminalProcessHandle) {
+    events = Task { [weak self] in
+      for await event in handle.events { await self?.received(event) }
+    }
+  }
+
+  private func received(_ event: TerminalEvent) async {
     switch event {
     case .output(let bytes):
       history.append(id, bytes)
       surface.feed(bytes)
+      if let paths = setupRun?.parser.consume(bytes) {
+        for path in paths { await setupPrinted(path: path) }
+      }
     case .finished(let exit):
       handle = nil
       isCloseConfirmationVisible = false
-      guard !isStopped else { return }
-      write(note: exit.noteText)
+      if setupRun != nil {
+        await setupFinished(exit)
+      } else if !isStopped {
+        write(note: exit.noteText)
+      }
     }
+  }
+
+  /// Only the first absolute path naming an existing folder two levels below the managed root
+  /// counts; a setup script can print its own `workspace_path:` lines.
+  private func setupPrinted(path: String) async {
+    guard let run = setupRun, run.workspaceFolder != nil else { return }
+    let folder = ChangeStreamPageModel.normalizedFolder(path)
+    guard path.hasPrefix("/"), ManagedWorkspacePath.contains(folder, root: run.managedRoot),
+      runtime.folderExists(folder)
+    else { return }
+    $state.withLock { $0.moveSetup(id, to: folder) }
+    await save()
+    resolveSetup(folder)
+  }
+
+  /// The status is saved only after the output is flushed. A tab stopped by archive or quit was
+  /// already marked interrupted.
+  private func setupFinished(_ exit: TerminalExit) async {
+    defer { resolveSetup(nil) }
+    guard !isStopped, let run = setupRun else { return }
+    await history.flush(id)
+    let status: SetupStatus =
+      switch exit {
+      case .exited(0): .finished(seconds: Int(run.elapsed().components.seconds))
+      case .exited(let code): .failed(exitStatus: code)
+      case .signalled(let signal): .failed(exitStatus: 128 + signal)
+      }
+    $state.withLock { $0.tabs[id: id]?.kind = .setup(status) }
+    await save()
+  }
+
+  private func setupCouldNotStart(_ reason: String) async {
+    write(note: reason)
+    await history.flush(id)
+    $state.withLock { $0.tabs[id: id]?.kind = .setup(.failed(exitStatus: nil)) }
+    await save()
+  }
+
+  private func resolveSetup(_ folder: String?) {
+    setupRun?.workspaceFolder?.resume(returning: folder)
+    setupRun?.workspaceFolder = nil
+  }
+
+  private static func stopwatch(_ clock: some Clock<Duration>) -> () -> Duration {
+    let start = clock.now
+    return { start.duration(to: clock.now) }
+  }
+
+  private func save() async {
+    await withErrorReporting { try await $state.save() }
   }
 
   /// Appends to the history as well as the screen, so the text replays later.

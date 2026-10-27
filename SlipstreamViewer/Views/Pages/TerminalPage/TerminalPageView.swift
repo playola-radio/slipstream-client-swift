@@ -18,7 +18,7 @@ struct TerminalPageView: View {
         HStack(alignment: .bottom, spacing: DesignTokens.TerminalPane.TabStrip.gap) {
           ForEach(model.shownTabs) { tab in
             TerminalTabView(tab: tab, isSelected: model.isSelected(tab), isHovered: model.isHovered(tab),
-              showsClose: model.showsCloseButton(tab), statusIcon: model.tabStatusIcon(tab),
+              showsClose: model.showsCloseButton(tab), statusIcon: tab.statusIcon,
               selected: { model.tabSelected(tab.id) },
               closed: { Task { await model.closeTabTapped(tab.id) } },
               hovered: { model.tabHovered(tab.id, isHovering: $0) })
@@ -78,6 +78,9 @@ struct TerminalPageView: View {
           if tab.isCloseConfirmationVisible {
             closeBox(tab)
           }
+          if let footerText = tab.footerText {
+            setupFooter(footerText, icon: tab.statusIcon)
+          }
         }
       }
     } else {
@@ -89,6 +92,27 @@ struct TerminalPageView: View {
     VStack(spacing: DesignTokens.TerminalPane.Message.gap, content: content)
       .padding(DesignTokens.TerminalPane.Message.padding)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  private func setupFooter(_ text: String, icon: TerminalTabStatusIcon?) -> some View {
+    HStack(spacing: DesignTokens.TerminalPane.Footer.gap) {
+      switch icon {
+      case .running: SpinnerView(spinner: DesignTokens.TerminalPane.Footer.spinner)
+      case .finished: IconView(icon: DesignTokens.TerminalPane.Footer.finished)
+      case .failed: IconView(icon: DesignTokens.TerminalPane.Footer.failed)
+      case nil: EmptyView()
+      }
+      Text(text)
+        .font(DesignTokens.TerminalPane.Footer.font)
+        .foregroundStyle(DesignTokens.TerminalPane.Footer.textColor(for: icon))
+        .lineLimit(1)
+      Spacer(minLength: 0)
+    }
+    .padding(.horizontal, DesignTokens.TerminalPane.Footer.horizontalPadding)
+    .frame(height: DesignTokens.TerminalPane.Footer.height)
+    .overlay(alignment: .top) {
+      Rectangle().fill(DesignTokens.TerminalPane.stroke).frame(height: 1)
+    }
   }
 
   private func closeBox(_ tab: TerminalTabModel) -> some View {

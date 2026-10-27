@@ -233,6 +233,20 @@ enum DesignTokens {
       static let failed = Icons.Icon(assetName: "CircleAlert", size: 12, color: danger)
     }
 
+    enum Footer {
+      static let height: CGFloat = 34
+      static let gap: CGFloat = 8
+      static let horizontalPadding: CGFloat = 16
+      static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
+      static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: accent)
+      static let finished = Icons.Icon(assetName: "Check", size: 13, color: Color(hex: 0x8DD9B1))
+      static let failed = Icons.Icon(assetName: "CircleAlert", size: 13, color: danger)
+
+      static func textColor(for icon: TerminalTabStatusIcon?) -> Color {
+        icon == .failed ? danger : Color(hex: 0xB7C3CD)
+      }
+    }
+
     enum NewTab {
       static let horizontalPadding: CGFloat = 10
       static let plus = Icons.Icon(assetName: "Plus", size: 14, color: secondary)
