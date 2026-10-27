@@ -68,33 +68,49 @@ final class TerminalPageModel: ViewModel {
 
   func showsCloseButton(_ tab: TerminalTabModel) -> Bool { isSelected(tab) || isHovered(tab) }
 
-  func tabStatusIcon(_ tab: TerminalTabModel) -> TerminalTabStatusIcon? {
-    switch state.tabs[id: tab.id]?.kind {
-    case .setup(.running): .running
-    case .setup(.finished): .finished
-    case .setup(.failed), .setup(.interrupted): .failed
-    case .terminal, nil: nil
-    }
-  }
-
   // MARK: - User Actions
 
   /// Marks every Setup that was running when the app last quit as interrupted. Runs once.
   func launched() async {
     guard !isLaunched else { return }
     isLaunched = true
-    $state.withLock { state in
-      for record in state.tabs where record.kind == .setup(.running) {
-        state.tabs[id: record.id]?.kind = .setup(.interrupted)
-      }
+    await interruptRunningSetups { _ in true }
+  }
+
+  /// Opens and selects a Setup tab running `slipstream workspace create`, replacing a Setup tab
+  /// that never got a workspace. Returns the workspace folder once the command prints it, or nil
+  /// if it ended (or couldn't start) without one. The tab keeps running after this returns.
+  func newWorkspaceStarted(repository: URL, store: String, managedRoot: URL) async -> String? {
+    guard canStartTabs(in: nil) else { return nil }
+    for record in state.tabs where record.folder == nil {
+      await close(record.id)
     }
-    _ = await save()
+    // After the closes, which suspend: quitting may have started meanwhile.
+    guard canStartTabs(in: nil) else { return nil }
+    let folder = folder
+    let record = TerminalTabRecord(id: uuid(), folder: nil, kind: .setup(.running))
+    let selectedTabID = folder.flatMap { state.selectedTabIDs[$0] }
+    $state.withLock { state in
+      state.tabs.append(record)
+      if let folder { state.selectedTabIDs[folder] = record.id }
+    }
+    // Live before the save suspends, so showing a workspace meanwhile can't start it as a replay.
+    let tab = makeTab(record.id)
+    guard await save() else {
+      tabs[id: record.id] = nil
+      $state.withLock { state in
+        state.tabs.remove(id: record.id)
+        if let folder { state.selectedTabIDs[folder] = selectedTabID }
+      }
+      return nil
+    }
+    return await tab.runSetup(repository: repository, store: store, managedRoot: managedRoot)
   }
 
   func workspaceChanged(folder: String?) async {
     self.folder = folder
     if let folder, !hasTerminalTab(in: folder) {
-      await addTerminal(in: folder)
+      await addTerminal(in: folder, selecting: !hasSelectedTab(in: folder))
     } else {
       await startShownTabs()
     }
@@ -106,7 +122,7 @@ final class TerminalPageModel: ViewModel {
 
   func newTabTapped() async {
     guard let folder else { return }
-    await addTerminal(in: folder)
+    await addTerminal(in: folder, selecting: true)
   }
 
   func tabSelected(_ id: TerminalTabRecord.ID) {
@@ -122,12 +138,12 @@ final class TerminalPageModel: ViewModel {
       tabSelected(id)
       return
     }
-    await close(tab)
+    await close(id)
   }
 
   func closeConfirmed(_ id: TerminalTabRecord.ID) async {
-    guard let tab = tabs[id: id] else { return }
-    await close(tab)
+    guard tabs[id: id] != nil else { return }
+    await close(id)
   }
 
   func closeShortcutPressed() async {
@@ -151,10 +167,11 @@ final class TerminalPageModel: ViewModel {
     }
   }
 
-  /// Stops the folder's tabs before it is archived. Its records and logs are kept until
+  /// Stops the folder's tabs before it is archived; a Setup still running there is interrupted. Its records and logs are kept until
   /// `forgetTabs(in:)`; `restoreTabs(in:)` starts them again.
   func stopTabs(in folder: String) async {
     stoppedFolders.insert(folder)
+    await interruptRunningSetups { $0.folder == folder }
     let stopping = tabs(in: folder)
     await withTaskGroup { group in
       for tab in stopping {
@@ -185,6 +202,7 @@ final class TerminalPageModel: ViewModel {
   /// Stops every tab and returns once their output is saved. No tab starts after this.
   func quitConfirmed() async {
     isQuitting = true
+    await interruptRunningSetups { _ in true }
     await withTaskGroup { group in
       for tab in tabs {
         group.addTask { await tab.stop() }
@@ -206,19 +224,24 @@ final class TerminalPageModel: ViewModel {
     }
   }
 
+  private func hasSelectedTab(in folder: String) -> Bool {
+    state.selectedTabIDs[folder].flatMap { state.tabs[id: $0]?.folder } == folder
+  }
+
   private func canStartTabs(in folder: String?) -> Bool {
     !isQuitting && !(folder.map(stoppedFolders.contains) ?? false)
   }
 
   /// The record is saved before the tab starts, so its log never exists without it.
-  private func addTerminal(in folder: String) async {
+  /// A Terminal 1 added automatically doesn't take the selection from a Setup tab moved here.
+  private func addTerminal(in folder: String, selecting: Bool) async {
     guard canStartTabs(in: folder) else { return }
     let record = TerminalTabRecord(
       id: uuid(), folder: folder, kind: .terminal(number: state.nextTerminalNumber(in: folder)))
     let selectedTabID = state.selectedTabIDs[folder]
     $state.withLock { state in
       state.tabs.append(record)
-      state.selectedTabIDs[folder] = record.id
+      if selecting { state.selectedTabIDs[folder] = record.id }
     }
     guard await save() else {
       $state.withLock { state in
@@ -233,14 +256,7 @@ final class TerminalPageModel: ViewModel {
   private func startShownTabs() async {
     let starting = state.tabs(shownIn: folder, listed: listedFolders)
       .filter { tabs[id: $0.id] == nil && canStartTabs(in: $0.folder) }
-      .map { record in
-        let tab = withDependencies(from: self) { TerminalTabModel(id: record.id) }
-        tab.surface.onFocusChange = { [weak self] isFocused in
-          self?.terminalFocusChanged(record.id, isFocused: isFocused)
-        }
-        tabs.append(tab)
-        return tab
-      }
+      .map { makeTab($0.id) }
     await withTaskGroup { group in
       for tab in starting {
         group.addTask { await tab.start() }
@@ -248,20 +264,38 @@ final class TerminalPageModel: ViewModel {
     }
   }
 
-  /// Stop, then delete the log, then remove the record: a log never outlives its record.
-  private func close(_ tab: TerminalTabModel) async {
-    let folder = state.tabs[id: tab.id]?.folder
-    await tab.stop()
-    await history.delete(tab.id)
-    $state.withLock { state in
-      state.tabs.remove(id: tab.id)
-      if let folder, state.selectedTabIDs[folder] == tab.id { state.selectedTabIDs[folder] = nil }
+  private func makeTab(_ id: TerminalTabRecord.ID) -> TerminalTabModel {
+    let tab = withDependencies(from: self) { TerminalTabModel(id: id) }
+    tab.surface.onFocusChange = { [weak self] isFocused in
+      self?.terminalFocusChanged(id, isFocused: isFocused)
     }
-    tabs[id: tab.id] = nil
+    tabs.append(tab)
+    return tab
+  }
+
+  /// Stop, then delete the log, then remove the record: a log never outlives its record.
+  private func close(_ id: TerminalTabRecord.ID) async {
+    let folder = state.tabs[id: id]?.folder
+    await tabs[id: id]?.stop()
+    await history.delete(id)
+    $state.withLock { state in
+      state.tabs.remove(id: id)
+      if let folder, state.selectedTabIDs[folder] == id { state.selectedTabIDs[folder] = nil }
+    }
+    tabs[id: id] = nil
     _ = await save()
     if let folder, folder == self.folder, !hasTerminalTab(in: folder) {
-      await addTerminal(in: folder)
+      await addTerminal(in: folder, selecting: true)
     }
+  }
+
+  private func interruptRunningSetups(where isStopping: (TerminalTabRecord) -> Bool) async {
+    $state.withLock { state in
+      for record in state.tabs where record.kind == .setup(.running) && isStopping(record) {
+        state.tabs[id: record.id]?.kind = .setup(.interrupted)
+      }
+    }
+    _ = await save()
   }
 
   private func save() async -> Bool {

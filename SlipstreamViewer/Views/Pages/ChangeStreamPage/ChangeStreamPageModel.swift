@@ -114,7 +114,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var visibleCards: Set<Seq> = []
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
-  @ObservationIgnored private var sessionSelectionGeneration = 0
+  @ObservationIgnored private var userSessionSelectionGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
@@ -559,6 +559,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func sessionSelected(_ id: String) {
     guard archivingFolder == nil || sessions[id: id]?.root != archivingFolder, select(id) else { return }
+    userSessionSelectionGeneration += 1
     pendingPreferredRoot = nil
     Task { [weak self] in
       guard let self, isShown else { return }
@@ -613,8 +614,7 @@ final class ChangeStreamPageModel: ViewModel {
     }
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
-    let outcome = await workspace.archive(URL(filePath: folder), daemon.storeID)
-    if let failure = outcome.failureText {
+    if let failure = await workspace.archive(URL(filePath: folder), daemon.storeID) {
       let isStillSelected = selectedFolder == folder
       if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
       chat.restoreTabs(in: folder, drafts: drafts)
@@ -815,7 +815,6 @@ final class ChangeStreamPageModel: ViewModel {
       }
     }
     selectedSession = session
-    sessionSelectionGeneration += 1
     awaitsFreshSnapshot = false
     pendingReadiness = nil
     bindingMovedWhileAwaitingSnapshot = false
@@ -836,16 +835,19 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  /// Busy only until the Setup tab names the new workspace (or its command ends): the setup
+  /// script keeps running in that tab while the window switches to it.
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
-    defer { isWorkspaceBusy = false }
-    let selectionGeneration = sessionSelectionGeneration
-    let outcome = await workspace.create(repository, daemon.storeID)
-    if let path = outcome.workspacePath {
-      await loadSessions(preferring: sessionSelectionGeneration == selectionGeneration ? path : nil)
-    }
-    if let failure = outcome.failureText {
-      workspaceFailed(title: "Couldn't finish creating the workspace", text: failure)
+    rightPaneSelected(.terminals)
+    let selectionGeneration = userSessionSelectionGeneration
+    let roots: WorkspaceRoots
+    if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
+    let folder = await terminals.newWorkspaceStarted(
+      repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
+    isWorkspaceBusy = false
+    if let folder {
+      await loadSessions(preferring: userSessionSelectionGeneration == selectionGeneration ? folder : nil)
     }
   }
 

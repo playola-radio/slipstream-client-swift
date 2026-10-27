@@ -1,3 +1,4 @@
+import Clocks
 import ConcurrencyExtras
 import CustomDump
 import Dependencies
@@ -14,6 +15,7 @@ import Testing
 @Suite(.serialized, .mainSerialExecutor)
 struct TerminalPageTests {
   let fake = TerminalFake()
+  let clock = TestClock()
   let a = "/tmp/workspace-a"
   let b = "/tmp/workspace-b"
 
@@ -27,6 +29,7 @@ struct TerminalPageTests {
       $0.terminalRuntime = fake.runtimeClient
       $0.terminalHistory = fake.historyClient
       $0.uuid = .incrementing
+      $0.continuousClock = clock
     } operation: {
       if let state { return TerminalPageModel(state: state) }
       @Shared(.terminalState) var state
@@ -316,7 +319,7 @@ struct TerminalPageTests {
 
     await model.workspaceChanged(folder: a)
 
-    expectNoDifference(model.shownTabs.map(model.tabStatusIcon), [.running, .finished, .failed, .failed, nil])
+    expectNoDifference(model.shownTabs.map(\.statusIcon), [.running, .finished, .failed, .failed, nil])
   }
 
   @Test func closeButtonShowsOnSelectedOrHoveredTab() async {
@@ -355,6 +358,353 @@ struct TerminalPageTests {
 
     model.terminalFocusChanged(UUID(100), isFocused: false)
     #expect(!model.hasKeyboardFocus)
+  }
+}
+
+// MARK: - Setup tabs
+
+extension TerminalPageTests {
+  var repository: URL { URL(filePath: "/work/r") }
+  var managedRoot: URL { URL(filePath: "/work/slipstream/workspaces") }
+  var created: String { "/work/slipstream/workspaces/r/workspace-1" }
+
+  func newWorkspace(_ model: TerminalPageModel) -> Task<String?, Never> {
+    Task { await model.newWorkspaceStarted(repository: repository, store: "store-1", managedRoot: managedRoot) }
+  }
+
+  /// Shows `a` (Terminal 1 is UUID(0), launch 0), then starts New Workspace (Setup is UUID(1), launch 1).
+  func startedSetup() async -> (TerminalPageModel, Task<String?, Never>) {
+    let model = makeModel()
+    await model.workspaceChanged(folder: a)
+    let setup = newWorkspace(model)
+    await Task.megaYield()
+    return (model, setup)
+  }
+
+  func setupTab(_ model: TerminalPageModel) -> TerminalTabModel? {
+    model.shownTabs.first { $0.id == UUID(1) }
+  }
+
+  @Test func setupLaunchesCreateCommand() async {
+    let (model, setup) = await startedSetup()
+
+    expectNoDifference(
+      fake.launches.last,
+      TerminalLaunch(
+        executable: "/opt/slipstream/bin/slipstream",
+        arguments: ["workspace", "create", "/work/r", "--store", "store-1"],
+        environment: TerminalFake.environment.variables, directory: "/work/r",
+        size: setupTab(model)?.surface.size ?? TerminalSize(columns: 0, rows: 0)))
+    expectNoDifference(
+      fake.savedState(at: .launch(directory: "/work/r"))?.tabs[id: UUID(1)],
+      TerminalTabRecord(id: UUID(1), folder: nil, kind: .setup(.running)))
+    #expect(model.selectedTab?.id == UUID(1))
+    #expect(model.selectedTab?.footerText == "Setting up…")
+    #expect(model.selectedTab?.statusIcon == .running)
+
+    fake.finish(.exited(1))
+    _ = await setup.value
+  }
+
+  @Test func slipstreamMissingWritesInstallHint() async {
+    fake.setSlipstreamMissing()
+    let model = makeModel()
+
+    let path = await model.newWorkspaceStarted(repository: repository, store: "store-1", managedRoot: managedRoot)
+
+    #expect(path == nil)
+    #expect(fake.log(UUID(0)).contains(WorkspaceClient.slipstreamNotFoundText))
+    expectNoDifference(fake.saved?.tabs[id: UUID(0)]?.kind, .setup(.failed(exitStatus: nil)))
+    expectNoDifference(fake.launches, [])
+  }
+
+  @Test func environmentFailureWritesItsText() async {
+    fake.setEnvironmentError(TerminalLaunchError(text: "Couldn't read PATH from your login shell"))
+    let model = makeModel()
+
+    let path = await model.newWorkspaceStarted(repository: repository, store: "store-1", managedRoot: managedRoot)
+
+    #expect(path == nil)
+    #expect(fake.log(UUID(0)).contains("Couldn't read PATH from your login shell"))
+    expectNoDifference(fake.saved?.tabs[id: UUID(0)]?.kind, .setup(.failed(exitStatus: nil)))
+    expectNoDifference(fake.launches, [])
+  }
+
+  @Test func firstValidPathMovesSetupTab() async {
+    let (model, setup) = await startedSetup()
+
+    fake.send("created \(created)\r\nworkspace_path: \(created)\r\n")
+    let path = await setup.value
+
+    #expect(path == created)
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.folder, created)
+    #expect(fake.saved?.selectedTabIDs[created] == UUID(1))
+    #expect(setupTab(model)?.footerText == "Setting up workspace-1…")
+  }
+
+  @Test func invalidPathIsIgnored() async {
+    let (_, setup) = await startedSetup()
+    fake.setMissing("/work/slipstream/workspaces/r/gone")
+
+    fake.send("workspace_path: /elsewhere/r/workspace-1\r\n")
+    fake.send("workspace_path: /work/slipstream/workspaces/r\r\n")
+    fake.send("workspace_path: /work/slipstream/workspaces/r/gone\r\n")
+    fake.finish(.exited(0))
+    let path = await setup.value
+
+    #expect(path == nil)
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.folder, nil)
+  }
+
+  @Test func laterPathsAreIgnored() async {
+    let (_, setup) = await startedSetup()
+
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+    fake.send("workspace_path: /work/slipstream/workspaces/r/workspace-2\r\n")
+    await Task.megaYield()
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.folder, created)
+  }
+
+  @Test func oldCliFinalLineMovesSetupTab() async {
+    let (model, setup) = await startedSetup()
+
+    fake.send("SETUP-DONE\r\n")
+    fake.send("workspace_path: \(created)\n")
+    fake.finish(.exited(0))
+    let path = await setup.value
+    await Task.megaYield()
+
+    #expect(path == created)
+    expectNoDifference(
+      model.state.tabs[id: UUID(1)],
+      TerminalTabRecord(id: UUID(1), folder: created, kind: .setup(.finished(seconds: 0))))
+  }
+
+  @Test func finishedAfterFourteenSeconds() async {
+    let (model, setup) = await startedSetup()
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+
+    await clock.advance(by: .milliseconds(14_900))
+    fake.finish(.exited(0))
+    await Task.megaYield()
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.finished(seconds: 14)))
+    #expect(setupTab(model)?.footerText == "Setup finished · 14s")
+    #expect(setupTab(model)?.statusIcon == .finished)
+  }
+
+  @Test func failureWithFolder() async {
+    let (model, setup) = await startedSetup()
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+
+    fake.finish(.exited(1))
+    await Task.megaYield()
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.failed(exitStatus: 1)))
+    #expect(setupTab(model)?.footerText == "Setup failed — exit 1. The workspace was created.")
+    #expect(setupTab(model)?.statusIcon == .failed)
+  }
+
+  @Test func failureWithoutFolder() async {
+    let (model, setup) = await startedSetup()
+
+    fake.finish(.exited(1))
+    let path = await setup.value
+
+    #expect(path == nil)
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.failed(exitStatus: 1)))
+    #expect(
+      setupTab(model)?.footerText == "Setup failed — no workspace was created. Close this tab to dismiss.")
+  }
+
+  @Test func signalMapsToExitCode() async {
+    let (_, setup) = await startedSetup()
+
+    fake.finish(.signalled(15))
+    _ = await setup.value
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.failed(exitStatus: 143)))
+  }
+
+  @Test func statusSavedAfterFlush() async {
+    let (_, setup) = await startedSetup()
+
+    fake.send("last line\r\n")
+    fake.finish(.exited(0))
+    _ = await setup.value
+
+    expectNoDifference(fake.savedState(at: .flush(UUID(1)))?.tabs[id: UUID(1)]?.kind, .setup(.running))
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.finished(seconds: 0)))
+  }
+
+  @Test func secondNewWorkspaceReplacesFolderlessSetup() async {
+    let (model, first) = await startedSetup()
+    fake.send("fatal: no origin\r\n")
+    fake.finish(.exited(1))
+    _ = await first.value
+
+    let second = newWorkspace(model)
+    await Task.megaYield()
+
+    #expect(!fake.hasLog(UUID(1)))
+    expectNoDifference(fake.saved?.tabs.ids.elements, [UUID(0), UUID(2)])
+    expectNoDifference(model.shownTabs.map(\.id), [UUID(2), UUID(0)])
+    #expect(model.selectedTab?.id == UUID(2))
+
+    fake.finish(.exited(1))
+    _ = await second.value
+  }
+
+  @Test func movedSetupLeavesOtherWorkspaces() async {
+    let (model, setup) = await startedSetup()
+    model.workspacesListed([a, created])
+
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+
+    expectNoDifference(model.shownTabs.map(\.id), [UUID(0)])
+    #expect(model.selectedTab?.id == UUID(0))
+  }
+
+  @Test func orphanSetupShowsInEveryStrip() async {
+    let (model, setup) = await startedSetup()
+    model.workspacesListed([a, b])
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+
+    expectNoDifference(model.shownTabs.map(\.title), ["Setup", "Terminal 1"])
+    await model.workspaceChanged(folder: b)
+    expectNoDifference(model.shownTabs.map(\.title), ["Setup", "Terminal 1"])
+  }
+
+  @Test func closeConfirmationSurvivesMove() async {
+    let (model, setup) = await startedSetup()
+    model.workspacesListed([a, created])
+    await model.closeTabTapped(UUID(1))
+    #expect(setupTab(model)?.isCloseConfirmationVisible == true)
+
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+    await model.workspaceChanged(folder: created)
+
+    #expect(model.selectedTab?.id == UUID(1))
+    #expect(model.selectedTab?.isCloseConfirmationVisible == true)
+    await model.closeConfirmed(UUID(1))
+    #expect(fake.saved?.tabs[id: UUID(1)] == nil)
+  }
+
+  @Test func archiveMarksRunningSetupInterrupted() async {
+    let (model, setup) = await startedSetup()
+    model.workspacesListed([a, created])
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+    await model.workspaceChanged(folder: created)
+
+    await model.stopTabs(in: created)
+
+    expectNoDifference(fake.savedState(at: .stop(launch: 1))?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+  }
+
+  @Test func archiveWhileFinishedSetupFlushesStaysInterrupted() async {
+    let (model, setup) = await startedSetup()
+    model.workspacesListed([a, created])
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+    await model.workspaceChanged(folder: created)
+    fake.hold(.flush)
+    fake.finish(.exited(0), launch: 1)
+    await Task.megaYield()
+
+    let stopping = Task { await model.stopTabs(in: created) }
+    await Task.megaYield()
+    fake.release(.flush)
+    await stopping.value
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+  }
+
+  @Test func quitWhileUnstartableSetupFlushesStaysInterrupted() async {
+    fake.setSlipstreamMissing()
+    let model = makeModel()
+    await model.workspaceChanged(folder: a)
+    fake.hold(.flush)
+    let setup = newWorkspace(model)
+    await Task.megaYield()
+
+    let quitting = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    fake.release(.flush)
+    await quitting.value
+    _ = await setup.value
+
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+  }
+
+  @Test func closedSetupDoesNotReturnABufferedPath() async {
+    let (model, setup) = await startedSetup()
+
+    fake.send("workspace_path: \(created)\r\n")
+    await model.closeConfirmed(UUID(1))
+
+    #expect(await setup.value == nil)
+  }
+
+  @Test func quitWhileReplacingAFailedSetupLaunchesNothing() async {
+    let (model, first) = await startedSetup()
+    fake.finish(.exited(1))
+    _ = await first.value
+    fake.hold(.flush)
+
+    let second = newWorkspace(model)
+    await Task.megaYield()
+    let quitting = Task { await model.quitConfirmed() }
+    await Task.megaYield()
+    fake.release(.flush)
+    await quitting.value
+    await Task.megaYield()
+
+    #expect(fake.launches.count == 2)
+    if fake.launches.count > 2 { fake.finish(.exited(1)) }
+    #expect(await second.value == nil)
+  }
+
+  @Test func newWorkspaceAfterQuitKeepsTheFailedSetup() async {
+    let (model, first) = await startedSetup()
+    fake.send("fatal: no origin\r\n")
+    fake.finish(.exited(1))
+    _ = await first.value
+    await model.quitConfirmed()
+
+    #expect(await newWorkspace(model).value == nil)
+
+    #expect(fake.hasLog(UUID(1)))
+    #expect(fake.saved?.tabs[id: UUID(1)] != nil)
+  }
+
+  @Test func quitMarksRunningSetupInterrupted() async {
+    let (model, setup) = await startedSetup()
+
+    await model.quitConfirmed()
+    _ = await setup.value
+
+    expectNoDifference(fake.savedState(at: .stop(launch: 1))?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+    expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.interrupted))
+  }
+
+  @Test func replayedSetupRunsNothing() async {
+    let replayed = "/work/slipstream/workspaces/r/workspace-2"
+    fake.setLog(UUID(100), "workspace_path: \(replayed)\r\n")
+    let model = makeModel([TerminalTabRecord(id: UUID(100), folder: a, kind: .setup(.finished(seconds: 3)))])
+
+    await model.workspaceChanged(folder: a)
+
+    expectNoDifference(fake.launches.map(\.directory), [a])
+    expectNoDifference(fake.saved?.tabs[id: UUID(100)]?.folder, a)
   }
 }
 
