@@ -560,6 +560,7 @@ enum DesignTokens {
     static let sidebarWidth: CGFloat = 260
     static let chatWidth: CGFloat = 720
     static let chatMinWidth: CGFloat = 420
+    static let chatNarrowScreenMinWidth: CGFloat = 320
   }
 
   enum Sidebar {

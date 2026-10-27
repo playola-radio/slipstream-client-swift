@@ -4115,16 +4115,26 @@ extension ChangeStreamPageTests {
   @Test func chatShrinksBeforeTheStream() {
     let model = makeModel()
     var widths: [CGFloat] = []
-    for width in [2040, 1600, 1360, 1200] as [CGFloat] {
+    for width in [2040, 1600, 1360] as [CGFloat] {
       model.viewportChanged(CGSize(width: width, height: 900))
       widths.append(model.chatColumnWidth)
     }
-    expectNoDifference(widths, [720, 660, 420, 420])
+    expectNoDifference(widths, [720, 660, 420])
 
     model.viewportChanged(CGSize(width: 1360, height: 900))
     model.sidebarToggleTapped()
 
     expectNoDifference(model.chatColumnWidth, 420)
+  }
+
+  @Test func chatGivesWayOnAScreenTooNarrowForAllThreeColumns() {
+    let model = makeModel()
+    var widths: [CGFloat] = []
+    for width in [1360, 1280, 1200] as [CGFloat] {
+      model.viewportChanged(CGSize(width: width, height: 900))
+      widths.append(model.chatColumnWidth)
+    }
+    expectNoDifference(widths, [420, 340, 320])
   }
 
   @Test func windowMinimumFollowsTheSidebar() {

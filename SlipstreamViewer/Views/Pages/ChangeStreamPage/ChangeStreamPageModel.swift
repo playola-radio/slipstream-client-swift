@@ -255,12 +255,14 @@ final class ChangeStreamPageModel: ViewModel {
 
   var isSidebarShown: Bool { !isSidebarHidden }
 
-  /// Always leaves room for the sidebar, so hiding it gives the space to the stream.
+  /// Always leaves room for the sidebar, so hiding it gives the space to the stream. With the
+  /// sidebar shown, only a screen too narrow for all three columns takes the chat under its
+  /// minimum: the chat gives way before the stream does.
   var chatColumnWidth: CGFloat {
     min(
       DesignTokens.Workspace.chatWidth,
       max(
-        DesignTokens.Workspace.chatMinWidth,
+        isSidebarShown ? DesignTokens.Workspace.chatNarrowScreenMinWidth : DesignTokens.Workspace.chatMinWidth,
         viewport.width - DesignTokens.Workspace.sidebarWidth - DesignTokens.FeedPane.width))
   }
 

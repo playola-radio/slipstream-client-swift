@@ -114,7 +114,7 @@ struct FunctionChangesPageView: View {
       .font(DesignTokens.FunctionTree.bodyFont)
       .foregroundStyle(DesignTokens.FunctionTree.title)
       .padding(.horizontal, 11)
-      .frame(width: 270, height: 30)
+      .frame(idealWidth: 270, maxWidth: 270, minHeight: 30, maxHeight: 30)
       .background(DesignTokens.FunctionTree.inputFill)
       .overlay {
         RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius).stroke(
