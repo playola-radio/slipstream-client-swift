@@ -27,10 +27,10 @@ struct RecordingControlsModelTests {
         return choose
       }
     } operation: {
-      RecordingControlsModel(
-        onChanged: { folder in changes.withValue { $0.append(folder) } },
-        onRecorded: { folder in recorded.withValue { $0.append(folder) } }
-      )
+      let model = RecordingControlsModel()
+      model.onChanged = { folder in changes.withValue { $0.append(folder) } }
+      model.onRecorded = { folder in recorded.withValue { $0.append(folder) } }
+      return model
     }
   }
 

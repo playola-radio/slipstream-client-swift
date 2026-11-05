@@ -586,6 +586,9 @@ enum DesignTokens {
     static let headerTrailingPadding: CGFloat = 10
     static let titleFont = variableFont(family: geistFamily, size: 12.5, weight: 550)
     static let titleColor = Color(hex: 0xE6EDF3)
+    static let headerGap: CGFloat = 8
+    static let recordingCountFont = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let recordingCountColor = Color(hex: 0x789F91)
 
     static let listGap: CGFloat = 14
     static let listVerticalPadding: CGFloat = 10
@@ -624,10 +627,64 @@ enum DesignTokens {
       isBold || isSelected ? Color(hex: 0xE6EDF3) : Color(hex: 0xA9B7C2)
     }
 
-    static let footerHeight: CGFloat = 44
+    static func pausedRowIcon(isHighlighted: Bool) -> Icons.Icon {
+      Icons.Icon(assetName: "CirclePause", size: 13, color: isHighlighted ? Color(hex: 0x6B7C89) : Color(hex: 0x3F4C57))
+    }
+
+    static func pausedRowNameColor(isHighlighted: Bool) -> Color {
+      isHighlighted ? Color(hex: 0x8B9AA6) : Color(hex: 0x56646F)
+    }
+
+    static let recordingDotSize: CGFloat = 6
+    static let recordingDotColor = Color(hex: 0x83BDA4)
+
+    struct RowAction {
+      let fill: Color
+      let stroke: Color
+      let icon: Icons.Icon
+      let textColor: Color
+
+      static let record = RowAction(
+        fill: Color(hex: 0x1F3A30), stroke: Color(hex: 0x3E7A62),
+        icon: Icons.Icon(assetName: "CircleDot", size: 11, color: Color(hex: 0x83BDA4)), textColor: Color(hex: 0xB8E0CD))
+      static let pause = RowAction(
+        fill: Color(hex: 0x26303A), stroke: Color(hex: 0x3A4753),
+        icon: Icons.Icon(assetName: "Pause", size: 11, color: Color(hex: 0xC9D6DF)), textColor: Color(hex: 0xC9D6DF))
+
+      static let height: CGFloat = 20
+      static let radius: CGFloat = 4
+      static let strokeWidth: CGFloat = 1
+      static let gap: CGFloat = 4
+      static let horizontalPadding: CGFloat = 7
+      static let font = variableFont(family: geistFamily, size: 11, weight: 500)
+      static let workingOpacity: Double = 0.7
+
+      var spinner: Chat.Spinner { Chat.Spinner(size: icon.size, lineWidth: 1.5, color: icon.color) }
+
+      static func opacity(isWorking: Bool) -> Double {
+        isWorking ? workingOpacity : 1
+      }
+    }
+
+    static func rowAction(isRecord: Bool) -> RowAction {
+      isRecord ? .record : .pause
+    }
+
+    static let messageFont = variableFont(family: geistFamily, size: 11.5, weight: 400)
+    static let messageLineSpacing: CGFloat = 11.5 * (1.4 - 1)
+    static let rowMessageInsets = EdgeInsets(top: 0, leading: 47, bottom: 6, trailing: 10)
+    static let footerMessageInsets = EdgeInsets(top: 2, leading: 34, bottom: 4, trailing: 10)
+
+    static func messageColor(isFull: Bool) -> Color {
+      isFull ? Color(hex: 0xE3B341) : Color(hex: 0xF07178)
+    }
+
+    static let footerVerticalPadding: CGFloat = 6
+    static let footerLineHeight: CGFloat = 32
     static let footerGap: CGFloat = 8
     static let footerHorizontalPadding: CGFloat = 16
     static let footerIcon = Icons.Icon(assetName: "FolderPlus", size: 14, color: Color(hex: 0x8B9AA6))
+    static let recordFolderIcon = Icons.Icon(assetName: "CircleDot", size: 14, color: Color(hex: 0x8B9AA6))
     static let footerFont = variableFont(family: geistFamily, size: 12, weight: 400)
     static let footerColor = Color(hex: 0x8B9AA6)
   }

@@ -25,14 +25,13 @@ struct CaptureStatusTests {
     (CaptureState.recording, nil, "Recording"),
     (.baselining, nil, "Preparing — not recording yet"),
     (.queued, nil, "Queued — not recording yet"),
-    (.stopped, "detached", "Stopped — capture detached"),
+    (.stopped, "detached", "Paused"),
     (.stopped, "archived", "Stopped — workspace archived"),
     (.stopped, "maintenance", "Stopped — maintenance in progress"),
     (.stopped, "root-missing", "Stopped — workspace folder missing or replaced"),
     (.stopped, "watcher-failed", "Stopped — file watcher failed"),
     (.stopped, nil, "Stopped"),
     (.stopped, "disk-quota", "Stopped — unrecognised reason “disk-quota”"),
-    (.notRecording, "capture-limit-reached", "Not recording — waiting for a free capture slot"),
     (.notRecording, "daemon-unavailable", "Not recording — Slipstream stopped reporting on this capture"),
     (.notRecording, "root-overlap", "Not recording — folder overlaps another capture"),
     (.notRecording, "root-missing", "Not recording — workspace folder missing or replaced"),
@@ -66,7 +65,7 @@ struct CaptureStatusTests {
   @Test func onlyARecordingSnapshotReadsRecording() {
     let readings: [CaptureStatus] = [
       Self.status(.baselining), Self.status(.queued), Self.status(.stopped, reason: "maintenance"),
-      Self.status(.notRecording, reason: "capture-limit-reached"), Self.status(.unknown("recording-ish")),
+      Self.status(.notRecording, reason: "root-overlap"), Self.status(.unknown("recording-ish")),
       CaptureStatus(availability: .loading, capture: nil),
       CaptureStatus(availability: .failed, capture: nil),
       CaptureStatus(availability: .unavailableFromReader, capture: nil),
@@ -85,9 +84,6 @@ struct CaptureStatusTests {
     expectNoDifference(
       Self.status(.queued).detailText(timeZone: Self.utc),
       "Slipstream has accepted this workspace and will start it shortly. Refresh to check again.")
-    expectNoDifference(
-      Self.status(.notRecording, reason: "capture-limit-reached").detailText(timeZone: Self.utc),
-      "Every capture slot is in use. This workspace starts on its own, oldest first, when one frees up. Refresh to check again.")
     expectNoDifference(
       Self.status(.stopped, reason: "maintenance").detailText(timeZone: Self.utc),
       "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again.")
@@ -113,16 +109,29 @@ struct CaptureStatusTests {
   }
 
   @Test(arguments: [
-    (CaptureState.recording, nil, false),
-    (.baselining, nil, false),
-    (.queued, nil, false),
-    (.notRecording, "capture-limit-reached", false),
-    (.unknown("hibernating"), nil, false),
-    (.stopped, "archived", true),
-    (.notRecording, "root-missing", true),
-  ] as [(CaptureState, String?, Bool)])
-  func onlyCapturesThatCannotRecordOnTheirOwnAreInactive(state: CaptureState, reason: String?, isInactive: Bool) {
-    #expect(Self.status(state, reason: reason).isInactive == isInactive)
+    (CaptureState.recording, nil, false, false),
+    (.baselining, nil, false, false),
+    (.queued, nil, false, false),
+    (.notRecording, "root-missing", false, false),
+    (.notRecording, nil, false, false),
+    (.unknown("hibernating"), nil, false, false),
+    (.stopped, "detached", false, true),
+    (.stopped, "archived", true, false),
+    (.stopped, "maintenance", true, false),
+    (.stopped, "root-missing", true, false),
+    (.stopped, "watcher-failed", true, false),
+    (.stopped, nil, true, false),
+  ] as [(CaptureState, String?, Bool, Bool)])
+  func onlyStopsThatAreNotAPauseAreInactive(state: CaptureState, reason: String?, isInactive: Bool, isPaused: Bool) {
+    expectNoDifference(Self.status(state, reason: reason).isInactive, isInactive)
+    expectNoDifference(Self.status(state, reason: reason).isPaused, isPaused)
+  }
+
+  @Test func aWorkspaceIsPausedOnlyWhenTheStateWasRead() {
+    let detached = CaptureSummary(sessionID: "s", root: "/work/nairobi", state: .stopped, reason: "detached")
+    #expect(!CaptureStatus(availability: .loading, capture: detached).isPaused)
+    #expect(!CaptureStatus(availability: .failed, capture: detached).isPaused)
+    #expect(!CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil).isPaused)
   }
 
   @Test func aWorkspaceIsInactiveWithoutACaptureOnlyWhenTheStateWasRead() {

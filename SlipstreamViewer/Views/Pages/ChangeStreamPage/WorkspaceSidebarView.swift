@@ -29,10 +29,15 @@ struct WorkspaceSidebarView: View {
   }
 
   private var header: some View {
-    HStack {
+    HStack(spacing: DesignTokens.Sidebar.headerGap) {
       Text(model.sidebarTitleText)
         .font(DesignTokens.Sidebar.titleFont)
         .foregroundStyle(DesignTokens.Sidebar.titleColor)
+      if let recordingCountText = model.recordingCountText {
+        Text(recordingCountText)
+          .font(DesignTokens.Sidebar.recordingCountFont)
+          .foregroundStyle(DesignTokens.Sidebar.recordingCountColor)
+      }
       Spacer()
     }
     .padding(.leading, DesignTokens.Sidebar.headerLeadingPadding)
@@ -67,23 +72,51 @@ struct WorkspaceSidebarView: View {
   }
 
   private var footer: some View {
-    Button { Task { await model.newWorkspaceTapped() } } label: {
-      HStack(spacing: DesignTokens.Sidebar.footerGap) {
-        IconView(icon: DesignTokens.Sidebar.footerIcon)
-        Text(model.addRepositoryText)
-          .font(DesignTokens.Sidebar.footerFont)
-          .foregroundStyle(DesignTokens.Sidebar.footerColor)
-        Spacer()
+    VStack(alignment: .leading, spacing: 0) {
+      Button { Task { await model.newWorkspaceTapped() } } label: {
+        footerLine(icon: DesignTokens.Sidebar.footerIcon, text: model.addRepositoryText)
       }
-      .padding(.horizontal, DesignTokens.Sidebar.footerHorizontalPadding)
-      .frame(height: DesignTokens.Sidebar.footerHeight)
-      .contentShape(Rectangle())
+      .buttonStyle(.plain)
+      .disabled(model.isWorkspaceBusy)
+      Button { Task { await model.recordFolderTapped() } } label: {
+        footerLine(icon: DesignTokens.Sidebar.recordFolderIcon, text: model.recordFolderText)
+      }
+      .buttonStyle(.plain)
+      if let footerMessage = model.footerMessage {
+        RecordingMessageView(message: footerMessage)
+          .padding(DesignTokens.Sidebar.footerMessageInsets)
+      }
     }
-    .buttonStyle(.plain)
-    .disabled(model.isWorkspaceBusy)
+    .padding(.vertical, DesignTokens.Sidebar.footerVerticalPadding)
     .overlay(alignment: .top) {
       Rectangle().fill(DesignTokens.Sidebar.stroke).frame(height: 1)
     }
+  }
+
+  private func footerLine(icon: DesignTokens.Icons.Icon, text: String) -> some View {
+    HStack(spacing: DesignTokens.Sidebar.footerGap) {
+      IconView(icon: icon)
+      Text(text)
+        .font(DesignTokens.Sidebar.footerFont)
+        .foregroundStyle(DesignTokens.Sidebar.footerColor)
+      Spacer()
+    }
+    .padding(.horizontal, DesignTokens.Sidebar.footerHorizontalPadding)
+    .frame(height: DesignTokens.Sidebar.footerLineHeight)
+    .contentShape(Rectangle())
+  }
+}
+
+private struct RecordingMessageView: View {
+  let message: RecordingMessage
+
+  var body: some View {
+    Text(message.text)
+      .font(DesignTokens.Sidebar.messageFont)
+      .lineSpacing(DesignTokens.Sidebar.messageLineSpacing)
+      .foregroundStyle(DesignTokens.Sidebar.messageColor(isFull: message.isFull))
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .fixedSize(horizontal: false, vertical: true)
   }
 }
 
@@ -92,22 +125,46 @@ private struct WorkspaceRowView: View {
   let session: SessionOption
   @FocusState private var focus: Focus?
 
-  private enum Focus { case row, archive }
+  private enum Focus { case row, action, archive }
 
   var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      row
+      if let message = model.rowMessage(session) {
+        RecordingMessageView(message: message)
+          .padding(DesignTokens.Sidebar.rowMessageInsets)
+      }
+    }
+  }
+
+  private var row: some View {
     let isSelected = model.isSelected(session)
     let isBold = model.isBold(session)
-    HStack(spacing: DesignTokens.Sidebar.rowGap) {
+    let isPaused = model.isPaused(session)
+    let isLit = model.isHighlighted(session) || isSelected
+    return HStack(spacing: DesignTokens.Sidebar.rowGap) {
       Button { model.sessionSelected(session.id) } label: {
         HStack(spacing: DesignTokens.Sidebar.rowGap) {
-          IconView(icon: DesignTokens.Sidebar.rowIcon(isSelected: isSelected))
-          Text(model.rowName(session))
-            .font(DesignTokens.Sidebar.rowNameFont(isBold: isBold))
-            .foregroundStyle(DesignTokens.Sidebar.rowNameColor(isBold: isBold, isSelected: isSelected))
-            .lineLimit(1)
+          if isPaused {
+            IconView(icon: DesignTokens.Sidebar.pausedRowIcon(isHighlighted: isLit))
+            Text(model.rowName(session))
+              .font(DesignTokens.Sidebar.rowNameFont(isBold: isBold))
+              .foregroundStyle(DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: isLit))
+              .lineLimit(1)
+          } else {
+            IconView(icon: DesignTokens.Sidebar.rowIcon(isSelected: isSelected))
+            Text(model.rowName(session))
+              .font(DesignTokens.Sidebar.rowNameFont(isBold: isBold))
+              .foregroundStyle(DesignTokens.Sidebar.rowNameColor(isBold: isBold, isSelected: isSelected))
+              .lineLimit(1)
+          }
           Spacer()
           if model.isWorking(session) {
             SpinnerView(spinner: DesignTokens.Sidebar.spinner)
+          } else if model.isRecordingDotShown(session) {
+            Circle()
+              .fill(DesignTokens.Sidebar.recordingDotColor)
+              .frame(width: DesignTokens.Sidebar.recordingDotSize, height: DesignTokens.Sidebar.recordingDotSize)
           }
         }
         .padding(.leading, DesignTokens.Sidebar.rowLeadingPadding)
@@ -117,9 +174,15 @@ private struct WorkspaceRowView: View {
       .buttonStyle(.plain)
       .focused($focus, equals: .row)
       .accessibilityActions {
+        if model.isRowActionAvailable(session) {
+          Button(model.rowActionText(session)) { Task { await model.rowActionTapped(session) } }
+        }
         if model.isArchivable(session) {
           Button(model.archiveWorkspaceHelpText) { model.archiveTapped(session) }
         }
+      }
+      if model.isRowActionShown(session) {
+        rowAction(DesignTokens.Sidebar.rowAction(isRecord: isPaused))
       }
       if model.isArchiveIconShown(for: session) {
         Button { model.archiveTapped(session) } label: {
@@ -143,5 +206,32 @@ private struct WorkspaceRowView: View {
     }
     .onHover { model.rowHoverChanged(session, isHovering: $0) }
     .onChange(of: focus) { model.rowFocusChanged(session, isFocused: focus != nil) }
+  }
+
+  private func rowAction(_ action: DesignTokens.Sidebar.RowAction) -> some View {
+    let isWorking = model.isRowActionDisabled(session)
+    return Button { Task { await model.rowActionTapped(session) } } label: {
+      HStack(spacing: DesignTokens.Sidebar.RowAction.gap) {
+        if isWorking {
+          SpinnerView(spinner: action.spinner)
+        } else {
+          IconView(icon: action.icon)
+        }
+        Text(model.rowActionText(session))
+          .font(DesignTokens.Sidebar.RowAction.font)
+          .foregroundStyle(action.textColor)
+      }
+      .padding(.horizontal, DesignTokens.Sidebar.RowAction.horizontalPadding)
+      .frame(height: DesignTokens.Sidebar.RowAction.height)
+      .background(
+        RoundedRectangle(cornerRadius: DesignTokens.Sidebar.RowAction.radius).fill(action.fill))
+      .overlay(
+        RoundedRectangle(cornerRadius: DesignTokens.Sidebar.RowAction.radius)
+          .strokeBorder(action.stroke, lineWidth: DesignTokens.Sidebar.RowAction.strokeWidth))
+    }
+    .buttonStyle(.plain)
+    .disabled(isWorking)
+    .opacity(DesignTokens.Sidebar.RowAction.opacity(isWorking: isWorking))
+    .focused($focus, equals: .action)
   }
 }

@@ -22,21 +22,12 @@ final class RecordingControlsModel: ViewModel {
   @ObservationIgnored @Dependency(\.recording) var recording
   @ObservationIgnored @Dependency(\.workspace) var workspace
 
-  // MARK: - Initialization
-
-  init(
-    onChanged: @escaping @MainActor (_ preferring: String?) async -> Void,
-    onRecorded: @escaping @MainActor (String) -> Void
-  ) {
-    self.onChanged = onChanged
-    self.onRecorded = onRecorded
-    super.init()
-  }
-
   // MARK: - Properties
 
-  @ObservationIgnored private let onChanged: @MainActor (_ preferring: String?) async -> Void
-  @ObservationIgnored private let onRecorded: @MainActor (String) -> Void
+  /// Refreshes captures, selecting the given folder if one is passed.
+  @ObservationIgnored var onChanged: @MainActor (_ preferring: String?) async -> Void = { _ in }
+  /// Lets chat link the recorded folder once.
+  @ObservationIgnored var onRecorded: @MainActor (_ folder: String) -> Void = { _ in }
 
   /// Keyed by normalized folder.
   private(set) var operations: [String: RecordingOperation] = [:]
@@ -47,69 +38,72 @@ final class RecordingControlsModel: ViewModel {
   // MARK: - View Helpers
 
   func operation(for folder: String) -> RecordingOperation? {
-    operations[ChangeStreamPageModel.normalizedFolder(folder)]
+    operations[Self.key(folder)]
   }
 
   func message(for folder: String) -> RecordingMessage? {
-    messages[ChangeStreamPageModel.normalizedFolder(folder)]
+    messages[Self.key(folder)]
   }
 
   // MARK: - User Actions
 
   func pauseTapped(folder: String) async {
-    guard let folder = begin(.pausing, folder: folder) else { return }
-    defer { operations[folder] = nil }
+    guard let key = begin(.pausing, folder: folder) else { return }
+    defer { operations[key] = nil }
     do {
       try await recording.pause(folder)
     } catch {
-      messages[folder] = Self.pauseMessage(error)
+      messages[key] = Self.pauseMessage(error)
       guard Self.refreshesAfterPause(error) else { return }
     }
     await onChanged(nil)
   }
 
   func recordTapped(folder: String) async {
-    guard let folder = begin(.recording, folder: folder) else { return }
-    defer { operations[folder] = nil }
-    if let message = await record(folder, preferring: nil) {
-      messages[folder] = message
+    guard let key = begin(.recording, folder: folder) else { return }
+    defer { operations[key] = nil }
+    if let message = await record(folder, key: key, preferring: nil) {
+      messages[key] = message
     }
   }
 
   func recordFolderTapped() async {
     footerMessage = nil
     guard let url = await workspace.chooseFolder("Choose a folder to record", "Record"),
-      let folder = begin(.recording, folder: url.path)
+      let key = begin(.recording, folder: url.path)
     else { return }
-    defer { operations[folder] = nil }
-    footerMessage = await record(folder, preferring: folder)
+    defer { operations[key] = nil }
+    footerMessage = await record(url.path, key: key, preferring: key)
   }
 
   // MARK: - Private Helpers
 
-  private func begin(_ operation: RecordingOperation, folder: String) -> String? {
-    let folder = ChangeStreamPageModel.normalizedFolder(folder)
-    footerMessage = nil
-    guard operations[folder] == nil else { return nil }
-    messages[folder] = nil
-    operations[folder] = operation
-    return folder
+  private static func key(_ folder: String) -> String {
+    ChangeStreamPageModel.normalizedFolder(folder)
   }
 
-  /// Records `folder` and refreshes when the outcome is or might be a change. Returns the message
-  /// to show, if any.
-  private func record(_ folder: String, preferring: String?) async -> RecordingMessage? {
+  /// Returns the folder's key, or `nil` while another operation runs for it.
+  private func begin(_ operation: RecordingOperation, folder: String) -> String? {
+    let key = Self.key(folder)
+    footerMessage = nil
+    guard operations[key] == nil else { return nil }
+    messages[key] = nil
+    operations[key] = operation
+    return key
+  }
+
+  /// Refreshes when the outcome is or might be a change. Returns the message to show, if any.
+  private func record(_ folder: String, key: String, preferring: String?) async -> RecordingMessage? {
     do {
       try await recording.record(folder)
     } catch {
-      let message = Self.recordMessage(error, folder: folder)
       if error as? QuestionError == .outcomeUnknown {
         await onChanged(preferring)
       }
-      return message
+      return Self.recordMessage(error, folder: key)
     }
     await onChanged(preferring)
-    onRecorded(folder)
+    onRecorded(key)
     return nil
   }
 
