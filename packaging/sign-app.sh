@@ -14,7 +14,7 @@ APP="${1:?usage: sign-app.sh /path/to/SlipstreamViewer.app}"
 IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Playola Radio, Incorporated (FSRSPV9N9Q)}"
 TEAM_ID="FSRSPV9N9Q"
 
-if ! security find-identity -v -p codesigning | grep -q "$IDENTITY"; then
+if [[ "$(security find-identity -v -p codesigning)" != *"$IDENTITY"* ]]; then
   echo "error: signing identity not found in keychain: $IDENTITY" >&2
   exit 1
 fi
@@ -52,7 +52,8 @@ echo "==> Guard: every Mach-O must be signed by team $TEAM_ID"
 unsigned=0
 while IFS= read -r macho; do
   [ -f "$macho" ] || continue
-  if ! codesign -dvvv "$macho" 2>&1 | grep -q "TeamIdentifier=$TEAM_ID"; then
+  # Capture first: under pipefail, `grep -q` exiting early SIGPIPEs codesign.
+  if [[ "$(codesign -dvvv "$macho" 2>&1)" != *"TeamIdentifier=$TEAM_ID"* ]]; then
     echo "   UNSIGNED/wrong-team: $macho" >&2
     unsigned=$((unsigned + 1))
   fi
