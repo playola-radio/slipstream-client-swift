@@ -28,6 +28,8 @@ final class RecordingControlsModel: ViewModel {
   @ObservationIgnored var onChanged: @MainActor (_ preferring: String?) async -> Void = { _ in }
   /// Lets chat link the recorded folder once.
   @ObservationIgnored var onRecorded: @MainActor (_ folder: String) -> Void = { _ in }
+  /// Keeps chat reconnection pending until a capture read confirms an uncertain Record reply.
+  @ObservationIgnored var onRecordOutcomeUnknown: @MainActor (_ folder: String) -> Void = { _ in }
 
   /// Keyed by normalized folder.
   private(set) var operations: [String: RecordingOperation] = [:]
@@ -109,6 +111,7 @@ final class RecordingControlsModel: ViewModel {
       try await recording.record(folder)
     } catch {
       if error as? QuestionError == .outcomeUnknown {
+        onRecordOutcomeUnknown(key)
         await onChanged(preferring())
       }
       return Self.recordMessage(error, folder: key)

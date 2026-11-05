@@ -40,6 +40,7 @@ final class ChangeStreamPageModel: ViewModel {
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
+    recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
   }
 
   // MARK: - Properties
@@ -1053,10 +1054,11 @@ final class ChangeStreamPageModel: ViewModel {
         let session = sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
       }
-      if let pendingPreferredRoot, generation == sessionsGeneration,
-        let session = sessions.first(where: { $0.root == pendingPreferredRoot }) {
-        _ = select(session.id)
-        self.pendingPreferredRoot = nil
+      if let pendingPreferredRoot, generation == sessionsGeneration {
+        if let capture = snapshot.current(in: pendingPreferredRoot), let session = sessions[id: capture.sessionID] {
+          _ = select(session.id)
+          self.pendingPreferredRoot = nil
+        }
       }
       terminals.workspacesListed(Set(sessions.compactMap(\.root)))
     } catch {

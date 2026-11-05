@@ -274,6 +274,10 @@ final class ChatPageModel: ViewModel {
     recordedFoldersLinkIfReady()
   }
 
+  func recordOutcomeUnknown(folder: String) {
+    recordedFolders.insert(folder)
+  }
+
   func connectTapped(_ id: UUID) async {
     guard let folder, let tab = visibleTabs.first(where: { $0.id == id }), isConnectEnabled(tab) else { return }
     linkFailures[id] = nil

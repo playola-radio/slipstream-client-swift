@@ -1835,6 +1835,19 @@ struct ChatPageTests {
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
   }
 
+  @Test func anUncertainRecordWaitsForAnUnpausedCaptureReadBeforeLinking() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: Self.paused)
+
+    model.recordOutcomeUnknown(folder: "/w")
+    await Task.megaYield()
+    #expect(link.calls.isEmpty)
+
+    model.capturesArrived(captures(nil))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
+  }
+
   @Test func ordinaryRefreshNeverStartsAutoLink() async {
     let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
 

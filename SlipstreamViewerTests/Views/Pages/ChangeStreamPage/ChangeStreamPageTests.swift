@@ -2652,6 +2652,20 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.footerMessage, nil)
   }
 
+  @Test func recordingARecreatedFolderSelectsItsCurrentCaptureInsteadOfOldHistory() async {
+    fake.setSessions(
+      [SessionSummary(id: "old", durableSeq: .zero, removed: false)],
+      starts: ["old": SessionStarted(root: "/work/b", startedAtMs: 0)])
+    fake.setCaptures([Fixture.capture(session: "new", root: "/work/b", binding: nil)])
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: "/work/b")))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.recordFolderTapped()
+
+    expectNoDifference(model.selectedSession?.id, "new")
+  }
+
   @Test func aRowSelectedWhileRecordingAFolderKeepsTheSelection() async {
     listCaptures(
       Fixture.capture(session: "a", root: "/work/a", binding: nil),
