@@ -34,6 +34,8 @@ final class RecordingControlsModel: ViewModel {
   /// Keyed by normalized folder; cleared by the next tap on that folder.
   private(set) var messages: [String: RecordingMessage] = [:]
   private(set) var footerMessage: RecordingMessage?
+  /// Bumped by every tap, so only the latest footer Record publishes its outcome.
+  @ObservationIgnored private var footerGeneration = 0
 
   // MARK: - View Helpers
 
@@ -62,18 +64,21 @@ final class RecordingControlsModel: ViewModel {
   func recordTapped(folder: String) async {
     guard let key = begin(.recording, folder: folder) else { return }
     defer { operations[key] = nil }
-    if let message = await record(folder, key: key, preferring: nil) {
+    if let message = await record(folder, key: key) {
       messages[key] = message
     }
   }
 
-  func recordFolderTapped() async {
+  /// `keepsSelection` is asked once the reply lands: the refresh selects the folder only if it says so.
+  func recordFolderTapped(keepsSelection: @MainActor () -> Bool = { true }) async {
     footerMessage = nil
     guard let url = await workspace.chooseFolder("Choose a folder to record", "Record"),
       let key = begin(.recording, folder: url.path)
     else { return }
     defer { operations[key] = nil }
-    footerMessage = await record(url.path, key: key, preferring: key)
+    let generation = footerGeneration
+    let message = await record(url.path, key: key) { keepsSelection() ? key : nil }
+    if generation == footerGeneration { footerMessage = message }
   }
 
   // MARK: - Private Helpers
@@ -86,6 +91,7 @@ final class RecordingControlsModel: ViewModel {
   private func begin(_ operation: RecordingOperation, folder: String) -> String? {
     let key = Self.key(folder)
     footerMessage = nil
+    footerGeneration += 1
     guard operations[key] == nil else { return nil }
     messages[key] = nil
     operations[key] = operation
@@ -93,16 +99,18 @@ final class RecordingControlsModel: ViewModel {
   }
 
   /// Refreshes when the outcome is or might be a change. Returns the message to show, if any.
-  private func record(_ folder: String, key: String, preferring: String?) async -> RecordingMessage? {
+  private func record(
+    _ folder: String, key: String, preferring: @MainActor () -> String? = { nil }
+  ) async -> RecordingMessage? {
     do {
       try await recording.record(folder)
     } catch {
       if error as? QuestionError == .outcomeUnknown {
-        await onChanged(preferring)
+        await onChanged(preferring())
       }
       return Self.recordMessage(error, folder: key)
     }
-    await onChanged(preferring)
+    await onChanged(preferring())
     onRecorded(key)
     return nil
   }

@@ -139,25 +139,14 @@ private struct WorkspaceRowView: View {
 
   private var row: some View {
     let isSelected = model.isSelected(session)
-    let isBold = model.isBold(session)
-    let isPaused = model.isPaused(session)
-    let isLit = model.isHighlighted(session) || isSelected
     return HStack(spacing: DesignTokens.Sidebar.rowGap) {
       Button { model.sessionSelected(session.id) } label: {
         HStack(spacing: DesignTokens.Sidebar.rowGap) {
-          if isPaused {
-            IconView(icon: DesignTokens.Sidebar.pausedRowIcon(isHighlighted: isLit))
-            Text(model.rowName(session))
-              .font(DesignTokens.Sidebar.rowNameFont(isBold: isBold))
-              .foregroundStyle(DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: isLit))
-              .lineLimit(1)
-          } else {
-            IconView(icon: DesignTokens.Sidebar.rowIcon(isSelected: isSelected))
-            Text(model.rowName(session))
-              .font(DesignTokens.Sidebar.rowNameFont(isBold: isBold))
-              .foregroundStyle(DesignTokens.Sidebar.rowNameColor(isBold: isBold, isSelected: isSelected))
-              .lineLimit(1)
-          }
+          IconView(icon: model.rowIcon(session))
+          Text(model.rowName(session))
+            .font(DesignTokens.Sidebar.rowNameFont(isBold: model.isBold(session)))
+            .foregroundStyle(model.rowNameColor(session))
+            .lineLimit(1)
           Spacer()
           if model.isWorking(session) {
             SpinnerView(spinner: DesignTokens.Sidebar.spinner)
@@ -182,7 +171,7 @@ private struct WorkspaceRowView: View {
         }
       }
       if model.isRowActionShown(session) {
-        rowAction(DesignTokens.Sidebar.rowAction(isRecord: isPaused))
+        rowAction(DesignTokens.Sidebar.rowAction(isRecord: model.isPaused(session)))
       }
       if model.isArchiveIconShown(for: session) {
         Button { model.archiveTapped(session) } label: {

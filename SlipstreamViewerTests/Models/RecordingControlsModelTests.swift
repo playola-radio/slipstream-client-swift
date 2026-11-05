@@ -19,12 +19,13 @@ struct RecordingControlsModelTests {
   let changes = LockIsolated<[String?]>([])
   let recorded = LockIsolated<[String]>([])
 
-  func makeModel(choose: URL? = nil) -> RecordingControlsModel {
-    withDependencies {
+  func makeModel(choose: URL?...) -> RecordingControlsModel {
+    let choices = LockIsolated(choose)
+    return withDependencies {
       $0.recording = recordingFake.client
       $0.workspace.chooseFolder = { message, prompt in
         expectNoDifference([message, prompt], ["Choose a folder to record", "Record"])
-        return choose
+        return choices.withValue { $0.isEmpty ? nil : $0.removeFirst() }
       }
     } operation: {
       let model = RecordingControlsModel()
@@ -183,6 +184,30 @@ struct RecordingControlsModelTests {
     expectNoDifference(changes.value, [Self.notes])
     expectNoDifference(recorded.value, [Self.notes])
     expectNoDifference(model.footerMessage, nil)
+  }
+
+  @Test func recordAFolderPrefersNothingOnceTheSelectionMoved() async {
+    let model = makeModel(choose: URL(fileURLWithPath: Self.notes))
+
+    await model.recordFolderTapped(keepsSelection: { false })
+
+    expectNoDifference(changes.value, [nil])
+  }
+
+  @Test func anOlderFolderRecordLeavesANewerFootersMessage() async {
+    let model = makeModel(choose: URL(fileURLWithPath: Self.notes), URL(fileURLWithPath: Self.farmerville))
+    recordingFake.hold()
+    let older = Task { await model.recordFolderTapped() }
+    await Task.megaYield()
+
+    recordingFake.setFailures(.rejected(code: "ROOT_OVERLAP", message: "overlaps"))
+    await model.recordFolderTapped()
+    recordingFake.release()
+    await older.value
+
+    expectNoDifference(
+      model.footerMessage,
+      RecordingMessage(text: "Couldn't record farmerville: it overlaps a folder that's already recording.", isFull: false))
   }
 
   @Test func recordAFolderRefusalSetsTheFooterMessage() async {

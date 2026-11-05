@@ -266,6 +266,7 @@ final class ChatPageModel: ViewModel {
 
   /// Record succeeded for this folder: try the usual auto-link once.
   func recorded(folder: String) {
+    pausedFolders.remove(folder)
     Task { [weak self] in await self?.autoLink(in: folder) }
   }
 

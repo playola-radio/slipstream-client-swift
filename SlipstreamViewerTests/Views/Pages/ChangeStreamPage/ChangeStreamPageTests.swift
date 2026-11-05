@@ -2485,6 +2485,27 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.rowActionText(row), "Record")
   }
 
+  @Test func aPausedRowBrightensWhenSelectedOrHovered() async throws {
+    listCaptures(
+      Fixture.capture(session: "recording", root: "/work/recording", binding: nil),
+      Fixture.capture(.stopped, reason: "detached", session: "paused", root: "/work/paused", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let row = try #require(model.sessions[id: "paused"])
+    model.sessionSelected("recording")
+    await Task.megaYield()
+    expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: false))
+
+    model.rowHoverChanged(row, isHovering: true)
+    expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: true))
+
+    model.rowHoverChanged(row, isHovering: false)
+    model.sessionSelected("paused")
+    await Task.megaYield()
+    expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: true))
+  }
+
   @Test func aNotRecordingCaptureShowsWithPause() async throws {
     listCaptures(
       Fixture.capture(session: "recording", root: "/work/recording", binding: nil),
