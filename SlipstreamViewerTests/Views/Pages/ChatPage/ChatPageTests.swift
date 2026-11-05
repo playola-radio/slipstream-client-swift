@@ -1786,6 +1786,34 @@ struct ChatPageTests {
     #expect(link.calls.isEmpty)
   }
 
+  static let paused = [CaptureSummary(sessionID: "capture-1", root: "/w", state: .stopped, reason: "detached")]
+
+  @Test func openingAPausedWorkspaceDoesNotAttach() async {
+    _ = await openWindow(records: [record()], withMessage: [Self.saved], captures: Self.paused)
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func aTurnEndingInAPausedWorkspaceDoesNotAttach() async {
+    let model = await openWindow(records: [], withMessage: [], captures: Self.paused)
+
+    await send(model, "hi")
+    await line(Line.result())
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func recordedLinksTheFirstTabWithAMessage() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [UUID(50)], captures: Self.paused)
+    model.capturesArrived(captures(nil))
+
+    model.recorded(folder: "/w")
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: nil)])
+  }
+
   @Test func ordinaryRefreshNeverStartsAutoLink() async {
     let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
 

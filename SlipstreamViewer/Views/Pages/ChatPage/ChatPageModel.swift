@@ -36,6 +36,8 @@ final class ChatPageModel: ViewModel {
   private var hoveredTabID: UUID?
   /// Each folder's binding from the last capture read; `nil` until a read succeeds.
   private var bindings: [String: CaptureBinding]?
+  /// Folders whose capture was paused at the last capture read; chat never attaches to them.
+  private var pausedFolders: Set<String> = []
   private var linkFailures: [UUID: LinkRefusal] = [:]
   /// The folder just shown: its next capture read is the moment its window opens.
   private var openingFolder: String?
@@ -249,6 +251,7 @@ final class ChatPageModel: ViewModel {
       captures.current(in: folder)?.binding.map { (folder, $0) }
     })
     self.bindings = bindings
+    pausedFolders = folders.filter { captures.current(in: $0)?.isPaused == true }
     for (id, folder) in strandedLinks {
       strandedLinks[id] = nil
       guard let binding = bindings[folder], binding.isLive, binding.isLinked(toChat: id) else { continue }
@@ -259,6 +262,11 @@ final class ChatPageModel: ViewModel {
       return !(binding.isLinked(toChat: id) && binding.state == .connected)
     }
     windowOpenedIfReady()
+  }
+
+  /// Record succeeded for this folder: try the usual auto-link once.
+  func recorded(folder: String) {
+    Task { [weak self] in await self?.autoLink(in: folder) }
   }
 
   func connectTapped(_ id: UUID) async {
@@ -383,7 +391,8 @@ final class ChatPageModel: ViewModel {
 
   /// Two auto-links can overlap; `link(replacing: nil)` skips once anything is linked.
   private func autoLink(in folder: String) async {
-    guard let tab = await firstTabWithMessage(in: folder), isUnlinked(folder) else { return }
+    guard let tab = await firstTabWithMessage(in: folder), isUnlinked(folder), !pausedFolders.contains(folder)
+    else { return }
     await linkFinished(await chatLink.link(folder, tab.id, nil), for: tab.id, in: folder)
   }
 

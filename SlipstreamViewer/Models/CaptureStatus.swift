@@ -71,7 +71,7 @@ struct CaptureStatus: Equatable, Sendable {
   /// Stopped by Pause: it records again only when Record is tapped.
   var isPaused: Bool {
     guard case .available = availability, let capture else { return false }
-    return capture.state == .stopped && capture.reason == "detached"
+    return capture.isPaused
   }
 
   /// Archived, or stopped for a reason other than a pause; hidden from the sidebar unless selected.
@@ -208,4 +208,9 @@ struct CaptureStatus: Equatable, Sendable {
     formatter.dateFormat = pattern
     return formatter.string(from: date)
   }
+}
+
+extension CaptureSummary {
+  /// Stopped by Pause; Record starts it again.
+  var isPaused: Bool { state == .stopped && reason == "detached" }
 }

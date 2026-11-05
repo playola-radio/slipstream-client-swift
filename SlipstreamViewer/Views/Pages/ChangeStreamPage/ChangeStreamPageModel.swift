@@ -39,6 +39,7 @@ final class ChangeStreamPageModel: ViewModel {
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
+    recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
   }
 
   // MARK: - Properties

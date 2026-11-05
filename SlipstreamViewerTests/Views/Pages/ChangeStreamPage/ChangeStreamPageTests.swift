@@ -2618,6 +2618,25 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.footerMessage, nil)
   }
 
+  @Test func recordingAPausedWorkspaceLinksItsChatOnce() async {
+    fake.setCaptures([Fixture.capture(.stopped, reason: "detached", binding: nil)])
+    agent.setTranscript(Self.tab, .found([.user(uuid: "u1", timestamp: Fixture.checkedAt, isPrompt: true, blocks: [.text("Hi")])]))
+    let chat = makeChat(records: [
+      ChatTabRecord(id: Self.tab, folder: "/tmp/project", model: "claude-opus-5-5", effort: .high, isWaiting: false)
+    ])
+    let model = makeModel(chat: chat)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    #expect(link.calls.isEmpty)
+
+    fake.setCaptures([Fixture.capture(.queued, binding: nil)])
+    await model.recording.recordTapped(folder: "/tmp/project")
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/tmp/project", tabID: Self.tab, replacing: nil)])
+  }
+
   @Test func allInactiveSessionsReadNoCaptureSessionsYet() async {
     listThreeSessionsWithOneRecording()
     fake.setCaptures([
