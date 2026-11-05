@@ -1823,6 +1823,18 @@ struct ChatPageTests {
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
   }
 
+  @Test func recordedLinksOnceACaptureReadSucceedsAfterAFailedOne() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: Self.paused)
+    model.capturesArrived(nil)
+    model.recorded(folder: "/w")
+    await Task.megaYield()
+
+    model.capturesArrived(captures(nil))
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
+  }
+
   @Test func ordinaryRefreshNeverStartsAutoLink() async {
     let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
 

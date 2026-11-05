@@ -38,6 +38,8 @@ final class ChatPageModel: ViewModel {
   private var bindings: [String: CaptureBinding]?
   /// Folders whose capture was paused at the last capture read; chat never attaches to them.
   private var pausedFolders: Set<String> = []
+  /// Folders Record resumed that still wait for a capture read showing them unpaused.
+  private var recordedFolders: Set<String> = []
   private var linkFailures: [UUID: LinkRefusal] = [:]
   /// The folder just shown: its next capture read is the moment its window opens.
   private var openingFolder: String?
@@ -262,12 +264,14 @@ final class ChatPageModel: ViewModel {
       return !(binding.isLinked(toChat: id) && binding.state == .connected)
     }
     windowOpenedIfReady()
+    recordedFoldersLinkIfReady()
   }
 
   /// Record succeeded for this folder: try the usual auto-link once.
   func recorded(folder: String) {
     pausedFolders.remove(folder)
-    Task { [weak self] in await self?.autoLink(in: folder) }
+    recordedFolders.insert(folder)
+    recordedFoldersLinkIfReady()
   }
 
   func connectTapped(_ id: UUID) async {
@@ -423,6 +427,14 @@ final class ChatPageModel: ViewModel {
     guard let folder, openingFolder == folder, bindings != nil else { return }
     openingFolder = nil
     Task { [weak self] in await self?.autoLink(in: folder) }
+  }
+
+  private func recordedFoldersLinkIfReady() {
+    guard bindings != nil else { return }
+    for folder in recordedFolders.subtracting(pausedFolders) {
+      recordedFolders.remove(folder)
+      Task { [weak self] in await self?.autoLink(in: folder) }
+    }
   }
 
   private static func text(for refusal: LinkRefusal) -> String {

@@ -210,6 +210,19 @@ struct RecordingControlsModelTests {
       RecordingMessage(text: "Couldn't record farmerville: it overlaps a folder that's already recording.", isFull: false))
   }
 
+  @Test func anOlderFolderRecordLeavesANewerFoldersSelection() async {
+    let model = makeModel(choose: URL(fileURLWithPath: Self.notes), URL(fileURLWithPath: Self.farmerville))
+    recordingFake.hold()
+    let older = Task { await model.recordFolderTapped() }
+    await Task.megaYield()
+
+    await model.recordFolderTapped()
+    recordingFake.release()
+    await older.value
+
+    expectNoDifference(changes.value, [Self.farmerville, nil])
+  }
+
   @Test func recordAFolderRefusalSetsTheFooterMessage() async {
     let model = makeModel(choose: URL(fileURLWithPath: Self.notes))
     recordingFake.setFailures(.rejected(code: "ROOT_OVERLAP", message: "overlaps"))

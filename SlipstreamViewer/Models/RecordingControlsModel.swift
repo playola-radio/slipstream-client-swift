@@ -69,7 +69,8 @@ final class RecordingControlsModel: ViewModel {
     }
   }
 
-  /// `keepsSelection` is asked once the reply lands: the refresh selects the folder only if it says so.
+  /// `keepsSelection` is asked once the reply lands: the refresh selects the folder only if it says so
+  /// and no newer tap has started since.
   func recordFolderTapped(keepsSelection: @MainActor () -> Bool = { true }) async {
     footerMessage = nil
     guard let url = await workspace.chooseFolder("Choose a folder to record", "Record"),
@@ -77,7 +78,9 @@ final class RecordingControlsModel: ViewModel {
     else { return }
     defer { operations[key] = nil }
     let generation = footerGeneration
-    let message = await record(url.path, key: key) { keepsSelection() ? key : nil }
+    let message = await record(url.path, key: key) {
+      generation == footerGeneration && keepsSelection() ? key : nil
+    }
     if generation == footerGeneration { footerMessage = message }
   }
 
