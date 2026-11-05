@@ -18,6 +18,13 @@ also creates and archives workspaces and runs agent chats in tabs.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 - A running Slipstream daemon
 
+## Install
+
+Download [the latest release](https://playola-static.s3.amazonaws.com/downloads/SlipstreamViewer/SlipstreamViewer-latest.dmg),
+open it and drag Slipstream to Applications. It updates itself. Release notes are in
+[CHANGELOG.md](CHANGELOG.md); releasing is documented in
+[packaging/README.md](packaging/README.md).
+
 ## Build
 
 ```sh

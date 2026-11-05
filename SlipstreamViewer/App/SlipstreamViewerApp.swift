@@ -7,6 +7,7 @@ struct SlipstreamViewerApp: App {
   @State private var chat: ChatPageModel
   @State private var instantAsk: InstantAskModel
   @State private var terminals = TerminalPageModel()
+  @State private var updater = UpdaterModel()
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   init() {
@@ -38,7 +39,10 @@ struct SlipstreamViewerApp: App {
         }
       }
       .environment(\.fontScale, fontSize.scale)
-      .task { await terminals.launched() }
+      .task {
+        updater.appLaunched()
+        await terminals.launched()
+      }
       .modifier(QuitFlowHandoff(
         chat: chat, instantAsk: instantAsk, terminals: terminals, appDelegate: appDelegate, windowID: Self.windowID))
       .background {
@@ -49,7 +53,10 @@ struct SlipstreamViewerApp: App {
       }
     }
     .windowToolbarStyle(.unified)
-    .commands { FontSizeCommands(model: fontSize) }
+    .commands {
+      UpdaterCommands(model: updater)
+      FontSizeCommands(model: fontSize)
+    }
   }
 
   private static let windowID = "main"
