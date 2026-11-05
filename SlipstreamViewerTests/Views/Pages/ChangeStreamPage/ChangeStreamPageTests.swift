@@ -2533,6 +2533,19 @@ extension ChangeStreamPageTests {
     expectNoDifference(recordingFake.calls, [.pause("/work/farmerville")])
   }
 
+  @Test func aRecreatedFolderThatIsRetryingShowsItsRetryingCaptureWithPause() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "old", root: "/work/farmerville", binding: nil),
+      Fixture.capture(.notRecording, reason: "storage-unavailable", session: "new", root: "/work/farmerville", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(sidebarRowIDs(model), ["new"])
+    let row = try #require(model.sessions[id: "new"])
+    expectNoDifference(model.rowActionText(row), "Pause")
+  }
+
   @Test func theHeaderCountsRecordingRowsOnly() async {
     listCaptures(
       Fixture.capture(session: "a", root: "/work/a", binding: nil),
@@ -2616,6 +2629,27 @@ extension ChangeStreamPageTests {
     expectNoDifference(recordingFake.calls, [.record("/work/b")])
     expectNoDifference(model.selectedSession?.id, "b")
     expectNoDifference(model.footerMessage, nil)
+  }
+
+  @Test func aRowSelectedWhileRecordingAFolderKeepsTheSelection() async {
+    listCaptures(
+      Fixture.capture(session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil),
+      Fixture.capture(session: "c", root: "/work/c", binding: nil))
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: "/work/b")))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    recordingFake.hold()
+
+    let record = Task { await model.recordFolderTapped() }
+    await Task.megaYield()
+    model.sessionSelected("c")
+    await Task.megaYield()
+    recordingFake.release()
+    await record.value
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession?.id, "c")
   }
 
   @Test func recordingAPausedWorkspaceLinksItsChatOnce() async {

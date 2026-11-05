@@ -38,7 +38,7 @@ final class ChangeStreamPageModel: ViewModel {
     super.init()
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
-    recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
+    recording.onChanged = { [weak self] in await self?.recordingChanged(preferring: $0) }
     recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
   }
 
@@ -120,6 +120,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var userSessionSelectionGeneration = 0
+  @ObservationIgnored private var recordFolderSelectionGeneration = 0
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
@@ -639,6 +640,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func recordFolderTapped() async {
+    recordFolderSelectionGeneration = userSessionSelectionGeneration
     await recording.recordFolderTapped()
   }
 
@@ -920,6 +922,11 @@ final class ChangeStreamPageModel: ViewModel {
     workspaceFailureTitle = title
     workspaceFailureText = text
     isWorkspaceFailurePresented = true
+  }
+
+  /// A row the user picked while Record ran keeps the selection.
+  private func recordingChanged(preferring folder: String?) async {
+    await loadSessions(preferring: userSessionSelectionGeneration == recordFolderSelectionGeneration ? folder : nil)
   }
 
   private func loadSessions(preferring preferredRoot: String? = nil) async {
