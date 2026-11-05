@@ -3,28 +3,16 @@
 #
 #   packaging/notarize-app.sh /path/to/SlipstreamViewer.app
 #
-# Requires notarytool credentials. Provide EITHER a stored keychain profile:
+# Requires a notarytool keychain profile:
 #   xcrun notarytool store-credentials qie-notary \
 #     --apple-id you@example.com --team-id FSRSPV9N9Q --password <app-specific-pw>
 #   NOTARY_PROFILE=qie-notary packaging/notarize-app.sh App.app
-# OR an App Store Connect API key:
-#   NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=XXXX NOTARY_ISSUER=uuid \
-#     packaging/notarize-app.sh App.app
-#
 set -euo pipefail
 
 APP="${1:?usage: notarize-app.sh /path/to/SlipstreamViewer.app}"
 ZIP="${APP%.app}-notarize.zip"
 
-notary_auth=()
-if [ -n "${NOTARY_PROFILE:-}" ]; then
-  notary_auth=(--keychain-profile "$NOTARY_PROFILE")
-elif [ -n "${NOTARY_KEY:-}" ]; then
-  notary_auth=(--key "$NOTARY_KEY" --key-id "${NOTARY_KEY_ID:?}" --issuer "${NOTARY_ISSUER:?}")
-else
-  echo "error: no notarytool credentials. Set NOTARY_PROFILE or NOTARY_KEY/…." >&2
-  exit 2
-fi
+NOTARY_PROFILE="${NOTARY_PROFILE:?set NOTARY_PROFILE (notarytool keychain profile)}"
 
 echo "==> Zipping app for submission (ditto preserves signatures/symlinks)"
 rm -f "$ZIP"
@@ -33,7 +21,7 @@ trap 'rm -f "$ZIP"' EXIT
 /usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
 
 echo "==> Submitting to Apple notary service (waits for result)"
-xcrun notarytool submit "$ZIP" "${notary_auth[@]}" --wait
+xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
 
 echo "==> Stapling the ticket to the .app"
 xcrun stapler staple "$APP"

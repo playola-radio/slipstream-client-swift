@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 # Append a signed <item> to packaging/dist/appcast.xml for the current DMG.
 #   packaging/appcast.rb <dmg> <public-download-url> <sign_update_path> <notes_file>
-# Inline Markdown release notes. Idempotent: replaces an item with the same
-# sparkle:version. A malformed appcast breaks the update channel, so it validates
-# XML before writing.
+# Inline Markdown release notes. Refuses a build that is not newer than every
+# published item, so a re-run without `fastlane mac bump` can never overwrite a
+# released DMG. A malformed appcast breaks the update channel, so it validates XML
+# before writing.
 require "rexml/document"
 require "time"
 require "open3"
@@ -60,11 +61,9 @@ if doc.nil?
   XML
 end
 channel = doc.elements["rss/channel"] or abort "appcast has no rss/channel element"
-# Idempotent: drop any existing item with this sparkle:version. Collect matches
-# first — deleting while iterating REXML's live list skips siblings.
-channel.elements.to_a("item").each do |it|
-  v = it.elements["sparkle:version"]&.text&.strip
-  channel.delete(it) if v == version
+published = channel.elements.to_a("item").map { |it| it.elements["sparkle:version"]&.text.to_i }.max
+if published && published >= version.to_i
+  abort "build #{version} is not newer than published build #{published}; run `fastlane mac bump` first"
 end
 
 item = channel.add_element("item")

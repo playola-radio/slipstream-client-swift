@@ -3,19 +3,9 @@
 A release builds a Developer ID–signed, notarized app, wraps it in a signed,
 notarized, stapled DMG, adds a signed item to the Sparkle appcast, and uploads both
 to S3. Installed copies update themselves through Sparkle
-(**Slipstream → Check for Updates…**, plus a daily background check). It is the same
+(**Check for Updates…** in the app menu, plus a daily background check). It is the same
 pipeline as Playola Interview Editor (`~/playola/logic-utils/packaging`), minus the
 bundled Python engine.
-
-```text
-packaging/release_notes.rb extract …  # preflight: this version's CHANGELOG.md section
-packaging/build-app.sh                # Release build, unsigned -> packaging/dist/SlipstreamViewer.app
-packaging/sign-app.sh …               # inside-out Developer ID + hardened-runtime signing
-packaging/notarize-app.sh …           # notarize + staple the app
-packaging/make-dmg.sh                 # DMG -> sign + notarize + staple
-packaging/appcast.rb …                # EdDSA-sign the DMG, append the appcast item
-aws s3 cp …                           # versioned DMG, the -latest alias, then appcast.xml
-```
 
 Releases run locally from one fastlane lane; CI never signs or uploads.
 

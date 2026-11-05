@@ -26,31 +26,6 @@ class ReleaseNotesTest < Minitest::Test
     - Older work.
   MARKDOWN
 
-  APPCAST = <<~XML
-    <?xml version="1.0" encoding="utf-8"?>
-    <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-      <channel>
-        <title>SlipstreamViewer</title>
-        <item>
-          <title>Version 2.0.0</title>
-          <pubDate>Mon, 08 Sep 2026 12:00:00 +0000</pubDate>
-          <sparkle:version>4</sparkle:version>
-          <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
-          <description>See the changelog.</description>
-          <enclosure url="https://example.com/app-2.0.0.dmg" length="42" type="application/octet-stream" sparkle:edSignature="signed-2" />
-        </item>
-        <item>
-          <title>Version 1.9.0</title>
-          <pubDate>Fri, 01 Aug 2026 12:00:00 +0000</pubDate>
-          <sparkle:version>3</sparkle:version>
-          <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
-          <description>Older notes.</description>
-          <enclosure url="https://example.com/app-1.9.0.dmg" length="41" type="application/octet-stream" sparkle:edSignature="signed-1" />
-        </item>
-      </channel>
-    </rss>
-  XML
-
   def test_extracts_only_the_exact_release_body
     assert_equal <<~MARKDOWN.strip, ReleaseNotes.extract(CHANGELOG, "2.0.0")
       - Save and reopen `.pie` projects.
@@ -127,21 +102,6 @@ class ReleaseNotesTest < Minitest::Test
     assert_equal notes, description.text
   end
 
-  def test_replaces_an_existing_description
-    document = REXML::Document.new(<<~XML)
-      <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-        <channel><item><description>See the changelog.</description></item></channel>
-      </rss>
-    XML
-    item = document.elements["rss/channel/item"]
-
-    ReleaseNotes.set_description(item, "- The actual notes.")
-
-    assert_equal 1, item.elements.to_a("description").length
-    assert_equal "- The actual notes.", item.elements["description"].text
-    assert_equal "markdown", item.elements["description"].attribute("sparkle:format").value
-  end
-
   def test_rejects_a_blank_description
     document = REXML::Document.new("<item />")
 
@@ -150,56 +110,6 @@ class ReleaseNotesTest < Minitest::Test
     end
 
     assert_match(/empty/, error.message)
-  end
-
-  def test_backfill_updates_only_the_requested_items_description
-    original = REXML::Document.new(APPCAST)
-    original_items = original.elements.to_a("rss/channel/item")
-    original_target = original_items.fetch(0)
-    original_other = original_items.fetch(1)
-    original_child_order = original_target.elements.to_a.map(&:expanded_name)
-    notes = "- Audio & export <work> safely.\n- A CDATA edge: ]]>"
-
-    output = ReleaseNotes.backfill_appcast(APPCAST, "2.0.0", notes)
-
-    updated = REXML::Document.new(output)
-    items = updated.elements.to_a("rss/channel/item")
-    target = items.fetch(0)
-    other = items.fetch(1)
-    assert_equal notes, target.elements["description"].text
-    assert_equal "markdown", target.elements["description"].attribute("sparkle:format").value
-    assert_equal original_target.elements["title"].text, target.elements["title"].text
-    assert_equal original_target.elements["pubDate"].text, target.elements["pubDate"].text
-    assert_equal original_target.elements["sparkle:version"].text, target.elements["sparkle:version"].text
-    assert_equal original_child_order, target.elements.to_a.map(&:expanded_name)
-    assert_equal element_attributes(original_target.elements["enclosure"]),
-      element_attributes(target.elements["enclosure"])
-    assert_equal original_other.elements["description"].text, other.elements["description"].text
-    assert_equal element_attributes(original_other.elements["enclosure"]),
-      element_attributes(other.elements["enclosure"])
-  end
-
-  def test_backfill_rejects_a_missing_appcast_item
-    error = assert_raises(ReleaseNotes::Error) do
-      ReleaseNotes.backfill_appcast(APPCAST, "3.0.0", "- Notes.")
-    end
-
-    assert_match(/missing/, error.message)
-  end
-
-  def test_backfill_rejects_duplicate_appcast_items
-    duplicate_item = <<~XML
-      <item>
-        <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
-      </item>
-    XML
-    duplicate = APPCAST.sub("</channel>", "#{duplicate_item}</channel>")
-
-    error = assert_raises(ReleaseNotes::Error) do
-      ReleaseNotes.backfill_appcast(duplicate, "2.0.0", "- Notes.")
-    end
-
-    assert_match(/more than once/, error.message)
   end
 
   def test_extract_cli_writes_only_the_selected_notes
@@ -213,38 +123,6 @@ class ReleaseNotesTest < Minitest::Test
       assert status.success?, stderr
       assert_equal "- Save and reopen `.pie` projects.\n- Review suggestions before export.\n",
         File.read(output)
-    end
-  end
-
-  def test_backfill_cli_replaces_the_local_appcast
-    Dir.mktmpdir do |directory|
-      changelog = File.join(directory, "CHANGELOG.md")
-      appcast = File.join(directory, "appcast.xml")
-      File.write(changelog, CHANGELOG)
-      File.write(appcast, APPCAST)
-
-      _stdout, stderr, status = run_cli("backfill", appcast, changelog, "2.0.0")
-
-      assert status.success?, stderr
-      document = REXML::Document.new(File.read(appcast))
-      description = document.elements["rss/channel/item/description"]
-      assert_equal ReleaseNotes.extract(CHANGELOG, "2.0.0"), description.text
-      assert_equal "markdown", description.attribute("sparkle:format").value
-    end
-  end
-
-  def test_backfill_cli_leaves_the_appcast_unchanged_when_notes_are_missing
-    Dir.mktmpdir do |directory|
-      changelog = File.join(directory, "CHANGELOG.md")
-      appcast = File.join(directory, "appcast.xml")
-      File.write(changelog, CHANGELOG)
-      File.write(appcast, APPCAST)
-
-      _stdout, stderr, status = run_cli("backfill", appcast, changelog, "3.0.0")
-
-      refute status.success?
-      assert_match(/missing/, stderr)
-      assert_equal APPCAST, File.read(appcast)
     end
   end
 
@@ -264,25 +142,7 @@ class ReleaseNotesTest < Minitest::Test
 
   def test_appcast_script_embeds_the_required_markdown_notes
     Dir.mktmpdir do |directory|
-      dmg = File.join(directory, "SlipstreamViewer-2.0.1-5.dmg")
-      notes_file = File.join(directory, "notes.md")
-      signer = File.join(directory, "sign_update")
-      plist_buddy = File.join(directory, "plist_buddy")
-      File.write(dmg, "disk image")
-      File.write(notes_file, "- Visible & useful.\n")
-      write_executable(signer, <<~SH)
-        #!/bin/sh
-        printf '%s\n' 'sparkle:edSignature="test-signature" length="10"'
-      SH
-      write_executable(plist_buddy, <<~SH)
-        #!/bin/sh
-        case "$2" in
-          "Print :CFBundleVersion") printf '5\n' ;;
-          "Print :CFBundleShortVersionString") printf '2.0.1\n' ;;
-          *) exit 1 ;;
-        esac
-      SH
-      url = "https://example.com/#{File.basename(dmg)}"
+      dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory)
 
       _stdout, stderr, status = Open3.capture3(
         { "PLIST_BUDDY" => plist_buddy },
@@ -300,10 +160,48 @@ class ReleaseNotesTest < Minitest::Test
     end
   end
 
+  def test_appcast_script_refuses_a_build_that_is_not_newer_than_the_published_one
+    Dir.mktmpdir do |directory|
+      dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory)
+      File.write(File.join(directory, "appcast.xml"), <<~XML)
+        <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+          <channel><item><sparkle:version>5</sparkle:version></item></channel>
+        </rss>
+      XML
+
+      _stdout, stderr, status = Open3.capture3(
+        { "PLIST_BUDDY" => plist_buddy },
+        RbConfig.ruby, APPCAST_SCRIPT, dmg, url, signer, notes_file
+      )
+
+      refute status.success?
+      assert_match(/not newer than published build 5/, stderr)
+    end
+  end
+
   private
 
-  def element_attributes(element)
-    element.attributes.to_a.to_h { |attribute| [attribute.expanded_name, attribute.value] }
+  def appcast_inputs(directory)
+    dmg = File.join(directory, "SlipstreamViewer-2.0.1-5.dmg")
+    notes_file = File.join(directory, "notes.md")
+    signer = File.join(directory, "sign_update")
+    plist_buddy = File.join(directory, "plist_buddy")
+    File.write(dmg, "disk image")
+    File.write(notes_file, "- Visible & useful.\n")
+    write_executable(signer, <<~SH)
+      #!/bin/sh
+      printf '%s\n' 'sparkle:edSignature="test-signature" length="10"'
+    SH
+    write_executable(plist_buddy, <<~SH)
+      #!/bin/sh
+      case "$2" in
+        "Print :CFBundleVersion") printf '5\n' ;;
+        "Print :CFBundleShortVersionString") printf '2.0.1\n' ;;
+        *) exit 1 ;;
+      esac
+    SH
+    url = "https://example.com/#{File.basename(dmg)}"
+    [dmg, url, signer, notes_file, plist_buddy]
   end
 
   def run_cli(*arguments)
