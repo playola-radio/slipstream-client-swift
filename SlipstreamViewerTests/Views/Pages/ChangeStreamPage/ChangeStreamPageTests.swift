@@ -3270,7 +3270,7 @@ extension ChangeStreamPageTests {
   ) -> WorkspaceClient {
     WorkspaceClient(
       roots: { WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces")) },
-      chooseRepository: { choose }, archive: archive)
+      chooseFolder: { _, _ in choose }, archive: archive)
   }
 
   /// The launch running `slipstream workspace create` in the Setup tab.
@@ -3605,7 +3605,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseRepository: workspace.chooseRepository, archive: workspace.archive))
+      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
     let appeared = Task { await model.viewAppeared() }
     defer { model.viewDisappeared() }
     await appeared.value
@@ -3649,7 +3649,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseRepository: workspace.chooseRepository,
+      chooseFolder: workspace.chooseFolder,
       archive: workspace.archive
     )
     let model = makeModel(workspace: slowWorkspace)

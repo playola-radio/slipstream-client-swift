@@ -568,7 +568,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func newWorkspaceTapped() async {
-    guard !isWorkspaceBusy, let repository = await workspace.chooseRepository() else { return }
+    guard !isWorkspaceBusy,
+      let repository = await workspace.chooseFolder("Choose a git repository for the new workspace", "Create Workspace")
+    else { return }
     await createWorkspace(in: repository)
   }
 
