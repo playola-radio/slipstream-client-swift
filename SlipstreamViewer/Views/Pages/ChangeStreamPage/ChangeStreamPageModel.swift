@@ -464,7 +464,8 @@ final class ChangeStreamPageModel: ViewModel {
         captureStatus: sessions[id: selection.sessionID].map(captureStatus(of:))
           ?? CaptureStatus(availability: captureAvailability, capture: nil),
         route: askRoute(selection.sessionID),
-        instantAsk: instantAsk
+        instantAsk: instantAsk,
+        recording: recording
       )
     }
   }

@@ -294,4 +294,11 @@ struct CaptureStatusTests {
 
     expectNoDifference(notice, "This workspace isn't recording, so its chat can't receive questions.")
   }
+
+  @Test(arguments: [AskRoute.app, .outside, .none])
+  func askNoticeForAPausedWorkspaceOffersRecord(route: AskRoute) {
+    let notice = Self.status(.stopped, reason: "detached").askNotice(agentConnection: .connected, route: route)
+
+    expectNoDifference(notice, "This workspace is paused, so its chat can't receive questions. Record it to ask.")
+  }
 }

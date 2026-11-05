@@ -23,7 +23,9 @@ struct AskAgentPageView: View {
           RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius)
             .strokeBorder(DesignTokens.Ask.stroke, lineWidth: DesignTokens.Ask.strokeWidth)
         }
-      if let text = model.askNoticeText {
+      if model.isPausedNoticeVisible {
+        pausedNotice
+      } else if let text = model.askNoticeText {
         Text(text)
           .font(DesignTokens.Ask.contextFont)
           .foregroundStyle(DesignTokens.Ask.savedLabel)
@@ -70,6 +72,40 @@ struct AskAgentPageView: View {
       Text(model.errorMessage)
     }
     .task { await model.viewAppeared() }
+  }
+
+  private var pausedNotice: some View {
+    HStack(spacing: DesignTokens.Ask.pausedNoticeGap) {
+      IconView(icon: DesignTokens.Ask.pausedNoticeIcon)
+      Text(model.pausedNoticeText)
+        .font(DesignTokens.Ask.contextFont)
+        .foregroundStyle(model.pausedNoticeColor)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      Button { Task { await model.recordTapped() } } label: {
+        HStack(spacing: DesignTokens.Ask.recordGap) {
+          if model.isRecordDisabled {
+            SpinnerView(spinner: DesignTokens.Ask.recordSpinner)
+          } else {
+            IconView(icon: DesignTokens.Ask.recordIcon)
+          }
+          Text(model.recordButtonText).font(DesignTokens.Ask.recordFont)
+        }
+        .foregroundStyle(DesignTokens.Ask.recordColor)
+        .padding(.vertical, DesignTokens.Ask.recordVerticalPadding)
+        .padding(.horizontal, DesignTokens.Ask.recordHorizontalPadding)
+        .background(DesignTokens.Ask.recordFill, in: RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius))
+        .overlay {
+          RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius)
+            .strokeBorder(DesignTokens.Ask.recordStroke, lineWidth: DesignTokens.Sidebar.RowAction.strokeWidth)
+        }
+      }
+      .disabled(model.isRecordDisabled)
+      .opacity(DesignTokens.Sidebar.RowAction.opacity(isWorking: model.isRecordDisabled))
+    }
+    .padding(.vertical, DesignTokens.Ask.pausedNoticeVerticalPadding)
+    .padding(.horizontal, DesignTokens.Ask.pausedNoticeHorizontalPadding)
+    .background(DesignTokens.Ask.pausedNoticeFill, in: RoundedRectangle(cornerRadius: DesignTokens.Ask.controlRadius))
   }
 
   private var savedQuestions: some View {

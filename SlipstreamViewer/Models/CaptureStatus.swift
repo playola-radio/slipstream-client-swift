@@ -125,6 +125,7 @@ struct CaptureStatus: Equatable, Sendable {
     guard case .available = availability else { return Self.unknownNotice }
     if case .unknown = capture?.state { return Self.unknownNotice }
     if case .unknown = capture?.binding?.state { return Self.unknownNotice }
+    if isPaused { return "This workspace is paused, so its chat can't receive questions. Record it to ask." }
     guard let capture, capture.state == .recording else {
       return "This workspace isn't recording, so its chat can't receive questions."
     }
