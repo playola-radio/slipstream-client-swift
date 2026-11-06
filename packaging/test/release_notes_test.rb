@@ -10,6 +10,8 @@ require_relative "../release_notes"
 class ReleaseNotesTest < Minitest::Test
   APPCAST_SCRIPT = File.expand_path("../appcast.rb", __dir__)
   SCRIPT = File.expand_path("../release_notes.rb", __dir__)
+  # The repo's Gemfile, so bundler also finds gems installed under its local config (CI).
+  BUNDLE_ENV = { "BUNDLE_GEMFILE" => File.expand_path("../../Gemfile", __dir__) }.freeze
 
   CHANGELOG = <<~MARKDOWN
     # Changelog
@@ -158,7 +160,7 @@ class ReleaseNotesTest < Minitest::Test
 
   def test_bump_restores_a_clean_tree_after_the_commit_fails
     Dir.mktmpdir do |directory|
-      %w[.gitignore Gemfile Gemfile.lock project.yml].each do |path|
+      %w[.gitignore project.yml].each do |path|
         FileUtils.cp(File.expand_path("../../#{path}", __dir__), File.join(directory, path))
       end
       FileUtils.mkdir_p(File.join(directory, "fastlane"))
@@ -174,13 +176,13 @@ class ReleaseNotesTest < Minitest::Test
       run_git(directory, "config", "commit.gpgSign", "true")
       run_git(directory, "config", "gpg.program", "false")
 
-      _stdout, _stderr, status = Open3.capture3("bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
+      _stdout, _stderr, status = Open3.capture3(BUNDLE_ENV, "bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
 
       refute status.success?
       assert_empty run_git(directory, "status", "--short")
 
       run_git(directory, "config", "commit.gpgSign", "false")
-      _stdout, stderr, status = Open3.capture3("bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
+      _stdout, stderr, status = Open3.capture3(BUNDLE_ENV, "bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
 
       assert status.success?, stderr
       assert_empty run_git(directory, "status", "--short")
