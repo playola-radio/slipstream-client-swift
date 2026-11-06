@@ -104,9 +104,11 @@ final class FunctionChangesLiveModel: ViewModel {
         else {
           throw DaemonHTTPError.invalidResponse
         }
-        seenPaths.subtract(pausedPagePaths)
-        files.removeAll { pausedPagePaths.contains(Data($0.path.utf8)) }
-        pausedPagePaths = []
+        if !response.files.isEmpty {
+          seenPaths.subtract(pausedPagePaths)
+          files.removeAll { pausedPagePaths.contains(Data($0.path.utf8)) }
+          pausedPagePaths = []
+        }
         let pagePaths = response.files.map { Data($0.path.utf8) }
         guard Set(pagePaths).count == pagePaths.count,
           pagePaths.allSatisfy({ !seenPaths.contains($0) })
