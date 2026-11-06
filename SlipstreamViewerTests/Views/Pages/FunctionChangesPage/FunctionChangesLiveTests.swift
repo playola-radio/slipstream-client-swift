@@ -156,6 +156,31 @@ struct FunctionChangesLiveTests {
     expectNoDifference(model.page?.comparison.files, retried.files)
   }
 
+  @Test func retryAfterAMidPageTimeoutReplacesTheWholePausedPage() async throws {
+    let paused = try fixture("range-deadline-mid-page")
+    var retried = paused
+    retried.files[1].status = .ready
+    retried.status = .ready
+    retried.page = InterfacePage(complete: true, nextAfterPath: nil)
+    let fake = DaemonFake()
+    fake.setInterfacePages([paused, retried])
+    let model = withDependencies {
+      $0.daemon = fake.client
+    } operation: {
+      FunctionChangesLiveModel(
+        sessionID: paused.sessionID, before: paused.beforeSeq, after: paused.afterSeq)
+    }
+
+    await model.viewAppeared()
+    #expect(model.canRetry)
+    await model.retryTapped()
+
+    expectNoDifference(fake.interfaceRequests.map(\.5), [nil, nil])
+    expectNoDifference(model.page?.comparison.files, retried.files)
+    #expect(model.page?.comparison.page.complete == true)
+    #expect(model.statusText == nil)
+  }
+
   @Test func canonicallyEquivalentDistinctPathsStayDistinct() async throws {
     var first = try fixture("ts-parameter-change")
     first.files[0].path = "src/caf\u{00E9}/a.ts"

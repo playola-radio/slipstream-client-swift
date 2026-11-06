@@ -34,7 +34,7 @@ final class FunctionChangesLiveModel: ViewModel {
   @ObservationIgnored private var nextCursor: String?
   @ObservationIgnored private var files: [InterfaceFileResult] = []
   @ObservationIgnored private var seenPaths: Set<Data> = []
-  @ObservationIgnored private var pendingRetryPath: Data?
+  @ObservationIgnored private var pausedPagePaths: Set<Data> = []
   @ObservationIgnored private var inventory: InterfaceInventory?
   @ObservationIgnored private var gaps: [InterfaceGap]?
   @ObservationIgnored private var gapsComplete = false
@@ -104,11 +104,9 @@ final class FunctionChangesLiveModel: ViewModel {
         else {
           throw DaemonHTTPError.invalidResponse
         }
-        if let pendingRetryPath {
-          seenPaths.remove(pendingRetryPath)
-          files.removeAll { Data($0.path.utf8) == pendingRetryPath }
-          self.pendingRetryPath = nil
-        }
+        seenPaths.subtract(pausedPagePaths)
+        files.removeAll { pausedPagePaths.contains(Data($0.path.utf8)) }
+        pausedPagePaths = []
         let pagePaths = response.files.map { Data($0.path.utf8) }
         guard Set(pagePaths).count == pagePaths.count,
           pagePaths.allSatisfy({ !seenPaths.contains($0) })
@@ -143,13 +141,13 @@ final class FunctionChangesLiveModel: ViewModel {
               comparison: combined, afterPath: requestedCursor, isAccumulatedRange: true)
           }
         }
-        if let timedOutFile = response.files.last(where: { file in
+        if response.files.contains(where: { file in
           file.status == .skipped(reason: "timeout") || file.status == .skipped(reason: "cancelled")
         }) {
           statusText =
             "Comparison paused after a file timed out or was cancelled. \(incompleteText)"
           canRetry = true
-          pendingRetryPath = Data(timedOutFile.path.utf8)
+          pausedPagePaths = Set(pagePaths)
           return
         }
         if response.page.complete { return }
