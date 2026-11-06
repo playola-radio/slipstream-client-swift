@@ -116,9 +116,14 @@ platform :mac do
     sh("cd .. && aws s3 cp packaging/dist/appcast.xml 's3://#{bucket}/#{prefix}/appcast.xml' --content-type application/xml --cache-control no-cache")
 
     # The tag marks the commit as released; CI skips a merge whose tag already exists.
-    tag = "v#{short}-b#{build}"
-    sh("cd .. && git tag '#{tag}' && git push origin 'refs/tags/#{tag}'")
+    # Rehearsals to another bucket or prefix must not mark the version as released.
+    if bucket == "playola-static" && prefix == "downloads/SlipstreamViewer"
+      tag = "v#{short}-b#{build}"
+      sh("cd .. && git tag '#{tag}' && git push origin 'refs/tags/#{tag}'")
+    else
+      UI.important("Rehearsal destination; not tagging the release")
+    end
 
-    UI.success("Released #{short} (#{build}) as #{tag}: #{host}/#{prefix}/SlipstreamViewer-latest.dmg")
+    UI.success("Released #{short} (#{build}): #{host}/#{prefix}/SlipstreamViewer-latest.dmg")
   end
 end

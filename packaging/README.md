@@ -39,10 +39,13 @@ changelog section, and refuses a build that is not newer than every published on
 
 ### If a release fails
 
-Re-run the workflow. That is safe until the upload starts. If the DMG and appcast
-were uploaded but the tag push failed, the re-run stops at "release artifact
-already exists"; push the tag by hand at the merge commit instead:
-`git tag v0.2.0-b5 <sha> && git push origin v0.2.0-b5`.
+Re-run the workflow. That is safe until the upload starts. If it got further:
+
+- **Appcast uploaded, tag push failed:** the release is live. Push the tag by hand at
+  the merge commit: `git tag v0.2.0-b5 <sha> && git push origin v0.2.0-b5`.
+- **DMG uploaded, appcast not:** nobody is offered the build, and a re-run stops at
+  "release artifact already exists". Run `fastlane mac bump` on `develop` and merge
+  again; the orphaned DMG is harmless.
 
 ## CI credentials
 
@@ -57,7 +60,8 @@ The `release` GitHub environment (deployments from `main` only) holds:
 
 ## Releasing locally
 
-Needs the Developer ID identity in the login Keychain, the notarytool profile
+Only when CI is unavailable, and never while a release workflow is running: the two
+do not lock each other out of the appcast. Needs the Developer ID identity in the login Keychain, the notarytool profile
 `qie-notary` (see `notarize-app.sh`), the Sparkle key in the login Keychain (account
 `slipstream-viewer`), AWS credentials that can write the prefix, and `bundle install`.
 
@@ -70,7 +74,8 @@ The lane pushes the release tag, so CI then skips that version. Env overrides
 `RELEASE_S3_PREFIX=downloads/SlipstreamViewer`,
 `RELEASE_DOWNLOAD_HOST=https://playola-static.s3.amazonaws.com`. AWS credentials come
 from the CLI's normal chain (`AWS_PROFILE`, env vars). To rehearse, set
-`RELEASE_S3_PREFIX=downloads/SlipstreamViewer-staging`; it still uploads and tags.
+`RELEASE_S3_PREFIX=downloads/SlipstreamViewer-staging`; it uploads there but does
+not tag.
 
 ## Verify every release
 

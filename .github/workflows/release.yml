@@ -39,6 +39,7 @@ jobs:
     needs: check
     if: needs.check.outputs.release == 'true'
     runs-on: macos-26
+    timeout-minutes: 110 # under the AWS session below, so credentials outlive the job
     environment: release
     permissions:
       contents: write # push the release tag
@@ -56,6 +57,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
+          role-duration-seconds: 7200
 
       - name: Install signing credentials
         env:
