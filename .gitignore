@@ -38,3 +38,8 @@ LocalPackages/**/.build/
 *.xcodeproj/
 SlipstreamViewer/Info.plist
 .build-*/
+
+# Release packaging output
+packaging/build/
+packaging/dist/
+fastlane/README.md
