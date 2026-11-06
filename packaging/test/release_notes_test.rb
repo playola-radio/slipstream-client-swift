@@ -163,6 +163,38 @@ class ReleaseNotesTest < Minitest::Test
     end
   end
 
+  def test_appcast_script_preserves_existing_feed_items
+    Dir.mktmpdir do |directory|
+      dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory)
+      File.write(File.join(directory, "appcast.xml"), <<~XML)
+        <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+          <channel>
+            <item>
+              <title>Version 2.0.0</title>
+              <sparkle:version>4</sparkle:version>
+              <description sparkle:format="markdown">- Older release.</description>
+              <enclosure url="https://example.com/SlipstreamViewer-2.0.0-4.dmg" />
+            </item>
+          </channel>
+        </rss>
+      XML
+
+      _stdout, stderr, status = Open3.capture3(
+        { "PLIST_BUDDY" => plist_buddy },
+        RbConfig.ruby, APPCAST_SCRIPT, dmg, url, signer, notes_file
+      )
+
+      assert status.success?, stderr
+      appcast = REXML::Document.new(File.read(File.join(directory, "appcast.xml")))
+      items = appcast.elements.to_a("rss/channel/item")
+      assert_equal ["4", "5"], items.map { |item| item.elements["sparkle:version"].text }
+      older = items.first
+      assert_equal "- Older release.", older.elements["description"].text
+      assert_equal "https://example.com/SlipstreamViewer-2.0.0-4.dmg",
+                   older.elements["enclosure"].attribute("url").value
+    end
+  end
+
   def test_appcast_script_signs_with_the_slipstream_keychain_account_by_default
     Dir.mktmpdir do |directory|
       dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory)
