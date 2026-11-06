@@ -156,6 +156,37 @@ class ReleaseNotesTest < Minitest::Test
     end
   end
 
+  def test_bump_restores_a_clean_tree_after_the_commit_fails
+    Dir.mktmpdir do |directory|
+      %w[.gitignore Gemfile Gemfile.lock project.yml].each do |path|
+        FileUtils.cp(File.expand_path("../../#{path}", __dir__), File.join(directory, path))
+      end
+      FileUtils.mkdir_p(File.join(directory, "fastlane"))
+      FileUtils.mkdir_p(File.join(directory, "packaging"))
+      FileUtils.cp(File.expand_path("../../fastlane/Fastfile", __dir__), File.join(directory, "fastlane/Fastfile"))
+      FileUtils.cp(SCRIPT, File.join(directory, "packaging/release_notes.rb"))
+      File.write(File.join(directory, "CHANGELOG.md"), CHANGELOG)
+      run_git(directory, "init", "--quiet")
+      run_git(directory, "config", "user.name", "Release Test")
+      run_git(directory, "config", "user.email", "release-test@example.com")
+      run_git(directory, "add", ".")
+      run_git(directory, "-c", "commit.gpgSign=false", "commit", "-m", "chore: prepare release test")
+      run_git(directory, "config", "commit.gpgSign", "true")
+      run_git(directory, "config", "gpg.program", "false")
+
+      _stdout, _stderr, status = Open3.capture3("bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
+
+      refute status.success?
+      assert_empty run_git(directory, "status", "--short")
+
+      run_git(directory, "config", "commit.gpgSign", "false")
+      _stdout, stderr, status = Open3.capture3("bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
+
+      assert status.success?, stderr
+      assert_empty run_git(directory, "status", "--short")
+    end
+  end
+
   def test_sets_a_markdown_description_that_round_trips_special_text
     document = REXML::Document.new(<<~XML)
       <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
@@ -375,6 +406,12 @@ class ReleaseNotesTest < Minitest::Test
 
   def run_cli(*arguments)
     Open3.capture3(RbConfig.ruby, SCRIPT, *arguments)
+  end
+
+  def run_git(directory, *arguments)
+    stdout, stderr, status = Open3.capture3("git", *arguments, chdir: directory)
+    assert status.success?, stderr
+    stdout
   end
 
   def write_executable(path, contents)

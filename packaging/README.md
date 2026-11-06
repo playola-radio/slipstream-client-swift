@@ -23,8 +23,9 @@ Every merge to `main` that carries a new version releases from GitHub Actions
 The `/prep-release` skill (`.claude/skills/prep-release`) walks through all of this,
 including drafting the notes from the PRs merged since the last release.
 
-1. On a branch off `develop`, make sure `## [Unreleased]` in `CHANGELOG.md` lists every
-   user-facing change since the last release, then:
+1. On a branch off `develop`, commit the release notes so the working tree is clean. Make
+   sure `## [Unreleased]` in `CHANGELOG.md` lists every user-facing change since the last
+   release, then:
 
    ```bash
    make prep-release VERSION=0.3.0
@@ -34,7 +35,8 @@ including drafting the notes from the PRs merged since the last release.
    `MARKETING_VERSION` and the integer `CURRENT_PROJECT_VERSION` (the
    `sparkle:version`, which must only ever go up) in `project.yml`, in one commit. It
    refuses an empty `[Unreleased]` or a version already in the changelog. For a
-   build-only bump of the same version, run `bundle exec fastlane mac bump`.
+   build-only bump of the same version, run `bundle exec fastlane mac bump`. If the
+   preparation commit fails, it restores the clean tree so the command can be rerun.
 2. Merge that branch into `develop`, then open the `develop` → `main` release PR and
    merge it.
 
