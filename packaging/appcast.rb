@@ -1,0 +1,124 @@
+#!/usr/bin/env ruby
+# Append a signed <item> to packaging/dist/appcast.xml for the current DMG.
+#   packaging/appcast.rb <dmg> <public-download-url> <sign_update_path> <notes_file>
+# Inline Markdown release notes. Refuses a build that is not newer than every
+# published item, so a re-run without `fastlane mac bump` can never overwrite a
+# released DMG. A malformed appcast breaks the update channel, so it validates XML
+# before writing.
+require "base64"
+require "openssl"
+require "rexml/document"
+require "time"
+require "open3"
+require_relative "release_notes"
+
+dmg, url, sign_update, notes_file = ARGV
+abort "usage: appcast.rb <dmg> <download-url> <sign_update> <notes_file>" unless ARGV.length == 4
+abort "sign_update not executable: #{sign_update}" unless File.executable?(sign_update)
+abort "dmg not found: #{dmg}" unless File.file?(dmg)
+abort "notes file not found: #{notes_file}" unless File.file?(notes_file)
+
+app = File.join(File.dirname(dmg), "SlipstreamViewer.app")
+# Read plist keys via argv (no shell) so an app path with spaces/quotes/metacharacters
+# can't break or inject — matches the Open3 handling used for sign_update below.
+def plist(plist_buddy, app, key)
+  out, status = Open3.capture2(plist_buddy, "-c", "Print :#{key}",
+                               File.join(app, "Contents", "Info.plist"))
+  abort "cannot read #{key} from built app" unless status.success?
+  out.strip
+end
+plist_buddy = ENV.fetch("PLIST_BUDDY", "/usr/libexec/PlistBuddy")
+version    = plist(plist_buddy, app, "CFBundleVersion")            # sparkle:version (integer)
+short      = plist(plist_buddy, app, "CFBundleShortVersionString") # display
+min_os     = "15.0.0"                                # 3-component, Sparkle requirement
+notes      = File.read(notes_file)
+abort "release notes are empty: #{notes_file}" if notes.strip.empty?
+
+# A bad appcast breaks the update channel for everyone, so validate the SEMANTICS
+# before writing — not just that the output is well-formed XML. Empty PlistBuddy
+# reads (missing key / wrong path) must fail loudly rather than emit blank fields.
+abort "CFBundleVersion missing or non-integer: #{version.inspect}" unless version =~ /\A\d+\z/
+abort "CFBundleShortVersionString empty" if short.empty?
+abort "download url must be https: #{url}" unless url.start_with?("https://")
+abort "download url must end in the dmg name" unless url.end_with?(File.basename(dmg))
+
+public_ed_key = plist(plist_buddy, app, "SUPublicEDKey")
+
+# CI passes the private key as a file; local releases read it from the Keychain.
+key_file = ENV["SPARKLE_ED_KEY_FILE"].to_s
+signer_args = key_file.empty? ? ["--account", "slipstream-viewer"] : ["--ed-key-file", key_file]
+
+# Invoke with separate args (no shell interpolation) and require exit 0 before
+# trusting stdout — a failed signer must abort, never emit an unsigned enclosure.
+sig_line, sig_status = Open3.capture2(sign_update, *signer_args, dmg)
+abort "sign_update failed (exit #{sig_status.exitstatus})" unless sig_status.success?
+sig_line = sig_line.strip                             # sparkle:edSignature="..." length="..."
+abort "sign_update produced no signature" if sig_line.empty?
+ed  = sig_line[/sparkle:edSignature="([^"]+)"/, 1] or abort "no edSignature in: #{sig_line}"
+len = sig_line[/length="(\d+)"/, 1] or abort "no length in: #{sig_line}"
+abort "enclosure length must be > 0" unless len.to_i.positive?
+
+# Installed apps reject any update the shipped SUPublicEDKey cannot verify, so a
+# key that doesn't match it would silently strand every user on this build.
+ed25519_spki_prefix = ["302a300506032b6570032100"].pack("H*")
+verifier = OpenSSL::PKey.read(ed25519_spki_prefix + Base64.strict_decode64(public_ed_key))
+unless verifier.verify(nil, Base64.strict_decode64(ed), File.binread(dmg))
+  abort "update signature does not verify against the app's SUPublicEDKey"
+end
+
+path = File.join(File.dirname(dmg), "appcast.xml")
+doc = File.exist?(path) ? REXML::Document.new(File.read(path)) : nil
+if doc.nil?
+  doc = REXML::Document.new(<<~XML)
+    <?xml version="1.0" encoding="utf-8"?>
+    <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+      <channel><title>SlipstreamViewer</title></channel>
+    </rss>
+  XML
+end
+channel = doc.elements["rss/channel"] or abort "appcast has no rss/channel element"
+published = channel.elements.to_a("item").map { |it| it.elements["sparkle:version"]&.text.to_i }.max
+if published && published >= version.to_i
+  abort "build #{version} is not newer than published build #{published}; run `fastlane mac bump` first"
+end
+
+item = channel.add_element("item")
+item.add_element("title").text = "Version #{short}"
+item.add_element("pubDate").text = Time.now.utc.rfc2822
+item.add_element("sparkle:version").text = version
+item.add_element("sparkle:shortVersionString").text = short
+item.add_element("sparkle:minimumSystemVersion").text = min_os
+ReleaseNotes.set_description(item, notes)
+enc = item.add_element("enclosure")
+enc.add_attribute("url", url)
+enc.add_attribute("length", len)
+enc.add_attribute("type", "application/octet-stream")
+enc.add_attribute("sparkle:edSignature", ed)
+
+# Validate by re-parsing what we're about to write, then re-assert the freshly
+# built item carries every required field before it goes near S3. Write with the
+# DEFAULT formatter (no pretty-print `indent:`) — REXML's indenter rewrites text
+# nodes, injecting whitespace into values like <sparkle:version>, which would both
+# corrupt the version Sparkle compares and fail this validation.
+out = String.new
+doc.write(out)
+reparsed = REXML::Document.new(out) or abort "generated appcast is not well-formed"
+built = reparsed.elements.to_a("rss/channel/item").find { |i| i.elements["sparkle:version"]&.text&.strip == version } \
+  or abort "generated item for version #{version} is missing"
+%w[title sparkle:version sparkle:shortVersionString sparkle:minimumSystemVersion].each do |field|
+  t = built.elements[field]&.text
+  abort "generated item missing #{field}" if t.nil? || t.strip.empty?
+end
+description = built.elements["description"] or abort "generated item missing description"
+unless description.attribute("sparkle:format")&.value == "markdown"
+  abort "generated item description is not markdown"
+end
+unless description.text == notes
+  abort "generated item release notes changed during XML serialization"
+end
+enc_out = built.elements["enclosure"] or abort "generated item missing enclosure"
+%w[url length sparkle:edSignature].each do |attr|
+  abort "enclosure missing #{attr}" if (enc_out.attribute(attr)&.value).to_s.empty?
+end
+File.write(path, out)
+puts "Wrote #{path} (version #{version}, len #{len})"

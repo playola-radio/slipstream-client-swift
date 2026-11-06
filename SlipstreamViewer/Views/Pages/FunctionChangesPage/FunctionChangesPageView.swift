@@ -1,0 +1,328 @@
+import SwiftUI
+
+struct FunctionChangesPageView: View {
+  @State var model: FunctionChangesPageModel
+
+  var body: some View {
+    VStack(spacing: 0) {
+      Text(model.contextText)
+        .font(DesignTokens.FunctionTree.smallFont)
+        .foregroundStyle(DesignTokens.FunctionTree.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
+      controls
+      if !model.noticeText.isEmpty {
+        Text(model.noticeText)
+          .font(DesignTokens.FunctionTree.smallFont)
+          .foregroundStyle(DesignTokens.FunctionTree.changed)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 24)
+          .padding(.vertical, 8)
+          .background(DesignTokens.FunctionTree.bannerFill)
+      }
+      if model.emptyStateText.isEmpty {
+        if model.showsMap {
+          FunctionContractMapView(model: model)
+        } else {
+          tree
+        }
+      } else {
+        Text(model.emptyStateText)
+          .font(DesignTokens.FunctionTree.bodyFont)
+          .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(DesignTokens.FunctionTree.canvasFill)
+      }
+      footer
+    }
+    .background(DesignTokens.FunctionTree.background)
+    .preferredColorScheme(.dark)
+  }
+
+  private var controls: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 18) {
+        searchRow
+        Spacer()
+        legendControls
+      }
+      VStack(alignment: .leading, spacing: 10) {
+        searchRow
+        scrollingLegend
+      }
+      VStack(alignment: .leading, spacing: 10) {
+        searchColumn
+        scrollingLegend
+      }
+    }
+    .font(DesignTokens.FunctionTree.smallFont)
+    .buttonStyle(.plain)
+    .foregroundStyle(DesignTokens.FunctionTree.secondary)
+    .padding(.horizontal, 24)
+    .padding(.vertical, 12)
+    .background(DesignTokens.FunctionTree.background)
+    .overlay(alignment: .bottom) { DesignTokens.FunctionTree.divider.frame(height: 1) }
+  }
+
+  private var searchRow: some View {
+    HStack(spacing: 18) {
+      searchAndMode
+      Button(model.showAllFilesText) { model.showAllFilesTapped() }
+      showUnchangedButton
+    }
+    .fixedSize(horizontal: true, vertical: false)
+  }
+
+  private var searchColumn: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      searchAndMode
+      Button(model.showAllFilesText) { model.showAllFilesTapped() }
+      showUnchangedButton
+    }
+  }
+
+  @ViewBuilder
+  private var showUnchangedButton: some View {
+    if model.canShowUnchanged {
+      Button(model.showUnchangedText) { model.showUnchangedTapped() }
+    }
+  }
+
+  private var scrollingLegend: some View {
+    ScrollView(.horizontal) { legendControls }
+      .scrollIndicators(.hidden)
+  }
+
+  private var searchAndMode: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 18) {
+        searchField
+        modePicker
+      }
+      VStack(alignment: .leading, spacing: DesignTokens.FunctionTree.controlStackGap) {
+        searchField
+        modePicker
+      }
+    }
+  }
+
+  private var searchField: some View {
+    TextField(model.searchPrompt, text: $model.searchText)
+      .textFieldStyle(.plain)
+      .font(DesignTokens.FunctionTree.bodyFont)
+      .foregroundStyle(DesignTokens.FunctionTree.title)
+      .padding(.horizontal, 11)
+      .frame(idealWidth: 270, maxWidth: 270, minHeight: 30, maxHeight: 30)
+      .background(DesignTokens.FunctionTree.inputFill)
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.controlRadius).stroke(
+          DesignTokens.FunctionTree.cardStroke)
+      }
+  }
+
+  private var modePicker: some View {
+    Picker(model.modePickerText, selection: $model.modeSelection) {
+      ForEach(FunctionChangesDisplayMode.allCases, id: \.self) { mode in
+        Text(mode.rawValue).tag(mode)
+      }
+    }
+    .pickerStyle(.segmented)
+    .frame(width: 130)
+  }
+
+  private var legendControls: some View {
+    HStack(spacing: 18) {
+      legend("+", "Added", DesignTokens.FunctionTree.added)
+      legend("~", "Changed", DesignTokens.FunctionTree.changed)
+      legend("−", "Removed", DesignTokens.FunctionTree.removed)
+      legend("?", "Unknown", DesignTokens.FunctionMap.unknown)
+      Text(model.legendText)
+        .foregroundStyle(DesignTokens.FunctionTree.muted)
+    }
+  }
+
+  private func legend(_ symbol: String, _ text: String, _ color: Color) -> some View {
+    Text("\(symbol) \(text)").foregroundStyle(color)
+  }
+
+  private var tree: some View {
+    ScrollView([.horizontal, .vertical]) {
+      treeCanvas
+        .scaleEffect(model.zoom, anchor: .topLeading)
+        .frame(
+          width: model.canvasSize.width * model.zoom,
+          height: model.canvasSize.height * model.zoom, alignment: .topLeading)
+    }
+    .scrollPosition($model.scrollPosition)
+    .background(DesignTokens.FunctionTree.canvasFill)
+    .onGeometryChange(for: CGSize.self) {
+      $0.size
+    } action: { size in
+      model.viewportChanged(width: size.width, height: size.height)
+    }
+  }
+
+  private var treeCanvas: some View {
+    ZStack(alignment: .topLeading) {
+      DesignTokens.FunctionTree.canvasFill
+      Canvas { context, _ in
+        for (start, end) in model.edges {
+          var path = Path()
+          let middle = (start.y + end.y) / 2
+          path.move(to: start)
+          path.addLine(to: CGPoint(x: start.x, y: middle))
+          path.addLine(to: CGPoint(x: end.x, y: middle))
+          path.addLine(to: end)
+          context.stroke(path, with: .color(DesignTokens.FunctionTree.connector), lineWidth: 1.5)
+        }
+      }
+      .allowsHitTesting(false)
+      ForEach(model.nodes) { node in
+        nodeView(node)
+          .frame(width: node.width, height: node.height)
+          .position(x: node.x, y: node.y + node.height / 2)
+      }
+    }
+    .frame(width: model.canvasSize.width, height: model.canvasSize.height, alignment: .topLeading)
+    .environment(\.fontScale, 1)
+  }
+
+  @ViewBuilder
+  private func nodeView(_ node: FunctionChangeNode) -> some View {
+    if node.kind == .declaration {
+      Button {
+        model.declarationTapped(node.id)
+      } label: {
+        card(node)
+      }
+      .buttonStyle(.plain)
+    } else {
+      card(node)
+    }
+  }
+
+  private func card(_ node: FunctionChangeNode) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .top, spacing: 8) {
+        if let marker = node.marker {
+          Text(DesignTokens.FunctionTree.symbol(marker))
+            .foregroundStyle(DesignTokens.FunctionTree.mark(marker))
+        }
+        Text(node.title)
+          .foregroundStyle(DesignTokens.FunctionTree.title)
+          .lineLimit(2)
+        Spacer(minLength: 2)
+        if node.changedCount > 0 {
+          Text("\(node.changedCount)")
+            .foregroundStyle(DesignTokens.FunctionTree.changed)
+        }
+        if node.unknownCount > 0 {
+          Text("?")
+            .foregroundStyle(DesignTokens.FunctionTree.unknown)
+        }
+      }
+      .font(DesignTokens.FunctionTree.labelFont)
+      if let status = node.statusText {
+        Text(status)
+          .font(DesignTokens.FunctionTree.smallFont)
+          .foregroundStyle(DesignTokens.FunctionTree.secondary)
+          .lineLimit(node.statusLineLimit)
+          .help(status)
+      }
+      if !node.lines.isEmpty {
+        DesignTokens.FunctionTree.divider.frame(height: 1)
+        ScrollView([.vertical, .horizontal]) {
+          VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(node.lines.enumerated()), id: \.offset) { _, line in
+              HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(DesignTokens.FunctionTree.symbol(line.mark))
+                  .frame(width: 10, alignment: .leading)
+                Text(line.text).fixedSize(horizontal: true, vertical: false)
+              }
+              .font(
+                line.mark == .note
+                  ? DesignTokens.FunctionTree.smallFont : DesignTokens.FunctionTree.codeFont
+              )
+              .foregroundStyle(DesignTokens.FunctionTree.mark(line.mark))
+            }
+          }
+        }
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(
+      model.selectedNodeID == node.id
+        ? DesignTokens.FunctionTree.selectedFill : DesignTokens.FunctionTree.cardFill
+    )
+    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.cardRadius))
+    .overlay {
+      RoundedRectangle(cornerRadius: DesignTokens.FunctionTree.cardRadius)
+        .stroke(
+          model.selectedNodeID == node.id
+            ? DesignTokens.FunctionTree.selectedStroke : DesignTokens.FunctionTree.cardStroke,
+          lineWidth: model.selectedNodeID == node.id ? 2 : 1)
+    }
+  }
+
+  private var footer: some View {
+    VStack(spacing: 0) {
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 10) {
+          zoomControls
+          Spacer()
+          Text(model.selectionText)
+            .lineLimit(1)
+            .truncationMode(.middle)
+        }
+        .frame(height: 58)
+        VStack(alignment: .leading, spacing: 6) {
+          HStack(spacing: 10) { zoomControls }
+          Text(model.selectionText).textSelection(.enabled)
+        }
+        .padding(.vertical, 10)
+      }
+      .font(DesignTokens.FunctionTree.labelFont)
+      .buttonStyle(.plain)
+      .foregroundStyle(DesignTokens.FunctionTree.secondary)
+      .padding(.horizontal, 20)
+      .background(DesignTokens.FunctionTree.controlFill)
+      HStack {
+        VStack(alignment: .leading, spacing: 2) {
+          if model.showsTreeControls {
+            Text(model.zoomHintText)
+          }
+          Text(model.coverageText).lineLimit(1)
+        }
+        Spacer()
+        if model.canSelectBefore {
+          Button(model.beforeButtonText) { model.sourceSideTapped(.before) }
+        }
+        if model.canSelectAfter {
+          Button(model.afterButtonText) { model.sourceSideTapped(.after) }
+        }
+      }
+      .font(DesignTokens.FunctionTree.smallFont)
+      .foregroundStyle(DesignTokens.FunctionTree.muted)
+      .buttonStyle(.plain)
+      .padding(.horizontal, 24)
+      .frame(height: 44)
+      .background(DesignTokens.FunctionTree.background)
+    }
+  }
+
+  @ViewBuilder
+  private var zoomControls: some View {
+    if model.showsTreeControls {
+      Button("−") { model.zoomOutTapped() }
+      Text(model.zoomText).frame(width: 48)
+      Button("+") { model.zoomInTapped() }
+      Button("Fit tree") { model.fitTreeTapped() }
+      Button("Zoom to selection") { model.zoomToSelectionTapped() }
+        .disabled(!model.canZoomToSelection)
+    }
+  }
+}

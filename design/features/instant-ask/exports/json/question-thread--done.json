@@ -1,0 +1,355 @@
+{
+    "type": "frame",
+    "id": "M23SOg",
+    "x": 0,
+    "y": 40450,
+    "name": "question-thread--done",
+    "clip": true,
+    "width": 620,
+    "fill": "#0F1820",
+    "layout": "vertical",
+    "padding": [
+        40,
+        0
+    ],
+    "alignItems": "center",
+    "children": [
+        {
+            "type": "frame",
+            "id": "Rujgr",
+            "name": "Question thread",
+            "width": 420,
+            "fill": "#202B35",
+            "cornerRadius": 6,
+            "stroke": "#83C7F0",
+            "strokeWidth": 1,
+            "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000066",
+                "offset": {
+                    "x": 0,
+                    "y": 8
+                },
+                "blur": 22
+            },
+            "layout": "vertical",
+            "gap": 14,
+            "padding": 16,
+            "children": [
+                {
+                    "type": "frame",
+                    "id": "WbMfM",
+                    "name": "Header",
+                    "width": "fill_container",
+                    "gap": 10,
+                    "alignItems": "center",
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "Il5kQ",
+                            "name": "Title",
+                            "fill": "#C0D0DD",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "Talk to the agent",
+                            "lineHeight": 1,
+                            "fontFamily": "Geist",
+                            "fontSize": 12,
+                            "fontWeight": "550"
+                        },
+                        {
+                            "type": "icon",
+                            "id": "KvgWC",
+                            "name": "Close",
+                            "width": 15,
+                            "height": 15,
+                            "icon": "x",
+                            "library": "lucide",
+                            "fill": "#A4B8C7"
+                        }
+                    ]
+                },
+                {
+                    "type": "text",
+                    "id": "kY2FT",
+                    "name": "Question",
+                    "fill": "#EEF5FA",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "Does farewell print anything?",
+                    "lineHeight": 1.4,
+                    "fontFamily": "Geist",
+                    "fontSize": 14,
+                    "fontWeight": "550"
+                },
+                {
+                    "type": "frame",
+                    "id": "j3FK9",
+                    "name": "AGENT message",
+                    "width": "fill_container",
+                    "layout": "vertical",
+                    "gap": 6,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "jCNm5",
+                            "name": "Author",
+                            "fill": "#A4D5F1",
+                            "content": "AGENT \u00b7 14:01",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "text",
+                            "id": "JOayw",
+                            "name": "Text",
+                            "fill": "#DDE7EF",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "No. farewell builds the message and returns it, but nothing prints it. Want me to make it print?",
+                            "lineHeight": 1.55,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "thRPu",
+                    "name": "YOU message",
+                    "width": "fill_container",
+                    "layout": "vertical",
+                    "gap": 6,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "nBuWa",
+                            "name": "Author",
+                            "fill": "#91A8B9",
+                            "content": "YOU \u00b7 14:02",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "text",
+                            "id": "BkCt4",
+                            "name": "Text",
+                            "fill": "#DDE7EF",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "yes, and leave a blank line after it",
+                            "lineHeight": 1.55,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "DFEtm",
+                    "name": "AGENT message",
+                    "width": "fill_container",
+                    "layout": "vertical",
+                    "gap": 6,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "tMF4m",
+                            "name": "Author",
+                            "fill": "#A4D5F1",
+                            "content": "AGENT \u00b7 14:02",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "text",
+                            "id": "JJl4g",
+                            "name": "Text",
+                            "fill": "#DDE7EF",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "On it. I'll tell you here when it's done.",
+                            "lineHeight": 1.55,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "B37qb",
+                    "name": "Progress log",
+                    "width": "fill_container",
+                    "stroke": "#34414E",
+                    "strokeWidth": {
+                        "left": 1
+                    },
+                    "layout": "vertical",
+                    "gap": 6,
+                    "padding": [
+                        2,
+                        0,
+                        2,
+                        10
+                    ],
+                    "children": [
+                        {
+                            "type": "frame",
+                            "id": "LmLoy",
+                            "name": "Progress \u00b7 Done",
+                            "width": "fill_container",
+                            "gap": 8,
+                            "alignItems": "center",
+                            "children": [
+                                {
+                                    "type": "icon",
+                                    "id": "K6KUb",
+                                    "name": "Mark",
+                                    "width": 12,
+                                    "height": 12,
+                                    "icon": "check",
+                                    "library": "lucide",
+                                    "fill": "#8DD9B1"
+                                },
+                                {
+                                    "type": "text",
+                                    "id": "V0Uai",
+                                    "name": "Label",
+                                    "fill": "#8DD9B1",
+                                    "content": "Done",
+                                    "fontFamily": "Geist Mono",
+                                    "fontSize": 10,
+                                    "fontWeight": "normal"
+                                },
+                                {
+                                    "type": "text",
+                                    "id": "Z099G",
+                                    "name": "Detail",
+                                    "fill": "#91A8B9",
+                                    "textGrowth": "fixed-width",
+                                    "width": "fill_container",
+                                    "content": "sent 14:02 \u00b7 picked up 14:03 \u00b7 greet.py",
+                                    "fontFamily": "Geist Mono",
+                                    "fontSize": 10,
+                                    "fontWeight": "normal"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "Z9jGxy",
+                    "name": "AGENT message",
+                    "width": "fill_container",
+                    "layout": "vertical",
+                    "gap": 6,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "JbxAn",
+                            "name": "Author",
+                            "fill": "#A4D5F1",
+                            "content": "AGENT \u00b7 14:04",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "text",
+                            "id": "SMo5F",
+                            "name": "Text",
+                            "fill": "#DDE7EF",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "Done. farewell now prints its message and then a blank line. I also updated test_greet.py to expect the printed output.",
+                            "lineHeight": 1.55,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "zJBQm",
+                    "name": "Follow-up",
+                    "width": "fill_container",
+                    "height": 68,
+                    "fill": "#111D26",
+                    "cornerRadius": 4,
+                    "stroke": "#59798F",
+                    "strokeWidth": 1,
+                    "padding": 12,
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "E0qYS",
+                            "name": "Placeholder",
+                            "fill": "#6F8799",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "Ask a follow-up\u2026",
+                            "lineHeight": 1.4,
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "QdMwe",
+                    "name": "Actions",
+                    "width": "fill_container",
+                    "gap": 12,
+                    "alignItems": "center",
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "FBaiu",
+                            "name": "Source",
+                            "fill": "#91A8B9",
+                            "textGrowth": "fixed-width",
+                            "width": "fill_container",
+                            "content": "greet.py:8\u201311 \u00b7 5 messages",
+                            "fontFamily": "Geist Mono",
+                            "fontSize": 10,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "frame",
+                            "id": "p7mTKZ",
+                            "name": "Send reply",
+                            "fill": "#B2DAEE",
+                            "cornerRadius": 4,
+                            "padding": [
+                                9,
+                                13
+                            ],
+                            "children": [
+                                {
+                                    "type": "text",
+                                    "id": "vn9tA",
+                                    "name": "Label",
+                                    "fill": "#132735",
+                                    "content": "Send reply",
+                                    "fontFamily": "Geist",
+                                    "fontSize": 12,
+                                    "fontWeight": "550"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

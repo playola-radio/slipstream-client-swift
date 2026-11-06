@@ -1,0 +1,1 @@
+{"specversion":"1.0","id":"1","source":"urn:slipstream:session:6f1c2b1e-8d3a-4c55-9a7e-2f4b8c9d0e1a","type":"slipstream.session.started.v1","datacontenttype":"application/json","seq":"1","time":"2026-09-24T10:42:00.000Z","data":{"session_id":"6f1c2b1e-8d3a-4c55-9a7e-2f4b8c9d0e1a","root":"/tmp/qa/worktree","max_bytes":16777216,"started_at_ms":1790246520000}}

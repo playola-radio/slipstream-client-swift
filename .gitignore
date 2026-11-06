@@ -1,0 +1,49 @@
+.DS_Store
+*.xccheckout
+*.xcscmblueprint
+xcuserdata
+
+**/**/Secrets.xcconfig
+**/**/Secrets-Development.xcconfig
+**/**/Secrets-Local.xcconfig
+**/**/Secrets-Staging.xcconfig
+
+# probably should remove this later
+Package.resolved
+
+fastlane/test_output/report.html
+fastlane/test_output/report.junit
+fastlane/report.xml
+
+# Build artifacts
+build/
+output/
+
+# Claude generated files
+claude-files/
+.claude/scheduled_tasks.lock
+
+DerivedData/
+
+.sentryclirc
+
+# Swift compile cache from CLI xcodebuild runs
+.swift-cache/
+
+# Local Swift package build artifacts
+LocalPackages/**/.build/
+.gstack/
+.build/
+.swiftpm/
+*.xcodeproj/
+SlipstreamViewer/Info.plist
+.build-*/
+
+# Release packaging output
+packaging/build/
+packaging/dist/
+fastlane/README.md
+
+# Bundler install (CI release job)
+/.bundle/
+/vendor/bundle/

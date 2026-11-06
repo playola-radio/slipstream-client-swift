@@ -1,0 +1,465 @@
+{
+    "type": "frame",
+    "id": "s2EAnj",
+    "x": 0,
+    "y": 36750,
+    "name": "ask--nothing-connected",
+    "clip": true,
+    "width": 1200,
+    "height": 720,
+    "layout": "none",
+    "children": [
+        {
+            "id": "DLCfO",
+            "type": "ref",
+            "ref": "AyBoP",
+            "name": "Window",
+            "x": 0,
+            "y": 0,
+            "descendants": {
+                "PaeKG": {
+                    "fill": "#83BDA4"
+                },
+                "gCFqo": {
+                    "content": "Recording"
+                },
+                "u6GCKj": {
+                    "fill": "#68879E"
+                },
+                "YAOff": {
+                    "content": "No chat linked"
+                },
+                "Dc3Ur": {
+                    "content": "Connected \u00b7 New changes appear below"
+                }
+            }
+        },
+        {
+            "type": "frame",
+            "id": "ZPPek",
+            "layoutPosition": "absolute",
+            "x": 20,
+            "y": 250,
+            "name": "Ask composer",
+            "metadata": {
+                "type": "interaction",
+                "behavior": "Opens after highlighting one or more lines in either stream or diff. Anchor near selection, clamp to viewport. Retain selection until dismissed. Escape or close dismisses; asking sends selected text, file/version or stream task context, and the question to the LLM."
+            },
+            "width": 640,
+            "fill": "#202B35",
+            "cornerRadius": 10,
+            "stroke": "#83C7F0",
+            "strokeWidth": 1.5,
+            "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000066",
+                "offset": {
+                    "x": 0,
+                    "y": 12
+                },
+                "blur": 30
+            },
+            "layout": "vertical",
+            "gap": 12,
+            "padding": [
+                16,
+                24,
+                24,
+                24
+            ],
+            "children": [
+                {
+                    "type": "frame",
+                    "id": "y5hoOR",
+                    "name": "Question panel header",
+                    "width": "fill_container",
+                    "gap": 12,
+                    "alignItems": "center",
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "IuDkg",
+                            "name": "Question panel title",
+                            "fill": "#C0D0DD",
+                            "content": "Talk to the agent",
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "550"
+                        },
+                        {
+                            "type": "frame",
+                            "id": "L8CIU",
+                            "name": "Header flexible space",
+                            "width": "fill_container",
+                            "height": 1
+                        },
+                        {
+                            "type": "icon",
+                            "id": "v5an4A",
+                            "name": "Close question panel",
+                            "width": 16,
+                            "height": 16,
+                            "icon": "x",
+                            "library": "lucide",
+                            "fill": "#B4C4D0"
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "EGmgo",
+                    "name": "Question composer",
+                    "width": "fill_container",
+                    "layout": "vertical",
+                    "gap": 8,
+                    "children": [
+                        {
+                            "type": "frame",
+                            "id": "xX9fL",
+                            "name": "Editable question text field",
+                            "width": "fill_container",
+                            "height": 180,
+                            "fill": "#111D26",
+                            "cornerRadius": 5,
+                            "stroke": "#83C7F0",
+                            "strokeWidth": 1.5,
+                            "padding": 18,
+                            "children": [
+                                {
+                                    "type": "text",
+                                    "id": "A0aAX4",
+                                    "name": "User question draft",
+                                    "fill": "#EDF4FA",
+                                    "textGrowth": "fixed-width",
+                                    "width": "fill_container",
+                                    "content": "How does this affect existing accounts?",
+                                    "lineHeight": 1.5,
+                                    "fontFamily": "Geist",
+                                    "fontSize": 20,
+                                    "fontWeight": "normal"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "text",
+                    "id": "ee38z",
+                    "name": "Agent connection notice",
+                    "fill": "#A4B8C7",
+                    "textGrowth": "fixed-width",
+                    "width": "fill_container",
+                    "content": "No chat is connected yet. Send a message in a chat tab to connect it.",
+                    "fontFamily": "Geist",
+                    "fontSize": 12,
+                    "fontWeight": "normal"
+                },
+                {
+                    "type": "frame",
+                    "id": "Ku2U7",
+                    "name": "Question submit actions",
+                    "width": "fill_container",
+                    "gap": 18,
+                    "alignItems": "center",
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "VjegW",
+                            "name": "Context attached confirmation",
+                            "fill": "#A4D5F1",
+                            "content": "user.ts \u00b7 Lines 7\u20139",
+                            "fontFamily": "Geist",
+                            "fontSize": 12,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "frame",
+                            "id": "dLEBQ",
+                            "name": "Footer flexible space",
+                            "width": "fill_container",
+                            "height": 1
+                        },
+                        {
+                            "type": "text",
+                            "id": "dO6ut",
+                            "name": "Cancel question",
+                            "fill": "#C4D4DF",
+                            "content": "Cancel",
+                            "fontFamily": "Geist",
+                            "fontSize": 13,
+                            "fontWeight": "normal"
+                        },
+                        {
+                            "type": "frame",
+                            "id": "mOYMI",
+                            "name": "Ask agent button",
+                            "opacity": 0.4,
+                            "metadata": {
+                                "type": "interaction",
+                                "behavior": "Send the nonempty question with the selected source context. Disable for an empty or whitespace-only draft. Close composer after successful submission; preserve draft if submission fails."
+                            },
+                            "fill": "#B2DAEE",
+                            "cornerRadius": 5,
+                            "gap": 10,
+                            "padding": [
+                                11,
+                                17
+                            ],
+                            "alignItems": "center",
+                            "children": [
+                                {
+                                    "type": "text",
+                                    "id": "Vvy0m",
+                                    "name": "Ask agent label",
+                                    "fill": "#132735",
+                                    "content": "Ask agent",
+                                    "fontFamily": "Geist",
+                                    "fontSize": 13,
+                                    "fontWeight": "600"
+                                },
+                                {
+                                    "type": "icon",
+                                    "id": "MjvUt",
+                                    "name": "Send question icon",
+                                    "width": 16,
+                                    "height": 16,
+                                    "icon": "arrow-up",
+                                    "library": "lucide",
+                                    "fill": "#132735"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "frame",
+                    "id": "oC3St",
+                    "name": "Saved question picker",
+                    "width": "fill_container",
+                    "stroke": "#3B505F",
+                    "strokeWidth": {
+                        "top": 1
+                    },
+                    "layout": "vertical",
+                    "gap": 8,
+                    "padding": [
+                        20,
+                        0,
+                        0,
+                        0
+                    ],
+                    "children": [
+                        {
+                            "type": "text",
+                            "id": "vPV0l",
+                            "name": "Saved question label",
+                            "fill": "#A4B8C7",
+                            "content": "Or start with a saved question",
+                            "fontFamily": "Geist",
+                            "fontSize": 12,
+                            "fontWeight": "550"
+                        },
+                        {
+                            "type": "frame",
+                            "id": "U3g1h8",
+                            "name": "Preset and append controls",
+                            "width": "fill_container",
+                            "gap": 10,
+                            "alignItems": "center",
+                            "children": [
+                                {
+                                    "type": "frame",
+                                    "id": "JTQ5f",
+                                    "name": "Selected saved question dropdown",
+                                    "width": "fill_container",
+                                    "fill": "#15212B",
+                                    "cornerRadius": 5,
+                                    "stroke": "#779CB5",
+                                    "strokeWidth": 1,
+                                    "gap": 10,
+                                    "padding": [
+                                        12,
+                                        14
+                                    ],
+                                    "alignItems": "center",
+                                    "children": [
+                                        {
+                                            "type": "text",
+                                            "id": "E1YWk",
+                                            "name": "Selected question",
+                                            "fill": "#EDF4FA",
+                                            "textGrowth": "fixed-width",
+                                            "width": "fill_container",
+                                            "content": "Why are you making this change?",
+                                            "fontFamily": "Geist",
+                                            "fontSize": 13,
+                                            "fontWeight": "normal"
+                                        },
+                                        {
+                                            "type": "icon",
+                                            "id": "l9l5jx",
+                                            "name": "Dropdown closed",
+                                            "width": 16,
+                                            "height": 16,
+                                            "icon": "chevron-down",
+                                            "library": "lucide",
+                                            "fill": "#ACBFCC"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "frame",
+                                    "id": "T9v3x1",
+                                    "name": "Append to question button",
+                                    "metadata": {
+                                        "type": "interaction",
+                                        "behavior": "Append the selected saved question to the textarea, separated by a newline if nonempty. Preserve existing text and place the caret at the end. Does not send."
+                                    },
+                                    "fill": "#344D5E",
+                                    "cornerRadius": 5,
+                                    "padding": [
+                                        12,
+                                        14
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "text",
+                                            "id": "TGXZo",
+                                            "name": "Append button label",
+                                            "fill": "#E6F2FA",
+                                            "content": "Append to question",
+                                            "fontFamily": "Geist",
+                                            "fontSize": 13,
+                                            "fontWeight": "550"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "frame",
+                            "id": "D9olg",
+                            "x": 0,
+                            "y": 93,
+                            "name": "Saved questions \u00b7 expanded menu",
+                            "enabled": false,
+                            "width": "fill_container(592)",
+                            "fill": "#18232D",
+                            "cornerRadius": 5,
+                            "stroke": "#455C6D",
+                            "strokeWidth": 1,
+                            "layout": "vertical",
+                            "padding": 5,
+                            "children": [
+                                {
+                                    "type": "frame",
+                                    "id": "xXedg",
+                                    "name": "Why are you making this change?",
+                                    "width": "fill_container",
+                                    "fill": "#2C4354",
+                                    "cornerRadius": 3,
+                                    "gap": 10,
+                                    "padding": [
+                                        11,
+                                        12
+                                    ],
+                                    "alignItems": "center",
+                                    "children": [
+                                        {
+                                            "type": "text",
+                                            "id": "N14Lg",
+                                            "name": "Saved question option",
+                                            "fill": "#E2EDF5",
+                                            "textGrowth": "fixed-width",
+                                            "width": "fill_container",
+                                            "content": "Why are you making this change?",
+                                            "fontFamily": "Geist",
+                                            "fontSize": 13,
+                                            "fontWeight": "normal"
+                                        },
+                                        {
+                                            "type": "icon",
+                                            "id": "uSFaJ",
+                                            "name": "Selected question check",
+                                            "width": 16,
+                                            "height": 16,
+                                            "icon": "check",
+                                            "library": "lucide",
+                                            "fill": "#A4D5F1"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "frame",
+                                    "id": "i13UXT",
+                                    "name": "Explain your thinking here, please.",
+                                    "width": "fill_container",
+                                    "gap": 10,
+                                    "padding": [
+                                        11,
+                                        12
+                                    ],
+                                    "alignItems": "center",
+                                    "children": [
+                                        {
+                                            "type": "text",
+                                            "id": "pQgyK",
+                                            "name": "Saved question option",
+                                            "fill": "#E2EDF5",
+                                            "textGrowth": "fixed-width",
+                                            "width": "fill_container",
+                                            "content": "Explain your thinking here, please.",
+                                            "fontFamily": "Geist",
+                                            "fontSize": 13,
+                                            "fontWeight": "normal"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "frame",
+                                    "id": "pquaf",
+                                    "name": "Add a saved question",
+                                    "metadata": {
+                                        "type": "interaction",
+                                        "behavior": "Add a question\u2026 opens an inline text input in this menu with Save and Cancel. Save nonempty trimmed text to personal saved questions and select it; never append or send automatically. Cancel preserves the draft and previous selection."
+                                    },
+                                    "width": "fill_container",
+                                    "stroke": "#354957",
+                                    "strokeWidth": {
+                                        "top": 1
+                                    },
+                                    "gap": 10,
+                                    "padding": 12,
+                                    "alignItems": "center",
+                                    "children": [
+                                        {
+                                            "type": "icon",
+                                            "id": "LQz9q",
+                                            "name": "Add question icon",
+                                            "width": 16,
+                                            "height": 16,
+                                            "icon": "plus",
+                                            "library": "lucide",
+                                            "fill": "#A4D5F1"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "id": "t93tPh",
+                                            "name": "Add question menu action",
+                                            "fill": "#A4D5F1",
+                                            "content": "Add a question\u2026",
+                                            "fontFamily": "Geist",
+                                            "fontSize": 13,
+                                            "fontWeight": "normal"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

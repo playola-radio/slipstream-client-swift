@@ -1,0 +1,110 @@
+name: release
+
+# Every merge to main publishes the version in project.yml, unless that version's
+# tag already exists (the merge carried no `fastlane mac bump`).
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.tag.outputs.release }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Skip versions that are already released
+        id: tag
+        run: |
+          version="$(sed -n 's/.*MARKETING_VERSION: "\([0-9][0-9.]*\)".*/\1/p' project.yml)"
+          build="$(sed -n 's/.*CURRENT_PROJECT_VERSION: "\([0-9]*\)".*/\1/p' project.yml)"
+          [[ -n "$version" && -n "$build" ]] || { echo "cannot read version from project.yml" >&2; exit 1; }
+          tag="v$version-b$build"
+          status=0
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || status=$?
+          case "$status" in
+            0) echo "$tag is already released; nothing to do"; echo "release=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "releasing $tag"; echo "release=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "cannot check for tag $tag" >&2; exit "$status" ;;
+          esac
+
+  release:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: macos-26
+    timeout-minutes: 110 # under the AWS session below, so credentials outlive the job
+    environment: release
+    permissions:
+      contents: write # push the release tag
+      id-token: write # assume the AWS upload role
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: sudo xcode-select -s /Applications/Xcode_26.5.app
+      - run: brew install xcodegen
+      - run: xcodebuild -downloadComponent MetalToolchain
+      - uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-duration-seconds: 7200
+
+      - name: Install signing credentials
+        env:
+          DEVELOPER_ID_P12_B64: ${{ secrets.DEVELOPER_ID_P12_B64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          umask 077
+          dir="$RUNNER_TEMP/release-credentials"
+          mkdir "$dir"
+          keychain="$dir/release.keychain-db"
+          echo "RELEASE_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          keychain_password="$(uuidgen)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+
+          # The runner may lack Apple's Developer ID intermediate; codesign needs the chain.
+          curl -fsSLo "$dir/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          echo "f16cd3c54c7f83cea4bf1a3e6a0819c8aaa8e4a1528fd144715f350643d2df3a  $dir/DeveloperIDG2CA.cer" | shasum -a 256 -c -
+          security import "$dir/DeveloperIDG2CA.cer" -k "$keychain"
+
+          printf '%s' "$DEVELOPER_ID_P12_B64" | base64 --decode > "$dir/developer-id.p12"
+          security import "$dir/developer-id.p12" -k "$keychain" -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          rm "$dir/developer-id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          # Keep the existing search list (space-free paths) and put ours first.
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identities="$(security find-identity -v -p codesigning "$keychain")"
+          count="$(grep -c 'Developer ID Application: Playola Radio, Incorporated (FSRSPV9N9Q)' <<<"$identities" || true)"
+          [[ "$count" == 1 ]] || { echo "expected exactly one Developer ID identity, found $count" >&2; exit 1; }
+
+          printf '%s\n' "$NOTARY_KEY_P8" > "$dir/notary.p8"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$dir/sparkle.key"
+          echo "NOTARY_KEY=$dir/notary.p8" >> "$GITHUB_ENV"
+          echo "SPARKLE_ED_KEY_FILE=$dir/sparkle.key" >> "$GITHUB_ENV"
+
+      - name: Release
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: bundle exec fastlane mac release
+
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          if [[ -n "${RELEASE_KEYCHAIN:-}" ]]; then security delete-keychain "$RELEASE_KEYCHAIN" || true; fi
+          rm -rf "$RUNNER_TEMP/release-credentials"

@@ -1,0 +1,281 @@
+{
+  "type": "frame",
+  "id": "RhnOw",
+  "x": 80,
+  "y": 6230,
+  "name": "Rename sheet · saving",
+  "width": 1200,
+  "height": 760,
+  "layout": "none",
+  "children": [
+    {
+      "id": "NK8pA",
+      "type": "ref",
+      "ref": "YiBPq",
+      "name": "Window",
+      "x": 0,
+      "y": 0,
+      "descendants": {
+        "yt7hy": {
+          "content": "Billing cleanup"
+        }
+      }
+    },
+    {
+      "type": "rectangle",
+      "cornerRadius": [
+        0,
+        0,
+        10,
+        10
+      ],
+      "id": "sX79e",
+      "x": 0,
+      "y": 52,
+      "name": "Dim",
+      "fill": "#0A0E1299",
+      "width": 1200,
+      "height": 708
+    },
+    {
+      "type": "frame",
+      "id": "lJu0O",
+      "x": 370,
+      "y": 52,
+      "name": "Rename sheet",
+      "width": 460,
+      "fill": "#232C35",
+      "cornerRadius": [
+        0,
+        0,
+        10,
+        10
+      ],
+      "stroke": "#4A5D6B",
+      "strokeWidth": {
+        "right": 1,
+        "bottom": 1,
+        "left": 1
+      },
+      "strokeAlignment": "inner",
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#000000A0",
+        "offset": {
+          "x": 0,
+          "y": 14
+        },
+        "blur": 36
+      },
+      "layout": "vertical",
+      "gap": 16,
+      "padding": [
+        20,
+        22
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "SgLj6",
+          "name": "Sheet header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 4,
+          "children": [
+            {
+              "type": "text",
+              "id": "OPcKR",
+              "name": "Sheet title",
+              "fill": "#E0EBF1",
+              "content": "Rename stream",
+              "fontFamily": "Geist",
+              "fontSize": 15,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "R4XH04",
+              "name": "Sheet subtitle",
+              "fill": "#7D98AD",
+              "content": "louisville-v1 · started Oct 14 15:02",
+              "fontFamily": "Geist Mono",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "eNad8",
+          "name": "Name field",
+          "width": "fill_container",
+          "fill": "#151B21",
+          "cornerRadius": 6,
+          "stroke": "#3A4C5A",
+          "strokeWidth": 1,
+          "strokeAlignment": "outer",
+          "padding": [
+            8,
+            10
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "qvqKz",
+              "name": "Field text",
+              "fill": "#D9E7EF",
+              "content": "Billing and tax cleanup",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "rectangle",
+              "id": "RIryL",
+              "x": 98,
+              "y": 8.5,
+              "name": "Caret",
+              "enabled": false,
+              "fill": "#E0EBF1",
+              "width": 1,
+              "height": 16
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "W6PKxR",
+          "name": "Agent name row",
+          "width": "fill_container",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "ISNCs",
+              "name": "Bot icon",
+              "width": 13,
+              "height": 13,
+              "icon": "bot",
+              "library": "lucide",
+              "fill": "#83BDA4"
+            },
+            {
+              "type": "text",
+              "id": "hTd2O",
+              "name": "Agent name",
+              "fill": "#9FB3C2",
+              "content": "Agent's name: Invoice totals refactor",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "f14qI",
+              "name": "flex",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "frame",
+              "id": "izTJa",
+              "name": "Use agent's name",
+              "cornerRadius": 5,
+              "stroke": "#4A5D6B",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "padding": [
+                4,
+                8
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "wm6cn",
+                  "name": "Use label",
+                  "fill": "#6B7C89",
+                  "content": "Use agent's name",
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Mwg7m",
+          "name": "Buttons",
+          "width": "fill_container",
+          "gap": 10,
+          "justifyContent": "end",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Vb9LR",
+              "name": "Cancel",
+              "fill": "#34404B",
+              "cornerRadius": 6,
+              "padding": [
+                5,
+                14
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "M6fBUY",
+                  "name": "Cancel label",
+                  "fill": "#6B7C89",
+                  "content": "Cancel",
+                  "fontFamily": "Geist",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "v8aoY",
+              "name": "Save",
+              "fill": "#2F7BC0",
+              "cornerRadius": 6,
+              "gap": 6,
+              "padding": [
+                5,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "tqkhv",
+                  "name": "Spinner",
+                  "width": 12,
+                  "height": 12,
+                  "icon": "loader-circle",
+                  "library": "lucide",
+                  "fill": "#FFFFFF"
+                },
+                {
+                  "type": "text",
+                  "id": "Q3pAKK",
+                  "name": "Save label",
+                  "fill": "#FFFFFF",
+                  "content": "Saving…",
+                  "fontFamily": "Geist",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

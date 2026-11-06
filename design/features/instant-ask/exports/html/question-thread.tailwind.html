@@ -1,0 +1,1908 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      tailwind = { config: { corePlugins: { preflight: false } } };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist%3Awght%40100..900&family=Geist+Mono%3Awght%40100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, ::before, ::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="relative w-[3920px] h-[1724px]">
+      <div
+        data-pencil-name="question-thread--answering"
+        class="box-border w-[620px] h-fit absolute left-0 top-0 flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT thinking"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+          >
+            <svg
+              data-pencil-name="Spinner"
+              data-icon-name="loader-circle"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[12px] shrink-0 h-[12px]"
+            >
+              <path
+                d="M6.4668 1.18945q-1.49707 0.14014-2.75147 0.99463-1.25098 0.85449-1.92431 2.19776-0.44775 0.89551-0.5879 1.93115-0.02734 0.16748-0.02734 0.68701 0 0.51953 0.02734 0.68701 0.16748 1.2168 0.75538 2.23877 0.58789 1.02197 1.55517 1.75 0.60156 0.46143 1.3501 0.74854 0.74854 0.28711 1.521 0.37255 0.23584 0.02734 0.61523 0.02735 0.37939 0 0.61523-0.02735 1.12109-0.12646 2.10547-0.64257 0.98779-0.51953 1.71582-1.36719 0.72803-0.84766 1.09375-1.92432 0.14014-0.44775 0.22217-0.91601 0.08545-0.47168 0.07178-0.86133 0-0.1709-0.00684-0.22559-0.00684-0.05469-0.03418-0.11279-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.09912 0.04102-0.18115 0.09912-0.25977 0.25293-0.0752 0.15381-0.08203 0.47168-0.00683 0.31445-0.09228 0.73144-0.28027 1.3877-1.30225 2.396-1.11768 1.104-2.7583 1.30225-0.18115 0.02734-0.5332 0.02734-0.34863 0-0.54346-0.02734-0.78271-0.11279-1.47656-0.44776-0.69385-0.33838-1.24072-0.88183-0.65625-0.65967-1.01514-1.51416-0.35547-0.85449-0.35547-1.79102 0-0.56055 0.11963-1.05615 0.11963-0.49902 0.35547-1.00147 0.33838-0.67334 0.88183-1.22363 0.54688-0.55371 1.24756-0.90576 0.50244-0.23584 0.99805-0.35547 0.49902-0.11963 1.05957-0.11963 0.3623 0 0.66309 0.04443 0.3042 0.04102 0.6665 0.15039 0.23926 0.05811 0.33496 0.05811 0.21191-0.02734 0.36572-0.17432 0.15381-0.14697 0.16748-0.35888 0.01367-0.15381-0.05127-0.29395-0.06152-0.14014-0.17089-0.22217-0.15723-0.09912-0.59131-0.20507-0.43066-0.10596-0.88184-0.14698-0.16748-0.01367-0.51611-0.01367-0.34863 0-0.51953 0.01367z"
+                fill="#A4D5F1"
+              ></path>
+            </svg>
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · thinking…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 1 message
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#2B3A47] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--answered-offer"
+        class="box-border w-[620px] h-fit absolute left-[660px] top-0 flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 2 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--sent-busy"
+        class="box-border w-[620px] h-fit absolute left-[1320px] top-0 flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[30px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Sent"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="hourglass"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M2.82666 0.58789q-0.23584 0.04102-0.38281 0.24609-0.14697 0.20166-0.09229 0.44092 0.01367 0.0957 0.04785 0.16748 0.0376 0.06836 0.1128 0.14014 0.07861 0.06836 0.15381 0.10596 0.07861 0.03418 0.14013 0.04101 0.06494 0.00684 0.33155 0.02051l0.3623 0 0 0.99463q0 0.99463 0.02734 1.14844 0.04102 0.2666 0.15381 0.48877 0.09912 0.18115 0.28711 0.39306 0.19141 0.2085 1.05615 1.07666l1.14844 1.14844-1.14844 1.14844q-0.86475 0.86816-1.05615 1.08008-0.18799 0.2085-0.28711 0.38964-0.11279 0.22217-0.15381 0.48877-0.02734 0.15381-0.02734 1.14844l0 0.99463-0.3623 0q-0.2666 0.01367-0.33155 0.02051-0.06152 0.00684-0.1333 0.03418-0.28027 0.12646-0.32812 0.42041-0.04785 0.29395 0.16064 0.51953 0.12646 0.12646 0.30762 0.15381 0.09912 0.02734 4.18701 0.02734 4.08789 0 4.18701-0.02734 0.23584-0.04102 0.36914-0.23584 0.1333-0.19824 0.09229-0.4375-0.01367-0.0957-0.05127-0.16406-0.03418-0.07178-0.11279-0.14014-0.0752-0.07178-0.15381-0.10596-0.07519-0.0376-0.14014-0.04443-0.06152-0.00684-0.32813-0.02051l-0.3623 0 0-0.99463q0-0.99463-0.02734-1.14844-0.04101-0.2666-0.15381-0.47509-0.09912-0.19482-0.29053-0.40332-0.18799-0.21191-1.05273-1.08008l-1.13477-1.14844 1.13477-1.14844q0.86475-0.86816 1.05273-1.07666 0.19141-0.21191 0.29053-0.40674 0.11279-0.2085 0.15381-0.47509 0.02734-0.15381 0.02734-1.14844l0-0.99463 0.3623 0q0.2666-0.01367 0.32813-0.02051 0.06494-0.00684 0.14014-0.04101 0.07861-0.0376 0.15381-0.10596 0.07861-0.07178 0.11279-0.14014 0.0376-0.07178 0.05127-0.18115 0.04101-0.19824-0.05127-0.36572-0.08887-0.16748-0.28369-0.2666l-0.09913-0.04102-4.15966 0q-4.14258 0-4.22803 0z m6.49756 2.14307q0 0.71436 0 0.86133 0 0.14697-0.02735 0.21875-0.02734 0.06836-0.19824 0.24951-0.16748 0.18115-0.96386 0.98095l-1.13477 1.13135-1.12109-1.13135q-0.81006-0.7998-0.98096-0.98095-0.16748-0.18115-0.19483-0.24951-0.02734-0.07178-0.02734-0.22559l0-1.83545 4.64844 0 0 0.98096z m-1.18945 6.22754q0.79639 0.81348 0.96386 0.98779 0.1709 0.17432 0.19824 0.24609 0.02734 0.06836 0.02735 0.22217l0 1.83545-4.64844 0 0-1.83545q0-0.15381 0.02734-0.22217 0.02734-0.07178 0.19483-0.24609 0.1709-0.17432 0.96728-0.98779 1.12109-1.11768 1.13477-1.11768 0.01367 0 1.13477 1.11768z"
+                  fill="#E4C282"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Sent
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:02 · the agent will read this after its current step
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 4 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--working"
+        class="box-border w-[620px] h-fit absolute left-[1980px] top-0 flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[68px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Sent"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Sent
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:02 · the agent will read this after its current step
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Picked up"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Picked up
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:03
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Working"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="loader-circle"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M6.4668 1.18945q-1.49707 0.14014-2.75147 0.99463-1.25098 0.85449-1.92431 2.19776-0.44775 0.89551-0.5879 1.93115-0.02734 0.16748-0.02734 0.68701 0 0.51953 0.02734 0.68701 0.16748 1.2168 0.75538 2.23877 0.58789 1.02197 1.55517 1.75 0.60156 0.46143 1.3501 0.74854 0.74854 0.28711 1.521 0.37255 0.23584 0.02734 0.61523 0.02735 0.37939 0 0.61523-0.02735 1.12109-0.12646 2.10547-0.64257 0.98779-0.51953 1.71582-1.36719 0.72803-0.84766 1.09375-1.92432 0.14014-0.44775 0.22217-0.91601 0.08545-0.47168 0.07178-0.86133 0-0.1709-0.00684-0.22559-0.00684-0.05469-0.03418-0.11279-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.09912 0.04102-0.18115 0.09912-0.25977 0.25293-0.0752 0.15381-0.08203 0.47168-0.00683 0.31445-0.09228 0.73144-0.28027 1.3877-1.30225 2.396-1.11768 1.104-2.7583 1.30225-0.18115 0.02734-0.5332 0.02734-0.34863 0-0.54346-0.02734-0.78271-0.11279-1.47656-0.44776-0.69385-0.33838-1.24072-0.88183-0.65625-0.65967-1.01514-1.51416-0.35547-0.85449-0.35547-1.79102 0-0.56055 0.11963-1.05615 0.11963-0.49902 0.35547-1.00147 0.33838-0.67334 0.88183-1.22363 0.54688-0.55371 1.24756-0.90576 0.50244-0.23584 0.99805-0.35547 0.49902-0.11963 1.05957-0.11963 0.3623 0 0.66309 0.04443 0.3042 0.04102 0.6665 0.15039 0.23926 0.05811 0.33496 0.05811 0.21191-0.02734 0.36572-0.17432 0.15381-0.14697 0.16748-0.35888 0.01367-0.15381-0.05127-0.29395-0.06152-0.14014-0.17089-0.22217-0.15723-0.09912-0.59131-0.20507-0.43066-0.10596-0.88184-0.14698-0.16748-0.01367-0.51611-0.01367-0.34863 0-0.51953 0.01367z"
+                  fill="#E4C282"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Working
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                changes seen in greet.py
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 4 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--done"
+        class="box-border w-[620px] h-fit absolute left-0 top-[800px] flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[17px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Done"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Done
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                sent 14:02 · picked up 14:03 · greet.py
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:04
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Done. farewell now prints its message and then a blank line. I also updated
+              test_greet.py to expect the printed output.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 5 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--not-done-yet"
+        class="box-border w-[620px] h-fit absolute left-[660px] top-[800px] flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[55px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Sent"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Sent
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:02
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Picked up"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Picked up
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:03
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Not done yet"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="circle-dashed"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M6.66504 0.60156q-0.33838 0.01367-0.63916 0.05811-0.30078 0.04102-0.39649 0.0957-0.1709 0.08545-0.26318 0.25977-0.08887 0.17432-0.04785 0.35547 0.05811 0.29395 0.32471 0.42041 0.08203 0.05811 0.19482 0.0581 0.11279 0 0.32813-0.02734 0.21875-0.03076 0.42724-0.05811 0.58789-0.04102 1.26123 0.05469 0.19482 0.03076 0.30762 0.03076 0.11279 0 0.19482-0.0581 0.32471-0.15381 0.32471-0.51612 0.01367-0.16748-0.07178-0.30761-0.08545-0.14014-0.22558-0.2085-0.13672-0.07178-0.61524-0.12988-0.0957-0.01367-0.44775-0.03418-0.34863-0.02051-0.37598-0.02051l-0.28027 0.02734z m-3.09668 1.0083q-0.19482 0.07178-0.64941 0.45118-0.45459 0.37598-0.77588 0.75195-0.12646 0.14014-0.28711 0.36572-0.16064 0.22217-0.20508 0.30078-0.04102 0.0752-0.05469 0.18799-0.01367 0.11279 0.01367 0.21191 0.04102 0.18115 0.20166 0.30762 0.16406 0.12646 0.34522 0.12647 0.30762 0 0.51611-0.28028 0.33838-0.46484 0.61524-0.74853 0.28027-0.28711 0.74511-0.61182 0.15381-0.10938 0.22217-0.229 0.07178-0.11963 0.07178-0.28711 0-0.29395-0.2461-0.46826-0.24609-0.17773-0.51269-0.07862z m6.51123 0.01368q-0.19482 0.07178-0.28027 0.22558-0.06836 0.08203-0.08203 0.14697-0.01367 0.06152-0.01368 0.16065 0 0.30762 0.23584 0.48877l0.22559 0.16748q0.62891 0.46143 1.13135 1.17578 0.09912 0.14014 0.16748 0.20508 0.07178 0.06152 0.1709 0.08886 0.33496 0.12646 0.61523-0.12304 0.12646-0.12646 0.16064-0.31446 0.03418-0.19141-0.04785-0.35888-0.04443-0.07178-0.21191-0.30078-0.16748-0.23242-0.29395-0.37256-0.44775-0.51611-1.02197-0.9502-0.22217-0.16748-0.31445-0.20849-0.08887-0.04443-0.22901-0.05127-0.14014-0.00684-0.21191 0.02051z m-8.90381 3.69482q-0.12646 0.03076-0.24609 0.11621-0.11621 0.08203-0.17432 0.18115-0.08203 0.18115-0.14014 0.72119-0.05469 0.53662-0.02734 0.98438 0.04102 0.57422 0.11279 0.89551 0.08203 0.35205 0.43409 0.44775 0.18115 0.05811 0.37597-0.03076 0.19824-0.09229 0.28028-0.27686 0.05811-0.10938 0.0581-0.20849 0-0.09912-0.03076-0.29395-0.12305-0.85449 0-1.70898 0.03076-0.19482 0.03076-0.29395 0-0.09912-0.0581-0.19482-0.06836-0.18115-0.25293-0.27344-0.18115-0.09229-0.36231-0.06494z m11.45362 0q-0.31104 0.05811-0.43409 0.33838-0.04443 0.0957-0.04443 0.19482 0 0.09912 0.02734 0.31787 0.03076 0.21533 0.05811 0.42383 0.04102 0.58789-0.05469 1.26123-0.03076 0.19482-0.03076 0.29395 0 0.09912 0.0581 0.20849 0.08203 0.18457 0.27686 0.27686 0.19824 0.08887 0.37939 0.03076 0.35205-0.0957 0.43409-0.44775 0.07178-0.32129 0.11279-0.89551 0.02734-0.44775-0.03076-0.98438-0.05469-0.54004-0.14014-0.70752-0.08203-0.1709-0.26318-0.25293-0.18115-0.08545-0.34863-0.0581z m-10.62647 4.36816q-0.09912 0.04443-0.21191 0.12989-0.10938 0.08203-0.14014 0.15039-0.14014 0.28027-0.01367 0.54687 0.04443 0.08545 0.22558 0.32129 0.56055 0.7417 1.30225 1.30225 0.23584 0.18115 0.31787 0.22558 0.08545 0.04102 0.24609 0.04102 0.16406 0 0.2461-0.05469 0.14014-0.07178 0.229-0.19824 0.09229-0.12646 0.09229-0.28028 0.01709-0.19482-0.06153-0.31445-0.0752-0.11963-0.32812-0.31445-0.37939-0.29395-0.65283-0.57422-0.27344-0.28027-0.58106-0.70068-0.08203-0.10938-0.14697-0.16407-0.06152-0.05811-0.14697-0.08544-0.08203-0.03076-0.20166-0.0376-0.11963-0.00684-0.17432 0.00683z m9.67285 0.03077q-0.12647 0.02734-0.21191 0.10595-0.08203 0.0752-0.18116 0.21533-0.48877 0.66992-1.11767 1.14844-0.25293 0.18115-0.32471 0.24609-0.06836 0.06152-0.10937 0.14356-0.07178 0.1709-0.04444 0.35205 0.03076 0.18115 0.15381 0.31445 0.12646 0.1333 0.30762 0.16749 0.18457 0.03418 0.35205-0.04786 0.08545-0.02734 0.31445-0.20166 0.23242-0.17774 0.37256-0.3042 0.51611-0.44775 0.9502-1.02197 0.18115-0.23584 0.22216-0.31787 0.04443-0.08545 0.04444-0.24609 0-0.16406-0.04102-0.2461-0.09912-0.18457-0.28027-0.2666-0.08545-0.05469-0.22559-0.05469-0.14014 0-0.18115 0.01368z m-5.93701 2.44726q-0.10938 0.03076-0.21533 0.11621-0.10596 0.08203-0.14698 0.17774-0.14014 0.25293-0.01367 0.51269 0.12646 0.25977 0.42041 0.33154 0.29395 0.06836 0.7417 0.09571 0.44775 0.02734 0.79639 0.01367 0.57422-0.04101 0.89551-0.11279 0.21191-0.05469 0.34521-0.2085 0.1333-0.15381 0.11963-0.36572 0-0.3623-0.32471-0.51612-0.08203-0.0581-0.21533-0.0581-0.1333 0-0.41357 0.04443-0.16748 0.02734-0.29395 0.03418-0.12646 0.00684-0.44775 0.00684-0.46143 0-0.71436-0.04102-0.43408-0.07178-0.5332-0.03076z"
+                  fill="#E4C282"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Not done yet
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                checking again when the agent's next turn ends
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:05
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Not yet. I finished the test fix I was in the middle of, then asked in the chat
+              whether the blank line goes before or after the goodbye.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 5 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--not-delivered"
+        class="box-border w-[620px] h-fit absolute left-[1320px] top-[800px] flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[74px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Sent"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Sent
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:02
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Not delivered"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="x"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                  fill="#F0A4AB"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Not delivered
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                the chat stopped before the agent read this
+              </div>
+            </div>
+            <div
+              data-pencil-name="Row actions"
+              class="box-border w-fit h-fit shrink-0 flex flex-row gap-0 p-[4px_0px_0px_20px] justify-start items-start"
+            >
+              <div
+                data-pencil-name="Send again"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[6px_10px] justify-start items-start bg-[#192631] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="Label"
+                  class="text-[12px]/[normal] box-border text-[#DBE9F3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Send again
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 4 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--couldnt-answer"
+        class="box-border w-[620px] h-fit absolute left-[1980px] top-[800px] flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[55px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Couldn't get an answer"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="x"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                  fill="#F0A4AB"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Couldn't get an answer
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                no reply within 120 seconds
+              </div>
+            </div>
+            <div
+              data-pencil-name="Row actions"
+              class="box-border w-fit h-fit shrink-0 flex flex-row gap-0 p-[4px_0px_0px_20px] justify-start items-start"
+            >
+              <div
+                data-pencil-name="Try again"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[6px_10px] justify-start items-start bg-[#192631] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="Label"
+                  class="text-[12px]/[normal] box-border text-[#DBE9F3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Try again
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 1 message
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#2B3A47] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--delivery-unknown"
+        class="box-border w-[620px] h-fit absolute left-[2640px] top-[800px] flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[87px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Sent"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Sent
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:02
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Delivery unknown"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="x"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                  fill="#F0A4AB"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Delivery unknown
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                the app restarted before delivery was confirmed
+              </div>
+            </div>
+            <div
+              data-pencil-name="Row actions"
+              class="box-border w-fit h-fit shrink-0 flex flex-row gap-0 p-[4px_0px_0px_20px] justify-start items-start"
+            >
+              <div
+                data-pencil-name="Send again"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[6px_10px] justify-start items-start bg-[#192631] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="Label"
+                  class="text-[12px]/[normal] box-border text-[#DBE9F3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Send again
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 4 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-thread--couldnt-check"
+        class="box-border w-[620px] h-fit absolute left-[3300px] top-[800px] flex flex-col gap-0 p-[40px_0px] justify-start items-center bg-[#0F1820] overflow-hidden"
+      >
+        <div
+          data-pencil-name="Question thread"
+          class="box-border w-[420px] h-fit shrink-0 [box-shadow:0px_8px_22px_#00000066] flex flex-col gap-[14px] p-[16px] justify-start items-start bg-[#202B35] [outline:1px_solid_#83C7F0] [outline-offset:-0.5px] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Header"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[10px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Title"
+              class="text-[12px]/[12px] box-border [flex:1_1_0] text-[#C0D0DD] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Talk to the agent
+            </div>
+            <svg
+              data-pencil-name="Close"
+              data-icon-name="x"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px]"
+            >
+              <path
+                d="M3.34619 2.93945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04102 0.25293 0.04443 0.08203 1.62353 1.66455l1.58252 1.58252-1.58252 1.58252q-1.5791 1.58252-1.62353 1.66797-0.04102 0.08203-0.04102 0.23584 0 0.15381 0.03418 0.23926 0.0376 0.08203 0.1333 0.18115 0.09912 0.0957 0.18115 0.1333 0.08545 0.03418 0.23926 0.03418 0.15381 0 0.23584-0.04102 0.08545-0.04443 1.66797-1.62353l1.58252-1.58252 1.58252 1.58252q1.58252 1.5791 1.66455 1.62353 0.08545 0.04102 0.23926 0.04102 0.15381 0 0.23584-0.03418 0.08545-0.0376 0.18115-0.1333 0.09912-0.09912 0.1333-0.18115 0.0376-0.08545 0.0376-0.23926 0-0.15381-0.04443-0.23584-0.04101-0.08545-1.62012-1.66797l-1.58252-1.58252 1.58252-1.58252q1.5791-1.58252 1.62012-1.66455 0.04443-0.08545 0.04443-0.25293 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+                fill="#A4B8C7"
+              ></path>
+            </svg>
+          </div>
+          <div
+            data-pencil-name="Question"
+            class="text-[14px]/[20px] box-border w-full text-[#EEF5FA] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:01
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              No. farewell builds the message and returns it, but nothing prints it. Want me to make
+              it print?
+            </div>
+          </div>
+          <div
+            data-pencil-name="YOU message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              YOU · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              yes, and leave a blank line after it
+            </div>
+          </div>
+          <div
+            data-pencil-name="AGENT message"
+            class="box-border w-full h-fit shrink-0 flex flex-col gap-[6px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="Author"
+              class="text-[10px]/[normal] box-border text-[#A4D5F1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              AGENT · 14:02
+            </div>
+            <div
+              data-pencil-name="Text"
+              class="text-[13px]/[20px] box-border w-full text-[#DDE7EF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              On it. I'll tell you here when it's done.
+            </div>
+          </div>
+          <div
+            data-pencil-name="Progress log"
+            class="[box-sizing:content-box] w-[387.5px] h-[93px] shrink-0 flex flex-col gap-[6px] p-[2px_0px_2px_10px] justify-start items-start [border-width:0px_0px_0px_1px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_0px_-0.5px]"
+          >
+            <div
+              data-pencil-name="Progress · Sent"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Sent
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:02
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Picked up"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M11.48096 2.95313q-0.07178 0.01367-0.12989 0.0581-0.05469 0.04102-3.07617 3.06592l-3.0249 3.00781-1.28857-1.28857q-1.28857-1.28516-1.38086-1.32618-0.08887-0.04443-0.22217-0.04443-0.1333 0-0.23242 0.0376-0.0957 0.03418-0.18799 0.11279-0.08887 0.0752-0.1333 0.1709-0.02734 0.07178-0.03418 0.11279-0.00684 0.04102-0.00684 0.14014l0 0.04102q-0.01367 0.11279 0.04102 0.19824 0.07178 0.10938 0.36572 0.40332 0.19482 0.21191 0.96729 0.98096l1.49707 1.48339q0.28027 0.2666 0.38964 0.33838 0.07178 0.05469 0.18457 0.04102l0.09571 0.01367q0.07178 0 0.14013-0.02734 0.08545-0.07178 0.32129-0.28711 0.23926-0.21875 0.79981-0.76221l2.2832-2.2832q2.08496-2.09863 2.7002-2.71387 0.61524-0.61865 0.64599-0.68701 0.04102-0.08545 0.04102-0.23926 0-0.09912-0.00684-0.14014-0.00684-0.04102-0.03418-0.11279-0.04443-0.08203-0.13672-0.16406-0.08887-0.08545-0.18115-0.11963-0.08887-0.0376-0.20849-0.0376-0.11963 0-0.18799 0.02734z"
+                  fill="#8DD9B1"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Picked up
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:03
+              </div>
+            </div>
+            <div
+              data-pencil-name="Progress · Couldn't check"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <svg
+                data-pencil-name="Mark"
+                data-icon-name="circle-alert"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[12px] shrink-0 h-[12px]"
+              >
+                <path
+                  d="M6.69238 0.60156q-1.16211 0.04102-2.22851 0.50586-1.06299 0.46143-1.90381 1.26807-0.8374 0.80322-1.34326 1.85254-0.48877 1.0083-0.60157 2.15674-0.02734 0.19482-0.02734 0.61523 0 0.42041 0.02734 0.61523 0.11279 1.14844 0.60157 2.15674 0.65967 1.40137 1.89697 2.33789 1.24072 0.93652 2.75146 1.20313 0.5332 0.09912 1.13477 0.09912 0.75537 0 1.43213-0.15381 0.68018-0.15381 1.35351-0.4751 1.26123-0.61865 2.16358-1.70215 0.90234-1.0835 1.25439-2.44384 0.29395-1.11768 0.18116-2.25244-0.11279-1.13477-0.60157-2.17041-0.58789-1.20313-1.62011-2.08497-1.02881-0.88184-2.31397-1.2749-1.0083-0.30762-2.15674-0.25293z m0.96729 1.18946q1.07666 0.14014 1.99267 0.68017 0.91602 0.54004 1.56201 1.4082 0.82715 1.104 1.00831 2.54639 0.01367 0.16748 0.01367 0.57422 0 0.40674-0.01367 0.57422-0.14014 1.16211-0.7212 2.12939-0.58105 0.96387-1.53466 1.62354-0.4751 0.33496-1.04932 0.56055-0.57422 0.22217-1.18945 0.30761-0.25293 0.04102-0.72803 0.04102-0.4751 0-0.72803-0.04102-1.07666-0.15381-1.95849-0.68701-0.88184-0.5332-1.52784-1.3877-0.82715-1.104-1.0083-2.54638-0.01367-0.16748-0.01367-0.57422 0-0.40674 0.01367-0.57422 0.14014-1.12109 0.66993-2.05078 0.5332-0.92969 1.43212-1.58936 0.54346-0.40674 1.20655-0.66992 0.6665-0.2666 1.32617-0.3247l0.25293-0.02735q0.0957-0.01367 0.4751 0 0.37939 0.01367 0.51953 0.02735z m-0.75879 2.31054q-0.0957 0.01367-0.17432 0.05127-0.0752 0.03418-0.15381 0.12647-0.0752 0.08887-0.11279 0.16748-0.03418 0.0752-0.03418 0.25635l0 2.46435 0.04102 0.08545q0.04443 0.06836 0.12646 0.15381 0.08545 0.08203 0.16065 0.12646 0.07861 0.04102 0.24609 0.04102 0.16748 0 0.24268-0.04102 0.07861-0.04443 0.16064-0.12646 0.08545-0.08545 0.12988-0.15381l0.04102-0.08545 0-2.33789q0-0.2666-0.02051-0.3418-0.02051-0.07861-0.07861-0.16064l-0.01367-0.01367q-0.09912-0.12646-0.2461-0.18116-0.14697-0.05811-0.31445-0.03076z m-0.05469 4.67578q-0.2085 0.05811-0.32129 0.22559-0.11279 0.16748-0.09912 0.37256 0.01367 0.20166 0.15381 0.35547 0.08545 0.08203 0.15381 0.12646 0.21191 0.0957 0.42041 0.03418 0.2085-0.06494 0.33496-0.24609 0.12646-0.18115 0.08545-0.40674-0.01367-0.10938-0.05127-0.17773-0.03418-0.07178-0.11963-0.14014-0.08203-0.07178-0.16064-0.11279-0.0752-0.04443-0.19483-0.05127-0.11621-0.00684-0.20166 0.0205z"
+                  fill="#E4C282"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="Label"
+                class="text-[10px]/[normal] box-border text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Couldn't check whether this was done
+              </div>
+              <div
+                data-pencil-name="Detail"
+                class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                14:05
+              </div>
+            </div>
+            <div
+              data-pencil-name="Row actions"
+              class="box-border w-fit h-fit shrink-0 flex flex-row gap-0 p-[4px_0px_0px_20px] justify-start items-start"
+            >
+              <div
+                data-pencil-name="Send again"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[6px_10px] justify-start items-start bg-[#192631] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="Label"
+                  class="text-[12px]/[normal] box-border text-[#DBE9F3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Check again
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Follow-up"
+            class="box-border w-full h-[68px] shrink-0 flex flex-row gap-0 p-[12px] justify-start items-start bg-[#111D26] [outline:1px_solid_#59798F] [outline-offset:-0.5px] rounded-[4px]"
+          >
+            <div
+              data-pencil-name="Placeholder"
+              class="text-[13px]/[18px] box-border [flex:1_1_0] text-[#6F8799] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Ask a follow-up…
+            </div>
+          </div>
+          <div
+            data-pencil-name="Actions"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+          >
+            <div
+              data-pencil-name="Source"
+              class="text-[10px]/[normal] box-border [flex:1_1_0] text-[#91A8B9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              greet.py:8–11 · 4 messages
+            </div>
+            <div
+              data-pencil-name="Send reply"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[9px_13px] justify-start items-start bg-[#B2DAEE] rounded-[4px]"
+            >
+              <div
+                data-pencil-name="Label"
+                class="text-[12px]/[normal] box-border text-[#132735] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Send reply
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="question-bar--working-done"
+        class="box-border w-[620px] h-fit absolute left-0 top-[1550px] flex flex-col gap-[10px] p-[40px] justify-start items-start bg-[#0F1820]"
+      >
+        <div
+          data-pencil-name="Question bar · Working"
+          class="[box-sizing:content-box] w-[538px] h-[41px] shrink-0 flex flex-row gap-[10px] p-[0px_12px] justify-start items-center bg-[#294C68] [border-width:1px_1px_1px_3px] [border-style:solid] [border-color:#76AED5] [margin:-0.5px_-0.5px_-0.5px_-1.5px] rounded-[4px]"
+        >
+          <svg
+            data-pencil-name="Question indicator"
+            data-icon-name="message-circle"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[15px] shrink-0 h-[15px]"
+          >
+            <path
+              d="M6.80518 0.58789q-0.5332 0.01367-1.10059 0.1333-0.56738 0.11963-1.06982 0.31445-1.3877 0.56055-2.396 1.67481-1.0083 1.11084-1.41162 2.55322-0.30762 1.09375-0.22559 2.21485 0.08545 1.11768 0.54688 2.15332l0.01367 0.04101q0.06836 0.14014 0.07519 0.22559 0.01025 0.08203-0.04785 0.29394-0.04102 0.15381-0.20849 0.66992l-0.05811 0.14014q-0.30762 0.98096-0.33496 1.1211-0.01367 0.16748 0.02734 0.37255 0.04443 0.20166 0.14014 0.35547 0.05811 0.09912 0.17432 0.21875 0.11963 0.11621 0.21875 0.17432 0.16748 0.0957 0.3623 0.14014 0.19824 0.04101 0.3794 0.02734 0.12646-0.02734 1.14843-0.32129l0.14014-0.04443q0.54688-0.15381 0.70068-0.19483 0.22217-0.05469 0.29737-0.04785 0.07861 0.00684 0.20508 0.06152l0.02734 0.01368q0.88184 0.37939 1.97559 0.50586 0.16748 0.02734 0.59472 0.02734 0.42725 0 0.62207-0.02734 0.85449-0.08545 1.64405-0.3794 0.79297-0.29395 1.47998-0.78271 0.93652-0.65967 1.5791-1.60987 0.646-0.95361 0.92627-2.05761 0.28027-1.10742 0.15381-2.23877-0.12647-1.13477-0.646-2.17383-0.66992-1.35693-1.90381-2.27979-1.23047-0.92627-2.72754-1.17578-0.63232-0.11279-1.30224-0.09912z m0.58789 1.17578q1.38428 0.11279 2.5122 0.86133 1.12793 0.74854 1.77051 1.98242 0.40674 0.79639 0.5332 1.75 0.02734 0.22217 0.02735 0.64258 0 0.42041-0.02735 0.65967-0.16748 1.24414-0.85449 2.26611-0.68701 1.02197-1.76367 1.63721-0.57422 0.32471-1.24756 0.50586-0.66992 0.18115-1.32959 0.18115-1.07666 0-2.12597-0.44775-0.19824-0.08545-0.31788-0.11963-0.11621-0.03418-0.28711-0.04785-0.23584-0.01367-0.45458 0.02734-0.21533 0.04102-1.04249 0.28027-1.0083 0.29395-1.01513 0.28711-0.00684-0.00684 0.30078-0.95703 0.30762-0.95361 0.32129-1.10742 0.07178-0.44775-0.14014-0.9126l-0.14014-0.34863q-0.38965-0.96729-0.3623-2.03711 0.02734-1.06982 0.46143-2.02344 0.44775-0.99463 1.25097-1.72265 0.80664-0.72803 1.82178-1.0835 1.01514-0.35547 2.10889-0.27344z"
+              fill="#E4C282"
+            ></path>
+          </svg>
+          <div
+            data-pencil-name="Question preview"
+            class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#F0F7FC] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="Response status"
+            class="text-[11px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Working
+          </div>
+          <svg
+            data-pencil-name="Open question"
+            data-icon-name="chevron-down"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[14px] shrink-0 h-[14px]"
+          >
+            <path
+              d="M3.34619 4.68945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04785 0.25977 0.05127 0.08887 1.8628 1.9038 1.81494 1.81152 1.9038 1.8628 0.09229 0.04785 0.25977 0.04785 0.16748 0 0.25635-0.04785 0.09229-0.05127 1.90381-1.8628 1.81494-1.81494 1.86279-1.9038 0.05127-0.09229 0.05127-0.25977 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+              fill="#C6E7FF"
+            ></path>
+          </svg>
+        </div>
+        <div
+          data-pencil-name="Question bar · Done"
+          class="[box-sizing:content-box] w-[538px] h-[41px] shrink-0 flex flex-row gap-[10px] p-[0px_12px] justify-start items-center bg-[#294C68] [border-width:1px_1px_1px_3px] [border-style:solid] [border-color:#76AED5] [margin:-0.5px_-0.5px_-0.5px_-1.5px] rounded-[4px]"
+        >
+          <svg
+            data-pencil-name="Question indicator"
+            data-icon-name="message-circle"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[15px] shrink-0 h-[15px]"
+          >
+            <path
+              d="M6.80518 0.58789q-0.5332 0.01367-1.10059 0.1333-0.56738 0.11963-1.06982 0.31445-1.3877 0.56055-2.396 1.67481-1.0083 1.11084-1.41162 2.55322-0.30762 1.09375-0.22559 2.21485 0.08545 1.11768 0.54688 2.15332l0.01367 0.04101q0.06836 0.14014 0.07519 0.22559 0.01025 0.08203-0.04785 0.29394-0.04102 0.15381-0.20849 0.66992l-0.05811 0.14014q-0.30762 0.98096-0.33496 1.1211-0.01367 0.16748 0.02734 0.37255 0.04443 0.20166 0.14014 0.35547 0.05811 0.09912 0.17432 0.21875 0.11963 0.11621 0.21875 0.17432 0.16748 0.0957 0.3623 0.14014 0.19824 0.04101 0.3794 0.02734 0.12646-0.02734 1.14843-0.32129l0.14014-0.04443q0.54688-0.15381 0.70068-0.19483 0.22217-0.05469 0.29737-0.04785 0.07861 0.00684 0.20508 0.06152l0.02734 0.01368q0.88184 0.37939 1.97559 0.50586 0.16748 0.02734 0.59472 0.02734 0.42725 0 0.62207-0.02734 0.85449-0.08545 1.64405-0.3794 0.79297-0.29395 1.47998-0.78271 0.93652-0.65967 1.5791-1.60987 0.646-0.95361 0.92627-2.05761 0.28027-1.10742 0.15381-2.23877-0.12647-1.13477-0.646-2.17383-0.66992-1.35693-1.90381-2.27979-1.23047-0.92627-2.72754-1.17578-0.63232-0.11279-1.30224-0.09912z m0.58789 1.17578q1.38428 0.11279 2.5122 0.86133 1.12793 0.74854 1.77051 1.98242 0.40674 0.79639 0.5332 1.75 0.02734 0.22217 0.02735 0.64258 0 0.42041-0.02735 0.65967-0.16748 1.24414-0.85449 2.26611-0.68701 1.02197-1.76367 1.63721-0.57422 0.32471-1.24756 0.50586-0.66992 0.18115-1.32959 0.18115-1.07666 0-2.12597-0.44775-0.19824-0.08545-0.31788-0.11963-0.11621-0.03418-0.28711-0.04785-0.23584-0.01367-0.45458 0.02734-0.21533 0.04102-1.04249 0.28027-1.0083 0.29395-1.01513 0.28711-0.00684-0.00684 0.30078-0.95703 0.30762-0.95361 0.32129-1.10742 0.07178-0.44775-0.14014-0.9126l-0.14014-0.34863q-0.38965-0.96729-0.3623-2.03711 0.02734-1.06982 0.46143-2.02344 0.44775-0.99463 1.25097-1.72265 0.80664-0.72803 1.82178-1.0835 1.01514-0.35547 2.10889-0.27344z"
+              fill="#8DD9B1"
+            ></path>
+          </svg>
+          <div
+            data-pencil-name="Question preview"
+            class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#F0F7FC] font-[Geist,system-ui,sans-serif] font-normal text-left"
+          >
+            Does farewell print anything?
+          </div>
+          <div
+            data-pencil-name="Response status"
+            class="text-[11px]/[normal] box-border text-[#8DD9B1] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Done
+          </div>
+          <svg
+            data-pencil-name="Open question"
+            data-icon-name="chevron-down"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[14px] shrink-0 h-[14px]"
+          >
+            <path
+              d="M3.34619 4.68945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04785 0.25977 0.05127 0.08887 1.8628 1.9038 1.81494 1.81152 1.9038 1.8628 0.09229 0.04785 0.25977 0.04785 0.16748 0 0.25635-0.04785 0.09229-0.05127 1.90381-1.8628 1.81494-1.81494 1.86279-1.9038 0.05127-0.09229 0.05127-0.25977 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+              fill="#C6E7FF"
+            ></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

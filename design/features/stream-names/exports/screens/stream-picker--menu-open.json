@@ -1,0 +1,481 @@
+{
+  "type": "frame",
+  "id": "BNJ5S",
+  "x": 80,
+  "y": 2840,
+  "name": "Stream picker · menu open",
+  "width": 1200,
+  "height": 760,
+  "layout": "none",
+  "children": [
+    {
+      "id": "k9fGZg",
+      "type": "ref",
+      "ref": "YiBPq",
+      "name": "Window",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "type": "frame",
+      "id": "qJG7Z",
+      "x": 100,
+      "y": 46,
+      "name": "Picker menu",
+      "width": 380,
+      "fill": "#2A333DF2",
+      "cornerRadius": 8,
+      "stroke": "#4A5D6B",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#00000088",
+        "offset": {
+          "x": 0,
+          "y": 10
+        },
+        "blur": 30
+      },
+      "layout": "vertical",
+      "padding": 5,
+      "children": [
+        {
+          "type": "frame",
+          "id": "ddj01",
+          "name": "Item · Billing cleanup · Recording",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "utuPU",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#E6F0F6"
+            },
+            {
+              "type": "text",
+              "id": "xbuCy",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "Billing cleanup · Recording",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "bu0K3",
+          "name": "Item · Invoice totals refactor",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "Uk4Fs",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "E64AKy",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "Invoice totals refactor",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "CPcWb",
+          "name": "Item · Session resume handling",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "V3I9F",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "OM63D",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "Session resume handling",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "v9pMbh",
+          "name": "Item · Docs pass · started Oct 12 09:14",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "L99xX",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "FnYyX",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "Docs pass · started Oct 12 09:14",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "iBEO9",
+          "name": "Item · Docs pass · started Oct 13 16:40",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "QkT6R",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "kqKmk",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "Docs pass · started Oct 13 16:40",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Gjpg5",
+          "name": "Item · louisville-v2 · started Oct 11 10:03",
+          "width": "fill_container",
+          "fill": "#00000000",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "DgbOt",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "S73BvM",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "louisville-v2 · started Oct 11 10:03",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "zmlp0",
+          "name": "Divider wrap",
+          "width": "fill_container",
+          "layout": "vertical",
+          "padding": [
+            5,
+            8
+          ],
+          "children": [
+            {
+              "type": "rectangle",
+              "id": "k7x8b1",
+              "name": "Divider",
+              "fill": "#4A5D6B",
+              "width": "fill_container",
+              "height": 1
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "RHekZ",
+          "name": "Item · Rename Stream…",
+          "width": "fill_container",
+          "fill": "#2F6FA8",
+          "cornerRadius": 4,
+          "gap": 6,
+          "padding": [
+            4,
+            8
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "c4uq2x",
+              "name": "Check",
+              "width": 12,
+              "height": 12,
+              "icon": "check",
+              "library": "lucide",
+              "fill": "#00000000"
+            },
+            {
+              "type": "text",
+              "id": "hgFkK",
+              "name": "Label",
+              "fill": "#E6F0F6",
+              "content": "Rename Stream…",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "fChwD",
+              "name": "flex",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "text",
+              "id": "Tj73M",
+              "name": "Shortcut",
+              "fill": "#9FB3C2",
+              "content": "⇧⌘R",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "lTGKE",
+      "x": 520,
+      "y": 70,
+      "name": "Annotations",
+      "width": 300,
+      "fill": "#0E1318E6",
+      "cornerRadius": 8,
+      "stroke": "#314351",
+      "strokeWidth": 1,
+      "strokeAlignment": "inner",
+      "layout": "vertical",
+      "gap": 10,
+      "padding": 16,
+      "children": [
+        {
+          "type": "text",
+          "id": "ZuD0e",
+          "name": "Annotation title",
+          "fill": "#B2DEC9",
+          "content": "What the labels mean",
+          "fontFamily": "Geist",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "SrkiS",
+          "name": "Note · Named by you",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "vFSJw",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "Named by you",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "S2P34",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "Billing cleanup",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "NG5FO",
+          "name": "Note · Named by the agent",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "cHbAd",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "Named by the agent",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "l6Aa09",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "Invoice totals refactor",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Rhjpn",
+          "name": "Note · Two streams named alike",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "g09m8l",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "Two streams named alike",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "J5HkT",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "start time added",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "qT4Te",
+          "name": "Note · No name yet",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "text",
+              "id": "l2oWV",
+              "name": "k",
+              "fill": "#7D98AD",
+              "content": "No name yet",
+              "fontFamily": "Geist",
+              "fontSize": 11,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "JNBEI",
+              "name": "v",
+              "fill": "#D9E7EF",
+              "content": "folder · start time",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

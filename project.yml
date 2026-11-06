@@ -1,0 +1,118 @@
+name: SlipstreamViewer
+options:
+  bundleIdPrefix: com.playola
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+packages:
+  SlipstreamCore:
+    path: .
+  swift-dependencies:
+    url: https://github.com/pointfreeco/swift-dependencies
+    exactVersion: 1.17.1
+  swift-identified-collections:
+    url: https://github.com/pointfreeco/swift-identified-collections
+    exactVersion: 1.1.1
+  swift-custom-dump:
+    url: https://github.com/pointfreeco/swift-custom-dump
+    exactVersion: 1.7.3
+  xctest-dynamic-overlay:
+    url: https://github.com/pointfreeco/xctest-dynamic-overlay
+    exactVersion: 1.13.1
+  swift-sharing:
+    url: https://github.com/pointfreeco/swift-sharing
+    exactVersion: 2.9.1
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.19.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.9.6
+targets:
+  SlipstreamViewer:
+    type: application
+    platform: macOS
+    sources:
+      - path: SlipstreamViewer
+        excludes:
+          - Resources/Fonts
+      - path: SlipstreamViewer/Resources/Fonts
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: SlipstreamCore
+      - package: swift-dependencies
+        product: Dependencies
+      - package: swift-identified-collections
+        product: IdentifiedCollections
+      - package: xctest-dynamic-overlay
+        product: IssueReporting
+      - package: swift-sharing
+        product: Sharing
+      - package: SwiftTerm
+      - package: Sparkle
+    info:
+      path: SlipstreamViewer/Info.plist
+      properties:
+        CFBundleDisplayName: Slipstream
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "15.0"
+        ATSApplicationFontsPath: Fonts
+        NSHumanReadableCopyright: ""
+        # Slipstream-only Sparkle key (Keychain account slipstream-viewer).
+        SUFeedURL: https://playola-static.s3.amazonaws.com/downloads/SlipstreamViewer/appcast.xml
+        SUPublicEDKey: d6R9EnuhBnztTb3GoxGvCrC5WB4j5HnXebNCLI6ZhaI=
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.playola.SlipstreamViewer
+        PRODUCT_NAME: SlipstreamViewer
+        ENABLE_HARDENED_RUNTIME: NO
+        # The single version source; `fastlane mac bump` edits these. The build is the
+        # integer Sparkle compares, so it only ever goes up.
+        MARKETING_VERSION: "0.2.0"
+        CURRENT_PROJECT_VERSION: "2"
+  SlipstreamViewerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: SlipstreamViewerTests
+        excludes:
+          - Support/fake-claude.sh
+      - path: SlipstreamViewerTests/Support/fake-claude.sh
+        buildPhase: resources
+    dependencies:
+      - target: SlipstreamViewer
+      - package: swift-dependencies
+        product: DependenciesTestSupport
+      - package: swift-custom-dump
+        product: CustomDump
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/SlipstreamViewer.app/Contents/MacOS/SlipstreamViewer
+schemes:
+  SlipstreamViewer:
+    build:
+      targets:
+        SlipstreamViewer: all
+        SlipstreamViewerTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - SlipstreamViewerTests

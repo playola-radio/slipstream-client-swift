@@ -1,0 +1,4 @@
+{"type":"control_response","response":{"subtype":"success","request_id":"int-1","response":{"still_queued":[]}}}
+{"type":"user","uuid":"u-9","message":{"role":"user","content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}
+{"type":"result","subtype":"error_during_execution","stop_reason":"tool_use","terminal_reason":"aborted_tools","is_error":true,"duration_ms":5200,"errors":["[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"]}
+{"type":"system","subtype":"session_state_changed","state":"idle"}

@@ -1,0 +1,1954 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      tailwind = { config: { corePlugins: { preflight: false } } };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist%3Awght%40100..900&family=Geist+Mono%3Awght%40100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, ::before, ::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body style="background-color: #15191F">
+    <div
+      data-pencil-id="TdlE7"
+      data-pencil-name="F · Change tree · Inline input and output deltas"
+      class="box-border w-[1900px] h-[1520px] flex flex-col gap-0 justify-start items-start bg-[#15191F] overflow-hidden"
+    >
+      <div
+        data-pencil-id="hnoNi"
+        data-pencil-name="Application header"
+        class="[box-sizing:content-box] w-[1900px] h-[63.5px] shrink-0 flex flex-row gap-[18px] p-[0px_24px] justify-start items-center bg-[#191E25] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#303740] [margin:0px_0px_-0.5px_0px]"
+      >
+        <div
+          data-pencil-id="UWC6t"
+          data-pencil-name="Wordmark"
+          class="text-[24px]/[normal] box-border text-[#F0F4F8] font-[Geist,system-ui,sans-serif] font-normal tracking-[-1px] text-left [white-space:nowrap]"
+        >
+          differ
+        </div>
+        <div
+          data-pencil-id="cF805"
+          data-pencil-name="Separator"
+          class="text-[22px]/[normal] box-border text-[#46515E] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          /
+        </div>
+        <svg
+          data-pencil-id="kEr8k"
+          data-pencil-name="Project"
+          data-icon-name="folder-git-2"
+          data-icon-set="lucide"
+          viewBox="0 0 13.99993896484375 14"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg"
+          class="box-border w-[16px] shrink-0 h-[16px]"
+        >
+          <path
+            d="M1.97559 1.20313q-0.47852 0.09912-0.83741 0.44433-0.35547 0.3418-0.4956 0.80322-0.04102 0.14014-0.04102 0.34864-0.01367 0.2666-0.02734 1.13476l0.01367 5.96436q0 0.68701 0.02734 0.89551 0.01367 0.14014 0.05811 0.25293l0.02734 0.05468q0.15381 0.44775 0.53662 0.75537 0.38623 0.30762 0.84766 0.3794 0.14014 0.01367 1.73633 0.01367l1.58252-0.01367 0.09912-0.04102q0.2666-0.12646 0.32129-0.42041 0.05469-0.29395-0.15381-0.50586-0.14014-0.14014-0.33496-0.16748-0.11279-0.02734-1.60986-0.02734l-1.31592 0q-0.21191 0-0.28028-0.02734-0.21191-0.08545-0.3247-0.29395l-0.04102-0.09912 0-7.88184 0.04102-0.09912q0.14014-0.28027 0.44775-0.33496 0.12646-0.01367 1.30225 0l1.19287 0 0.0957 0.04102q0.11279 0.05811 0.18115 0.12988 0.07178 0.06836 0.22559 0.3042 0.43408 0.65967 0.58789 0.7998 0.39307 0.34863 0.88184 0.43409 0.12646 0.02734 2.52588 0.02734 2.40283 0 2.51562 0.02734 0.30762 0.04102 0.43408 0.32129l0.04102 0.09912 0.02734 3.20606 0.04102 0.09912q0.04443 0.08203 0.11279 0.16064 0.07178 0.0752 0.14014 0.1128 0.07178 0.03418 0.16748 0.04785 0.23926 0.04102 0.43408-0.09229 0.19824-0.1333 0.25293-0.36914 0.01367-0.09912 0.01367-1.57568 0-1.47656-0.02734-1.63037-0.07178-0.57422-0.45117-0.99463-0.37598-0.42041-0.93653-0.5332-0.10938-0.02734-0.48877-0.02735l-4.21435-0.01367q-0.34863 0-0.43408-0.02734-0.16748-0.04443-0.26661-0.16748-0.02734-0.03076-0.20849-0.29395-0.42041-0.61865-0.58789-0.78613-0.25293-0.23584-0.57422-0.34864l-0.01367 0q-0.15381-0.07178-0.25293-0.08544-0.14014-0.02734-0.44776-0.02735l-1.03564 0-1.17578 0q-0.23926 0.01367-0.33496 0.02735z m5.33203 4.07421q-0.54688 0.08545-0.93311 0.45801-0.38281 0.36914-0.50928 0.91602-0.02734 0.12305-0.02734 0.34863 0 0.22559 0.02734 0.34863 0.09912 0.42041 0.35547 0.75196 0.25977 0.32813 0.65284 0.4956l0.12646 0.05469 0.01367 4.32715 0.04102 0.09912q0.04443 0.08203 0.11279 0.16064 0.07178 0.0752 0.14014 0.1128 0.07178 0.03418 0.16748 0.04785 0.23926 0.04101 0.43408-0.09229 0.19824-0.1333 0.23926-0.36914 0.02734-0.09912 0.02734-1.12109l0-1.03565 0.11279 0.09913q0.29395 0.24951 0.69727 0.44091 0.40674 0.18799 0.7998 0.27002l0.18116 0.04444q0.04443 0 0.09912 0.14013 0.12646 0.29395 0.36914 0.54688 0.24609 0.24951 0.55371 0.37597 0.21191 0.08545 0.32129 0.10596 0.11279 0.02051 0.36572 0.00684 0.2085 0 0.27686-0.00684 0.07178-0.00684 0.18457-0.03418 0.36572-0.11279 0.65283-0.34863 0.28711-0.23926 0.44092-0.56397 0.29395-0.61524 0.10937-1.25781-0.15381-0.51953-0.56738-0.86133-0.41016-0.34521-0.92969-0.38623-0.51611-0.04102-0.95019 0.16748-0.25293 0.12646-0.45801 0.33155-0.20166 0.20166-0.32813 0.44091-0.06836 0.15381-0.09912 0.15381-0.02734 0-0.20166-0.05468-0.17432-0.0581-0.30078-0.11622-0.43408-0.2085-0.75537-0.5708-0.36572-0.42041-0.50244-0.95361l-0.03076-0.12646 0.07177-0.02735q0.0957-0.02734 0.24268-0.12646 0.15039-0.09912 0.24609-0.19483 0.54688-0.51953 0.54688-1.2749 0-0.61523-0.37256-1.0835-0.36914-0.47168-0.95703-0.61181-0.14014-0.04102-0.34522-0.04785-0.20166-0.00684-0.34179 0.0205z m0.51953 1.18946q0.14014 0.07178 0.22217 0.18457 0.08545 0.10938 0.09912 0.24951 0.05469 0.30762-0.16407 0.51953-0.21533 0.2085-0.50927 0.15381-0.29395-0.05469-0.42041-0.32129-0.02734-0.07178-0.03418-0.11279-0.00684-0.04102-0.00684-0.14014 0-0.15381 0.04102-0.24268 0.04443-0.09229 0.1333-0.17431 0.09229-0.08545 0.18799-0.11963 0.09912-0.0376 0.23242-0.0376 0.1333 0 0.21875 0.04102z m4.08789 4.08789q0.18115 0.09912 0.28027 0.29394 0.04102 0.09912 0.04102 0.23926 0 0.23926-0.16748 0.40674-0.12646 0.12646-0.30762 0.15381-0.25293 0.05469-0.46484-0.11279-0.2085-0.16748-0.2085-0.43409 0-0.2085 0.09912-0.33496 0.14014-0.19824 0.33496-0.25293 0.08545-0.01367 0.19483 0 0.11279 0.01367 0.19824 0.04102z"
+            fill="#84919F"
+          ></path>
+        </svg>
+        <div
+          data-pencil-id="HiJsh"
+          data-pencil-name="Repository"
+          class="text-[14px]/[normal] box-border text-[#CED7E1] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          acme / storefront
+        </div>
+        <svg
+          data-pencil-id="E4GtYG"
+          data-pencil-name="Choose repository"
+          data-icon-name="chevron-down"
+          data-icon-set="lucide"
+          viewBox="0 0 13.99993896484375 14"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg"
+          class="box-border w-[16px] shrink-0 h-[16px]"
+        >
+          <path
+            d="M3.34619 4.68945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04785 0.25977 0.05127 0.08887 1.8628 1.9038 1.81494 1.81152 1.9038 1.8628 0.09229 0.04785 0.25977 0.04785 0.16748 0 0.25635-0.04785 0.09229-0.05127 1.90381-1.8628 1.81494-1.81494 1.86279-1.9038 0.05127-0.09229 0.05127-0.25977 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+            fill="#84919F"
+          ></path>
+        </svg>
+        <div
+          data-pencil-id="zfEoY"
+          data-pencil-name="Branch"
+          class="box-border w-fit shrink-0 h-fit flex flex-row gap-[7px] p-[6px_10px] justify-start items-center bg-[#242C35] rounded-[4px]"
+        >
+          <svg
+            data-pencil-id="klibL"
+            data-pencil-name="Branch icon"
+            data-icon-name="git-branch"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[14px] shrink-0 h-[14px]"
+          >
+            <path
+              d="M3.34619 1.18945q-0.25293 0.08545-0.37939 0.30762l-0.04102 0.08545 0 6.64795-0.16748 0.0581q-0.50586 0.16748-0.88525 0.54004-0.37598 0.36914-0.55713 0.85791-0.08545 0.22559-0.11279 0.3794-0.02734 0.15381-0.02735 0.43408 0 0.28027 0.02735 0.43408 0.02734 0.15381 0.11279 0.3794 0.16748 0.4751 0.52978 0.84082 0.36572 0.36231 0.84082 0.52978 0.22559 0.08545 0.3794 0.1128 0.15381 0.02734 0.43408 0.02734 0.28027 0 0.43408-0.02734 0.15381-0.02734 0.3794-0.1128 0.48877-0.18115 0.86474-0.57422 0.37939-0.39307 0.53321-0.89551l0.0581-0.1538 0.0957-0.01367q0.86816-0.08545 1.68165-0.43409 1.44238-0.61523 2.38574-1.89697 0.94678-1.28174 1.11425-2.85059l0.01368-0.0957 0.1538-0.0581q0.50244-0.15381 0.89551-0.52979 0.39307-0.37939 0.57422-0.86816 0.08545-0.22559 0.1128-0.3794 0.02734-0.15381 0.02734-0.43408 0-0.28027-0.02734-0.43408-0.02734-0.15381-0.1128-0.3794-0.18115-0.4751-0.56054-0.85107-0.37598-0.37939-0.86817-0.5332-0.2085-0.07178-0.35547-0.09912-0.14697-0.02734-0.3999-0.02735-0.25293 0-0.3999 0.02735-0.14697 0.02734-0.35547 0.09912-0.49219 0.15381-0.87158 0.5332-0.37598 0.37598-0.55713 0.85107-0.08545 0.22559-0.11279 0.3794-0.02734 0.15381-0.02735 0.43408 0 0.28027 0.02735 0.43408 0.02734 0.15381 0.11279 0.3794 0.18115 0.48877 0.56738 0.86816 0.38623 0.37598 0.875 0.52979l0.12647 0.04101 0 0.08545q-0.01367 0.11279-0.05811 0.32129-0.18115 0.90918-0.70068 1.68164-0.51611 0.76904-1.27832 1.28857-0.76221 0.51611-1.67481 0.69727-0.2085 0.04443-0.32129 0.05811l-0.09912 0-0.04101-0.12647q-0.16748-0.50586-0.56055-0.89551-0.38965-0.39307-0.90918-0.57422l-0.16748-0.0581 0-6.64795-0.04102-0.08545q-0.09912-0.18115-0.28027-0.2666-0.08545-0.04102-0.22559-0.04785-0.14014-0.00684-0.18115 0.00683z m7.44776 1.17578q0.28027 0.07178 0.52295 0.31788 0.24609 0.24268 0.31787 0.52294 0.02734 0.12646 0.02734 0.29395 0 0.16748-0.02734 0.28027-0.07178 0.29395-0.3042 0.53321-0.229 0.23584-0.53662 0.32129-0.11279 0.02734-0.29395 0.02734-0.18115 0-0.29395-0.02734-0.30762-0.08545-0.54003-0.32129-0.229-0.23926-0.30079-0.53321-0.02734-0.11279-0.02734-0.28027 0-0.16748 0.02734-0.29395 0.05811-0.22559 0.22559-0.43408 0.16748-0.2085 0.40674-0.32129 0.34863-0.18115 0.79639-0.08545z m-7 7q0.28027 0.07178 0.52294 0.31788 0.24609 0.24268 0.31788 0.52294 0.02734 0.12647 0.02734 0.29395 0 0.16748-0.02734 0.28027-0.07178 0.29395-0.3042 0.53321-0.229 0.23584-0.53662 0.32129-0.11279 0.02734-0.29395 0.02734-0.18115 0-0.29395-0.02734-0.30762-0.08545-0.54003-0.32129-0.229-0.23926-0.30079-0.53321-0.02734-0.11279-0.02734-0.28027 0-0.16748 0.02734-0.29395 0.05811-0.22559 0.22559-0.43408 0.16748-0.2085 0.40674-0.32129 0.34863-0.18115 0.79639-0.08545z"
+              fill="#A9B9C8"
+            ></path>
+          </svg>
+          <div
+            data-pencil-id="xJS4F"
+            data-pencil-name="Branch name"
+            class="text-[12px]/[normal] box-border text-[#A9B9C8] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            feat/activity-status
+          </div>
+        </div>
+        <div
+          data-pencil-id="qpYqM"
+          data-pencil-name="Header spacer"
+          class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+        ></div>
+        <svg
+          data-pencil-id="k3mwyR"
+          data-pencil-name="Live signal"
+          data-icon-name="radio"
+          data-icon-set="lucide"
+          viewBox="0 0 13.99993896484375 14"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg"
+          class="box-border w-[17px] shrink-0 h-[17px]"
+        >
+          <path
+            d="M2.7583 2.31055q-0.12646 0.02734-0.23926 0.11279-0.10938 0.08203-0.30761 0.32129-1.35693 1.52441-1.5962 3.56836-0.02734 0.2666-0.02734 0.68701 0 0.42041 0.02734 0.68701 0.21191 1.85937 1.36036 3.28809 0.12305 0.18457 0.29736 0.37256 0.17773 0.18799 0.25293 0.24609 0.07861 0.05469 0.18799 0.08887 0.11279 0.03418 0.21191 0.02051 0.22559-0.02734 0.37256-0.18799 0.14697-0.16064 0.14697-0.37256 0-0.16748-0.05127-0.25635-0.04785-0.09228-0.229-0.31787-0.50586-0.54346-0.81348-1.13135-0.60156-1.13477-0.60156-2.43701 0-1.30225 0.60156-2.43701 0.30762-0.58789 0.81348-1.13135 0.18115-0.22559 0.229-0.31445 0.05127-0.09229 0.05127-0.27344 0-0.18457-0.12646-0.33838-0.12646-0.15381-0.32129-0.19482-0.12646-0.02734-0.23926 0z m8.2168 0q-0.2085 0.05469-0.33496 0.24609-0.12646 0.18799-0.08545 0.41016 0.01367 0.11279 0.06836 0.19824 0.05811 0.08203 0.22558 0.2666 0.49219 0.52979 0.79981 1.13135 0.60156 1.13477 0.60156 2.43701 0 1.30225-0.60156 2.43701-0.30762 0.60156-0.79981 1.13135-0.16748 0.18457-0.22558 0.27002-0.05469 0.08203-0.06836 0.19482-0.02734 0.2085 0.07178 0.37598 0.09912 0.16748 0.27343 0.24609 0.17432 0.0752 0.36914 0.02051 0.11279-0.02734 0.20166-0.0957 0.09229-0.07178 0.25977-0.25293 1.40137-1.5415 1.6543-3.64014 0.02734-0.23926 0.02734-0.68017 0-0.44092-0.02734-0.69385-0.19824-1.62354-1.08008-2.91211-0.16748-0.24951-0.39307-0.52295-0.22217-0.27344-0.37597-0.41357-0.11279-0.09912-0.26661-0.14014-0.15381-0.04102-0.29394-0.01367z m-6.53858 1.65088q-0.18115 0.01367-0.38964 0.22558-0.75537 0.76904-1.02198 1.90381-0.09912 0.42041-0.09912 0.90918 0 0.48877 0.09912 0.90918 0.19482 0.86816 0.71436 1.5415 0.12305 0.16748 0.28369 0.33496 0.16406 0.16748 0.23242 0.21192 0.2666 0.12305 0.52637 0 0.25977-0.12646 0.31445-0.40674 0.02734-0.15381-0.02392-0.28711-0.04785-0.1333-0.18457-0.30078-0.40674-0.44775-0.60499-0.93652-0.19482-0.49219-0.19482-1.06641 0-0.57422 0.19482-1.06299 0.19824-0.49219 0.60499-0.93994 0.13672-0.16748 0.18457-0.30078 0.05127-0.1333 0.02392-0.28711-0.02734-0.08203-0.0581-0.13672-0.02734-0.05811-0.09571-0.14355-0.19482-0.2085-0.50586-0.16748z m4.95606 0q-0.19482 0.01367-0.33496 0.16748-0.06836 0.08545-0.09912 0.14355-0.02734 0.05469-0.05469 0.13672-0.02734 0.15381 0.02051 0.28711 0.05127 0.1333 0.18798 0.30078 0.72803 0.7998 0.78614 1.79443 0.08203 1.25781-0.78614 2.21143-0.13672 0.16748-0.18798 0.30078-0.04785 0.1333-0.02051 0.28711 0.05469 0.28027 0.31445 0.40674 0.25977 0.12305 0.52637 0 0.06836-0.04443 0.23584-0.21192 0.43408-0.44775 0.70752-1.03564 0.27344-0.58789 0.35889-1.23047 0.04102-0.32471 0.02734-0.72119-0.01367-0.3999-0.09912-0.70752-0.19482-0.86816-0.71436-1.5415-0.12646-0.16748-0.28711-0.33496-0.16064-0.16748-0.229-0.21192-0.15381-0.06836-0.35205-0.04101z m-2.67285 1.31591q-0.3623 0.05811-0.69385 0.2837-0.32813 0.22217-0.52295 0.52978-0.2666 0.46143-0.24609 0.97412 0.02051 0.50928 0.31445 0.93652 0.29395 0.42725 0.78613 0.62208 0.43408 0.16748 0.89551 0.10595 0.46143-0.06494 0.82373-0.35205 0.36572-0.28711 0.54688-0.71777 0.12646-0.32471 0.12646-0.65967 0-0.33496-0.12646-0.64258-0.18115-0.43408-0.54004-0.72119-0.35547-0.28711-0.8169-0.35889-0.28027-0.04102-0.54687 0z m0.5332 1.20313q0.18115 0.08545 0.2666 0.2666 0.02734 0.05811 0.04102 0.09912 0.01367 0.04102 0.01367 0.15381 0 0.11279-0.01367 0.15381-0.01367 0.04102-0.04102 0.09912-0.09912 0.18115-0.2666 0.28027-0.08545 0.04102-0.25293 0.04102-0.16748 0-0.25293-0.04102-0.16748-0.09912-0.2666-0.28027-0.02734-0.05811-0.04102-0.09912-0.01367-0.04102-0.01367-0.15381 0-0.11279 0.01367-0.15381 0.01367-0.04102 0.04102-0.09912 0.11279-0.22217 0.36572-0.30762 0.04102-0.01367 0.18115-0.00683 0.14014 0.00684 0.22559 0.04785z"
+            fill="#7CE0BA"
+          ></path>
+        </svg>
+        <div
+          data-pencil-id="M9ON1t"
+          data-pencil-name="Connection status"
+          class="text-[13px]/[normal] box-border text-[#7CE0BA] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Agent connected
+        </div>
+        <svg
+          data-pencil-id="iDOaq"
+          data-pencil-name="Settings"
+          data-icon-name="settings-2"
+          data-icon-set="lucide"
+          viewBox="0 0 13.99993896484375 14"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg"
+          class="box-border w-[16px] shrink-0 h-[16px]"
+        >
+          <path
+            d="M3.80762 1.76367q-0.29395 0.04102-0.60157 0.16748-0.30762 0.12646-0.56054 0.30762-0.18115 0.14014-0.36572 0.36572-0.18115 0.22217-0.27686 0.43408-0.35205 0.70068-0.21191 1.47657 0.14014 0.77588 0.72802 1.29541 0.50586 0.44775 1.14844 0.56738 0.646 0.11963 1.2749-0.1333 0.46143-0.16748 0.82373-0.56055 0.36572-0.39307 0.51953-0.85449l0.05469-0.15381 2.38233 0q2.36523 0 2.46435-0.02734 0.23584-0.04102 0.36914-0.23584 0.1333-0.19824 0.09229-0.4375-0.01367-0.0957-0.05127-0.16406-0.03418-0.07178-0.11279-0.14014-0.0752-0.07178-0.15723-0.11621l-0.09912-0.04102-4.8877-0.01367-0.04101-0.14014q-0.04102-0.14014-0.14014-0.32129-0.32129-0.65967-0.96729-1.00146-0.64258-0.3418-1.38427-0.27344z m0.64599 1.20313q0.23584 0.08545 0.4375 0.29052 0.20508 0.20166 0.3042 0.46827 0.02734 0.08203 0.03418 0.14697 0.00684 0.06152 0.00684 0.20166 0 0.19482-0.02051 0.30078-0.02051 0.10596-0.10596 0.24609-0.05469 0.10938-0.16748 0.23584-0.11279 0.12646-0.21191 0.19825-0.22217 0.15381-0.48877 0.18798-0.2666 0.03418-0.52637-0.04785-0.25635-0.08545-0.46142-0.28711-0.20166-0.20508-0.28711-0.45459-0.02734-0.12646-0.04102-0.30761-0.01367-0.18457 0.02734-0.32471 0.05811-0.30762 0.28711-0.54346 0.23242-0.23926 0.54004-0.32471 0.12646-0.02734 0.32813-0.02734 0.20508 0 0.34521 0.04102z m5.27735 4.63476q-0.70068 0.04102-1.26123 0.49219-0.56055 0.44775-0.76905 1.104l-0.04101 0.12647-4.87403 0.01367-0.09912 0.04102q-0.23584 0.11279-0.32129 0.35205-0.08203 0.23584 0.02735 0.46142 0.04443 0.06836 0.11963 0.14014 0.07861 0.06836 0.16064 0.11279l0.09912 0.04102 4.8877 0.01367 0.04101 0.14014q0.0957 0.29395 0.29395 0.58789 0.32129 0.4751 0.81689 0.7417 0.49902 0.2666 1.06641 0.28027 0.56738 0.01367 1.0835-0.25293 0.30762-0.15381 0.58105-0.41016 0.27344-0.25977 0.44092-0.58447 0.32129-0.61523 0.24951-1.30566-0.06836-0.69385-0.50244-1.24073-0.29395-0.36572-0.72119-0.59472-0.42383-0.23242-0.84424-0.25977l-0.21191-0.01367q-0.05469 0-0.22217 0.01367z m0.56054 1.20313q0.24951 0.09912 0.44776 0.29394 0.16748 0.1709 0.24267 0.34522 0.07861 0.17432 0.09229 0.41357 0.01367 0.32129-0.12647 0.60156-0.06836 0.15381-0.20849 0.28711-0.14014 0.1333-0.29395 0.21192-0.15381 0.0752-0.27344 0.0957-0.11963 0.02051-0.30078 0.02051-0.25293-0.01367-0.42724-0.08887-0.17432-0.07861-0.34522-0.24609-0.19482-0.19824-0.29394-0.46485-0.02734-0.08203-0.03418-0.14355-0.00684-0.06494-0.00684-0.20508 0-0.19482 0.02051-0.30078 0.02051-0.10596 0.10596-0.25977 0.05469-0.11279 0.18115-0.24267 0.12646-0.1333 0.22558-0.19141 0.2085-0.12646 0.40674-0.16748 0.10938-0.01367 0.28369 0 0.17773 0.01367 0.3042 0.04102z"
+            fill="#84919F"
+          ></path>
+        </svg>
+        <div
+          data-pencil-id="dLrba"
+          data-pencil-name="User avatar"
+          class="box-border w-[30px] shrink-0 h-[30px] flex flex-row gap-0 justify-center items-center bg-[#344456] rounded-[15px]"
+        >
+          <div
+            data-pencil-id="ZexEV"
+            data-pencil-name="User initials"
+            class="text-[11px]/[normal] box-border text-[#E0EAF4] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+          >
+            BK
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-id="DIVl2"
+        data-pencil-name="Story context"
+        class="[box-sizing:content-box] w-[1900px] h-[61.5px] shrink-0 flex flex-row gap-[14px] p-[0px_22px] justify-start items-center bg-[#1B222A] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#34414E] [margin:0px_0px_-0.5px_0px]"
+      >
+        <div
+          data-pencil-id="L7wNRd"
+          data-pencil-name="Story ID"
+          class="text-[10px]/[normal] box-border text-[#86A0B4] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          ST-128
+        </div>
+        <div
+          data-pencil-id="DJfRz"
+          data-pencil-name="Story title"
+          class="text-[18px]/[normal] box-border text-[#E0EBF3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Introduce account activity states
+        </div>
+        <svg
+          data-pencil-id="guqxy"
+          data-pencil-name="Switch story"
+          data-icon-name="chevron-down"
+          data-icon-set="lucide"
+          viewBox="0 0 13.99993896484375 14"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg"
+          class="box-border w-[13px] shrink-0 h-[13px]"
+        >
+          <path
+            d="M3.34619 4.68945q-0.25293 0.08545-0.37939 0.30762-0.04102 0.08545-0.04102 0.25293 0 0.16748 0.04785 0.25977 0.05127 0.08887 1.8628 1.9038 1.81494 1.81152 1.9038 1.8628 0.09229 0.04785 0.25977 0.04785 0.16748 0 0.25635-0.04785 0.09229-0.05127 1.90381-1.8628 1.81494-1.81494 1.86279-1.9038 0.05127-0.09229 0.05127-0.25977 0-0.16748-0.04102-0.25293-0.09912-0.16748-0.28027-0.2666-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04101 0.01367-0.11279 0.04102-0.09912 0.05811-1.66455 1.62695l-1.56885 1.56543-2.82666-2.81299q-0.31104-0.29395-0.42041-0.37939-0.08545-0.05469-0.19824-0.05469l-0.02735 0q-0.14014 0-0.18115 0.01367z"
+            fill="#8DA5B8"
+          ></path>
+        </svg>
+        <div
+          data-pencil-id="F0YmiO"
+          data-pencil-name="Story gap"
+          class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+        ></div>
+        <div
+          data-pencil-id="UWjQM"
+          data-pencil-name="Task progress"
+          class="text-[11px]/[normal] box-border text-[#8EACBB] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          1 of 2 tasks complete
+        </div>
+        <div
+          data-pencil-id="cHyai"
+          data-pencil-name="Story changed count"
+          class="text-[11px]/[normal] box-border text-[#A7BFCE] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          4 files changed
+        </div>
+        <div
+          data-pencil-id="r7uhD"
+          data-pencil-name="Story delta"
+          class="text-[11px]/[normal] box-border text-[#93C1AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          +42 −11
+        </div>
+      </div>
+      <div
+        data-pencil-id="trTcI"
+        data-pencil-name="Workspace sections"
+        class="[box-sizing:content-box] w-[1900px] h-[53.5px] shrink-0 flex flex-row gap-[30px] p-[0px_24px] justify-start items-center [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#303B46] [margin:0px_0px_-0.5px_0px]"
+      >
+        <div
+          data-pencil-id="ggErZ"
+          data-pencil-name="Activity tab"
+          class="text-[14px]/[normal] box-border text-[#94A4B4] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Activity
+        </div>
+        <div
+          data-pencil-id="NFdFc"
+          data-pencil-name="Files tab"
+          class="text-[14px]/[normal] box-border text-[#94A4B4] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Files
+        </div>
+        <div
+          data-pencil-id="K2vmC"
+          data-pencil-name="Function changes active tab"
+          class="[box-sizing:content-box] w-[114px] shrink-0 h-[53px] flex flex-row gap-0 justify-start items-center [border-width:0px_0px_2px_0px] [border-style:solid] [border-color:#A9CBE3] [margin:0px_0px_-1px_0px]"
+        >
+          <div
+            data-pencil-id="o6mbuO"
+            data-pencil-name="Function changes tab"
+            class="text-[14px]/[normal] box-border text-[#E4F0FA] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Function changes
+          </div>
+        </div>
+        <div
+          data-pencil-id="phmz3"
+          data-pencil-name="Section spacer"
+          class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+        ></div>
+        <div
+          data-pencil-id="yjdVR"
+          data-pencil-name="Comparison label"
+          class="text-[12px]/[normal] box-border text-[#8FA2B2] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Compare
+        </div>
+        <div
+          data-pencil-id="v0K0W7"
+          data-pencil-name="Comparison range"
+          class="text-[13px]/[normal] box-border text-[#CBD5DF] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Before story → Working tree ▾
+        </div>
+      </div>
+      <div
+        data-pencil-id="xoJN8"
+        data-pencil-name="Tree page heading"
+        class="box-border w-full h-fit shrink-0 flex flex-row gap-[24px] p-[24px_28px] justify-start items-center"
+      >
+        <div
+          data-pencil-id="FP9Xv"
+          data-pencil-name="Tree introduction"
+          class="box-border [flex:1_1_0] h-fit flex flex-col gap-[8px] justify-start items-start"
+        >
+          <div
+            data-pencil-id="PrWVC"
+            data-pencil-name="Tree title"
+            class="text-[28px]/[normal] box-border text-[#E4F0F8] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            See where the change lives.
+          </div>
+          <div
+            data-pencil-id="Sv9CN"
+            data-pencil-name="Tree subtitle"
+            class="text-[14px]/[normal] box-border text-[#9BB1C3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Follow a branch to read input, output and possible-effect changes directly on each
+            function.
+          </div>
+        </div>
+        <div
+          data-pencil-id="MpxYj"
+          data-pencil-name="Changed scope"
+          class="text-[13px]/[normal] box-border text-[#C4D8E7] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          5 functions · 1 shared type · 4 files
+        </div>
+      </div>
+      <div
+        data-pencil-id="nbGwS"
+        data-pencil-name="Tree filters and legend"
+        class="box-border w-full h-fit shrink-0 flex flex-row gap-[24px] p-[0px_28px_18px_28px] justify-start items-center"
+      >
+        <div
+          data-pencil-id="yxBlj"
+          data-pencil-name="Find in tree"
+          class="box-border w-[320px] shrink-0 h-fit flex flex-row gap-0 p-[10px_12px] justify-start items-start bg-[#11171D] [outline:1px_solid_#344B5D] [outline-offset:-0.5px] rounded-[4px]"
+        >
+          <div
+            data-pencil-id="hbQp3"
+            data-pencil-name="Find placeholder"
+            class="text-[13px]/[normal] box-border text-[#93ADC0] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            ⌕ Find file, function or type
+          </div>
+        </div>
+        <div
+          data-pencil-id="DsEI3"
+          data-pencil-name="Tree scope"
+          class="text-[13px]/[normal] box-border text-[#C5D7E4] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Entire codebase ▾
+        </div>
+        <div
+          data-pencil-id="DNIjc"
+          data-pencil-name="Unchanged visibility"
+          class="text-[12px]/[normal] box-border text-[#A8C1D3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Show unchanged branches ●
+        </div>
+        <div
+          data-pencil-id="fKnSd"
+          data-pencil-name="Tree filters spacer"
+          class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+        ></div>
+        <div
+          data-pencil-id="zY9eM"
+          data-pencil-name="Added marker legend"
+          class="text-[12px]/[normal] box-border text-[#8DD9B1] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          + Added
+        </div>
+        <div
+          data-pencil-id="UZ53P"
+          data-pencil-name="Changed marker legend"
+          class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          ~ Changed
+        </div>
+        <div
+          data-pencil-id="EWnPf"
+          data-pencil-name="Removed marker legend"
+          class="text-[12px]/[normal] box-border text-[#F0A4AB] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          − Removed
+        </div>
+        <div
+          data-pencil-id="E8b1s"
+          data-pencil-name="Branch count legend"
+          class="text-[12px]/[normal] box-border text-[#94AFC3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+        >
+          Number = changed descendants
+        </div>
+      </div>
+      <div
+        data-pencil-id="yCxyI"
+        data-pencil-name="Tree viewport and detail inspector"
+        class="[box-sizing:content-box] w-[1900px] [flex:1_1_0] flex flex-row gap-0 justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#344B5D] [margin:-0.5px_0px_0px_0px] h-[1174.5px]"
+      >
+        <div
+          data-pencil-id="cAb5J"
+          data-pencil-name="Navigable tree overview"
+          class="box-border [flex:1_1_0] h-full flex flex-col gap-0 justify-start items-start"
+        >
+          <div
+            data-pencil-id="OySik"
+            data-pencil-name="Tree scope breadcrumb"
+            class="box-border w-full h-[50px] shrink-0 flex flex-row gap-[14px] p-[0px_24px] justify-start items-center"
+          >
+            <div
+              data-pencil-id="R4l0i"
+              data-pencil-name="Overview breadcrumb"
+              class="text-[12px]/[normal] box-border text-[#A9C2D6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              storefront / src
+            </div>
+            <div
+              data-pencil-id="XvQ4B"
+              data-pencil-name="Breadcrumb spacer"
+              class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+            ></div>
+            <div
+              data-pencil-id="fN9Fx"
+              data-pencil-name="Tree view state"
+              class="text-[10px]/[normal] box-border text-[#839EB4] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              CONTRACT VIEW · INLINE CHANGES
+            </div>
+          </div>
+          <div
+            data-pencil-id="Cnqwe"
+            data-pencil-name="Code hierarchy diagram"
+            class="box-border w-full h-[978px] shrink-0 bg-[#121B24] overflow-hidden relative"
+          >
+            <svg
+              data-pencil-id="oj8MX"
+              data-pencil-name="Repository to source"
+              viewBox="0 0 50 64"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[50px] h-[64px] absolute left-[900px] top-[106px] overflow-visible [z-index:0]"
+            >
+              <path
+                d="M 50 0 L 50 32 L 0 32 L 0 64"
+                fill="none"
+                stroke="#769EBB"
+                stroke-width="2"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="Ok4uo"
+              data-pencil-name="Repository to tests"
+              viewBox="0 0 600 64"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[600px] h-[64px] absolute left-[950px] top-[106px] overflow-visible [z-index:1]"
+            >
+              <path
+                d="M 0 0 L 0 32 L 600 32 L 600 64"
+                fill="none"
+                stroke="#485B6B"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="oznbd"
+              data-pencil-name="Repository to configuration"
+              viewBox="0 0 810 64"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[810px] h-[64px] absolute left-[950px] top-[106px] overflow-visible [z-index:2]"
+            >
+              <path
+                d="M 0 0 L 0 32 L 810 32 L 810 64"
+                fill="none"
+                stroke="#485B6B"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="r3wPw"
+              data-pencil-name="Source branch 140"
+              viewBox="0 0 735 70"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[735px] h-[70px] absolute left-[165px] top-[230px] overflow-visible [z-index:3]"
+            >
+              <path
+                d="M 735 0 L 735 35 L 0 35 L 0 70"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="W0IPex"
+              data-pencil-name="Source branch 490"
+              viewBox="0 0 135 70"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[135px] h-[70px] absolute left-[765px] top-[230px] overflow-visible [z-index:4]"
+            >
+              <path
+                d="M 135 0 L 135 35 L 0 35 L 0 70"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="oUMsc"
+              data-pencil-name="Source branch 870"
+              viewBox="0 0 465 70"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[465px] h-[70px] absolute left-[900px] top-[230px] overflow-visible [z-index:5]"
+            >
+              <path
+                d="M 0 0 L 0 35 L 465 35 L 465 70"
+                fill="none"
+                stroke="#91BAD7"
+                stroke-width="2.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="lczgX"
+              data-pencil-name="Source branch 1120"
+              viewBox="0 0 765 70"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[765px] h-[70px] absolute left-[900px] top-[230px] overflow-visible [z-index:6]"
+            >
+              <path
+                d="M 0 0 L 0 35 L 765 35 L 765 70"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="x9rcb"
+              data-pencil-name="Source branch 1320"
+              viewBox="0 0 170 70"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[170px] h-[70px] absolute left-[900px] top-[230px] overflow-visible [z-index:7]"
+            >
+              <path
+                d="M 0 0 L 0 35 L 170 35 L 170 70"
+                fill="none"
+                stroke="#354957"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="p7tVJ"
+              data-pencil-name="Folder to file 140"
+              viewBox="0 0 1 58"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[1.5px] h-[58px] absolute left-[165px] top-[360px] overflow-visible [z-index:8]"
+            >
+              <path
+                d="M 0 0 L 0 29 L 0 29 L 0 58"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="Wdcai"
+              data-pencil-name="Folder to file 490"
+              viewBox="0 0 1 58"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[1.5px] h-[58px] absolute left-[765px] top-[360px] overflow-visible [z-index:9]"
+            >
+              <path
+                d="M 0 0 L 0 29 L 0 29 L 0 58"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="PTGzr"
+              data-pencil-name="Folder to file 870"
+              viewBox="0 0 1 58"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[2.5px] h-[58px] absolute left-[1365px] top-[360px] overflow-visible [z-index:10]"
+            >
+              <path
+                d="M 0 0 L 0 29 L 0 29 L 0 58"
+                fill="none"
+                stroke="#91BAD7"
+                stroke-width="2.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="uaSu5"
+              data-pencil-name="Folder to file 1120"
+              viewBox="0 0 1 58"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[1.5px] h-[58px] absolute left-[1665px] top-[360px] overflow-visible [z-index:11]"
+            >
+              <path
+                d="M 0 0 L 0 29 L 0 29 L 0 58"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="PhA4o"
+              data-pencil-name="Create user function"
+              viewBox="0 0 1 72"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[1.5px] h-[72px] absolute left-[165px] top-[478px] overflow-visible [z-index:12]"
+            >
+              <path
+                d="M 0 0 L 0 36 L 0 36 L 0 72"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="CXt4A"
+              data-pencil-name="Access function 350"
+              viewBox="0 0 300 72"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[300px] h-[72px] absolute left-[465px] top-[478px] overflow-visible [z-index:13]"
+            >
+              <path
+                d="M 300 0 L 300 36 L 0 36 L 0 72"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="wBR6B"
+              data-pencil-name="Access function 510"
+              viewBox="0 0 1 72"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[1.5px] h-[72px] absolute left-[765px] top-[478px] overflow-visible [z-index:14]"
+            >
+              <path
+                d="M 0 0 L 0 36 L 0 36 L 0 72"
+                fill="none"
+                stroke="#4F826E"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="DMSEH"
+              data-pencil-name="Access function 670"
+              viewBox="0 0 300 72"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[300px] h-[72px] absolute left-[765px] top-[478px] overflow-visible [z-index:15]"
+            >
+              <path
+                d="M 0 0 L 0 36 L 300 36 L 300 72"
+                fill="none"
+                stroke="#4F826E"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="Qap9W"
+              data-pencil-name="Selected activity function"
+              viewBox="0 0 1 72"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[3px] h-[72px] absolute left-[1365px] top-[478px] overflow-visible [z-index:16]"
+            >
+              <path
+                d="M 0 0 L 0 36 L 0 36 L 0 72"
+                fill="none"
+                stroke="#B0D7F1"
+                stroke-width="3"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <svg
+              data-pencil-id="BdLVf"
+              data-pencil-name="Shared type declaration"
+              viewBox="0 0 1 72"
+              preserveAspectRatio="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[1.5px] h-[72px] absolute left-[1665px] top-[478px] overflow-visible [z-index:17]"
+            >
+              <path
+                d="M 0 0 L 0 36 L 0 36 L 0 72"
+                fill="none"
+                stroke="#706447"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+              ></path>
+            </svg>
+            <div
+              data-pencil-id="NGwhG"
+              data-pencil-name="Repository root"
+              class="box-border w-[200px] h-[76px] absolute left-[850px] top-[30px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:18]"
+            >
+              <div
+                data-pencil-id="PXRx8"
+                data-pencil-name="Repository root heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="ZjnKq"
+                  data-pencil-name="Repository root title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  storefront
+                </div>
+              </div>
+              <div
+                data-pencil-id="B1l9Wc"
+                data-pencil-name="Repository root subtitle"
+                class="text-[10px]/[normal] box-border w-full text-[#9EB7CB] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                Repository
+              </div>
+            </div>
+            <div
+              data-pencil-id="En3rL"
+              data-pencil-name="Source folder"
+              class="box-border w-[170px] h-[60px] absolute left-[815px] top-[170px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:19]"
+            >
+              <div
+                data-pencil-id="qnHB7"
+                data-pencil-name="Source folder heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="airUI"
+                  data-pencil-name="Source folder title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  src
+                </div>
+                <div
+                  data-pencil-id="cQc4s"
+                  data-pencil-name="Source folder change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="DIvij"
+                    data-pencil-name="Source folder marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    6
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="xNF3P"
+              data-pencil-name="Tests unchanged"
+              class="box-border w-[150px] h-[76px] absolute left-[1475px] top-[170px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#18232D] [outline:1px_solid_#354957] [outline-offset:-0.5px] rounded-[5px] [z-index:20]"
+            >
+              <div
+                data-pencil-id="o7nDqz"
+                data-pencil-name="Tests unchanged heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="OpNCF"
+                  data-pencil-name="Tests unchanged title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#8BA1B3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  tests
+                </div>
+              </div>
+              <div
+                data-pencil-id="VOb78"
+                data-pencil-name="Tests unchanged subtitle"
+                class="text-[10px]/[normal] box-border w-full text-[#849CAF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                Collapsed · unchanged
+              </div>
+            </div>
+            <div
+              data-pencil-id="I5T5i3"
+              data-pencil-name="Config unchanged"
+              class="box-border w-[140px] h-[76px] absolute left-[1690px] top-[170px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#18232D] [outline:1px_solid_#354957] [outline-offset:-0.5px] rounded-[5px] [z-index:21]"
+            >
+              <div
+                data-pencil-id="ujyQg"
+                data-pencil-name="Config unchanged heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="Z91B5Q"
+                  data-pencil-name="Config unchanged title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#8BA1B3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  config
+                </div>
+              </div>
+              <div
+                data-pencil-id="XoTzF"
+                data-pencil-name="Config unchanged subtitle"
+                class="text-[10px]/[normal] box-border w-full text-[#849CAF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                Collapsed · unchanged
+              </div>
+            </div>
+            <div
+              data-pencil-id="fOP19"
+              data-pencil-name="API folder"
+              class="box-border w-[160px] h-[60px] absolute left-[85px] top-[300px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:22]"
+            >
+              <div
+                data-pencil-id="GbmXL"
+                data-pencil-name="API folder heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="tTpm0"
+                  data-pencil-name="API folder title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  api
+                </div>
+                <div
+                  data-pencil-id="sqzep"
+                  data-pencil-name="API folder change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="T5IiUl"
+                    data-pencil-name="API folder marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    1
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="cp4YL"
+              data-pencil-name="Auth folder"
+              class="box-border w-[160px] h-[60px] absolute left-[685px] top-[300px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:23]"
+            >
+              <div
+                data-pencil-id="n5ru6"
+                data-pencil-name="Auth folder heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="j199FF"
+                  data-pencil-name="Auth folder title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  auth
+                </div>
+                <div
+                  data-pencil-id="L1rWSY"
+                  data-pencil-name="Auth folder change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="F8dxr"
+                    data-pencil-name="Auth folder marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    3
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="qGHGl"
+              data-pencil-name="Services folder"
+              class="box-border w-[170px] h-[60px] absolute left-[1280px] top-[300px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#2B465B] [outline:2px_solid_#B0D7F1] [outline-offset:-1px] rounded-[5px] [z-index:24]"
+            >
+              <div
+                data-pencil-id="mdh4n"
+                data-pencil-name="Services folder heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="E6zETZ"
+                  data-pencil-name="Services folder title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  services
+                </div>
+                <div
+                  data-pencil-id="hy1hV"
+                  data-pencil-name="Services folder change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="P1QXlm"
+                    data-pencil-name="Services folder marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    1
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="Z8cO63"
+              data-pencil-name="Types folder"
+              class="box-border w-[160px] h-[60px] absolute left-[1585px] top-[300px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:25]"
+            >
+              <div
+                data-pencil-id="eaMkU"
+                data-pencil-name="Types folder heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="N4HSU"
+                  data-pencil-name="Types folder title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  types
+                </div>
+                <div
+                  data-pencil-id="woO4Y"
+                  data-pencil-name="Types folder change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="PsFO8"
+                    data-pencil-name="Types folder marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    1
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="bGCOA"
+              data-pencil-name="Other source folders"
+              class="box-border w-[190px] h-[76px] absolute left-[975px] top-[300px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#18232D] [outline:1px_solid_#354957] [outline-offset:-0.5px] rounded-[5px] [z-index:26]"
+            >
+              <div
+                data-pencil-id="u6meN"
+                data-pencil-name="Other source folders heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="G3ycT"
+                  data-pencil-name="Other source folders title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#8BA1B3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  components…
+                </div>
+              </div>
+              <div
+                data-pencil-id="GccC6"
+                data-pencil-name="Other source folders subtitle"
+                class="text-[10px]/[normal] box-border w-full text-[#849CAF] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                hooks · utils · unchanged
+              </div>
+            </div>
+            <div
+              data-pencil-id="o35Eh"
+              data-pencil-name="Create user file"
+              class="box-border w-[208px] h-[60px] absolute left-[61px] top-[418px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:27]"
+            >
+              <div
+                data-pencil-id="F7nMR0"
+                data-pencil-name="Create user file heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="Ecf1V"
+                  data-pencil-name="Create user file title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  create-user.ts
+                </div>
+                <div
+                  data-pencil-id="MUeTc"
+                  data-pencil-name="Create user file change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="i7QAg"
+                    data-pencil-name="Create user file marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    1
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="MZi2e"
+              data-pencil-name="Access file"
+              class="box-border w-[188px] h-[60px] absolute left-[671px] top-[418px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:28]"
+            >
+              <div
+                data-pencil-id="UhVcM"
+                data-pencil-name="Access file heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="RJThI"
+                  data-pencil-name="Access file title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  access.ts
+                </div>
+                <div
+                  data-pencil-id="HYu0D"
+                  data-pencil-name="Access file change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="XgKzu"
+                    data-pencil-name="Access file marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    3
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="yOUNN"
+              data-pencil-name="Activity file"
+              class="box-border w-[200px] h-[60px] absolute left-[1265px] top-[418px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#2B465B] [outline:2px_solid_#B0D7F1] [outline-offset:-1px] rounded-[5px] [z-index:29]"
+            >
+              <div
+                data-pencil-id="E9AYN"
+                data-pencil-name="Activity file heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="tGh10"
+                  data-pencil-name="Activity file title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  activity.ts
+                </div>
+                <div
+                  data-pencil-id="j14rc"
+                  data-pencil-name="Activity file change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="qrpGW"
+                    data-pencil-name="Activity file marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    1
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="AAWND"
+              data-pencil-name="User file"
+              class="box-border w-[160px] h-[60px] absolute left-[1585px] top-[418px] flex flex-col gap-[7px] p-[12px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:30]"
+            >
+              <div
+                data-pencil-id="y0gyx"
+                data-pencil-name="User file heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="iEhEH"
+                  data-pencil-name="User file title"
+                  class="text-[12px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  user.ts
+                </div>
+                <div
+                  data-pencil-id="wWIIN"
+                  data-pencil-name="User file change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="Zh4WA"
+                    data-pencil-name="User file marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    1
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="wtqOd"
+              data-pencil-name="Create user changed leaf"
+              class="box-border w-[280px] h-fit absolute left-[25px] top-[550px] flex flex-col gap-[10px] p-[14px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:31]"
+            >
+              <div
+                data-pencil-id="rMoVd"
+                data-pencil-name="Create user changed leaf heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="cNRQT"
+                  data-pencil-name="Create user changed leaf title"
+                  class="text-[14px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  createUser
+                </div>
+                <div
+                  data-pencil-id="IYBex"
+                  data-pencil-name="Create user changed leaf change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="Wjh9c"
+                    data-pencil-name="Create user changed leaf marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    ~
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="Po2dy"
+                data-pencil-name="INPUTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[46.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="MMzCf"
+                  data-pencil-name="INPUTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  INPUTS
+                </div>
+                <div
+                  data-pencil-id="s3X3k"
+                  data-pencil-name="= input: CreateUserInput"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  = input: CreateUserInput
+                </div>
+              </div>
+              <div
+                data-pencil-id="zNAwo"
+                data-pencil-name="OUTPUT · Promise&lt;User&gt; inline section"
+                class="[box-sizing:content-box] w-[252px] h-[108.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="h0gP3"
+                  data-pencil-name="OUTPUT · Promise&lt;User&gt; label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  OUTPUT · Promise&lt;User&gt;
+                </div>
+                <div
+                  data-pencil-id="r5gNA"
+                  data-pencil-name="  User.isActive"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  User.isActive
+                </div>
+                <div
+                  data-pencil-id="gQs4m"
+                  data-pencil-name="− boolean"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#38282F] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="Fl9xB"
+                    data-pencil-name="− boolean label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    − boolean
+                  </div>
+                </div>
+                <div
+                  data-pencil-id="e2UaW"
+                  data-pencil-name="+ ActivityState"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="kzJph"
+                    data-pencil-name="+ ActivityState label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + ActivityState
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="INvzu"
+                data-pencil-name="POSSIBLE EFFECTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[69.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="v8tIF"
+                  data-pencil-name="POSSIBLE EFFECTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  POSSIBLE EFFECTS
+                </div>
+                <div
+                  data-pencil-id="bLxYn"
+                  data-pencil-name="= Writes users"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  = Writes users
+                </div>
+                <div
+                  data-pencil-id="zcKNx"
+                  data-pencil-name="? Indirect calls"
+                  class="text-[12px]/[17px] box-border w-full text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  ? Indirect calls
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="rbbSg"
+              data-pencil-name="Can access changed leaf"
+              class="box-border w-[280px] h-fit absolute left-[325px] top-[550px] flex flex-col gap-[10px] p-[14px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:32]"
+            >
+              <div
+                data-pencil-id="Nk3X0"
+                data-pencil-name="Can access changed leaf heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="mMUIT"
+                  data-pencil-name="Can access changed leaf title"
+                  class="text-[14px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  canAccess
+                </div>
+                <div
+                  data-pencil-id="DNXO3"
+                  data-pencil-name="Can access changed leaf change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="NLPXJ"
+                    data-pencil-name="Can access changed leaf marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    ~
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="mxQY6"
+                data-pencil-name="INPUT · user: User inline section"
+                class="[box-sizing:content-box] w-[252px] h-[108.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="V71vAp"
+                  data-pencil-name="INPUT · user: User label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  INPUT · user: User
+                </div>
+                <div
+                  data-pencil-id="wRA0T"
+                  data-pencil-name="  user.isActive"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  user.isActive
+                </div>
+                <div
+                  data-pencil-id="bQZ33"
+                  data-pencil-name="− boolean"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#38282F] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="s5SE5"
+                    data-pencil-name="− boolean label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    − boolean
+                  </div>
+                </div>
+                <div
+                  data-pencil-id="ga97T"
+                  data-pencil-name="+ ActivityState"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="J77IO8"
+                    data-pencil-name="+ ActivityState label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + ActivityState
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="K8HFs"
+                data-pencil-name="OUTPUT inline section"
+                class="[box-sizing:content-box] w-[252px] h-[69.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="hUvT5"
+                  data-pencil-name="OUTPUT label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  OUTPUT
+                </div>
+                <div
+                  data-pencil-id="DQjyh"
+                  data-pencil-name="= boolean"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  = boolean
+                </div>
+                <div
+                  data-pencil-id="EJJ5O"
+                  data-pencil-name="~ Now checks Active"
+                  class="text-[12px]/[17px] box-border w-full text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  ~ Now checks Active
+                </div>
+              </div>
+              <div
+                data-pencil-id="xfemU"
+                data-pencil-name="POSSIBLE EFFECTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[46.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="EDvUn"
+                  data-pencil-name="POSSIBLE EFFECTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  POSSIBLE EFFECTS
+                </div>
+                <div
+                  data-pencil-id="Sb1E5"
+                  data-pencil-name="= None detected"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  = None detected
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="HZgJz"
+              data-pencil-name="Suspended added leaf"
+              class="box-border w-[280px] h-fit absolute left-[625px] top-[550px] flex flex-col gap-[10px] p-[14px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:33]"
+            >
+              <div
+                data-pencil-id="kAux4"
+                data-pencil-name="Suspended added leaf heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="XC2XJ"
+                  data-pencil-name="Suspended added leaf title"
+                  class="text-[14px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  isSuspended
+                </div>
+                <div
+                  data-pencil-id="OjcMM"
+                  data-pencil-name="Suspended added leaf change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#294B3D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="iZ4Ly"
+                    data-pencil-name="Suspended added leaf marker text"
+                    class="text-[12px]/[normal] box-border text-[#8DD9B1] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    +
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="Kj7bx"
+                data-pencil-name="INPUTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[54.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="b2f6q"
+                  data-pencil-name="INPUTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  INPUTS
+                </div>
+                <div
+                  data-pencil-id="Te0iE"
+                  data-pencil-name="+ user: User"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="TZnHz"
+                    data-pencil-name="+ user: User label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + user: User
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="mdoTe"
+                data-pencil-name="OUTPUT inline section"
+                class="[box-sizing:content-box] w-[252px] h-[54.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="PIdsX"
+                  data-pencil-name="OUTPUT label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  OUTPUT
+                </div>
+                <div
+                  data-pencil-id="ssznT"
+                  data-pencil-name="+ boolean"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="Vuq0J"
+                    data-pencil-name="+ boolean label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + boolean
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="C8zCh"
+                data-pencil-name="POSSIBLE EFFECTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[46.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="IdlAG"
+                  data-pencil-name="POSSIBLE EFFECTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  POSSIBLE EFFECTS
+                </div>
+                <div
+                  data-pencil-id="x52QN"
+                  data-pencil-name="None detected"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  None detected
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="OUltz"
+              data-pencil-name="Assert added leaf"
+              class="box-border w-[280px] h-fit absolute left-[925px] top-[550px] flex flex-col gap-[10px] p-[14px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:34]"
+            >
+              <div
+                data-pencil-id="e1VRIM"
+                data-pencil-name="Assert added leaf heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="FvceO"
+                  data-pencil-name="Assert added leaf title"
+                  class="text-[14px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  assertActive
+                </div>
+                <div
+                  data-pencil-id="V7o1IT"
+                  data-pencil-name="Assert added leaf change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#294B3D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="KuKIf"
+                    data-pencil-name="Assert added leaf marker text"
+                    class="text-[12px]/[normal] box-border text-[#8DD9B1] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    +
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="h9o1O"
+                data-pencil-name="INPUTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[54.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="cHXLd"
+                  data-pencil-name="INPUTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  INPUTS
+                </div>
+                <div
+                  data-pencil-id="dL7t2"
+                  data-pencil-name="+ user: User"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="GRjRQ"
+                    data-pencil-name="+ user: User label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + user: User
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="PevdA"
+                data-pencil-name="OUTPUT inline section"
+                class="[box-sizing:content-box] w-[252px] h-[54.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="oPkYY"
+                  data-pencil-name="OUTPUT label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  OUTPUT
+                </div>
+                <div
+                  data-pencil-id="o1YTMd"
+                  data-pencil-name="+ void"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="tll8q"
+                    data-pencil-name="+ void label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + void
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="etlaS"
+                data-pencil-name="POSSIBLE EFFECTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[54.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="A5ew58"
+                  data-pencil-name="POSSIBLE EFFECTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  POSSIBLE EFFECTS
+                </div>
+                <div
+                  data-pencil-id="TQ8FG"
+                  data-pencil-name="+ Throws AccessError"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="av7AE"
+                    data-pencil-name="+ Throws AccessError label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + Throws AccessError
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="jLZfl"
+              data-pencil-name="Selected set activity leaf"
+              class="box-border w-[280px] h-fit absolute left-[1225px] top-[550px] flex flex-col gap-[10px] p-[14px] justify-start items-start bg-[#2B465B] [outline:2px_solid_#B0D7F1] [outline-offset:-1px] rounded-[5px] [z-index:35]"
+            >
+              <div
+                data-pencil-id="QRmUU"
+                data-pencil-name="Selected set activity leaf heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="nb9S9"
+                  data-pencil-name="Selected set activity leaf title"
+                  class="text-[14px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  setActivity
+                </div>
+                <div
+                  data-pencil-id="gQwZs"
+                  data-pencil-name="Selected set activity leaf change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="A6ccN"
+                    data-pencil-name="Selected set activity leaf marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    ~
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="Tzr7a"
+                data-pencil-name="INPUTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[108.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="oLbQi"
+                  data-pencil-name="INPUTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  INPUTS
+                </div>
+                <div
+                  data-pencil-id="Aldpe"
+                  data-pencil-name="= userId: string"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  = userId: string
+                </div>
+                <div
+                  data-pencil-id="XWLk1"
+                  data-pencil-name="− active: boolean"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#38282F] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="chfWG"
+                    data-pencil-name="− active: boolean label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    − active: boolean
+                  </div>
+                </div>
+                <div
+                  data-pencil-id="EKuxw"
+                  data-pencil-name="+ state: ActivityState"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="A8g7v"
+                    data-pencil-name="+ state: ActivityState label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + state: ActivityState
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="s4w7B3"
+                data-pencil-name="OUTPUT inline section"
+                class="[box-sizing:content-box] w-[252px] h-[85.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="wVlvB"
+                  data-pencil-name="OUTPUT label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  OUTPUT
+                </div>
+                <div
+                  data-pencil-id="LECBP"
+                  data-pencil-name="− Promise&lt;void&gt;"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#38282F] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="zRtwJ"
+                    data-pencil-name="− Promise&lt;void&gt; label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    − Promise&lt;void&gt;
+                  </div>
+                </div>
+                <div
+                  data-pencil-id="ipJrT"
+                  data-pencil-name="+ Promise&lt;User&gt;"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="P1gCEz"
+                    data-pencil-name="+ Promise&lt;User&gt; label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + Promise&lt;User&gt;
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="c45Le"
+                data-pencil-name="POSSIBLE EFFECTS inline section"
+                class="[box-sizing:content-box] w-[252px] h-[100.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="yXIjG"
+                  data-pencil-name="POSSIBLE EFFECTS label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  POSSIBLE EFFECTS
+                </div>
+                <div
+                  data-pencil-id="SoOmk"
+                  data-pencil-name="= Writes users"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  = Writes users
+                </div>
+                <div
+                  data-pencil-id="BFcAy"
+                  data-pencil-name="+ activity.changed"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="KJvrM"
+                    data-pencil-name="+ activity.changed label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + Emits activity.changed
+                  </div>
+                </div>
+                <div
+                  data-pencil-id="rb5E0"
+                  data-pencil-name="? Listener effects"
+                  class="text-[12px]/[17px] box-border w-full text-[#E4C282] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  ? Listener effects
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-id="FXQb1"
+              data-pencil-name="Shared User type leaf"
+              class="box-border w-[280px] h-fit absolute left-[1525px] top-[550px] flex flex-col gap-[10px] p-[14px] justify-start items-start bg-[#202F3C] [outline:1px_solid_#516579] [outline-offset:-0.5px] rounded-[5px] [z-index:36]"
+            >
+              <div
+                data-pencil-id="TRPLW"
+                data-pencil-name="Shared User type leaf heading"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[7px] justify-start items-center"
+              >
+                <div
+                  data-pencil-id="M9Xwi"
+                  data-pencil-name="Shared User type leaf title"
+                  class="text-[14px]/[normal] box-border [flex:1_1_0] text-[#DBE9F3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  User
+                </div>
+                <div
+                  data-pencil-id="conTi"
+                  data-pencil-name="Shared User type leaf change marker"
+                  class="box-border w-[23px] shrink-0 h-[23px] flex flex-row gap-0 justify-center items-center bg-[#49412D] rounded-[12px]"
+                >
+                  <div
+                    data-pencil-id="s7quy1"
+                    data-pencil-name="Shared User type leaf marker text"
+                    class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+                  >
+                    ~
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="G9Rkx9"
+                data-pencil-name="SHARED FIELD · isActive inline section"
+                class="[box-sizing:content-box] w-[252px] h-[85.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="TzsOI"
+                  data-pencil-name="SHARED FIELD · isActive label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  SHARED FIELD · isActive
+                </div>
+                <div
+                  data-pencil-id="oDzLC"
+                  data-pencil-name="− boolean"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#38282F] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="c2TMj"
+                    data-pencil-name="− boolean label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#F0A4AB] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    − boolean
+                  </div>
+                </div>
+                <div
+                  data-pencil-id="LFSTf"
+                  data-pencil-name="+ ActivityState"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[4px_7px] justify-start items-start bg-[#203A32] rounded-[2px]"
+                >
+                  <div
+                    data-pencil-id="mET5o"
+                    data-pencil-name="+ ActivityState label"
+                    class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8DD9B1] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                  >
+                    + ActivityState
+                  </div>
+                </div>
+              </div>
+              <div
+                data-pencil-id="fg4hr"
+                data-pencil-name="CONTRACTS AFFECTED inline section"
+                class="[box-sizing:content-box] w-[252px] h-[69.5px] shrink-0 flex flex-col gap-[6px] p-[10px_0px_0px_0px] justify-start items-start [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#41596C] [margin:-0.5px_0px_0px_0px]"
+              >
+                <div
+                  data-pencil-id="Zixzv"
+                  data-pencil-name="CONTRACTS AFFECTED label"
+                  class="text-[10px]/[14px] box-border w-full text-[#93B1C7] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  CONTRACTS AFFECTED
+                </div>
+                <div
+                  data-pencil-id="s4iiBa"
+                  data-pencil-name="createUser → output"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  createUser → output
+                </div>
+                <div
+                  data-pencil-id="cLXjL"
+                  data-pencil-name="canAccess ← input"
+                  class="text-[12px]/[17px] box-border w-full text-[#B9CEDD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  canAccess ← input
+                </div>
+              </div>
+              <div
+                data-pencil-id="QZzX0"
+                data-pencil-name="Shared type context"
+                class="text-[11px]/[15px] box-border w-full text-[#91ADC1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                Shared type, not a function.
+              </div>
+            </div>
+            <div
+              data-pencil-id="jrPPX"
+              data-pencil-name="Hierarchy connector explanation"
+              class="text-[12px]/[normal] box-border absolute left-[34px] top-[950px] text-[#8DA9BE] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap] [z-index:37]"
+            >
+              Lines show code ownership. Effects cover direct bodies only; none detected is not a
+              guarantee. · Illustrative snapshot
+            </div>
+          </div>
+          <div
+            data-pencil-id="e8gyHG"
+            data-pencil-name="Zoom and orientation dock"
+            class="[box-sizing:content-box] w-[1900px] h-[75.5px] shrink-0 flex flex-row gap-[18px] p-[20px_24px] justify-start items-center bg-[#192631] [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#354D60] [margin:-0.5px_0px_0px_0px]"
+          >
+            <div
+              data-pencil-id="GhOXE"
+              data-pencil-name="− zoom control"
+              class="box-border w-[34px] shrink-0 h-[36px] flex flex-row gap-0 p-[8px] justify-center items-center bg-[#243746] [outline:1px_solid_#496477] [outline-offset:-0.5px] rounded-[4px]"
+            >
+              <div
+                data-pencil-id="Pydz8"
+                data-pencil-name="− label"
+                class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#CEE3F1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                −
+              </div>
+            </div>
+            <div
+              data-pencil-id="K4zS0X"
+              data-pencil-name="54% zoom control"
+              class="box-border w-[62px] shrink-0 h-[36px] flex flex-row gap-0 p-[8px] justify-center items-center bg-[#243746] [outline:1px_solid_#496477] [outline-offset:-0.5px] rounded-[4px]"
+            >
+              <div
+                data-pencil-id="mCLVy"
+                data-pencil-name="54% label"
+                class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#CEE3F1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                82%
+              </div>
+            </div>
+            <div
+              data-pencil-id="UZbd0"
+              data-pencil-name="+ zoom control"
+              class="box-border w-[34px] shrink-0 h-[36px] flex flex-row gap-0 p-[8px] justify-center items-center bg-[#243746] [outline:1px_solid_#496477] [outline-offset:-0.5px] rounded-[4px]"
+            >
+              <div
+                data-pencil-id="hBJuM"
+                data-pencil-name="+ label"
+                class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#CEE3F1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                +
+              </div>
+            </div>
+            <div
+              data-pencil-id="U1UBk7"
+              data-pencil-name="Fit tree zoom control"
+              class="box-border w-[90px] shrink-0 h-[36px] flex flex-row gap-0 p-[8px] justify-center items-center bg-[#243746] [outline:1px_solid_#496477] [outline-offset:-0.5px] rounded-[4px]"
+            >
+              <div
+                data-pencil-id="V2iGA"
+                data-pencil-name="Fit tree label"
+                class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#CEE3F1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                Fit tree
+              </div>
+            </div>
+            <div
+              data-pencil-id="x4yIh"
+              data-pencil-name="Zoom to selection zoom control"
+              class="box-border w-[170px] shrink-0 h-[36px] flex flex-row gap-0 p-[8px] justify-center items-center bg-[#2C465B] [outline:1px_solid_#496477] [outline-offset:-0.5px] rounded-[4px]"
+            >
+              <div
+                data-pencil-id="YVOYR"
+                data-pencil-name="Zoom to selection label"
+                class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#CEE3F1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+              >
+                Zoom to selection
+              </div>
+            </div>
+            <div
+              data-pencil-id="yTXB5"
+              data-pencil-name="Selected tree address"
+              class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#9DBCD2] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+            >
+              src / services / activity.ts / setActivity
+            </div>
+          </div>
+          <div
+            data-pencil-id="SOMrq"
+            data-pencil-name="Semantic zoom instruction"
+            class="box-border w-full h-fit shrink-0 flex flex-row gap-0 p-[12px_24px] justify-start items-start"
+          >
+            <div
+              data-pencil-id="bFG39"
+              data-pencil-name="Zoom behavior hint"
+              class="text-[12px]/[17px] box-border [flex:1_1_0] text-[#8BA8BE] font-[Geist,system-ui,sans-serif] font-normal text-left"
+            >
+              Zoom out for branch counts. Zoom in to read inline contracts. Select a change to open
+              source.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+{
+    "variables": {
+        "brand-ink": {
+            "type": "color",
+            "value": "#183B2D"
+        },
+        "brand-chalk": {
+            "type": "color",
+            "value": "#F3F1E9"
+        },
+        "brand-ink-soft": {
+            "type": "color",
+            "value": "#526153"
+        },
+        "brand-rule": {
+            "type": "color",
+            "value": "#DCD7C6"
+        },
+        "brand-moss": {
+            "type": "color",
+            "value": "#416B48"
+        },
+        "brand-lime": {
+            "type": "color",
+            "value": "#D6E3BC"
+        },
+        "font-display": {
+            "type": "string",
+            "value": "Manrope"
+        },
+        "font-body": {
+            "type": "string",
+            "value": "Inter"
+        },
+        "font-mono": {
+            "type": "string",
+            "value": "IBM Plex Mono"
+        },
+        "brand-paper": {
+            "type": "color",
+            "value": "#E7E3D6"
+        },
+        "brand-graphite": {
+            "type": "color",
+            "value": "#0F241B"
+        }
+    }
+}
