@@ -204,6 +204,35 @@ struct FunctionChangesLiveTests {
     #expect(model.canRetry)
   }
 
+  @Test func rejectedRetryKeepsThePausedPage() async throws {
+    let paused = try fixture("range-deadline-mid-page")
+    var duplicated = paused
+    duplicated.files.append(duplicated.files[0])
+    duplicated.page = InterfacePage(complete: true, nextAfterPath: nil)
+    var empty = paused
+    empty.files = []
+    empty.page = InterfacePage(complete: false, nextAfterPath: nil)
+    let fake = DaemonFake()
+    fake.setInterfacePages([paused, duplicated, empty])
+    let model = withDependencies {
+      $0.daemon = fake.client
+    } operation: {
+      FunctionChangesLiveModel(
+        sessionID: paused.sessionID, before: paused.beforeSeq, after: paused.afterSeq)
+    }
+
+    await model.viewAppeared()
+    await model.retryTapped()
+
+    expectNoDifference(model.page?.comparison.files, paused.files)
+    #expect(model.canRetry)
+
+    await model.retryTapped()
+
+    expectNoDifference(model.page?.comparison.files, paused.files)
+    #expect(model.canRetry)
+  }
+
   @Test func canonicallyEquivalentDistinctPathsStayDistinct() async throws {
     var first = try fixture("ts-parameter-change")
     first.files[0].path = "src/caf\u{00E9}/a.ts"
