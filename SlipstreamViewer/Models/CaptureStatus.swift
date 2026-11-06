@@ -36,6 +36,7 @@ struct CaptureStatus: Equatable, Sendable {
     case .recording: return "Recording"
     case .baselining: return "Preparing — not recording yet"
     case .queued: return "Queued — not recording yet"
+    case .stopped where isPaused: return "Paused"
     case .stopped: return Self.withReason("Stopped", capture.reason, Self.stoppedReasons)
     case .notRecording: return Self.withReason("Not recording", capture.reason, Self.notRecordingReasons)
     case .unknown(let raw): return "Capture state unknown — unrecognised state “\(raw)”"
@@ -53,8 +54,6 @@ struct CaptureStatus: Equatable, Sendable {
       return "Taking the first snapshot of this workspace. Changes aren't covered until it finishes."
     case (.queued, _):
       return "Slipstream has accepted this workspace and will start it shortly. Refresh to check again."
-    case (.notRecording, "capture-limit-reached"):
-      return "Every capture slot is in use. This workspace starts on its own, oldest first, when one frees up. Refresh to check again."
     case (.stopped, "maintenance"):
       return "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again."
     case (.unknown, _):
@@ -69,14 +68,17 @@ struct CaptureStatus: Equatable, Sendable {
     return "Checked \(Self.format(checkedAt, "HH:mm:ss", timeZone))"
   }
 
+  /// Stopped by Pause: it records again only when Record is tapped.
+  var isPaused: Bool {
+    guard case .available = availability, let capture else { return false }
+    return capture.isPaused
+  }
+
+  /// Archived, or stopped for a reason other than a pause; hidden from the sidebar unless selected.
   var isInactive: Bool {
     guard case .available = availability else { return false }
     guard let capture else { return true }
-    switch capture.state {
-    case .stopped: return true
-    case .notRecording: return capture.reason != "capture-limit-reached"
-    case .recording, .baselining, .queued, .unknown: return false
-    }
+    return capture.state == .stopped && !isPaused
   }
 
   var captureDot: CaptureDot {
@@ -123,6 +125,7 @@ struct CaptureStatus: Equatable, Sendable {
     guard case .available = availability else { return Self.unknownNotice }
     if case .unknown = capture?.state { return Self.unknownNotice }
     if case .unknown = capture?.binding?.state { return Self.unknownNotice }
+    if isPaused { return "This workspace is paused, so its chat can't receive questions. Record it to ask." }
     guard let capture, capture.state == .recording else {
       return "This workspace isn't recording, so its chat can't receive questions."
     }
@@ -164,7 +167,6 @@ struct CaptureStatus: Equatable, Sendable {
   private static let nothingConnectedNotice = "No chat is connected yet. Send a message in a chat tab to connect it."
 
   private static let stoppedReasons = [
-    "detached": "capture detached",
     "archived": "workspace archived",
     "maintenance": "maintenance in progress",
     "root-missing": "workspace folder missing or replaced",
@@ -172,7 +174,6 @@ struct CaptureStatus: Equatable, Sendable {
   ]
 
   private static let notRecordingReasons = [
-    "capture-limit-reached": "waiting for a free capture slot",
     "daemon-unavailable": "Slipstream stopped reporting on this capture",
     "root-overlap": "folder overlaps another capture",
     "root-missing": "workspace folder missing or replaced",
@@ -207,4 +208,9 @@ struct CaptureStatus: Equatable, Sendable {
     formatter.dateFormat = pattern
     return formatter.string(from: date)
   }
+}
+
+extension CaptureSummary {
+  /// Stopped by Pause; Record starts it again.
+  var isPaused: Bool { state == .stopped && reason == "detached" }
 }

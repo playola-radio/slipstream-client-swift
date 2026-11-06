@@ -152,11 +152,12 @@ actor ChatLinkOperations {
 }
 
 extension [CaptureSummary] {
-  /// A folder recorded again keeps its old captures, so the live one speaks for it.
+  /// A folder recorded again keeps its old captures, so the live one speaks for it. A retrying
+  /// capture still holds a slot, so it outranks a stopped one.
   func current(in folder: String) -> CaptureSummary? {
     let matching = filter { ChangeStreamPageModel.normalizedFolder($0.root) == folder }
     return matching.first { $0.binding?.isLive == true }
-      ?? matching.first { [.queued, .baselining, .recording].contains($0.state) }
+      ?? matching.first { [.queued, .baselining, .recording, .notRecording].contains($0.state) }
       ?? matching.first
   }
 }

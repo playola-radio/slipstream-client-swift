@@ -23,7 +23,7 @@ final class AskAgentPageModel: ViewModel {
 
   init(
     sessionID: String, folder: String, source: QuestionSource, agentConnection: AgentConnection,
-    captureStatus: CaptureStatus, route: AskRoute, instantAsk: InstantAskModel
+    captureStatus: CaptureStatus, route: AskRoute, instantAsk: InstantAskModel, recording: RecordingControlsModel
   ) {
     self.sessionID = sessionID
     self.folder = folder
@@ -32,6 +32,7 @@ final class AskAgentPageModel: ViewModel {
     self.captureStatus = captureStatus
     self.route = route
     self.instantAsk = instantAsk
+    self.recording = recording
     bindingGeneration = captureStatus.capture?.binding?.generation
     super.init()
   }
@@ -65,6 +66,8 @@ final class AskAgentPageModel: ViewModel {
   private var isActive: Bool { generation == 0 }
   @ObservationIgnored private var hasLoadedPresets = false
   @ObservationIgnored private let instantAsk: InstantAskModel
+  private let recording: RecordingControlsModel
+  private var recordFolder: String { captureStatus.capture?.root ?? folder }
 
   // MARK: - Display Text
 
@@ -83,6 +86,9 @@ final class AskAgentPageModel: ViewModel {
   var options: [String] { Self.defaults + customQuestions }
 
   var askNoticeText: String? { captureStatus.askNotice(agentConnection: agentConnection, route: route) }
+  var recordButtonText: String { recording.operation(for: recordFolder) == .recording ? "Recording…" : "Record" }
+  var recordMessage: RecordingMessage? { recording.message(for: recordFolder) }
+  var pausedNoticeText: String { recordMessage?.text ?? askNoticeText ?? "" }
 
   // MARK: - View Helpers
 
@@ -92,6 +98,11 @@ final class AskAgentPageModel: ViewModel {
   var canSavePreset: Bool { presetsLoaded && !isSavingPreset && !QuestionRequest.trim(newPreset).isEmpty }
   var dropdownIcon: String { isMenuOpen ? "ChevronUp" : "ChevronDown" }
   var isEditingDisabled: Bool { isSubmitting || !isActive }
+  var isPausedNoticeVisible: Bool { captureStatus.isPaused }
+  var isRecordDisabled: Bool { recording.operation(for: recordFolder) != nil }
+  var pausedNoticeColor: Color {
+    recordMessage.map { DesignTokens.Sidebar.messageColor(isFull: $0.isFull) } ?? DesignTokens.Ask.pausedNoticeColor
+  }
 
   func isSelected(_ option: String) -> Bool { selectedPreset == option }
   func optionFill(_ option: String) -> Color {
@@ -204,6 +215,10 @@ final class AskAgentPageModel: ViewModel {
       showError(QuestionFailure.message(error, hasUncertainSubmission: hasUncertainSubmission))
       return nil
     }
+  }
+
+  func recordTapped() async {
+    await recording.recordTapped(folder: recordFolder)
   }
 
   func agentConnectionChanged(_ connection: AgentConnection) {

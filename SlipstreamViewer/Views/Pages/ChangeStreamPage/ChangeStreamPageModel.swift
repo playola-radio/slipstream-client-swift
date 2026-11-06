@@ -16,6 +16,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Dependency(\.withRandomNumberGenerator) var withRandomNumberGenerator
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
   @ObservationIgnored @Dependency(\.workspace) var workspace
+  @ObservationIgnored @Dependency(\.terminalRuntime) var terminalRuntime
 
   // MARK: - Shared State
 
@@ -37,6 +38,9 @@ final class ChangeStreamPageModel: ViewModel {
     super.init()
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
+    recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
+    recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
+    recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
   }
 
   // MARK: - Properties
@@ -47,6 +51,7 @@ final class ChangeStreamPageModel: ViewModel {
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
   let openIn = OpenInModel()
+  let recording = RecordingControlsModel()
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -58,6 +63,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isWorkspaceBusy = false
   private(set) var workspaceRoots: WorkspaceRoots?
   private(set) var archiveTarget: SessionOption?
+  private var listedCaptureSessionIDs: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -189,6 +195,22 @@ final class ChangeStreamPageModel: ViewModel {
 
   let sidebarTitleText = "Workspaces"
   let addRepositoryText = "Add repository…"
+  let recordFolderText = "Record a folder…"
+
+  /// Counts rows recording now, not slots in use.
+  var recordingCountText: String? {
+    guard case .available = captureAvailability else { return nil }
+    let count = pickerSessions.filter { captureStatus(of: $0).captureDot == .recording }.count
+    return "\(count) recording"
+  }
+
+  func rowActionText(_ session: SessionOption) -> String {
+    switch session.capture.flatMap({ recording.operation(for: $0.root) }) {
+    case .pausing: "Pausing…"
+    case .recording: "Recording…"
+    case nil: isPaused(session) ? "Record" : "Pause"
+    }
+  }
 
   var toolbarTitleText: String {
     guard let selectedSession else { return "Slipstream" }
@@ -310,6 +332,46 @@ final class ChangeStreamPageModel: ViewModel {
     isArchivable(session) && isHighlighted(session)
   }
 
+  func isPaused(_ session: SessionOption) -> Bool {
+    captureStatus(of: session).isPaused
+  }
+
+  func rowIcon(_ session: SessionOption) -> DesignTokens.Icons.Icon {
+    isPaused(session)
+      ? DesignTokens.Sidebar.pausedRowIcon(isHighlighted: isLit(session))
+      : DesignTokens.Sidebar.rowIcon(isSelected: isSelected(session))
+  }
+
+  func rowNameColor(_ session: SessionOption) -> Color {
+    isPaused(session)
+      ? DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: isLit(session))
+      : DesignTokens.Sidebar.rowNameColor(isBold: isBold(session), isSelected: isSelected(session))
+  }
+
+  func isRecordingDotShown(_ session: SessionOption) -> Bool {
+    captureStatus(of: session).captureDot == .recording && !isWorking(session)
+  }
+
+  /// Pause or Record applies: the row has a capture that isn't archived or stopped for good.
+  func isRowActionAvailable(_ session: SessionOption) -> Bool {
+    session.capture != nil && !captureStatus(of: session).isInactive
+  }
+
+  /// On hover or focus, and throughout its operation.
+  func isRowActionShown(_ session: SessionOption) -> Bool {
+    isRowActionAvailable(session) && (isHighlighted(session) || isRowActionDisabled(session))
+  }
+
+  func isRowActionDisabled(_ session: SessionOption) -> Bool {
+    session.capture.flatMap { recording.operation(for: $0.root) } != nil
+  }
+
+  func rowMessage(_ session: SessionOption) -> RecordingMessage? {
+    session.capture.flatMap { recording.message(for: $0.root) }
+  }
+
+  var footerMessage: RecordingMessage? { recording.footerMessage }
+
   var isCaptureStripShown: Bool { selectedSession != nil }
   var isFooterShown: Bool { selectedSession?.hasHistory ?? true }
   var captureDotColor: Color { DesignTokens.CaptureStrip.dot(selectedCaptureStatus?.captureDot ?? .unknown) }
@@ -416,7 +478,8 @@ final class ChangeStreamPageModel: ViewModel {
         captureStatus: sessions[id: selection.sessionID].map(captureStatus(of:))
           ?? CaptureStatus(availability: captureAvailability, capture: nil),
         route: askRoute(selection.sessionID),
-        instantAsk: instantAsk
+        instantAsk: instantAsk,
+        recording: recording
       )
     }
   }
@@ -483,7 +546,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var pickerSessions: IdentifiedArrayOf<SessionOption> {
-    sessions.filter { !isHideable($0) }
+    sessions.filter(isListed)
   }
 
   var sidebarGroups: [SidebarGroup] {
@@ -568,13 +631,29 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func newWorkspaceTapped() async {
-    guard !isWorkspaceBusy, let repository = await workspace.chooseRepository() else { return }
+    guard !isWorkspaceBusy,
+      let repository = await workspace.chooseFolder("Choose a git repository for the new workspace", "Create Workspace")
+    else { return }
     await createWorkspace(in: repository)
   }
 
   func newWorkspaceTapped(in group: SidebarGroup) async {
     guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
     await createWorkspace(in: URL(filePath: folder))
+  }
+
+  func rowActionTapped(_ session: SessionOption) async {
+    guard let folder = session.capture?.root else { return }
+    if isPaused(session) {
+      await recording.recordTapped(folder: folder)
+    } else {
+      await recording.pauseTapped(folder: folder)
+    }
+  }
+
+  func recordFolderTapped() async {
+    let selectionGeneration = userSessionSelectionGeneration
+    await recording.recordFolderTapped { [weak self] in self?.userSessionSelectionGeneration == selectionGeneration }
   }
 
   func rowHoverChanged(_ session: SessionOption, isHovering: Bool) {
@@ -976,7 +1055,8 @@ final class ChangeStreamPageModel: ViewModel {
         _ = select(session.id)
       }
       if let pendingPreferredRoot, generation == sessionsGeneration,
-        let session = sessions.first(where: { $0.root == pendingPreferredRoot }) {
+        let session = snapshot.current(in: pendingPreferredRoot).flatMap({ sessions[id: $0.sessionID] })
+          ?? sessions.first(where: { $0.root == pendingPreferredRoot }) {
         _ = select(session.id)
         self.pendingPreferredRoot = nil
       }
@@ -1004,6 +1084,7 @@ final class ChangeStreamPageModel: ViewModel {
     switch result {
     case .success(let list?):
       captureAvailability = .available(checkedAt: checkedAt)
+      listedCaptureSessionIDs = listedCaptureSessionIDs(list.captures)
       chat.capturesArrived(list.captures)
       return list.captures
     case .success(nil):
@@ -1258,12 +1339,31 @@ final class ChangeStreamPageModel: ViewModel {
 
   private var isReplaying: Bool { lastAppliedSeq < replayEndSeq }
 
+  private func isLit(_ session: SessionOption) -> Bool {
+    isHighlighted(session) || isSelected(session)
+  }
+
   private func captureStatus(of session: SessionOption) -> CaptureStatus {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
   }
 
-  private func isHideable(_ session: SessionOption) -> Bool {
-    session.id != selectedSession?.id && captureStatus(of: session).isInactive
+  /// One row per folder, so a recreated folder's old capture is hidden. Unknown capture state
+  /// hides nothing.
+  private func isListed(_ session: SessionOption) -> Bool {
+    if session.id == selectedSession?.id { return true }
+    let status = captureStatus(of: session)
+    guard case .available = status.availability else { return true }
+    return !status.isInactive && listedCaptureSessionIDs.contains(session.id)
+  }
+
+  /// The capture `current(in:)` picks for each folder. A paused folder that no longer exists has no
+  /// row.
+  private func listedCaptureSessionIDs(_ captures: [CaptureSummary]) -> Set<String> {
+    let byFolder = Dictionary(grouping: captures) { Self.normalizedFolder($0.root) }
+    return Set(byFolder.compactMap { folder, captures in
+      guard let current = captures.current(in: folder) else { return nil }
+      return current.isPaused && !terminalRuntime.folderExists(current.root) ? nil : current.sessionID
+    })
   }
 
   private static func captures(

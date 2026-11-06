@@ -30,6 +30,14 @@ public struct ControlTransport: Sendable {
     }
   }
 
+  public func record(folder: String) async throws {
+    try await send(ControlLine.encode(RecordRequest(worktree: folder))) { try ControlReply.check($0) }
+  }
+
+  public func pause(folder: String) async throws {
+    try await send(ControlLine.encode(PauseRequest(target: folder))) { try ControlReply.check($0) }
+  }
+
   private func send<Reply: Sendable>(
     _ line: Data, decode: @escaping @Sendable (Data) throws -> Reply
   ) async throws -> Reply {
@@ -122,6 +130,19 @@ public struct ControlTransport: Sendable {
       if result > 0 { return }
     }
   }
+}
+
+private struct RecordRequest: Encodable {
+  let v = 1
+  let verb = "attach"
+  let mode = "watch-only"
+  let worktree: String
+}
+
+private struct PauseRequest: Encodable {
+  let v = 1
+  let verb = "detach"
+  let target: String
 }
 
 struct ControlResponseBuffer {

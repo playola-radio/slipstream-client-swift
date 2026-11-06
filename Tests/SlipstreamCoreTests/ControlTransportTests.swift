@@ -209,3 +209,63 @@ extension ControlTransportTests {
         reply: #"{"v":1,"ok":false,"code":"PROTOCOL","message":"unknown verb: record_question_relay_update"}"#))
   }
 }
+
+extension ControlTransportTests {
+  static let folder = "/Users/brian/conductor/workspaces/playola/farmerville"
+
+  func exchange(
+    reply: String, expecting expected: String, _ body: @Sendable (ControlTransport) async throws -> Void
+  ) async throws {
+    let server = try SocketFixture()
+    let serving = server.serve { fd in
+      var request = Data()
+      var byte: UInt8 = 0
+      while Darwin.read(fd, &byte, 1) == 1, byte != 10 { request.append(byte) }
+      expectNoDifference(try QuestionsTests.json(request), try QuestionsTests.json(Data(expected.utf8)))
+      let bytes = Array((reply + "\n").utf8)
+      _ = bytes.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+    }
+    try await body(ControlTransport(store: server.store))
+    try await serving.value
+  }
+
+  static let recordLine = #"{ "v": 1, "verb": "attach", "mode": "watch-only", "worktree": "/Users/brian/conductor/workspaces/playola/farmerville" }"#
+  static let pauseLine = #"{ "v": 1, "verb": "detach", "target": "/Users/brian/conductor/workspaces/playola/farmerville" }"#
+
+  @Test func recordSendsWatchOnlyAttachAndIgnoresTheReply() async throws {
+    try await exchange(
+      reply: #"{"v":1,"ok":true,"session_id":"6f1c","state":"queued","reason":null,"created":true}"#,
+      expecting: Self.recordLine
+    ) { try await $0.record(folder: Self.folder) }
+  }
+
+  @Test func pauseSendsDetachAndIgnoresTheReply() async throws {
+    try await exchange(
+      reply: #"{"v":1,"ok":true,"session_id":"6f1c","state":"stopped","reason":"detached","already_stopped":true}"#,
+      expecting: Self.pauseLine
+    ) { try await $0.pause(folder: Self.folder) }
+  }
+
+  @Test func recordRefusalCarriesTheDaemonsCodeAndMessage() async throws {
+    let message = "32/32 capture slots in use. This workspace is NOT recording. Pause one first."
+    try await exchange(
+      reply: #"{"v":1,"ok":false,"code":"CAPTURE_LIMIT_REACHED","message":"\#(message)"}"#,
+      expecting: Self.recordLine
+    ) { transport in
+      await #expect(throws: QuestionError.rejected(code: "CAPTURE_LIMIT_REACHED", message: message)) {
+        try await transport.record(folder: Self.folder)
+      }
+    }
+  }
+
+  @Test func pauseRefusalCarriesTheDaemonsCodeAndMessage() async throws {
+    try await exchange(
+      reply: #"{"v":1,"ok":false,"code":"TARGET_NOT_FOUND","message":"no capture"}"#,
+      expecting: Self.pauseLine
+    ) { transport in
+      await #expect(throws: QuestionError.rejected(code: "TARGET_NOT_FOUND", message: "no capture")) {
+        try await transport.pause(folder: Self.folder)
+      }
+    }
+  }
+}

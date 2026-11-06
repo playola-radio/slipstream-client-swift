@@ -7,7 +7,7 @@ import Foundation
 /// `~/slipstream/workspaces`. Creating one runs in a Setup terminal tab instead.
 struct WorkspaceClient: Sendable {
   var roots: @Sendable () async -> WorkspaceRoots
-  var chooseRepository: @MainActor @Sendable () async -> URL?
+  var chooseFolder: @MainActor @Sendable (_ message: String, _ prompt: String) async -> URL?
   /// Returns why the command failed, or nil once the workspace is archived.
   var archive: @Sendable (_ workspace: URL, _ store: String) async -> String?
 }
@@ -40,13 +40,13 @@ extension WorkspaceClient: DependencyKey {
           conductor: URL(filePath: environment["HOME"] ?? NSHomeDirectory()).appending(path: "conductor/workspaces")
         )
       },
-      chooseRepository: {
+      chooseFolder: { message, prompt in
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Choose a git repository for the new workspace"
-        panel.prompt = "Create Workspace"
+        panel.message = message
+        panel.prompt = prompt
         return panel.runModal() == .OK ? panel.url : nil
       },
       archive: { workspace, store in await runSlipstream(["workspace", "archive", workspace.path, "--store", store]) }
@@ -60,7 +60,7 @@ extension WorkspaceClient: DependencyKey {
           managed: URL(filePath: "/tmp/slipstream-test/workspaces"),
           conductor: URL(filePath: "/tmp/conductor-test/workspaces"))
       },
-      chooseRepository: unimplemented("WorkspaceClient.chooseRepository", placeholder: nil),
+      chooseFolder: unimplemented("WorkspaceClient.chooseFolder", placeholder: nil),
       archive: unimplemented("WorkspaceClient.archive", placeholder: nil)
     )
   }

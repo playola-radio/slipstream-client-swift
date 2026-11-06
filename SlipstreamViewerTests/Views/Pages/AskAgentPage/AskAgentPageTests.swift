@@ -13,11 +13,12 @@ struct AskAgentPageTests {
   static let context = QuestionContext(changeSeq: "12", path: "user.ts", snapshotSHA256: String(repeating: "a", count: 64), lineStart: 7, lineEnd: 9)
   static let session = "11111111-1111-4111-8111-111111111111"
   static func capture(
-    _ state: CaptureState = .recording, binding: CaptureBinding? = CaptureBinding(generation: "7", state: .connected)
+    _ state: CaptureState = .recording, reason: String? = nil,
+    binding: CaptureBinding? = CaptureBinding(generation: "7", state: .connected)
   ) -> CaptureStatus {
     CaptureStatus(
       availability: .available(checkedAt: Date(timeIntervalSince1970: 0)),
-      capture: CaptureSummary(sessionID: session, root: "/work/nairobi", state: state, binding: binding))
+      capture: CaptureSummary(sessionID: session, root: "/work/nairobi", state: state, reason: reason, binding: binding))
   }
 
   static let tab = UUID(uuidString: "5896F28C-F4A9-46C2-B481-7CA57E8714A8")!
@@ -27,25 +28,98 @@ struct AskAgentPageTests {
   static func composer(
     sessionID: String = session, folder: String = "/work/nairobi", context: QuestionContext = context,
     agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), route: AskRoute = .outside,
-    instantAsk: InstantAskModel? = nil
+    instantAsk: InstantAskModel? = nil, recording: RecordingControlsModel = RecordingControlsModel()
   ) -> AskAgentPageModel {
     AskAgentPageModel(
       sessionID: sessionID, folder: folder, source: QuestionSource(context: context, selectedText: "return user"),
       agentConnection: agentConnection, captureStatus: captureStatus, route: route,
       instantAsk: instantAsk ?? withDependencies { $0.defaultFileStorage = .inMemory } operation: {
         InstantAskModel(chat: ChatPageModel())
-      })
+      }, recording: recording)
   }
 
-  func model(agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), route: AskRoute = .outside, instantAsk: InstantAskModel? = nil, add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
+  static let paused = capture(.stopped, reason: "detached", binding: nil)
+
+  let recordingFake = RecordingFake()
+
+  func model(agentConnection: AgentConnection = .connected, captureStatus: CaptureStatus = capture(), route: AskRoute = .outside, instantAsk: InstantAskModel? = nil, recording: RecordingControlsModel? = nil, add: @escaping @Sendable (String) async throws -> [String] = { [$0] }, send: @escaping @Sendable (QuestionRequest) async throws -> QuestionAcknowledgment = { _ in throw QuestionError.unavailable }) -> AskAgentPageModel {
     withDependencies {
       $0.uuid = .incrementing
       $0.questionClient.send = send
       $0.savedQuestions.load = { [] }
       $0.savedQuestions.add = add
+      $0.recording = recordingFake.client
     } operation: {
-      Self.composer(agentConnection: agentConnection, captureStatus: captureStatus, route: route, instantAsk: instantAsk)
+      Self.composer(
+        agentConnection: agentConnection, captureStatus: captureStatus, route: route, instantAsk: instantAsk,
+        recording: recording ?? RecordingControlsModel())
     }
+  }
+
+  @Test func aPausedWorkspaceShowsThePausedNoticeWithRecord() {
+    let model = model(captureStatus: Self.paused)
+
+    #expect(model.isPausedNoticeVisible)
+    expectNoDifference(
+      model.askNoticeText, "This workspace is paused, so its chat can't receive questions. Record it to ask.")
+    expectNoDifference(model.recordButtonText, "Record")
+    #expect(!model.isRecordDisabled)
+    #expect(!model.canSubmit)
+  }
+
+  @Test func aWorkspaceThatIsNotPausedHasNoRecord() {
+    let model = model(captureStatus: Self.capture(.stopped, reason: "archived", binding: nil))
+
+    #expect(!model.isPausedNoticeVisible)
+  }
+
+  @Test func recordFromAskSendsTheCaptureRoot() async {
+    let model = model(captureStatus: Self.paused)
+
+    await model.recordTapped()
+
+    expectNoDifference(recordingFake.calls, [.record("/work/nairobi")])
+  }
+
+  @Test func recordFromAskUsesTheSharedOperation() async {
+    let recording = withDependencies { $0.recording = recordingFake.client } operation: { RecordingControlsModel() }
+    let model = model(captureStatus: Self.paused, recording: recording)
+    recordingFake.hold()
+
+    let sidebar = Task { await recording.recordTapped(folder: "/work/nairobi") }
+    await Task.yield()
+
+    expectNoDifference(model.recordButtonText, "Recording…")
+    #expect(model.isRecordDisabled)
+    await model.recordTapped()
+    recordingFake.release()
+    await sidebar.value
+
+    expectNoDifference(recordingFake.calls, [.record("/work/nairobi")])
+    expectNoDifference(model.recordButtonText, "Record")
+  }
+
+  @Test func afterRecordAskStaysDisabledUntilTodaysRulesAllow() async {
+    let model = model(captureStatus: Self.paused)
+    await model.recordTapped()
+    model.draftChanged("Why?")
+
+    model.captureChanged(Self.capture(.recording, binding: nil), route: .outside)
+
+    #expect(!model.isPausedNoticeVisible)
+    expectNoDifference(model.askNoticeText, "No chat is connected yet. Send a message in a chat tab to connect it.")
+    #expect(!model.canSubmit)
+  }
+
+  @Test func aRefusedRecordShowsTheSharedMessageInPlaceOfTheNotice() async {
+    let model = model(captureStatus: Self.paused)
+    recordingFake.setFailures(.rejected(code: "CAPTURE_LIMIT_REACHED", message: "full"))
+
+    await model.recordTapped()
+
+    expectNoDifference(
+      model.recordMessage, RecordingMessage(text: "All recording slots are in use. Pause a workspace first.", isFull: true))
+    expectNoDifference(model.pausedNoticeText, "All recording slots are in use. Pause a workspace first.")
   }
 
   @Test func startsEmptyAndPresetSelectionDoesNotAppend() async {

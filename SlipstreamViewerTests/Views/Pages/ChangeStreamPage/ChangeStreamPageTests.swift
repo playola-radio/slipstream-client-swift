@@ -21,6 +21,7 @@ struct ChangeStreamPageTests {
   let link = ChatLinkFake()
   let agent = AgentFake()
   let terminal = TerminalFake()
+  let recordingFake = RecordingFake()
 
   init() {
     fake = DaemonFake()
@@ -43,6 +44,8 @@ struct ChangeStreamPageTests {
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
       $0.timeZone = TimeZone(identifier: "UTC")!
       $0.date = DateGenerator(now ?? { Fixture.checkedAt })
+      $0.terminalRuntime = terminal.runtimeClient
+      $0.recording = recordingFake.client
     } operation: {
       let chat = chat ?? makeChat()
       return ChangeStreamPageModel(
@@ -2457,6 +2460,252 @@ extension ChangeStreamPageTests {
       model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
   }
 
+  /// Capture-only rows: each capture is a row rooted at its own folder.
+  func listCaptures(_ captures: CaptureSummary...) {
+    fake.setSessions([])
+    fake.setCaptures(captures)
+  }
+
+  func sidebarRowIDs(_ model: ChangeStreamPageModel) -> [String] {
+    model.sidebarGroups.flatMap(\.rows).map(\.id)
+  }
+
+  @Test func aPausedRowShowsOnlyWhileItsFolderExists() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "deleted", root: "/work/deleted", binding: nil),
+      Fixture.capture(.stopped, reason: "detached", session: "kept", root: "/work/kept", binding: nil))
+    terminal.setMissing("/work/deleted")
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(sidebarRowIDs(model), ["kept"])
+    let row = try #require(model.sessions[id: "kept"])
+    #expect(model.isPaused(row))
+    expectNoDifference(model.rowActionText(row), "Record")
+  }
+
+  @Test func aPausedRowBrightensWhenSelectedOrHovered() async throws {
+    listCaptures(
+      Fixture.capture(session: "recording", root: "/work/recording", binding: nil),
+      Fixture.capture(.stopped, reason: "detached", session: "paused", root: "/work/paused", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let row = try #require(model.sessions[id: "paused"])
+    model.sessionSelected("recording")
+    await Task.megaYield()
+    expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: false))
+
+    model.rowHoverChanged(row, isHovering: true)
+    expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: true))
+
+    model.rowHoverChanged(row, isHovering: false)
+    model.sessionSelected("paused")
+    await Task.megaYield()
+    expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: true))
+  }
+
+  @Test func aNotRecordingCaptureShowsWithPause() async throws {
+    listCaptures(
+      Fixture.capture(session: "recording", root: "/work/recording", binding: nil),
+      Fixture.capture(.notRecording, reason: "storage-unavailable", session: "retrying", root: "/work/retrying", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(sidebarRowIDs(model), ["recording", "retrying"])
+    let row = try #require(model.sessions[id: "retrying"])
+    expectNoDifference(model.rowActionText(row), "Pause")
+    #expect(!model.isRecordingDotShown(row))
+  }
+
+  @Test func archivedAndMaintenanceRowsStayHiddenUnlessSelected() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "archived", session: "archived", root: "/work/archived", binding: nil),
+      Fixture.capture(.stopped, reason: "maintenance", session: "maintenance", root: "/work/maintenance", binding: nil),
+      Fixture.capture(session: "recording", root: "/work/recording", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    expectNoDifference(sidebarRowIDs(model), ["recording"])
+
+    model.sessionSelected("maintenance")
+    await Task.megaYield()
+    let row = try #require(model.sessions[id: "maintenance"])
+    model.rowHoverChanged(row, isHovering: true)
+
+    expectNoDifference(sidebarRowIDs(model), ["maintenance", "recording"])
+    #expect(!model.isRowActionShown(row))
+  }
+
+  @Test func aRecreatedFolderShowsOneRowAndPauseSendsItsPath() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "old", root: "/work/farmerville", binding: nil),
+      Fixture.capture(session: "new", root: "/work/farmerville", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    expectNoDifference(sidebarRowIDs(model), ["new"])
+
+    let row = try #require(model.sessions[id: "new"])
+    await model.rowActionTapped(row)
+
+    expectNoDifference(recordingFake.calls, [.pause("/work/farmerville")])
+  }
+
+  @Test func aRecreatedFolderThatIsRetryingShowsItsRetryingCaptureWithPause() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "old", root: "/work/farmerville", binding: nil),
+      Fixture.capture(.notRecording, reason: "storage-unavailable", session: "new", root: "/work/farmerville", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(sidebarRowIDs(model), ["new"])
+    let row = try #require(model.sessions[id: "new"])
+    expectNoDifference(model.rowActionText(row), "Pause")
+  }
+
+  @Test func theHeaderCountsRecordingRowsOnly() async {
+    listCaptures(
+      Fixture.capture(session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil),
+      Fixture.capture(session: "c", root: "/work/c", binding: nil),
+      Fixture.capture(.queued, session: "d", root: "/work/d", binding: nil),
+      Fixture.capture(.queued, session: "e", root: "/work/e", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(model.recordingCountText, "3 recording")
+  }
+
+  @Test func theHeaderCountIsHiddenWhileCaptureStateIsUnknown() async {
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(model.recordingCountText, nil)
+  }
+
+  @Test func aReplyAfterTheSelectionChangedDoesNotMoveIt() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let paused = try #require(model.sessions[id: "a"])
+    recordingFake.hold()
+    let record = Task { await model.rowActionTapped(paused) }
+    await Task.megaYield()
+    expectNoDifference(model.rowActionText(paused), "Recording…")
+    #expect(model.isRowActionDisabled(paused))
+
+    model.sessionSelected("b")
+    await Task.megaYield()
+    fake.setCaptures([
+      Fixture.capture(session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil),
+    ])
+    recordingFake.release()
+    await record.value
+
+    expectNoDifference(model.selectedSession?.id, "b")
+    let recording = try #require(model.sessions[id: "a"])
+    expectNoDifference(model.rowActionText(recording), "Pause")
+    #expect(model.isRecordingDotShown(recording))
+  }
+
+  @Test func aRefusedRecordShowsItsMessageUnderTheRow() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil))
+    recordingFake.setFailures(.rejected(code: "CAPTURE_LIMIT_REACHED", message: "full"))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let paused = try #require(model.sessions[id: "a"])
+
+    await model.rowActionTapped(paused)
+
+    expectNoDifference(
+      model.rowMessage(paused),
+      RecordingMessage(text: "All recording slots are in use. Pause a workspace first.", isFull: true))
+    expectNoDifference(model.recordingCountText, "1 recording")
+  }
+
+  @Test func recordingAFolderThatIsAlreadyRecordingSelectsItsRow() async {
+    listCaptures(
+      Fixture.capture(session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil))
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: "/work/b")))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.recordFolderTapped()
+
+    expectNoDifference(recordingFake.calls, [.record("/work/b")])
+    expectNoDifference(model.selectedSession?.id, "b")
+    expectNoDifference(model.footerMessage, nil)
+  }
+
+  @Test func recordingARecreatedFolderSelectsItsCurrentCaptureInsteadOfOldHistory() async {
+    fake.setSessions(
+      [SessionSummary(id: "old", durableSeq: .zero, removed: false)],
+      starts: ["old": SessionStarted(root: "/work/b", startedAtMs: 0)])
+    fake.setCaptures([Fixture.capture(session: "new", root: "/work/b", binding: nil)])
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: "/work/b")))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.recordFolderTapped()
+
+    expectNoDifference(model.selectedSession?.id, "new")
+  }
+
+  @Test func aRowSelectedWhileRecordingAFolderKeepsTheSelection() async {
+    listCaptures(
+      Fixture.capture(session: "a", root: "/work/a", binding: nil),
+      Fixture.capture(session: "b", root: "/work/b", binding: nil),
+      Fixture.capture(session: "c", root: "/work/c", binding: nil))
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: "/work/b")))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    recordingFake.hold()
+
+    let record = Task { await model.recordFolderTapped() }
+    await Task.megaYield()
+    model.sessionSelected("c")
+    await Task.megaYield()
+    recordingFake.release()
+    await record.value
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession?.id, "c")
+  }
+
+  @Test func recordingAPausedWorkspaceLinksItsChatOnce() async {
+    fake.setCaptures([Fixture.capture(.stopped, reason: "detached", binding: nil)])
+    agent.setTranscript(Self.tab, .found([.user(uuid: "u1", timestamp: Fixture.checkedAt, isPrompt: true, blocks: [.text("Hi")])]))
+    let chat = makeChat(records: [
+      ChatTabRecord(id: Self.tab, folder: "/tmp/project", model: "claude-opus-5-5", effort: .high, isWaiting: false)
+    ])
+    let model = makeModel(chat: chat)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    #expect(link.calls.isEmpty)
+
+    fake.setCaptures([Fixture.capture(.queued, binding: nil)])
+    await model.recording.recordTapped(folder: "/tmp/project")
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/tmp/project", tabID: Self.tab, replacing: nil)])
+  }
+
   @Test func allInactiveSessionsReadNoCaptureSessionsYet() async {
     listThreeSessionsWithOneRecording()
     fake.setCaptures([
@@ -2518,10 +2767,10 @@ extension ChangeStreamPageTests {
     #expect(model.captureCheckedText == nil)
   }
 
-  @Test func theSeventeenthWorkspaceWaitsForAFreeSlotThenRecords() async {
+  @Test func aWorkspaceThatIsNotRecordingIsFollowedOnceItRecords() async {
     fake.setCaptures([
       Fixture.capture(),
-      Fixture.capture(.notRecording, reason: "capture-limit-reached", session: Fixture.otherSession, root: "/work/seventeenth", binding: nil),
+      Fixture.capture(.notRecording, reason: "root-overlap", session: Fixture.otherSession, root: "/work/seventeenth", binding: nil),
     ])
     let model = makeModel()
     await model.viewAppeared()
@@ -2531,10 +2780,8 @@ extension ChangeStreamPageTests {
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
     expectNoDifference(model.toolbarTitleText, "seventeenth")
-    expectNoDifference(model.captureText, "Not recording — waiting for a free capture slot")
-    expectNoDifference(
-      model.captureDetailText,
-      "Every capture slot is in use. This workspace starts on its own, oldest first, when one frees up. Refresh to check again.")
+    expectNoDifference(model.captureText, "Not recording — folder overlaps another capture")
+    expectNoDifference(model.captureDetailText, nil)
     expectNoDifference(model.chatLinkText, "No chat linked")
     expectNoDifference(model.emptyStateText, "No change history is available yet. Refresh to check again.")
     #expect(!model.isFooterShown)
@@ -2768,7 +3015,7 @@ extension ChangeStreamPageTests {
     model.sessionSelected(Fixture.session)
     await Task.megaYield()
     expectNoDifference(fake.capturesCallCount, callsBefore + 1)
-    expectNoDifference(model.captureText, "Stopped — capture detached")
+    expectNoDifference(model.captureText, "Paused")
   }
 
   @Test func changesBeyondTheListedPositionOfAnEndedCaptureRefreshTheSessions() async {
@@ -3270,7 +3517,7 @@ extension ChangeStreamPageTests {
   ) -> WorkspaceClient {
     WorkspaceClient(
       roots: { WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces")) },
-      chooseRepository: { choose }, archive: archive)
+      chooseFolder: { _, _ in choose }, archive: archive)
   }
 
   /// The launch running `slipstream workspace create` in the Setup tab.
@@ -3605,7 +3852,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseRepository: workspace.chooseRepository, archive: workspace.archive))
+      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
     let appeared = Task { await model.viewAppeared() }
     defer { model.viewDisappeared() }
     await appeared.value
@@ -3649,7 +3896,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseRepository: workspace.chooseRepository,
+      chooseFolder: workspace.chooseFolder,
       archive: workspace.archive
     )
     let model = makeModel(workspace: slowWorkspace)
