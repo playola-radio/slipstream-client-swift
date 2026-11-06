@@ -5,6 +5,17 @@ the person using the app, not how it was built.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-06
+
+- Pause and resume recording a workspace from its row in the sidebar. Paused
+  workspaces stay listed, marked **Paused**, with a **Record** button.
+- Start recording another folder with **Record a folder…** at the bottom of the
+  sidebar. When every recording slot is in use, it tells you to pause one first.
+- Ask offers **Record** when its workspace is paused, and the chat links up again
+  once recording resumes.
+- Chats in a workspace that is recording stay connected.
+- Pausing and recording need an up-to-date Slipstream daemon.
+
 ## [0.1.0] - 2026-11-05
 
 - First signed release. Download the disk image, drag Slipstream to Applications,
