@@ -5,6 +5,8 @@
 # published item, so a re-run without `fastlane mac bump` can never overwrite a
 # released DMG. A malformed appcast breaks the update channel, so it validates XML
 # before writing.
+require "base64"
+require "openssl"
 require "rexml/document"
 require "time"
 require "open3"
@@ -40,15 +42,29 @@ abort "CFBundleShortVersionString empty" if short.empty?
 abort "download url must be https: #{url}" unless url.start_with?("https://")
 abort "download url must end in the dmg name" unless url.end_with?(File.basename(dmg))
 
+public_ed_key = plist(plist_buddy, app, "SUPublicEDKey")
+
+# CI passes the private key as a file; local releases read it from the Keychain.
+key_file = ENV["SPARKLE_ED_KEY_FILE"].to_s
+signer_args = key_file.empty? ? ["--account", "slipstream-viewer"] : ["--ed-key-file", key_file]
+
 # Invoke with separate args (no shell interpolation) and require exit 0 before
 # trusting stdout — a failed signer must abort, never emit an unsigned enclosure.
-sig_line, sig_status = Open3.capture2(sign_update, dmg)
+sig_line, sig_status = Open3.capture2(sign_update, *signer_args, dmg)
 abort "sign_update failed (exit #{sig_status.exitstatus})" unless sig_status.success?
 sig_line = sig_line.strip                             # sparkle:edSignature="..." length="..."
 abort "sign_update produced no signature" if sig_line.empty?
 ed  = sig_line[/sparkle:edSignature="([^"]+)"/, 1] or abort "no edSignature in: #{sig_line}"
 len = sig_line[/length="(\d+)"/, 1] or abort "no length in: #{sig_line}"
 abort "enclosure length must be > 0" unless len.to_i.positive?
+
+# Installed apps reject any update the shipped SUPublicEDKey cannot verify, so a
+# key that doesn't match it would silently strand every user on this build.
+ed25519_spki_prefix = ["302a300506032b6570032100"].pack("H*")
+verifier = OpenSSL::PKey.read(ed25519_spki_prefix + Base64.strict_decode64(public_ed_key))
+unless verifier.verify(nil, Base64.strict_decode64(ed), File.binread(dmg))
+  abort "update signature does not verify against the app's SUPublicEDKey"
+end
 
 path = File.join(File.dirname(dmg), "appcast.xml")
 doc = File.exist?(path) ? REXML::Document.new(File.read(path)) : nil

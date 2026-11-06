@@ -43,3 +43,7 @@ SlipstreamViewer/Info.plist
 packaging/build/
 packaging/dist/
 fastlane/README.md
+
+# Bundler install (CI release job)
+/.bundle/
+/vendor/bundle/

@@ -70,10 +70,9 @@ targets:
         LSMinimumSystemVersion: "15.0"
         ATSApplicationFontsPath: Fonts
         NSHumanReadableCopyright: ""
-        # The public half of the Sparkle EdDSA key in the login Keychain (shared with
-        # Playola Interview Editor). See packaging/README.md.
+        # Slipstream-only Sparkle key (Keychain account slipstream-viewer).
         SUFeedURL: https://playola-static.s3.amazonaws.com/downloads/SlipstreamViewer/appcast.xml
-        SUPublicEDKey: WyAypjfp2RUEqO+iIb/iYTTYwVq5AaXJWUxT9pwzrog=
+        SUPublicEDKey: d6R9EnuhBnztTb3GoxGvCrC5WB4j5HnXebNCLI6ZhaI=
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
     settings:
