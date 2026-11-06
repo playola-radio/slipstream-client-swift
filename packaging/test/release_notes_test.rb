@@ -85,6 +85,77 @@ class ReleaseNotesTest < Minitest::Test
     assert_match(/no notes/, error.message)
   end
 
+  def test_promote_moves_unreleased_notes_under_a_dated_heading
+    assert_equal <<~MARKDOWN, ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+      # Changelog
+
+      ## [Unreleased]
+
+      ## [2.1.0] - 2026-10-01
+
+      - Work in progress.
+
+      ## [2.0.0] - 2026-09-08
+
+      - Save and reopen `.pie` projects.
+      - Review suggestions before export.
+
+      ## [1.9.0] - 2026-08-01
+
+      - Older work.
+    MARKDOWN
+  end
+
+  def test_promoted_notes_are_what_release_extracts
+    promoted = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    assert_equal "- Work in progress.", ReleaseNotes.extract(promoted, "2.1.0")
+  end
+
+  def test_promote_rejects_empty_unreleased_notes
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), "2.2.0", "2026-10-02")
+    end
+
+    assert_match(/nothing under \[Unreleased\]/, error.message)
+  end
+
+  def test_promote_rejects_a_version_that_is_already_released
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(CHANGELOG, "2.0.0", "2026-10-01")
+    end
+
+    assert_match(/already in the changelog/, error.message)
+  end
+
+  def test_promote_rejects_a_changelog_without_an_unreleased_section
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(CHANGELOG.sub("## [Unreleased]\n", ""), "2.1.0", "2026-10-01")
+    end
+
+    assert_match(/no \[Unreleased\] section/, error.message)
+  end
+
+  def test_promote_rejects_a_malformed_date
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(CHANGELOG, "2.1.0", "Oct 1")
+    end
+
+    assert_match(/YYYY-MM-DD/, error.message)
+  end
+
+  def test_promote_cli_rewrites_the_changelog_in_place
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      File.write(changelog, CHANGELOG)
+
+      _stdout, stderr, status = run_cli("promote", changelog, "2.1.0", "2026-10-01")
+
+      assert status.success?, stderr
+      assert_equal ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), File.read(changelog)
+    end
+  end
+
   def test_sets_a_markdown_description_that_round_trips_special_text
     document = REXML::Document.new(<<~XML)
       <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">

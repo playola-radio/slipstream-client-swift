@@ -2,7 +2,8 @@ default_platform(:mac)
 
 platform :mac do
   # Bump the version single source (project.yml) and commit, so `release`
-  # starts from a clean tree with a never-reused CFBundleVersion.
+  # starts from a clean tree with a never-reused CFBundleVersion. A new marketing
+  # version also moves CHANGELOG.md's [Unreleased] notes under a dated heading.
   #   bundle exec fastlane mac bump                 # build integer only
   #   bundle exec fastlane mac bump version:0.2.0   # + marketing version
   desc "Bump MARKETING_VERSION / integer CURRENT_PROJECT_VERSION, commit"
@@ -17,13 +18,16 @@ platform :mac do
     if (new_marketing = options[:version])
       UI.user_error!("version must be semver X.Y.Z") unless new_marketing =~ /\A\d+\.\d+\.\d+\z/
       text = text.sub(/MARKETING_VERSION:\s*"[^"]*"/, %(MARKETING_VERSION: "#{new_marketing}"))
+      # Before project.yml is written, so a changelog problem leaves the tree clean.
+      sh("cd .. && ruby packaging/release_notes.rb promote CHANGELOG.md '#{new_marketing}' '#{Time.now.strftime("%Y-%m-%d")}'")
+      sh("cd .. && git add CHANGELOG.md")
     end
     File.write(project_yml, text)
     marketing = text[/MARKETING_VERSION:\s*"([^"]*)"/, 1]
 
     sh("cd .. && git add project.yml")
     sh(%(cd .. && git commit -m "chore: bump to #{marketing} (#{new_build})"))
-    UI.success("Bumped to #{marketing} (#{new_build}). Next: bundle exec fastlane mac release")
+    UI.success("Bumped to #{marketing} (#{new_build}). Merging develop to main publishes it.")
   end
 
   # Runs on merge to main (.github/workflows/release.yml) or locally. Needs the
