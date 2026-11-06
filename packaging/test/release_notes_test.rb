@@ -10,6 +10,8 @@ require_relative "../release_notes"
 class ReleaseNotesTest < Minitest::Test
   APPCAST_SCRIPT = File.expand_path("../appcast.rb", __dir__)
   SCRIPT = File.expand_path("../release_notes.rb", __dir__)
+  # The repo's Gemfile, so bundler also finds gems installed under its local config (CI).
+  BUNDLE_ENV = { "BUNDLE_GEMFILE" => File.expand_path("../../Gemfile", __dir__) }.freeze
 
   CHANGELOG = <<~MARKDOWN
     # Changelog
@@ -83,6 +85,108 @@ class ReleaseNotesTest < Minitest::Test
     end
 
     assert_match(/no notes/, error.message)
+  end
+
+  def test_promote_moves_unreleased_notes_under_a_dated_heading
+    assert_equal <<~MARKDOWN, ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+      # Changelog
+
+      ## [Unreleased]
+
+      ## [2.1.0] - 2026-10-01
+
+      - Work in progress.
+
+      ## [2.0.0] - 2026-09-08
+
+      - Save and reopen `.pie` projects.
+      - Review suggestions before export.
+
+      ## [1.9.0] - 2026-08-01
+
+      - Older work.
+    MARKDOWN
+  end
+
+  def test_promoted_notes_are_what_release_extracts
+    promoted = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    assert_equal "- Work in progress.", ReleaseNotes.extract(promoted, "2.1.0")
+  end
+
+  def test_promote_rejects_empty_unreleased_notes
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), "2.2.0", "2026-10-02")
+    end
+
+    assert_match(/nothing under \[Unreleased\]/, error.message)
+  end
+
+  def test_promote_rejects_a_version_that_is_already_released
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(CHANGELOG, "2.0.0", "2026-10-01")
+    end
+
+    assert_match(/already in the changelog/, error.message)
+  end
+
+  def test_promote_rejects_a_changelog_without_an_unreleased_section
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(CHANGELOG.sub("## [Unreleased]\n", ""), "2.1.0", "2026-10-01")
+    end
+
+    assert_match(/no \[Unreleased\] section/, error.message)
+  end
+
+  def test_promote_rejects_a_malformed_date
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(CHANGELOG, "2.1.0", "Oct 1")
+    end
+
+    assert_match(/YYYY-MM-DD/, error.message)
+  end
+
+  def test_promote_cli_rewrites_the_changelog_in_place
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      File.write(changelog, CHANGELOG)
+
+      _stdout, stderr, status = run_cli("promote", changelog, "2.1.0", "2026-10-01")
+
+      assert status.success?, stderr
+      assert_equal ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), File.read(changelog)
+    end
+  end
+
+  def test_bump_restores_a_clean_tree_after_the_commit_fails
+    Dir.mktmpdir do |directory|
+      %w[.gitignore project.yml].each do |path|
+        FileUtils.cp(File.expand_path("../../#{path}", __dir__), File.join(directory, path))
+      end
+      FileUtils.mkdir_p(File.join(directory, "fastlane"))
+      FileUtils.mkdir_p(File.join(directory, "packaging"))
+      FileUtils.cp(File.expand_path("../../fastlane/Fastfile", __dir__), File.join(directory, "fastlane/Fastfile"))
+      FileUtils.cp(SCRIPT, File.join(directory, "packaging/release_notes.rb"))
+      File.write(File.join(directory, "CHANGELOG.md"), CHANGELOG)
+      run_git(directory, "init", "--quiet")
+      run_git(directory, "config", "user.name", "Release Test")
+      run_git(directory, "config", "user.email", "release-test@example.com")
+      run_git(directory, "add", ".")
+      run_git(directory, "-c", "commit.gpgSign=false", "commit", "-m", "chore: prepare release test")
+      run_git(directory, "config", "commit.gpgSign", "true")
+      run_git(directory, "config", "gpg.program", "false")
+
+      _stdout, _stderr, status = Open3.capture3(BUNDLE_ENV, "bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
+
+      refute status.success?
+      assert_empty run_git(directory, "status", "--short")
+
+      run_git(directory, "config", "commit.gpgSign", "false")
+      _stdout, stderr, status = Open3.capture3(BUNDLE_ENV, "bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
+
+      assert status.success?, stderr
+      assert_empty run_git(directory, "status", "--short")
+    end
   end
 
   def test_sets_a_markdown_description_that_round_trips_special_text
@@ -304,6 +408,12 @@ class ReleaseNotesTest < Minitest::Test
 
   def run_cli(*arguments)
     Open3.capture3(RbConfig.ruby, SCRIPT, *arguments)
+  end
+
+  def run_git(directory, *arguments)
+    stdout, stderr, status = Open3.capture3("git", *arguments, chdir: directory)
+    assert status.success?, stderr
+    stdout
   end
 
   def write_executable(path, contents)
