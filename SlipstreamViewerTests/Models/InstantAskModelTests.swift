@@ -1091,7 +1091,7 @@ struct InstantAskModelTests {
     expectNoDifference(agent.writes(0), [try relayWrite(relayID: UUID(0))])
   }
 
-  @Test func unrecordedSendAgainIsSentAgainOnReconnect() async {
+  @Test func unrecordedSendAgainIsNotDeliveredOnReconnect() async {
     let model = makeModel()
     handOver(model, loggedRelay())
     recorder.scriptUpdates(.failure(.unavailable), .failure(.unavailable), .failure(.unavailable))
@@ -1104,8 +1104,10 @@ struct InstantAskModelTests {
     let first = recorder.updates[0]
     expectNoDifference(model.relayRuns[newRelay]?.unrecorded, [first])
     await model.daemonConnected(storeID: "store-1")
+    await Task.megaYield()
 
-    expectNoDifference(recorder.updates, [first, first, first, first])
+    expectNoDifference(Array(recorder.updates.prefix(4)), [first, first, first, first])
+    expectNoDifference(steps.last, Step(relayID: newRelay, questionID: "q-1", update: .notDelivered))
     expectNoDifference(agent.launches, [])
   }
 
