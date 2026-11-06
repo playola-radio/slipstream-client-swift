@@ -14,7 +14,12 @@ DIST="$REPO_ROOT/packaging/dist"
 APP="$DIST/SlipstreamViewer.app"
 [ -d "$APP" ] || { echo "error: no app at $APP (run build/sign/notarize first)" >&2; exit 1; }
 IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Playola Radio, Incorporated (FSRSPV9N9Q)}"
-NOTARY_PROFILE="${NOTARY_PROFILE:?set NOTARY_PROFILE (notarytool keychain profile)}"
+# CI passes an App Store Connect API key; local releases use a keychain profile.
+if [[ -n "${NOTARY_KEY:-}" ]]; then
+  NOTARY_AUTH=(--key "$NOTARY_KEY" --key-id "${NOTARY_KEY_ID:?set NOTARY_KEY_ID}" --issuer "${NOTARY_ISSUER:?set NOTARY_ISSUER}")
+else
+  NOTARY_AUTH=(--keychain-profile "${NOTARY_PROFILE:?set NOTARY_PROFILE (notarytool keychain profile) or NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER}")
+fi
 SHORT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
 DMG="$DIST/SlipstreamViewer-$SHORT-$BUILD.dmg"
@@ -30,7 +35,7 @@ hdiutil create -volname "Slipstream $SHORT" \
 echo "==> Signing the DMG"
 codesign --force --sign "$IDENTITY" --timestamp "$DMG"
 echo "==> Notarizing the DMG"
-xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun notarytool submit "$DMG" "${NOTARY_AUTH[@]}" --wait
 echo "==> Stapling the DMG"
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"

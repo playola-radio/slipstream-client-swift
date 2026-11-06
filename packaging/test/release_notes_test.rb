@@ -1,5 +1,7 @@
 require "minitest/autorun"
+require "base64"
 require "open3"
+require "openssl"
 require "rexml/document"
 require "rbconfig"
 require "tmpdir"
@@ -156,7 +158,51 @@ class ReleaseNotesTest < Minitest::Test
       assert_equal "2.0.1", item.elements["sparkle:shortVersionString"].text
       assert_equal "- Visible & useful.\n", item.elements["description"].text
       assert_equal "markdown", item.elements["description"].attribute("sparkle:format").value
-      assert_equal "test-signature", item.elements["enclosure"].attribute("sparkle:edSignature").value
+      assert_equal File.read(File.join(directory, "signature")),
+                   item.elements["enclosure"].attribute("sparkle:edSignature").value
+    end
+  end
+
+  def test_appcast_script_signs_with_the_slipstream_keychain_account_by_default
+    Dir.mktmpdir do |directory|
+      dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory)
+
+      _stdout, stderr, status = Open3.capture3(
+        { "PLIST_BUDDY" => plist_buddy, "SPARKLE_ED_KEY_FILE" => nil },
+        RbConfig.ruby, APPCAST_SCRIPT, dmg, url, signer, notes_file
+      )
+
+      assert status.success?, stderr
+      assert_equal ["--account", "slipstream-viewer", dmg], signer_arguments(directory)
+    end
+  end
+
+  def test_appcast_script_signs_with_the_key_file_when_one_is_given
+    Dir.mktmpdir do |directory|
+      dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory)
+
+      _stdout, stderr, status = Open3.capture3(
+        { "PLIST_BUDDY" => plist_buddy, "SPARKLE_ED_KEY_FILE" => "/run/sparkle.key" },
+        RbConfig.ruby, APPCAST_SCRIPT, dmg, url, signer, notes_file
+      )
+
+      assert status.success?, stderr
+      assert_equal ["--ed-key-file", "/run/sparkle.key", dmg], signer_arguments(directory)
+    end
+  end
+
+  def test_appcast_script_refuses_a_signature_the_built_app_cannot_verify
+    Dir.mktmpdir do |directory|
+      dmg, url, signer, notes_file, plist_buddy = appcast_inputs(directory, app_key: OpenSSL::PKey.generate_key("ED25519"))
+
+      _stdout, stderr, status = Open3.capture3(
+        { "PLIST_BUDDY" => plist_buddy },
+        RbConfig.ruby, APPCAST_SCRIPT, dmg, url, signer, notes_file
+      )
+
+      refute status.success?
+      assert_match(/does not verify against the app's SUPublicEDKey/, stderr)
+      refute File.exist?(File.join(directory, "appcast.xml"))
     end
   end
 
@@ -181,27 +227,47 @@ class ReleaseNotesTest < Minitest::Test
 
   private
 
-  def appcast_inputs(directory)
+  # The fake sign_update records its arguments and really signs the DMG, so the
+  # script's check against the app's SUPublicEDKey runs for real.
+  def appcast_inputs(directory, app_key: nil)
     dmg = File.join(directory, "SlipstreamViewer-2.0.1-5.dmg")
     notes_file = File.join(directory, "notes.md")
     signer = File.join(directory, "sign_update")
     plist_buddy = File.join(directory, "plist_buddy")
+    signing_key = OpenSSL::PKey.generate_key("ED25519")
+    File.write(File.join(directory, "signing_key.pem"), signing_key.private_to_pem)
     File.write(dmg, "disk image")
     File.write(notes_file, "- Visible & useful.\n")
-    write_executable(signer, <<~SH)
-      #!/bin/sh
-      printf '%s\n' 'sparkle:edSignature="test-signature" length="10"'
-    SH
+    write_executable(signer, <<~RUBY)
+      #!#{RbConfig.ruby}
+      require "base64"
+      require "openssl"
+      directory = #{directory.inspect}
+      File.write(File.join(directory, "signer_arguments"), ARGV.join("\n"))
+      key = OpenSSL::PKey.read(File.read(File.join(directory, "signing_key.pem")))
+      signature = Base64.strict_encode64(key.sign(nil, File.binread(ARGV.last)))
+      File.write(File.join(directory, "signature"), signature)
+      puts %(sparkle:edSignature="\#{signature}" length="\#{File.size(ARGV.last)}")
+    RUBY
     write_executable(plist_buddy, <<~SH)
       #!/bin/sh
       case "$2" in
         "Print :CFBundleVersion") printf '5\n' ;;
         "Print :CFBundleShortVersionString") printf '2.0.1\n' ;;
+        "Print :SUPublicEDKey") printf '%s\n' '#{public_key_base64(app_key || signing_key)}' ;;
         *) exit 1 ;;
       esac
     SH
     url = "https://example.com/#{File.basename(dmg)}"
     [dmg, url, signer, notes_file, plist_buddy]
+  end
+
+  def public_key_base64(key)
+    Base64.strict_encode64(key.public_to_der[-32, 32])
+  end
+
+  def signer_arguments(directory)
+    File.read(File.join(directory, "signer_arguments")).split("\n")
   end
 
   def run_cli(*arguments)

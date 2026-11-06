@@ -26,21 +26,24 @@ platform :mac do
     UI.success("Bumped to #{marketing} (#{new_build}). Next: bundle exec fastlane mac release")
   end
 
-  # Local release: needs the Developer ID identity, NOTARY_PROFILE, the Sparkle EdDSA
-  # key in the login Keychain, and AWS write access. `sh` runs from fastlane/, hence
-  # `cd ..`.
-  desc "Build, sign, notarize, DMG, sign appcast, upload to S3"
+  # Runs on merge to main (.github/workflows/release.yml) or locally. Needs the
+  # Developer ID identity, notarization credentials (NOTARY_PROFILE, or
+  # NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER), the Sparkle EdDSA key (Keychain account
+  # `slipstream-viewer`, or SPARKLE_ED_KEY_FILE), and AWS write access through the
+  # AWS CLI's normal credential chain. `sh` runs from fastlane/, hence `cd ..`.
+  desc "Build, sign, notarize, DMG, sign appcast, upload to S3, tag"
   lane :release do
     ensure_git_status_clean
-    UI.user_error!("set NOTARY_PROFILE (notarytool keychain profile)") if ENV["NOTARY_PROFILE"].to_s.empty?
-    bucket  = ENV.fetch("RELEASE_S3_BUCKET", "playola-static")
-    prefix  = ENV.fetch("RELEASE_S3_PREFIX", "downloads/SlipstreamViewer")
-    host    = ENV.fetch("RELEASE_DOWNLOAD_HOST", "https://playola-static.s3.amazonaws.com")
-    profile = ENV.fetch("AWS_PROFILE", "default")
+    if ENV["NOTARY_PROFILE"].to_s.empty? && ENV["NOTARY_KEY"].to_s.empty?
+      UI.user_error!("set NOTARY_PROFILE, or NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER")
+    end
+    bucket = ENV.fetch("RELEASE_S3_BUCKET", "playola-static")
+    prefix = ENV.fetch("RELEASE_S3_PREFIX", "downloads/SlipstreamViewer")
+    host   = ENV.fetch("RELEASE_DOWNLOAD_HOST", "https://playola-static.s3.amazonaws.com")
 
     # These values are interpolated into shell commands; fail closed on anything
     # outside a safe charset rather than escaping every call site.
-    { "RELEASE_S3_BUCKET" => bucket, "RELEASE_S3_PREFIX" => prefix, "AWS_PROFILE" => profile }.each do |k, v|
+    { "RELEASE_S3_BUCKET" => bucket, "RELEASE_S3_PREFIX" => prefix }.each do |k, v|
       UI.user_error!("#{k} has unexpected characters: #{v.inspect}") unless v.match?(%r{\A[A-Za-z0-9._/-]+\z})
     end
     unless host.match?(%r{\Ahttps://[A-Za-z0-9.-]+(?::\d+)?(?:/[A-Za-z0-9._/-]*)?\z})
@@ -76,7 +79,7 @@ platform :mac do
     sh(<<~SH)
       cd .. && set -euo pipefail
       key="#{prefix}/#{name}"
-      if err="$(aws --profile #{profile} s3api head-object --bucket '#{bucket}' --key "$key" 2>&1 >/dev/null)"; then
+      if err="$(aws s3api head-object --bucket '#{bucket}' --key "$key" 2>&1 >/dev/null)"; then
         echo "error: release artifact already exists: s3://#{bucket}/$key" >&2
         exit 1
       elif ! printf '%s' "$err" | grep -qiE 'Not Found|404'; then
@@ -91,8 +94,8 @@ platform :mac do
     sh(<<~SH)
       cd .. && set -euo pipefail
       key="#{prefix}/appcast.xml"
-      if err="$(aws --profile #{profile} s3api head-object --bucket '#{bucket}' --key "$key" 2>&1 >/dev/null)"; then
-        aws --profile #{profile} s3 cp "s3://#{bucket}/$key" packaging/dist/appcast.xml
+      if err="$(aws s3api head-object --bucket '#{bucket}' --key "$key" 2>&1 >/dev/null)"; then
+        aws s3 cp "s3://#{bucket}/$key" packaging/dist/appcast.xml
         echo "fetched existing appcast"
       elif printf '%s' "$err" | grep -qiE 'Not Found|404'; then
         rm -f packaging/dist/appcast.xml
@@ -108,10 +111,14 @@ platform :mac do
     # Keep old DMGs (no --delete). Upload the DMG, the stable website alias, then the
     # appcast last. The alias is a server-side copy; --metadata-directive REPLACE is
     # required or S3 keeps the source metadata and drops no-cache.
-    sh("cd .. && aws --profile #{profile} s3 cp '#{dmg}' 's3://#{bucket}/#{prefix}/'")
-    sh("cd .. && aws --profile #{profile} s3 cp 's3://#{bucket}/#{prefix}/#{name}' 's3://#{bucket}/#{prefix}/SlipstreamViewer-latest.dmg' --metadata-directive REPLACE --content-type application/x-apple-diskimage --cache-control no-cache")
-    sh("cd .. && aws --profile #{profile} s3 cp packaging/dist/appcast.xml 's3://#{bucket}/#{prefix}/appcast.xml' --content-type application/xml --cache-control no-cache")
+    sh("cd .. && aws s3 cp '#{dmg}' 's3://#{bucket}/#{prefix}/'")
+    sh("cd .. && aws s3 cp 's3://#{bucket}/#{prefix}/#{name}' 's3://#{bucket}/#{prefix}/SlipstreamViewer-latest.dmg' --metadata-directive REPLACE --content-type application/x-apple-diskimage --cache-control no-cache")
+    sh("cd .. && aws s3 cp packaging/dist/appcast.xml 's3://#{bucket}/#{prefix}/appcast.xml' --content-type application/xml --cache-control no-cache")
 
-    UI.success("Released #{short} (#{build}): #{host}/#{prefix}/SlipstreamViewer-latest.dmg")
+    # The tag marks the commit as released; CI skips a merge whose tag already exists.
+    tag = "v#{short}-b#{build}"
+    sh("cd .. && git tag '#{tag}' && git push origin 'refs/tags/#{tag}'")
+
+    UI.success("Released #{short} (#{build}) as #{tag}: #{host}/#{prefix}/SlipstreamViewer-latest.dmg")
   end
 end
