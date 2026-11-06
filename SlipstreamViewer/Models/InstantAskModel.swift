@@ -207,7 +207,8 @@ final class InstantAskModel: ViewModel {
   }
 
   /// The daemon may have restarted, so its relay support is asked again and steps it never
-  /// recorded are sent again under their original request ids.
+  /// recorded are sent again under their original request ids. A Send again recorded only now was
+  /// never written, and writing it this late could deliver the change twice, so it is not delivered.
   func daemonConnected(storeID: String) async {
     relaySupport[storeID] = nil
     var retries: [Task<Void, Never>] = []
@@ -215,7 +216,8 @@ final class InstantAskModel: ViewModel {
       relayRuns[relayID]?.unrecorded = []
       for request in run.unrecorded {
         retries.append(track(run.sessionID) {
-          if await self.send(request) { self.recorded(request) }
+          guard await self.send(request) else { return }
+          if case .sent = request.update { self.notDelivered(request.relayID) } else { self.recorded(request) }
         })
       }
     }
