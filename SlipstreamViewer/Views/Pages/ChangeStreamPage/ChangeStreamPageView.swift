@@ -63,8 +63,7 @@ struct ChangeStreamPageView: View {
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
     .task { await model.chat.clockTask() }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-      model.chat.appActivityChanged(isActive: true)
-      model.openIn.viewAppeared()
+      Task { await model.appBecameActive() }
     }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
       model.chat.appActivityChanged(isActive: false)
@@ -405,11 +404,6 @@ struct ChangeStreamPageView: View {
     if model.isWorkspaceBusy {
       ToolbarItem(placement: .navigation) {
         ProgressView().controlSize(.small)
-      }
-    }
-    ToolbarItem {
-      Button(model.refreshButtonText, systemImage: "arrow.clockwise") {
-        Task { await model.refreshTapped() }
       }
     }
     ToolbarItem {

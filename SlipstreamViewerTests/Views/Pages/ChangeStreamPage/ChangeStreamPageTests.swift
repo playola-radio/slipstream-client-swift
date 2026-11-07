@@ -46,6 +46,7 @@ struct ChangeStreamPageTests {
       $0.date = DateGenerator(now ?? { Fixture.checkedAt })
       $0.terminalRuntime = terminal.runtimeClient
       $0.recording = recordingFake.client
+      $0.openIn.installedApps = { [] }
     } operation: {
       let chat = chat ?? makeChat()
       return ChangeStreamPageModel(
@@ -111,21 +112,21 @@ struct ChangeStreamPageTests {
     expectNoDifference(model.chat.outsideChatText, "Stream: outside chat")
 
     fake.setCaptures([Fixture.capture(binding: nil)])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.chat.outsideChatText, nil)
 
     fake.setCaptures([Fixture.capture()])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.chat.outsideChatText, "Stream: outside chat")
 
     fake.setCaptures(.failure(.invalidResponse))
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.chat.outsideChatText, nil)
 
     fake.setCaptures([Fixture.capture()])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     fake.setDiscoverError(URLError(.cannotConnectToHost))
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.chat.outsideChatText, nil)
   }
 
@@ -298,7 +299,7 @@ struct ChangeStreamPageTests {
   @Test func rootSurvivesRefreshThatFailsStartFetch() async {
     let model = await connectedModel()
     fake.setSessionStartError(URLError(.networkConnectionLost))
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     #expect(model.selectedFolder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
     #expect(model.sessions[id: Fixture.session]?.root == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
   }
@@ -394,7 +395,7 @@ struct ChangeStreamPageTests {
       SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
       SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
     ])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     model.sessionSelected(Fixture.otherSession)
     #expect(model.chat.isComparisonShown == false)
   }
@@ -486,7 +487,7 @@ struct ChangeStreamPageTests {
       SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(4), removed: false),
       SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
     ])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     model.sessionSelected(Fixture.otherSession)
     #expect(model.functionChanges == nil)
     #expect(!model.canCompareFunctions)
@@ -506,7 +507,7 @@ struct ChangeStreamPageTests {
     await model.viewAppeared()
     #expect(model.emptyStateText == "No capture sessions yet")
     fake.setSessions([SessionSummary(id: "a", durableSeq: .zero, removed: false), SessionSummary(id: "b", durableSeq: .zero, removed: false)])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     #expect(model.sessions.ids == ["a", "b"])
   }
 
@@ -2412,6 +2413,37 @@ extension ChangeStreamPageTests {
     return model
   }
 
+  @Test func aFailedReloadKeepsTheListAndSelection() async {
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    fake.setSessionsError(URLError(.cannotConnectToHost))
+    await model.reloadShortcutPressed()
+    expectNoDifference(model.sessions.ids, [Fixture.session])
+    expectNoDifference(model.selectedSession?.id, Fixture.session)
+    expectNoDifference(model.sessionsError, nil)
+    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+  }
+
+  @Test func aReloadAskedForDuringAReloadRunsOnceAfterIt() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    daemon.setCaptures([Fixture.capture()])
+    let model = makeModel(daemon: daemon)
+    defer { model.viewDisappeared() }
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    await model.appBecameActive()
+    await model.reloadShortcutPressed()
+    open.yield()
+    await Task.megaYield()
+    open.yield()
+    await appeared.value
+    expectNoDifference(daemon.sessionsCallCount, 2)
+  }
+
   @Test func theCaptureStripReadsTheDaemonsSnapshot() async {
     let model = await liveModel()
     defer { model.viewDisappeared() }
@@ -2451,7 +2483,7 @@ extension ChangeStreamPageTests {
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
     listThreeSessionsWithOneRecording()
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession])
   }
 
@@ -2767,7 +2799,7 @@ extension ChangeStreamPageTests {
     let model = await liveModel()
     defer { model.viewDisappeared() }
     fake.setSessionsError(URLError(.cannotConnectToHost))
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
     #expect(model.captureCheckedText == nil)
   }
@@ -2794,7 +2826,7 @@ extension ChangeStreamPageTests {
 
     listSessions(.connected, other: .connected)
     fake.setCaptures([Fixture.capture(), Fixture.capture(session: Fixture.otherSession, root: "/work/seventeenth")])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     await Task.megaYield()
     expectNoDifference(model.captureText, "Recording")
     #expect(model.isFooterShown)
@@ -2824,7 +2856,7 @@ extension ChangeStreamPageTests {
     await send(Fixture.edited(1))
     #expect(!model.sections.isEmpty)
     fake.setSessions([])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     await Task.megaYield()
     await send(Fixture.edited(2))
     #expect(model.sections.isEmpty)
@@ -2862,7 +2894,7 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureText, "Recording")
     daemon.setCaptures(.failure(.status(500, durableSeq: nil)))
     daemon.setSessionsError(DaemonHTTPError.status(500, durableSeq: nil))
-    let refresh = Task { await model.refreshTapped() }
+    let refresh = Task { await model.reloadShortcutPressed() }
     await Task.megaYield()
     daemon.close()
     await Task.megaYield()
@@ -2884,7 +2916,7 @@ extension ChangeStreamPageTests {
     daemon.send(.heartbeat)
     await Task.megaYield()
     daemon.setCaptures([Fixture.capture(.stopped, reason: "maintenance")])
-    let refresh = Task { await model.refreshTapped() }
+    let refresh = Task { await model.reloadShortcutPressed() }
     await Task.megaYield()
     daemon.close()
     await Task.megaYield()
@@ -2909,7 +2941,7 @@ extension ChangeStreamPageTests {
       Fixture.capture(),
       Fixture.capture(.queued, session: Fixture.otherSession, root: "/work/other", binding: nil),
     ])
-    let refresh = Task { await model.refreshTapped() }
+    let refresh = Task { await model.reloadShortcutPressed() }
     await Task.megaYield()
     daemon.close()
     await Task.megaYield()
@@ -2945,7 +2977,7 @@ extension ChangeStreamPageTests {
       model.captureDetailText,
       "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again.")
     fake.setCaptures([Fixture.capture()])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.captureText, "Recording")
     #expect(model.captureDetailText == nil)
   }
@@ -3191,7 +3223,7 @@ extension ChangeStreamPageTests {
     let composer = composer(model, agentConnection: .connected)
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
     #expect(!composer.canSubmit)
   }
@@ -3229,12 +3261,12 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     let composer = composer(model, agentConnection: .setupPending)
     listSessions(.connected)
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(composer.agentConnection, .connected)
     expectNoDifference(model.selectedSession?.agentConnection, .connected)
     #expect(composer.canSubmit)
     listSessions(.disconnected(reason: "no_agent"))
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(composer.agentConnection, .disconnected(reason: "no_agent"))
     #expect(!composer.canSubmit)
     expectNoDifference(composer.draft, "Why?")
@@ -3248,7 +3280,7 @@ extension ChangeStreamPageTests {
     defer { model.viewDisappeared() }
     let composer = composer(model, session: Fixture.otherSession, agentConnection: .connected)
     listSessions(.connected)
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
     expectNoDifference(composer.sessionID, Fixture.otherSession)
     #expect(!composer.canSubmit)
@@ -3283,7 +3315,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     defer { model.viewDisappeared() }
     let composer = composer(model, agentConnection: .setupPending)
-    let refresh = Task { await model.refreshTapped() }
+    let refresh = Task { await model.reloadShortcutPressed() }
     await Task.megaYield()
     daemon.send(Fixture.agentConnection(1, state: "connected"))
     await Task.megaYield()
@@ -3373,7 +3405,7 @@ extension ChangeStreamPageTests {
     daemon.send(Fixture.agentConnection(1, state: "connected"))
     await Task.megaYield()
     daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: Fixture.seq(1), removed: false, agentConnection: .connected)])
-    let refresh = Task { await model.refreshTapped() }
+    let refresh = Task { await model.reloadShortcutPressed() }
     await Task.megaYield()
     daemon.close()
     await Task.megaYield()
@@ -3491,7 +3523,7 @@ extension ChangeStreamPageTests {
     let composer = composer(model, agentConnection: .connected)
     fake.setSessions([])
     fake.setCaptures([])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
     expectNoDifference(composer.agentConnection, .disconnected(reason: nil))
     #expect(!composer.canSubmit)
@@ -4160,7 +4192,7 @@ extension ChangeStreamPageTests {
     fake.setSessions(
       [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
       starts: [Fixture.session: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0)])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     release.yield()
     await archiving.value
 
@@ -4710,7 +4742,7 @@ extension ChangeStreamPageTests {
     await askedRightAway(model, "Why?")
     fake.setSessions([], starts: [:])
     fake.setCaptures([])
-    await model.refreshTapped()
+    await model.reloadShortcutPressed()
     await Task.megaYield()
     #expect(model.instantAsk.pending.isEmpty)
     expectNoDifference(fork.stopCount, 1)

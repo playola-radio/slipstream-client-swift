@@ -121,6 +121,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var userSessionSelectionGeneration = 0
+  @ObservationIgnored private var isReloading = false
+  @ObservationIgnored private var isReloadQueued = false
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
@@ -174,7 +176,6 @@ final class ChangeStreamPageModel: ViewModel {
     return text + " Claude's current reply will be stopped."
   }
 
-  let refreshButtonText = "Refresh"
   let compareFunctionsText = "Compare functions"
   let jumpToLatestText = "Jump to latest ↓"
   let captureStripLabel = "CAPTURE"
@@ -625,11 +626,17 @@ final class ChangeStreamPageModel: ViewModel {
     if selectedSession != nil, watchTask?.isCancelled ?? true {
       startWatching()
     }
-    await loadSessions()
+    await reloadSessions()
   }
 
-  func refreshTapped() async {
-    await loadSessions()
+  func appBecameActive() async {
+    chat.appActivityChanged(isActive: true)
+    openIn.viewAppeared()
+    await reloadSessions()
+  }
+
+  func reloadShortcutPressed() async {
+    await reloadSessions()
   }
 
   func sessionSelected(_ id: String) {
@@ -948,6 +955,19 @@ final class ChangeStreamPageModel: ViewModel {
     isWorkspaceFailurePresented = true
   }
 
+  private func reloadSessions() async {
+    guard !isReloading else {
+      isReloadQueued = true
+      return
+    }
+    isReloading = true
+    defer { isReloading = false }
+    repeat {
+      isReloadQueued = false
+      await loadSessions()
+    } while isReloadQueued
+  }
+
   private func loadSessions(preferring preferredRoot: String? = nil) async {
     if let preferredRoot { pendingPreferredRoot = Self.normalizedFolder(preferredRoot) }
     sessionsGeneration += 1
@@ -1076,6 +1096,10 @@ final class ChangeStreamPageModel: ViewModel {
     } catch {
       guard generation == sessionsGeneration else {
         if refresh == refreshGeneration { captureRefreshFailed() }
+        return
+      }
+      if hasLoadedSessions && sessionsError == nil {
+        captureRefreshFailed()
         return
       }
       sessions = []
