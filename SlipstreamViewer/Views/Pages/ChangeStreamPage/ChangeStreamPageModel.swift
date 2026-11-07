@@ -272,7 +272,7 @@ final class ChangeStreamPageModel: ViewModel {
     if selectedSession == nil {
       return pickerSessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
-    if selectedSession?.hasHistory == false { return "No change history is available yet. Refresh to check again." }
+    if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
   }
 

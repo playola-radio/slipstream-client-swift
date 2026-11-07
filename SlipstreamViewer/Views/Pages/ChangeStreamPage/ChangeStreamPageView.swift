@@ -58,6 +58,7 @@ struct ChangeStreamPageView: View {
     }
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
+    .focusedSceneValue(model)
     .task { await model.viewAppeared() }
     .task { model.openIn.viewAppeared() }
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }

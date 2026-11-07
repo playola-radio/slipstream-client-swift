@@ -55,6 +55,7 @@ struct SlipstreamViewerApp: App {
     .windowToolbarStyle(.unified)
     .commands {
       UpdaterCommands(model: updater)
+      ReloadCommands()
       FontSizeCommands(model: fontSize)
     }
   }

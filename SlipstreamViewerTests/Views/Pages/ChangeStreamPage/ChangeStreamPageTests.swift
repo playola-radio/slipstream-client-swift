@@ -2820,7 +2820,7 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureText, "Not recording — folder overlaps another capture")
     expectNoDifference(model.captureDetailText, nil)
     expectNoDifference(model.chatLinkText, "No chat linked")
-    expectNoDifference(model.emptyStateText, "No change history is available yet. Refresh to check again.")
+    expectNoDifference(model.emptyStateText, "No change history is available yet. Press ⌘R to check again.")
     #expect(!model.isFooterShown)
     expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session])
 
@@ -2975,7 +2975,7 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.captureText, "Stopped — maintenance in progress")
     expectNoDifference(
       model.captureDetailText,
-      "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again.")
+      "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Press ⌘R to check again.")
     fake.setCaptures([Fixture.capture()])
     await model.reloadShortcutPressed()
     expectNoDifference(model.captureText, "Recording")

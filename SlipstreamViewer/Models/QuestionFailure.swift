@@ -25,7 +25,7 @@ enum QuestionFailure {
     switch code {
     case "SESSION_NOT_SELECTED": "This capture is no longer attached to the agent. The question stays bound to its original capture."
     case "AGENT_NOT_CONNECTED": "The agent chat for this capture hasn't confirmed it can answer. Run `slipstream attach` inside that chat. The question stays bound to its original capture."
-    case "STALE_BINDING": "This workspace's chat was relinked after the app last checked. Refresh to see which chat is linked now, then ask again."
+    case "STALE_BINDING": "This workspace's chat was relinked after the app last checked. Press ⌘R to see which chat is linked now, then ask again."
     case "CAPTURE_NOT_READY": "The capture isn't ready to accept questions. Try again shortly."
     case "INVALID_CONTEXT": "This source selection couldn't be verified. Select up to 200 lines totaling at most 16 KiB from an available snapshot."
     case "INVALID_QUESTION": "Use a nonempty question of at most 8192 UTF-8 bytes."
