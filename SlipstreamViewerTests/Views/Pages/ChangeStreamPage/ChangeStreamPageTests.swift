@@ -462,11 +462,16 @@ struct ChangeStreamPageTests {
   @Test func compareFunctionsFreezesRecordedBaselineAndCurrentFeedHead() async {
     let model = await connectedModel()
     #expect(!model.canCompareFunctions)
+    expectNoDifference(
+      model.compareFunctionsHelpText,
+      "Available once Slipstream has recorded where this workspace started")
     await send(
       Fixture.frame(1, type: "slipstream.capture.baseline.completed.v1", data: [:]),
       Fixture.edited(2)
     )
     #expect(model.canCompareFunctions)
+    expectNoDifference(
+      model.compareFunctionsHelpText, "Compare each function before and after this session's changes")
     model.compareFunctionsTapped()
     expectNoDifference(model.functionChanges?.sessionID, Fixture.session)
     expectNoDifference(model.functionChanges?.before, Fixture.seq(1))
@@ -2779,7 +2784,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     model.sessionSelected(Fixture.otherSession)
     await Task.megaYield()
-    expectNoDifference(model.toolbarTitleText, "seventeenth")
+    expectNoDifference(model.breadcrumbWorkspaceText, "seventeenth")
     expectNoDifference(model.captureText, "Not recording — folder overlaps another capture")
     expectNoDifference(model.captureDetailText, nil)
     expectNoDifference(model.chatLinkText, "No chat linked")
@@ -3868,16 +3873,19 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.selectedSession, selected)
   }
 
-  @Test func toolbarTitleNamesRepoAndWorkspace() async {
+  @Test func breadcrumbNamesRepoAndWorkspace() async {
     let project = await connectedModel()
-    expectNoDifference(project.toolbarTitleText, "project")
+    expectNoDifference(project.breadcrumbRepositoryText, nil)
+    expectNoDifference(project.breadcrumbWorkspaceText, "project")
+    #expect(project.isOpenInShown)
     project.viewDisappeared()
 
     listWorkspace()
     let model = makeModel(workspace: workspaceClient())
     await model.viewAppeared()
     await Task.megaYield()
-    expectNoDifference(model.toolbarTitleText, "r  ›  workspace-1")
+    expectNoDifference(model.breadcrumbRepositoryText, "r")
+    expectNoDifference(model.breadcrumbWorkspaceText, "workspace-1")
     model.viewDisappeared()
 
     fake.setSessions([])
@@ -3885,7 +3893,10 @@ extension ChangeStreamPageTests {
     let empty = makeModel()
     await empty.viewAppeared()
     defer { empty.viewDisappeared() }
-    expectNoDifference(empty.toolbarTitleText, "Slipstream")
+    expectNoDifference(empty.breadcrumbRepositoryText, nil)
+    expectNoDifference(empty.breadcrumbWorkspaceText, nil)
+    #expect(!empty.isOpenInShown)
+    expectNoDifference(empty.compareFunctionsHelpText, "Choose a workspace to compare its functions")
   }
 
   @Test func sessionDiscoveryDoesNotWaitForWorkspaceRoots() async {

@@ -212,11 +212,21 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
-  var toolbarTitleText: String {
-    guard let selectedSession else { return "Slipstream" }
-    let name = rowName(selectedSession)
-    guard let repository = selectedFolder.flatMap({ workspaceRoots?.repository(of: $0) }) else { return name }
-    return "\(repository)  ›  \(name)"
+  var breadcrumbRepositoryText: String? {
+    guard selectedSession != nil else { return nil }
+    return selectedFolder.flatMap { workspaceRoots?.repository(of: $0) }
+  }
+
+  var breadcrumbWorkspaceText: String? {
+    selectedSession.map(rowName)
+  }
+
+  var compareFunctionsHelpText: String {
+    if selectedSession == nil { return "Choose a workspace to compare its functions" }
+    if baselineCompletedSeq == nil {
+      return "Available once Slipstream has recorded where this workspace started"
+    }
+    return "Compare each function before and after this session's changes"
   }
 
   var selectedCaptureStatus: CaptureStatus? {
@@ -552,6 +562,8 @@ final class ChangeStreamPageModel: ViewModel {
   var sidebarGroups: [SidebarGroup] {
     SidebarGroup.groups(pickerSessions, roots: workspaceRoots)
   }
+
+  var isOpenInShown: Bool { selectedSession != nil }
 
   var canCompareFunctions: Bool {
     !isFunctionDemoVisible && selectedSession != nil && baselineCompletedSeq != nil

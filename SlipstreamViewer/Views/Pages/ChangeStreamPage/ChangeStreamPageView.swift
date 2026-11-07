@@ -400,7 +400,7 @@ struct ChangeStreamPageView: View {
         .help(model.sidebarToggleHelpText)
     }
     ToolbarItem(placement: .navigation) {
-      Text(model.toolbarTitleText)
+      Text(model.breadcrumbWorkspaceText ?? "")
     }
     if model.isWorkspaceBusy {
       ToolbarItem(placement: .navigation) {
