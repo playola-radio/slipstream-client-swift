@@ -1,0 +1,52 @@
+{
+  "source": "design/slipstream.pen, frames XIjZj (default), SoZho (sidebar hidden), E5HiR4 (no workspace), mmNKj (PR preview, reference only)",
+  "header": { "height": 40, "borderBottom": { "width": 1, "color": "#2A3640" } },
+  "sidebarPart": {
+    "width": 260, "fill": "#0E1318", "borderRight": { "width": 1, "color": "#2A3640" },
+    "paddingHorizontal": 14, "gap": 18,
+    "children": [
+      { "name": "Window buttons", "note": "system traffic lights; 12pt circles, 8pt apart" },
+      { "name": "Sidebar toggle", "icon": "lucide panel-left (SF Symbol sidebar.left)", "size": 15, "color": "#8B9AA6" }
+    ]
+  },
+  "chatPart": {
+    "width": "chat column width", "fill": "#12171D",
+    "padding": { "leading": 16, "trailing": 12 }, "gap": 8,
+    "sidebarHiddenPadding": { "leading": 14, "trailing": 12 },
+    "sidebarHiddenLeading": ["Window buttons", { "name": "Sidebar toggle", "paddingHorizontal": 10 }],
+    "breadcrumb": {
+      "gap": 7,
+      "children": [
+        { "name": "Repo icon", "icon": "lucide folder-git-2", "size": 13, "color": "#8B9AA6" },
+        { "name": "Repo", "font": "Geist", "size": 12.5, "weight": "regular", "color": "#8B9AA6" },
+        { "name": "Separator", "icon": "lucide chevron-right", "size": 12, "color": "#5C6B77" },
+        { "name": "Branch icon", "icon": "lucide git-branch", "size": 13, "color": "#8B9AA6" },
+        { "name": "Workspace", "font": "Geist", "size": 12.5, "weight": "medium (500)", "color": "#E6EDF3" }
+      ]
+    },
+    "openIn": {
+      "height": 24, "cornerRadius": 5, "border": { "width": 1, "color": "#2A3640" },
+      "children": [
+        { "name": "App icon", "note": "the chosen app's real icon", "size": 14, "paddingHorizontal": 6 },
+        { "name": "Divider", "width": 1, "color": "#2A3640" },
+        { "name": "Chevron", "icon": "lucide chevron-down", "size": 12, "color": "#8B9AA6", "paddingHorizontal": 5 }
+      ]
+    }
+  },
+  "rightPart": {
+    "width": "fills the rest", "fill": "#191F27", "borderLeft": { "width": 1, "color": "#2A3640" },
+    "paddingHorizontal": 16, "gap": 10, "children": []
+  },
+  "paneSwitchRow": {
+    "compareFunctions": {
+      "position": "trailing end, after a spacer", "height": 40, "paddingHorizontal": 8, "gap": 6,
+      "icon": { "name": "lucide git-compare", "size": 14, "color": "#8B9AA6" },
+      "label": { "text": "Compare functions", "font": "Geist", "size": 12, "color": "#8B9AA6" }
+    }
+  },
+  "prPreviewReferenceOnly": {
+    "prChip": { "height": 22, "cornerRadius": 4, "border": "#2A3640", "paddingHorizontal": 7, "gap": 5, "label": { "font": "Geist Mono", "size": 11.5, "color": "#8B9AA6" }, "icon": "lucide arrow-up-right 11" },
+    "status": { "font": "Geist", "size": 12.5, "weight": "medium (500)", "color": "#E6EDF3" },
+    "commitAndPush": { "height": 24, "cornerRadius": 5, "fill": "#2B3540", "paddingHorizontal": 9, "gap": 6, "icon": "lucide git-pull-request-arrow 13", "label": { "font": "Geist", "size": 12, "weight": "medium (500)", "color": "#E6EDF3" } }
+  }
+}
