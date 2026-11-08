@@ -3,6 +3,9 @@
 Notable changes to Slipstream for macOS. Release notes describe what changes for
 the person using the app, not how it was built.
 
+Don't edit this file in a pull request; add a file to `changelog.d/` (see
+[changelog.d/README.md](changelog.d/README.md)).
+
 ## [Unreleased]
 
 ### Changes

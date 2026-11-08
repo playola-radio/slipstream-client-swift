@@ -39,6 +39,8 @@ jobs:
           for script in packaging/*.sh; do
             bash -n "$script"
           done
+      - name: Release notes in changelog.d/ are well formed
+        run: ruby packaging/release_notes.rb notes CHANGELOG.md changelog.d
       - name: Checked-in version has release notes
         run: |
           version="$(sed -n 's/.*MARKETING_VERSION: "\([0-9][0-9.]*\)".*/\1/p' project.yml)"
