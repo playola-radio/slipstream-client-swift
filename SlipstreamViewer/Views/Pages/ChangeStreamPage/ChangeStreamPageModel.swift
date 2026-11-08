@@ -965,7 +965,7 @@ final class ChangeStreamPageModel: ViewModel {
     repeat {
       isReloadQueued = false
       await loadSessions()
-    } while isReloadQueued
+    } while isReloadQueued && isShown
   }
 
   private func loadSessions(preferring preferredRoot: String? = nil) async {

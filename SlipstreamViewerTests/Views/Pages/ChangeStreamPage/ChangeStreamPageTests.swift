@@ -283,6 +283,23 @@ struct ChangeStreamPageTests {
     #expect(daemon.follows.isEmpty)
   }
 
+  @Test func aReloadQueuedBeforeTheWindowClosesStartsNothing() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setCaptures([Fixture.capture()])
+    daemon.setSessions([SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)])
+    let model = makeModel(daemon: daemon)
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    await model.reloadShortcutPressed()
+    model.viewDisappeared()
+    open.yield()
+    open.yield()
+    await appeared.value
+    #expect(model.selectedSession == nil)
+    #expect(daemon.follows.isEmpty)
+  }
+
   @Test func singleSessionIsSelectedAutomatically() async {
     let model = await connectedModel()
     #expect(model.selectedSession?.label == "/tmp/project · started Jan 1 00:00:00")
