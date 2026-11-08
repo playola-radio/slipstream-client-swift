@@ -2430,17 +2430,6 @@ extension ChangeStreamPageTests {
     return model
   }
 
-  @Test func aFailedReloadKeepsTheListAndSelection() async {
-    let model = await liveModel()
-    defer { model.viewDisappeared() }
-    fake.setSessionsError(URLError(.cannotConnectToHost))
-    await model.reloadShortcutPressed()
-    expectNoDifference(model.sessions.ids, [Fixture.session])
-    expectNoDifference(model.selectedSession?.id, Fixture.session)
-    expectNoDifference(model.sessionsError, nil)
-    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
-  }
-
   @Test func aReloadAskedForDuringAReloadRunsOnceAfterIt() async {
     let (gate, open) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionsGate: gate)
@@ -2812,13 +2801,38 @@ extension ChangeStreamPageTests {
     expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session])
   }
 
-  @Test func aFailedRefreshStopsClaimingTheLastCheckedState() async {
+  @Test func aFailedReloadKeepsTheListButStopsClaimingTheLastCheckedState() async {
     let model = await liveModel()
     defer { model.viewDisappeared() }
     fake.setSessionsError(URLError(.cannotConnectToHost))
     await model.reloadShortcutPressed()
+    expectNoDifference(model.sessions.ids, [Fixture.session])
+    expectNoDifference(model.selectedSession?.id, Fixture.session)
+    expectNoDifference(model.sessionsError, nil)
     expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
     #expect(model.captureCheckedText == nil)
+  }
+
+  @Test func aFailedReloadOfAnEmptyListSaysSo() async {
+    fake.setCaptures([])
+    fake.setSessions([])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    fake.setSessionsError(URLError(.cannotConnectToHost))
+    await model.reloadShortcutPressed()
+    expectNoDifference(model.sessionsError, "Couldn't reach the Slipstream daemon")
+  }
+
+  @Test func aPausedRowOffersNoActionWhileItsStateIsUnknown() async throws {
+    listCaptures(Fixture.capture(.stopped, reason: "detached", session: "kept", root: "/work/kept", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    fake.setSessionsError(URLError(.cannotConnectToHost))
+    await model.reloadShortcutPressed()
+    let row = try #require(model.sessions[id: "kept"])
+    #expect(!model.isRowActionAvailable(row))
   }
 
   @Test func aWorkspaceThatIsNotRecordingIsFollowedOnceItRecords() async {

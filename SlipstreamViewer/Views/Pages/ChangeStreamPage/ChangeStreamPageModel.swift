@@ -363,9 +363,10 @@ final class ChangeStreamPageModel: ViewModel {
     captureStatus(of: session).captureDot == .recording && !isWorking(session)
   }
 
-  /// Pause or Record applies: the row has a capture that isn't archived or stopped for good.
+  /// Pause or Record applies: the row has a capture, its state is known, and it isn't archived or stopped for good.
   func isRowActionAvailable(_ session: SessionOption) -> Bool {
-    session.capture != nil && !captureStatus(of: session).isInactive
+    guard case .available = captureAvailability, session.capture != nil else { return false }
+    return !captureStatus(of: session).isInactive
   }
 
   /// On hover or focus, and throughout its operation.
@@ -1098,7 +1099,7 @@ final class ChangeStreamPageModel: ViewModel {
         if refresh == refreshGeneration { captureRefreshFailed() }
         return
       }
-      if hasLoadedSessions && sessionsError == nil {
+      if !sessions.isEmpty && sessionsError == nil {
         captureRefreshFailed()
         return
       }
