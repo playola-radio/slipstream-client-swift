@@ -11,7 +11,7 @@ module ReleaseNotes
   UNRELEASED_HEADING = /\A## \[Unreleased\]\s*\z/
   OPS_HEADING = /\A### Ops\s*\z/
   SECTIONS = { "### Changes" => :changes, "### Ops" => :ops }.freeze
-  FRAGMENTS_README = "README.md"
+  NOT_FRAGMENTS = ["README.md", ".DS_Store"].freeze
   UNRELEASED_COMMENT =
     "<!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->"
   USAGE = <<~TEXT.freeze
@@ -56,7 +56,7 @@ module ReleaseNotes
     text.lines.each_with_index do |raw, index|
       line = raw.rstrip
       stripped = line.strip
-      if stripped.empty? || (stripped.start_with?("<!--") && stripped.end_with?("-->"))
+      if stripped.empty? || (stripped.start_with?("<!--") && stripped.index("-->") == stripped.length - 3)
         bullet = nil
       elsif SECTIONS.key?(line)
         section = SECTIONS[line]
@@ -64,7 +64,7 @@ module ReleaseNotes
       elsif line.start_with?("- ") && !line[2..].strip.empty?
         bullet = [line]
         notes[section] << bullet
-      elsif bullet && line.start_with?(" ")
+      elsif bullet && line.start_with?(" ") && !stripped.start_with?("#")
         bullet << line
       else
         raise Error, "#{source}:#{first_line + index}: expected ### Changes, ### Ops, " \
@@ -82,10 +82,14 @@ module ReleaseNotes
     raise Error, "the changelog has no [Unreleased] section" unless start
 
     boundary = section_end(lines, start)
+    if boundary < lines.length && !RELEASE_HEADING.match?(lines[boundary])
+      raise Error, "CHANGELOG.md:#{boundary + 1}: [Unreleased] must be followed by a ## [X.Y.Z] - YYYY-MM-DD " \
+                   "heading, got #{lines[boundary].strip.inspect}"
+    end
     notes = parse_notes(lines[(start + 1)...boundary].join, "CHANGELOG.md", start + 2)
     fragments.each do |path, text|
       fragment = parse_notes(text, path)
-      raise Error, "#{path}: has no notes; delete it if the change needs none" if fragment.values.all?(&:empty?)
+      raise Error, "#{path}:1: has no notes; delete it if the change needs none" if fragment.values.all?(&:empty?)
 
       notes.each_key { |section| notes[section].concat(fragment[section]) }
     end
@@ -111,7 +115,6 @@ module ReleaseNotes
     end
 
     notes = collect(changelog, fragments)
-    raise Error, "there is nothing to release under [Unreleased] or in changelog.d/" if notes.values.all?(&:empty?)
     raise Error, "there are no ### Changes notes to show in the update dialog" if notes[:changes].empty?
 
     start = lines.index { |line| UNRELEASED_HEADING.match?(line) }
@@ -126,18 +129,13 @@ module ReleaseNotes
 
   # Every note file in the directory, sorted, never its README. Any other file is
   # an error rather than a note that would be skipped.
-  def self.fragment_paths(directory)
-    names = Dir.children(directory).reject { |name| name.start_with?(".") || name == FRAGMENTS_README }
-    names.sort.map do |name|
+  def self.read_fragments(directory)
+    (Dir.children(directory) - NOT_FRAGMENTS).sort.to_h do |name|
       path = File.join(directory, name)
       raise Error, "#{path}: changelog.d/ holds only .md note files" unless name.end_with?(".md") && File.file?(path)
 
-      path
+      [path, File.read(path)]
     end
-  end
-
-  def self.read_fragments(directory)
-    fragment_paths(directory).to_h { |path| [path, File.read(path)] }
   end
 
   def self.set_description(item, notes)

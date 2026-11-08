@@ -121,7 +121,7 @@ class ReleaseNotesTest < Minitest::Test
       ReleaseNotes.promote(ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), "2.2.0", "2026-10-02")
     end
 
-    assert_match(/nothing to release/, error.message)
+    assert_match(/no ### Changes notes/, error.message)
   end
 
   def test_promote_puts_unreleased_bullets_ahead_of_fragments_and_keeps_wrapping
@@ -215,7 +215,31 @@ class ReleaseNotesTest < Minitest::Test
       ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "### Changes\n\n<!-- nothing yet -->\n")
     end
 
-    assert_match(%r{changelog\.d/a\.md: has no notes}, error.message)
+    assert_match(%r{changelog\.d/a\.md:1: has no notes}, error.message)
+  end
+
+  def test_rejects_text_between_two_comments
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "- Fine.\n<!-- a --> - Lost. <!-- b -->\n")
+    end
+
+    assert_match(%r{\Achangelog\.d/a\.md:2: }, error.message)
+  end
+
+  def test_rejects_an_indented_heading_instead_of_continuing_the_bullet
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "- Visible.\n  ### Ops\n- Secret step.\n")
+    end
+
+    assert_match(%r{\Achangelog\.d/a\.md:2: }, error.message)
+  end
+
+  def test_rejects_a_stray_heading_that_would_end_unreleased_early
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG.sub("- Work in progress.\n", "- Work in progress.\n## Changes\n- Hidden.\n"), {})
+    end
+
+    assert_match(/\ACHANGELOG\.md:6: /, error.message)
   end
 
   def test_rejects_a_stray_line_under_unreleased_naming_its_changelog_line
