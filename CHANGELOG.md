@@ -11,6 +11,10 @@ the person using the app, not how it was built.
   **Open in** close at hand.
 - Reload workspaces from **View > Reload Workspaces** with **⌘R**; Slipstream also
   reloads when it becomes active again.
+- Hide or show either side of the window from the toolbar or the **View** menu:
+  the workspaces sidebar with **⌘B**, the change stream and terminals with **⌥⌘B**.
+- Drag the edge of the sidebar or the chat to resize it; double-click the edge to
+  put it back. Slipstream remembers the sizes and what's hidden.
 
 ## [0.2.0] - 2026-11-06
 

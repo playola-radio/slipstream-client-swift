@@ -24,6 +24,9 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Shared(.replyDrafts) var replyDrafts
   @ObservationIgnored @Shared(.fontSizeStep) var fontSizeStep
   @ObservationIgnored @Shared(.isSidebarHidden) var isSidebarHidden
+  @ObservationIgnored @Shared(.isRightPaneHidden) var isRightPaneHidden
+  @ObservationIgnored @Shared(.sidebarWidth) var sidebarWidth
+  @ObservationIgnored @Shared(.chatWidth) var chatWidth
 
   // MARK: - Initialization
 
@@ -106,6 +109,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
   private(set) var rightPane: RightPane = .stream
+  private var resizeStartWidth: CGFloat?
   private(set) var isFunctionDemoVisible: Bool
   private(set) var pinnedHeadings: Set<Seq> = []
   private(set) var fileHeaderOffsets: [Seq: CGFloat] = [:]
@@ -157,7 +161,8 @@ final class ChangeStreamPageModel: ViewModel {
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
 
-  var sidebarToggleHelpText: String { isSidebarHidden ? "Show sidebar" : "Hide sidebar" }
+  var sidebarToggleHelpText: String { isSidebarHidden ? "Show Sidebar" : "Hide Sidebar" }
+  var rightPaneToggleHelpText: String { isRightPaneHidden ? "Show Right Panel" : "Hide Right Panel" }
 
   func rightPaneNote(_ pane: RightPane) -> String? {
     pane == .stream ? paneSubtitle : nil
@@ -288,28 +293,34 @@ final class ChangeStreamPageModel: ViewModel {
   // MARK: - View Helpers
 
   var isSidebarShown: Bool { !isSidebarHidden }
+  var isRightPaneShown: Bool { !isRightPaneHidden }
 
-  /// Always leaves room for the sidebar, so hiding it gives the space to the stream. With the
-  /// sidebar shown, only a screen too narrow for all three columns takes the chat under its
-  /// minimum: the chat gives way before the stream does.
+  var sidebarColumnWidth: CGFloat {
+    min(max(sidebarWidth, DesignTokens.Workspace.sidebarMinWidth), DesignTokens.Workspace.sidebarMaxWidth)
+  }
+
+  /// The chat's dragged width, until the window is too narrow for it: then the chat gives way
+  /// before the stream does. Only a screen too narrow for all three columns takes the chat under
+  /// its minimum.
   var chatColumnWidth: CGFloat {
     min(
-      DesignTokens.Workspace.chatWidth,
+      chatWidth,
       max(
         isSidebarShown ? DesignTokens.Workspace.chatNarrowScreenMinWidth : DesignTokens.Workspace.chatMinWidth,
-        viewport.width - DesignTokens.Workspace.sidebarWidth - DesignTokens.FeedPane.width))
+        chatMaxWidth))
   }
 
   /// Never past the screen's visible width.
   func windowMinWidth(visibleScreenWidth: CGFloat) -> CGFloat {
     let width = isFunctionDemoVisible
       ? DesignTokens.FunctionMap.demoWorkspaceMinWidth
-      : DesignTokens.Workspace.chatMinWidth + DesignTokens.FeedPane.width
-        + (isSidebarShown ? DesignTokens.Workspace.sidebarWidth : 0)
+      : DesignTokens.Workspace.chatMinWidth
+        + (isRightPaneShown ? DesignTokens.FeedPane.width : 0)
+        + (isSidebarShown ? sidebarColumnWidth : 0)
     return min(width, visibleScreenWidth)
   }
 
-  var isStreamShown: Bool { rightPane == .stream }
+  var isStreamShown: Bool { isRightPaneShown && rightPane == .stream }
 
   func isSelected(_ pane: RightPane) -> Bool {
     rightPane == pane
@@ -776,6 +787,45 @@ final class ChangeStreamPageModel: ViewModel {
     $isSidebarHidden.withLock { $0.toggle() }
   }
 
+  func rightPaneToggleTapped() {
+    $isRightPaneHidden.withLock { $0.toggle() }
+    if isRightPaneHidden {
+      replyCollapsed()
+    } else if isStreamShown {
+      follow.jumpToLatest()
+    }
+  }
+
+  /// `translation` is how far the drag has moved since it began.
+  func sidebarEdgeDragged(by translation: CGFloat) {
+    let start = resizeStartWidth ?? sidebarColumnWidth
+    resizeStartWidth = start
+    let room = viewport.width - DesignTokens.Workspace.chatMinWidth
+      - (isRightPaneShown ? DesignTokens.FeedPane.width : 0)
+    let width = min(start + translation, DesignTokens.Workspace.sidebarMaxWidth, max(room, start))
+    $sidebarWidth.withLock { $0 = max(width, DesignTokens.Workspace.sidebarMinWidth) }
+  }
+
+  /// `translation` is how far the drag has moved since it began.
+  func chatEdgeDragged(by translation: CGFloat) {
+    let start = resizeStartWidth ?? chatColumnWidth
+    resizeStartWidth = start
+    let width = min(start + translation, max(chatMaxWidth, start))
+    $chatWidth.withLock { $0 = max(width, DesignTokens.Workspace.chatMinWidth) }
+  }
+
+  func edgeDragEnded() {
+    resizeStartWidth = nil
+  }
+
+  func sidebarEdgeDoubleClicked() {
+    $sidebarWidth.withLock { $0 = DesignTokens.Workspace.sidebarWidth }
+  }
+
+  func chatEdgeDoubleClicked() {
+    $chatWidth.withLock { $0 = DesignTokens.Workspace.chatWidth }
+  }
+
   func rightPaneSelected(_ pane: RightPane) {
     guard pane != rightPane else { return }
     rightPane = pane
@@ -787,7 +837,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// ⌘W closes the focused terminal's tab while Terminals shows, otherwise the chat's.
   func closeShortcutPressed() async {
-    if rightPane == .terminals, terminals.hasKeyboardFocus {
+    if isRightPaneShown, rightPane == .terminals, terminals.hasKeyboardFocus {
       await terminals.closeShortcutPressed()
     } else {
       await chat.closeShortcutPressed()
@@ -1531,6 +1581,11 @@ final class ChangeStreamPageModel: ViewModel {
     formatter.timeZone = timeZone
     formatter.dateFormat = "HH:mm:ss"
     return formatter.string(from: Date(timeIntervalSince1970: Double(milliseconds) / 1000))
+  }
+
+  /// The widest the chat can be with the stream at its minimum beside it.
+  private var chatMaxWidth: CGFloat {
+    viewport.width - (isSidebarShown ? sidebarColumnWidth : 0) - DesignTokens.FeedPane.width
   }
 
   private func replyCollapsed() {

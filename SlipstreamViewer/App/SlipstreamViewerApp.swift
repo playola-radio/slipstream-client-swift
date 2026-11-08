@@ -56,6 +56,7 @@ struct SlipstreamViewerApp: App {
     .commands {
       UpdaterCommands(model: updater)
       ReloadCommands()
+      PaneCommands()
       FontSizeCommands(model: fontSize)
     }
   }

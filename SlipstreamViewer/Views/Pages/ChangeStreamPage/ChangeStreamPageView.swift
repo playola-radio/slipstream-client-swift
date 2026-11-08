@@ -20,11 +20,21 @@ struct ChangeStreamPageView: View {
     HStack(spacing: 0) {
       if model.isSidebarShown {
         WorkspaceSidebarView(model: model)
-          .frame(width: DesignTokens.Workspace.sidebarWidth)
+          .frame(width: model.sidebarColumnWidth)
+          .transition(.move(edge: .leading))
+        resizeHandle(dragged: model.sidebarEdgeDragged, doubleClicked: model.sidebarEdgeDoubleClicked)
       }
-      detailPane.frame(width: model.chatColumnWidth)
-      rightPane.frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
+      if model.isRightPaneShown {
+        detailPane.frame(width: model.chatColumnWidth)
+        resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
+        rightPane
+          .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
+          .transition(.move(edge: .trailing))
+      } else {
+        detailPane.frame(maxWidth: .infinity)
+      }
     }
+    .clipped()
     .frame(
       minWidth: model.windowMinWidth(visibleScreenWidth: NSScreen.main?.visibleFrame.width ?? .infinity),
       minHeight: functionChangesDemo == nil ? 480 : DesignTokens.FunctionMap.demoWorkspaceMinHeight)
@@ -137,6 +147,26 @@ struct ChangeStreamPageView: View {
         y: DesignTokens.Ask.shadowY)
       .offset(x: model.questionPlacement.modal.minX, y: model.questionPlacement.modal.minY)
     }
+  }
+
+  /// Straddles the edge between two columns: zero width in the row, with a wider grab area.
+  private func resizeHandle(
+    dragged: @escaping (CGFloat) -> Void, doubleClicked: @escaping () -> Void
+  ) -> some View {
+    Color.clear
+      .frame(width: 0)
+      .overlay {
+        Color.clear
+          .frame(width: DesignTokens.Workspace.resizeHandleWidth)
+          .contentShape(Rectangle())
+          .pointerStyle(.columnResize)
+          .onTapGesture(count: 2, perform: doubleClicked)
+          .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+              .onChanged { dragged($0.translation.width) }
+              .onEnded { _ in model.edgeDragEnded() })
+      }
+      .zIndex(1)
   }
 
   private var rightPane: some View {
@@ -420,7 +450,9 @@ struct ChangeStreamPageView: View {
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
-      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") { model.sidebarToggleTapped() }
+      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") {
+        withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.sidebarToggleTapped() }
+      }
         .labelStyle(.iconOnly)
         .font(.system(size: DesignTokens.WindowHeader.toggleSize))
         .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
@@ -444,6 +476,16 @@ struct ChangeStreamPageView: View {
       }
       .withoutGlass()
     }
+    ToolbarItem {
+      Button(model.rightPaneToggleHelpText, systemImage: "sidebar.right") {
+        withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.rightPaneToggleTapped() }
+      }
+      .labelStyle(.iconOnly)
+      .font(.system(size: DesignTokens.WindowHeader.toggleSize))
+      .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
+      .help(model.rightPaneToggleHelpText)
+    }
+    .withoutGlass()
   }
 
   private var breadcrumb: some View {

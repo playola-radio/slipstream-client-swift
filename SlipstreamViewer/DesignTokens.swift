@@ -628,9 +628,13 @@ enum DesignTokens {
 
   enum Workspace {
     static let sidebarWidth: CGFloat = 260
+    static let sidebarMinWidth: CGFloat = 200
+    static let sidebarMaxWidth: CGFloat = 420
     static let chatWidth: CGFloat = 720
     static let chatMinWidth: CGFloat = 420
     static let chatNarrowScreenMinWidth: CGFloat = 320
+    static let resizeHandleWidth: CGFloat = 8
+    static let paneToggleAnimation = Animation.snappy(duration: 0.2)
   }
 
   enum Sidebar {
