@@ -93,6 +93,8 @@ class ReleaseNotesTest < Minitest::Test
 
       ## [Unreleased]
 
+      #{ReleaseNotes::UNRELEASED_COMMENT}
+
       ## [2.1.0] - 2026-10-01
 
       - Work in progress.
@@ -119,7 +121,109 @@ class ReleaseNotesTest < Minitest::Test
       ReleaseNotes.promote(ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), "2.2.0", "2026-10-02")
     end
 
-    assert_match(/nothing under \[Unreleased\]/, error.message)
+    assert_match(/nothing to release/, error.message)
+  end
+
+  def test_promote_puts_unreleased_bullets_ahead_of_fragments_and_keeps_wrapping
+    changelog = CHANGELOG.sub("- Work in progress.\n", <<~MARKDOWN)
+      ### Changes
+
+      - From a branch opened before changelog.d/, wrapped
+        onto a second line.
+    MARKDOWN
+    fragments = {
+      "changelog.d/a.md" => "### Changes\n\n- First fragment.\n\n### Ops\n\n- Add the release secret.\n",
+      "changelog.d/b.md" => "<!-- a note to the releaser -->\n### Changes\n\n- Second fragment.\n",
+    }
+
+    promoted = ReleaseNotes.promote(changelog, "2.1.0", "2026-10-01", fragments)
+
+    assert_equal <<~MARKDOWN.strip, promoted[/## \[2\.1\.0\].*?(?=\n## \[2\.0\.0\])/m].strip
+      ## [2.1.0] - 2026-10-01
+
+      - From a branch opened before changelog.d/, wrapped
+        onto a second line.
+      - First fragment.
+      - Second fragment.
+
+      ### Ops
+
+      - Add the release secret.
+    MARKDOWN
+  end
+
+  def test_promote_releases_fragments_when_unreleased_is_empty
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    promoted = ReleaseNotes.promote(changelog, "2.2.0", "2026-10-02", "changelog.d/a.md" => "### Changes\n\n- New.\n")
+
+    assert_equal "- New.", ReleaseNotes.extract(promoted, "2.2.0")
+  end
+
+  def test_extract_leaves_ops_out_of_the_update_notes
+    promoted = ReleaseNotes.promote(
+      CHANGELOG, "2.1.0", "2026-10-01", "changelog.d/a.md" => "### Ops\n\n- Add the release secret.\n"
+    )
+
+    assert_equal "- Work in progress.", ReleaseNotes.extract(promoted, "2.1.0")
+  end
+
+  def test_promote_rejects_a_release_with_only_ops_notes
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.promote(changelog, "2.2.0", "2026-10-02", "changelog.d/a.md" => "### Ops\n\n- Add the secret.\n")
+    end
+
+    assert_match(/no ### Changes notes/, error.message)
+  end
+
+  def test_rejects_an_unexpected_line_in_a_fragment_naming_file_and_line
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "### Changes\n\n- Fine.\nStray text.\n")
+    end
+
+    assert_match(%r{\Achangelog\.d/a\.md:4: }, error.message)
+  end
+
+  def test_rejects_an_unknown_heading
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "### Added\n\n- Something.\n")
+    end
+
+    assert_match(%r{\Achangelog\.d/a\.md:1: }, error.message)
+  end
+
+  def test_rejects_an_empty_bullet
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "### Changes\n\n- \n")
+    end
+
+    assert_match(%r{\Achangelog\.d/a\.md:3: }, error.message)
+  end
+
+  def test_rejects_an_indented_line_that_follows_no_bullet
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "### Changes\n\n  not a bullet\n")
+    end
+
+    assert_match(%r{\Achangelog\.d/a\.md:3: }, error.message)
+  end
+
+  def test_rejects_a_fragment_with_no_notes
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG, "changelog.d/a.md" => "### Changes\n\n<!-- nothing yet -->\n")
+    end
+
+    assert_match(%r{changelog\.d/a\.md: has no notes}, error.message)
+  end
+
+  def test_rejects_a_stray_line_under_unreleased_naming_its_changelog_line
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.collect(CHANGELOG.sub("- Work in progress.", "Work in progress."), {})
+    end
+
+    assert_match(/\ACHANGELOG\.md:5: /, error.message)
   end
 
   def test_promote_rejects_a_version_that_is_already_released
@@ -146,15 +250,69 @@ class ReleaseNotesTest < Minitest::Test
     assert_match(/YYYY-MM-DD/, error.message)
   end
 
-  def test_promote_cli_rewrites_the_changelog_in_place
+  def test_promote_cli_rolls_fragments_into_the_changelog_and_deletes_only_them
     Dir.mktmpdir do |directory|
       changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
       File.write(changelog, CHANGELOG)
+      File.write(File.join(fragments, "README.md"), "# Not a note\n")
+      File.write(File.join(fragments, "new.md"), "### Changes\n\n- New.\n")
 
-      _stdout, stderr, status = run_cli("promote", changelog, "2.1.0", "2026-10-01")
+      _stdout, stderr, status = run_cli("promote", changelog, fragments, "2.1.0", "2026-10-01")
 
       assert status.success?, stderr
-      assert_equal ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"), File.read(changelog)
+      assert_equal "- Work in progress.\n- New.", ReleaseNotes.extract(File.read(changelog), "2.1.0")
+      assert_equal ["README.md"], Dir.children(fragments)
+    end
+  end
+
+  def test_promote_cli_changes_nothing_when_a_fragment_is_malformed
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
+      File.write(changelog, CHANGELOG)
+      File.write(File.join(fragments, "good.md"), "### Changes\n\n- Good.\n")
+      File.write(File.join(fragments, "bad.md"), "Not a bullet.\n")
+
+      _stdout, stderr, status = run_cli("promote", changelog, fragments, "2.1.0", "2026-10-01")
+
+      refute status.success?
+      assert_match(%r{bad\.md:1: }, stderr)
+      assert_equal CHANGELOG, File.read(changelog)
+      assert_equal ["bad.md", "good.md"], Dir.children(fragments).sort
+    end
+  end
+
+  def test_promote_cli_rejects_a_file_that_is_not_a_markdown_note
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
+      File.write(changelog, CHANGELOG)
+      File.write(File.join(fragments, "note.txt"), "- New.\n")
+
+      _stdout, stderr, status = run_cli("promote", changelog, fragments, "2.1.0", "2026-10-01")
+
+      refute status.success?
+      assert_match(/note\.txt/, stderr)
+      assert_equal CHANGELOG, File.read(changelog)
+    end
+  end
+
+  def test_notes_cli_prints_what_promote_would_release
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
+      File.write(changelog, CHANGELOG)
+      File.write(File.join(fragments, "new.md"), "### Changes\n\n- New.\n")
+
+      stdout, stderr, status = run_cli("notes", changelog, fragments)
+
+      assert status.success?, stderr
+      assert_equal "- Work in progress.\n- New.\n", stdout
     end
   end
 
@@ -168,6 +326,9 @@ class ReleaseNotesTest < Minitest::Test
       FileUtils.cp(File.expand_path("../../fastlane/Fastfile", __dir__), File.join(directory, "fastlane/Fastfile"))
       FileUtils.cp(SCRIPT, File.join(directory, "packaging/release_notes.rb"))
       File.write(File.join(directory, "CHANGELOG.md"), CHANGELOG)
+      FileUtils.mkdir_p(File.join(directory, "changelog.d"))
+      File.write(File.join(directory, "changelog.d/README.md"), "# Not a note\n")
+      File.write(File.join(directory, "changelog.d/new.md"), "### Changes\n\n- New.\n")
       run_git(directory, "init", "--quiet")
       run_git(directory, "config", "user.name", "Release Test")
       run_git(directory, "config", "user.email", "release-test@example.com")
@@ -180,12 +341,16 @@ class ReleaseNotesTest < Minitest::Test
 
       refute status.success?
       assert_empty run_git(directory, "status", "--short")
+      assert File.exist?(File.join(directory, "changelog.d/new.md"))
 
       run_git(directory, "config", "commit.gpgSign", "false")
       _stdout, stderr, status = Open3.capture3(BUNDLE_ENV, "bundle", "exec", "fastlane", "mac", "bump", "version:2.1.0", chdir: directory)
 
       assert status.success?, stderr
       assert_empty run_git(directory, "status", "--short")
+      assert_equal ["README.md"], Dir.children(File.join(directory, "changelog.d"))
+      assert_equal "- Work in progress.\n- New.",
+        ReleaseNotes.extract(File.read(File.join(directory, "CHANGELOG.md")), "2.1.0")
     end
   end
 

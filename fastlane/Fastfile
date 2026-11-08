@@ -3,16 +3,15 @@ default_platform(:mac)
 platform :mac do
   # Bump the version single source (project.yml) and commit, so `release`
   # starts from a clean tree with a never-reused CFBundleVersion. A new marketing
-  # version also moves CHANGELOG.md's [Unreleased] notes under a dated heading.
+  # version also moves CHANGELOG.md's [Unreleased] notes and the changelog.d/ notes
+  # under a dated heading, deleting the changelog.d/ files it moved.
   #   bundle exec fastlane mac bump                 # build integer only
   #   bundle exec fastlane mac bump version:0.2.0   # + marketing version
   desc "Bump MARKETING_VERSION / integer CURRENT_PROJECT_VERSION, commit"
   lane :bump do |options|
     ensure_git_status_clean
     project_yml = File.expand_path("../project.yml", __dir__)
-    original_project_yml = File.read(project_yml)
-    original_changelog = File.read(File.expand_path("../CHANGELOG.md", __dir__)) if options[:version]
-    text = original_project_yml
+    text = File.read(project_yml)
     current_build = text[/CURRENT_PROJECT_VERSION:\s*"(\d+)"/, 1]
     UI.user_error!("CURRENT_PROJECT_VERSION (integer) not found in project.yml") unless current_build
     new_build = (current_build.to_i + 1).to_s
@@ -23,8 +22,8 @@ platform :mac do
         UI.user_error!("version must be semver X.Y.Z") unless new_marketing =~ /\A\d+\.\d+\.\d+\z/
         text = text.sub(/MARKETING_VERSION:\s*"[^"]*"/, %(MARKETING_VERSION: "#{new_marketing}"))
         # Before project.yml is written, so a changelog problem leaves the tree clean.
-        sh("cd .. && ruby packaging/release_notes.rb promote CHANGELOG.md '#{new_marketing}' '#{Time.now.strftime("%Y-%m-%d")}'")
-        sh("cd .. && git add CHANGELOG.md")
+        sh("cd .. && ruby packaging/release_notes.rb promote CHANGELOG.md changelog.d '#{new_marketing}' '#{Time.now.strftime("%Y-%m-%d")}'")
+        sh("cd .. && git add CHANGELOG.md changelog.d")
       end
       File.write(project_yml, text)
       marketing = text[/MARKETING_VERSION:\s*"([^"]*)"/, 1]
@@ -32,9 +31,8 @@ platform :mac do
       sh("cd .. && git add project.yml")
       sh(%(cd .. && git commit -m "chore: bump to #{marketing} (#{new_build})"))
     rescue StandardError
-      File.write(project_yml, original_project_yml)
-      File.write(File.expand_path("../CHANGELOG.md", __dir__), original_changelog) if original_changelog
-      sh("cd .. && git restore --staged project.yml CHANGELOG.md")
+      # The tree was clean, so HEAD is the state to return to (deleted notes included).
+      sh("cd .. && git restore --source=HEAD --staged --worktree project.yml CHANGELOG.md changelog.d")
       raise
     end
     UI.success("Bumped to #{marketing} (#{new_build}). Merging develop to main publishes it.")
