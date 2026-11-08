@@ -5,6 +5,13 @@ the person using the app, not how it was built.
 
 ## [Unreleased]
 
+### Changes
+
+- See the workspace name in a slimmer window header, with the sidebar toggle and
+  **Open in** close at hand.
+- Reload workspaces from **View > Reload Workspaces** with **⌘R**; Slipstream also
+  reloads when it becomes active again.
+
 ## [0.2.0] - 2026-11-06
 
 - Pause and resume recording a workspace from its row in the sidebar. Paused

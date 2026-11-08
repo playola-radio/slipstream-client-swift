@@ -121,6 +121,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskCount = 0
   @ObservationIgnored private var watchGeneration = 0
   @ObservationIgnored private var userSessionSelectionGeneration = 0
+  @ObservationIgnored private var isReloading = false
+  @ObservationIgnored private var isReloadQueued = false
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
   @ObservationIgnored private var archivedSessionIDs: Set<String> = []
@@ -174,7 +176,6 @@ final class ChangeStreamPageModel: ViewModel {
     return text + " Claude's current reply will be stopped."
   }
 
-  let refreshButtonText = "Refresh"
   let compareFunctionsText = "Compare functions"
   let jumpToLatestText = "Jump to latest ↓"
   let captureStripLabel = "CAPTURE"
@@ -212,11 +213,21 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
-  var toolbarTitleText: String {
-    guard let selectedSession else { return "Slipstream" }
-    let name = rowName(selectedSession)
-    guard let repository = selectedFolder.flatMap({ workspaceRoots?.repository(of: $0) }) else { return name }
-    return "\(repository)  ›  \(name)"
+  var breadcrumbRepositoryText: String? {
+    guard selectedSession != nil else { return nil }
+    return selectedFolder.flatMap { workspaceRoots?.repository(of: $0) }
+  }
+
+  var breadcrumbWorkspaceText: String? {
+    selectedSession.map(rowName)
+  }
+
+  var compareFunctionsHelpText: String {
+    if selectedSession == nil { return "Choose a workspace to compare its functions" }
+    if baselineCompletedSeq == nil {
+      return "Available once Slipstream has recorded where this workspace started"
+    }
+    return "Compare each function before and after this session's changes"
   }
 
   var selectedCaptureStatus: CaptureStatus? {
@@ -259,9 +270,10 @@ final class ChangeStreamPageModel: ViewModel {
     if let sessionsError, selectedSession == nil { return sessionsError }
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
+      if captureAvailability == .failed { return "Couldn't reach Slipstream. Press ⌘R to check again." }
       return pickerSessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
-    if selectedSession?.hasHistory == false { return "No change history is available yet. Refresh to check again." }
+    if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
   }
 
@@ -352,9 +364,10 @@ final class ChangeStreamPageModel: ViewModel {
     captureStatus(of: session).captureDot == .recording && !isWorking(session)
   }
 
-  /// Pause or Record applies: the row has a capture that isn't archived or stopped for good.
+  /// Pause or Record applies: the row has a capture, its state is known, and it isn't archived or stopped for good.
   func isRowActionAvailable(_ session: SessionOption) -> Bool {
-    session.capture != nil && !captureStatus(of: session).isInactive
+    guard case .available = captureAvailability, session.capture != nil else { return false }
+    return !captureStatus(of: session).isInactive
   }
 
   /// On hover or focus, and throughout its operation.
@@ -553,6 +566,8 @@ final class ChangeStreamPageModel: ViewModel {
     SidebarGroup.groups(pickerSessions, roots: workspaceRoots)
   }
 
+  var isOpenInShown: Bool { selectedSession != nil }
+
   var canCompareFunctions: Bool {
     !isFunctionDemoVisible && selectedSession != nil && baselineCompletedSeq != nil
   }
@@ -613,11 +628,17 @@ final class ChangeStreamPageModel: ViewModel {
     if selectedSession != nil, watchTask?.isCancelled ?? true {
       startWatching()
     }
-    await loadSessions()
+    await reloadSessions()
   }
 
-  func refreshTapped() async {
-    await loadSessions()
+  func appBecameActive() async {
+    chat.appActivityChanged(isActive: true)
+    openIn.viewAppeared()
+    await reloadSessions()
+  }
+
+  func reloadShortcutPressed() async {
+    await reloadSessions()
   }
 
   func sessionSelected(_ id: String) {
@@ -936,6 +957,19 @@ final class ChangeStreamPageModel: ViewModel {
     isWorkspaceFailurePresented = true
   }
 
+  private func reloadSessions() async {
+    guard !isReloading else {
+      isReloadQueued = true
+      return
+    }
+    isReloading = true
+    defer { isReloading = false }
+    repeat {
+      isReloadQueued = false
+      await loadSessions()
+    } while isReloadQueued && isShown
+  }
+
   private func loadSessions(preferring preferredRoot: String? = nil) async {
     if let preferredRoot { pendingPreferredRoot = Self.normalizedFolder(preferredRoot) }
     sessionsGeneration += 1
@@ -1064,6 +1098,10 @@ final class ChangeStreamPageModel: ViewModel {
     } catch {
       guard generation == sessionsGeneration else {
         if refresh == refreshGeneration { captureRefreshFailed() }
+        return
+      }
+      if !sessions.isEmpty && sessionsError == nil {
+        captureRefreshFailed()
         return
       }
       sessions = []

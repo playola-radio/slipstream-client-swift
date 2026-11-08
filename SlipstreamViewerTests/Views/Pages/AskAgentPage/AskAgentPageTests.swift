@@ -471,7 +471,7 @@ extension AskAgentPageTests {
     #expect(await model.askTapped() == nil)
     expectNoDifference(
       model.errorMessage,
-      "This workspace's chat was relinked after the app last checked. Refresh to see which chat is linked now, then ask again. Your draft is kept.")
+      "This workspace's chat was relinked after the app last checked. Press ⌘R to see which chat is linked now, then ask again. Your draft is kept.")
     model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), route: .outside)
     #expect(await model.askTapped() == nil)
     expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7"), .ask(bindingGeneration: "7")])

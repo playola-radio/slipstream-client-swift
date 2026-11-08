@@ -53,9 +53,9 @@ struct CaptureStatus: Equatable, Sendable {
     case (.baselining, _):
       return "Taking the first snapshot of this workspace. Changes aren't covered until it finishes."
     case (.queued, _):
-      return "Slipstream has accepted this workspace and will start it shortly. Refresh to check again."
+      return "Slipstream has accepted this workspace and will start it shortly. Press ⌘R to check again."
     case (.stopped, "maintenance"):
-      return "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again."
+      return "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Press ⌘R to check again."
     case (.unknown, _):
       return "Update Slipstream Viewer to read this state."
     default:
@@ -163,7 +163,7 @@ struct CaptureStatus: Equatable, Sendable {
     return .bound(binding)
   }
 
-  private static let unknownNotice = "Capture state is unknown, so questions are disabled. Refresh to check again."
+  private static let unknownNotice = "Capture state is unknown, so questions are disabled. Press ⌘R to check again."
   private static let nothingConnectedNotice = "No chat is connected yet. Send a message in a chat tab to connect it."
 
   private static let stoppedReasons = [
