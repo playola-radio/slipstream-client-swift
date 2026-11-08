@@ -2813,6 +2813,27 @@ extension ChangeStreamPageTests {
     #expect(model.captureCheckedText == nil)
   }
 
+  @Test func aFailedReloadWithoutASelectionExplainsHowToTryAgain() async {
+    fake.setCaptures([])
+    fake.setSessions([
+      SessionSummary(id: "a", durableSeq: .zero, removed: false),
+      SessionSummary(id: "b", durableSeq: .zero, removed: false),
+    ])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.sessions.ids, ["a", "b"])
+    expectNoDifference(model.selectedSession, nil)
+
+    fake.setCaptures(.failure(.invalidResponse))
+    fake.setSessionsError(URLError(.cannotConnectToHost))
+    await model.reloadShortcutPressed()
+
+    expectNoDifference(model.sessions.ids, ["a", "b"])
+    expectNoDifference(model.selectedSession, nil)
+    expectNoDifference(model.emptyStateText, "Couldn't reach Slipstream. Press ⌘R to check again.")
+  }
+
   @Test func aFailedReloadOfAnEmptyListSaysSo() async {
     fake.setCaptures([])
     fake.setSessions([])
