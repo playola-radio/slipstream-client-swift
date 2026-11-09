@@ -3764,12 +3764,15 @@ extension ChangeStreamPageTests {
     let model = makeModel(workspace: workspaceClient())
     await model.viewAppeared()
     defer { model.viewDisappeared() }
+    model.rightPaneToggleTapped()
     #expect(model.rightPane == .stream)
+    #expect(!model.isRightPaneShown)
 
     let creating = Task { await model.newWorkspaceTapped() }
     await Task.megaYield()
 
     #expect(model.rightPane == .terminals)
+    #expect(model.isRightPaneShown)
     setupFinishes(.exited(1))
     await creating.value
   }
@@ -4598,6 +4601,19 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.chatColumnWidth, 420)
   }
 
+  @Test func narrowViewportLimitsDisplayedSidebarWithoutChangingPreference() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1800, height: 900))
+    model.sidebarEdgeDragged(by: 160)
+    model.edgeDragEnded()
+    expectNoDifference(model.sidebarWidth, 420)
+
+    model.viewportChanged(CGSize(width: 1360, height: 900))
+
+    expectNoDifference(model.sidebarColumnWidth, 260)
+    expectNoDifference(model.sidebarWidth, 420)
+  }
+
   @Test func doubleClickingTheSidebarEdgeRestoresItsWidth() {
     let model = makeModel()
     model.viewportChanged(CGSize(width: 1600, height: 900))
@@ -4658,7 +4674,7 @@ extension ChangeStreamPageTests {
       model.viewportChanged(CGSize(width: width, height: 900))
       widths.append(model.chatColumnWidth)
     }
-    expectNoDifference(widths, [420, 340, 320])
+    expectNoDifference(widths, [420, 400, 320])
   }
 
   @Test func windowMinimumFollowsTheSidebar() {

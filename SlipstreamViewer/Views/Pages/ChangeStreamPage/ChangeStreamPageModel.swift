@@ -296,8 +296,14 @@ final class ChangeStreamPageModel: ViewModel {
   var isRightPaneShown: Bool { !isRightPaneHidden }
 
   var sidebarColumnWidth: CGFloat {
-    min(max(sidebarWidth, DesignTokens.Workspace.sidebarMinWidth), DesignTokens.Workspace.sidebarMaxWidth)
+    min(
+      max(sidebarWidth, DesignTokens.Workspace.sidebarMinWidth),
+      DesignTokens.Workspace.sidebarMaxWidth,
+      sidebarMaxDisplayedWidth)
   }
+
+  var detailPaneWidth: CGFloat? { isRightPaneShown ? chatColumnWidth : nil }
+  var detailPaneMaxWidth: CGFloat? { isRightPaneShown ? nil : .infinity }
 
   /// The chat's dragged width, until the window is too narrow for it: then the chat gives way
   /// before the stream does. Only a screen too narrow for all three columns takes the chat under
@@ -800,9 +806,7 @@ final class ChangeStreamPageModel: ViewModel {
   func sidebarEdgeDragged(by translation: CGFloat) {
     let start = resizeStartWidth ?? sidebarColumnWidth
     resizeStartWidth = start
-    let room = viewport.width - DesignTokens.Workspace.chatMinWidth
-      - (isRightPaneShown ? DesignTokens.FeedPane.width : 0)
-    let width = min(start + translation, DesignTokens.Workspace.sidebarMaxWidth, max(room, start))
+    let width = min(start + translation, DesignTokens.Workspace.sidebarMaxWidth, sidebarMaxDisplayedWidth)
     $sidebarWidth.withLock { $0 = max(width, DesignTokens.Workspace.sidebarMinWidth) }
   }
 
@@ -989,6 +993,7 @@ final class ChangeStreamPageModel: ViewModel {
   /// script keeps running in that tab while the window switches to it.
   private func createWorkspace(in repository: URL) async {
     isWorkspaceBusy = true
+    $isRightPaneHidden.withLock { $0 = false }
     rightPaneSelected(.terminals)
     let selectionGeneration = userSessionSelectionGeneration
     let roots: WorkspaceRoots
@@ -1586,6 +1591,14 @@ final class ChangeStreamPageModel: ViewModel {
   /// The widest the chat can be with the stream at its minimum beside it.
   private var chatMaxWidth: CGFloat {
     viewport.width - (isSidebarShown ? sidebarColumnWidth : 0) - DesignTokens.FeedPane.width
+  }
+
+  private var sidebarMaxDisplayedWidth: CGFloat {
+    guard viewport.width > 0 else { return DesignTokens.Workspace.sidebarMaxWidth }
+    let rightPaneWidth = isRightPaneShown ? DesignTokens.FeedPane.width : 0
+    return max(
+      DesignTokens.Workspace.sidebarMinWidth,
+      viewport.width - DesignTokens.Workspace.chatMinWidth - rightPaneWidth)
   }
 
   private func replyCollapsed() {

@@ -24,14 +24,14 @@ struct ChangeStreamPageView: View {
           .transition(.move(edge: .leading))
         resizeHandle(dragged: model.sidebarEdgeDragged, doubleClicked: model.sidebarEdgeDoubleClicked)
       }
+      detailPane
+        .frame(width: model.detailPaneWidth)
+        .frame(maxWidth: model.detailPaneMaxWidth)
       if model.isRightPaneShown {
-        detailPane.frame(width: model.chatColumnWidth)
         resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
         rightPane
           .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
           .transition(.move(edge: .trailing))
-      } else {
-        detailPane.frame(maxWidth: .infinity)
       }
     }
     .clipped()
