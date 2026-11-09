@@ -265,12 +265,31 @@ const longAnswer = [
 const plannedAnswers = new Map();
 let seedingDue = false;
 
-async function claimNext(daemon) {
+// What the chat's PostToolUse hook would hand it after a tool call: a question, the
+// setup check, or ''.
+async function postToolUse(daemon) {
   const result = await cli(daemon, ['hook', 'claude-code', 'post-tool-use', '--store', store], JSON.stringify({
     hook_event_name: 'PostToolUse', session_id: harnessSessionID, cwd: work, transcript_path: transcript, tool_name: 'Bash',
   }));
-  if (result.code !== 0 || !result.stdout.trim()) return null;
-  const context = JSON.parse(result.stdout).hookSpecificOutput?.additionalContext ?? '';
+  if (result.code !== 0 || !result.stdout.trim()) return '';
+  return JSON.parse(result.stdout).hookSpecificOutput?.additionalContext ?? '';
+}
+
+// attach leaves the chat's setup check pending, and the daemon refuses every ask until
+// the chat returns it. The daemon offers the check again only after 30s, so a failed
+// answer is retried with the same id.
+async function completeSetupCheck(daemon) {
+  const checkID = await withRetry('setup check', async () => {
+    const id = (await postToolUse(daemon)).match(/Slipstream setup check ([0-9a-f-]{36})/)?.[1];
+    if (!id) throw new Error('the hook offered no setup check');
+    return id;
+  });
+  await withRetry('setup check answer', () => answer(daemon, checkID, 'connected'));
+  log('agent   completed the setup check');
+}
+
+async function claimNext(daemon) {
+  const context = await postToolUse(daemon);
   const questionID = context.match(/Slipstream question ([0-9a-f-]{36})/)?.[1];
   const text = context.match(/^Question: (.*)$/m)?.[1] ?? '';
   return questionID ? { questionID, text } : null;
@@ -304,9 +323,8 @@ async function agentStep(daemon, sessionID) {
       await seedQuestions(daemon, sessionID);
       seedingDue = false;
     } catch (error) {
-      if (!stopped) console.error(error.message);
-      await shutdown(1);
-      return;
+      seedingDue = false;
+      if (!stopped) log(`agent   NO QUESTIONS SEEDED (${error.message}); the demo keeps running, so ask from the app`);
     }
   }
   const claimed = await claimNext(daemon);
@@ -404,6 +422,11 @@ try {
   const daemonProcess = await startDaemon(daemon);
   daemonProcess.once('exit', () => { if (!stopped) { log('daemon exited'); shutdown(1); } });
   const sessionID = await attach(daemon);
+  try {
+    await completeSetupCheck(daemon);
+  } catch (error) {
+    if (!stopped) log(`agent   SETUP CHECK FAILED (${error.message}); the daemon will refuse questions`);
+  }
   log(`daemon  store ${store}`);
   log(`capture session ${sessionID}`);
   log(`to open another window by hand: SLIPSTREAM_STORE=${store} <SlipstreamViewer binary>`);
