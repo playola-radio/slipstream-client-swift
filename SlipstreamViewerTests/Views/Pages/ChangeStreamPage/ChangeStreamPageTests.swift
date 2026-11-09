@@ -3764,12 +3764,15 @@ extension ChangeStreamPageTests {
     let model = makeModel(workspace: workspaceClient())
     await model.viewAppeared()
     defer { model.viewDisappeared() }
+    model.rightPaneToggleTapped()
     #expect(model.rightPane == .stream)
+    #expect(!model.isRightPaneShown)
 
     let creating = Task { await model.newWorkspaceTapped() }
     await Task.megaYield()
 
     #expect(model.rightPane == .terminals)
+    #expect(model.isRightPaneShown)
     setupFinishes(.exited(1))
     await creating.value
   }
@@ -4515,13 +4518,138 @@ extension ChangeStreamPageTests {
   @Test func sidebarHiddenIsRemembered() {
     let model = makeModel()
     #expect(model.isSidebarShown)
-    #expect(model.sidebarToggleHelpText == "Hide sidebar")
+    #expect(model.sidebarToggleHelpText == "Hide Sidebar")
 
     model.sidebarToggleTapped()
 
     let reopened = makeModel()
     #expect(!reopened.isSidebarShown)
-    #expect(reopened.sidebarToggleHelpText == "Show sidebar")
+    #expect(reopened.sidebarToggleHelpText == "Show Sidebar")
+  }
+
+  @Test func rightPaneHiddenIsRemembered() {
+    let model = makeModel()
+    #expect(model.isRightPaneShown)
+    #expect(model.rightPaneToggleHelpText == "Hide Right Panel")
+
+    model.rightPaneToggleTapped()
+
+    let reopened = makeModel()
+    #expect(!reopened.isRightPaneShown)
+    #expect(!reopened.isStreamShown)
+    #expect(reopened.rightPaneToggleHelpText == "Show Right Panel")
+  }
+
+  @Test func hidingTheRightPanelCollapsesTheReply() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(Fixture.edited(1), Fixture.questionQueued(2, id: "q1"))
+    _ = try open(model, "q1")
+
+    model.rightPaneToggleTapped()
+
+    #expect(model.reply == nil)
+  }
+
+  @Test func showingTheRightPanelReturnsToTheLatestChange() async {
+    let model = await connectedModel()
+    model.rightPaneToggleTapped()
+    model.scrollPhaseChanged(.interacting)
+    model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
+
+    model.rightPaneToggleTapped()
+
+    #expect(model.follow == .following)
+  }
+
+  @Test func commandWClosesChatWhileTheRightPanelIsHidden() async throws {
+    let model = await workspaceModel()
+    defer { model.viewDisappeared() }
+    let chatTab = try #require(model.chat.selectedTab?.id)
+    let terminalTab = try #require(model.terminals.selectedTab?.id)
+    model.rightPaneSelected(.terminals)
+    model.terminals.terminalFocusChanged(terminalTab, isFocused: true)
+    model.rightPaneToggleTapped()
+
+    await model.closeShortcutPressed()
+
+    #expect(!model.chat.records.contains { $0.id == chatTab })
+    #expect(!terminal.calls.contains(.delete(terminalTab)))
+  }
+
+  @Test func draggingTheSidebarEdgeResizesItWithinLimits() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1600, height: 900))
+    var widths: [CGFloat] = []
+    for translation in [40, 100, 400, -400] as [CGFloat] {
+      model.sidebarEdgeDragged(by: translation)
+      widths.append(model.sidebarColumnWidth)
+    }
+    model.edgeDragEnded()
+
+    expectNoDifference(widths, [300, 360, 420, 200])
+    expectNoDifference(makeModel().sidebarColumnWidth, 200)
+  }
+
+  @Test func draggingTheSidebarEdgeLeavesTheChatItsMinimum() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1360, height: 900))
+
+    model.sidebarEdgeDragged(by: 100)
+
+    expectNoDifference(model.sidebarColumnWidth, 260)
+    expectNoDifference(model.chatColumnWidth, 420)
+  }
+
+  @Test func narrowViewportLimitsDisplayedSidebarWithoutChangingPreference() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1800, height: 900))
+    model.sidebarEdgeDragged(by: 160)
+    model.edgeDragEnded()
+    expectNoDifference(model.sidebarWidth, 420)
+
+    model.viewportChanged(CGSize(width: 1360, height: 900))
+
+    expectNoDifference(model.sidebarColumnWidth, 260)
+    expectNoDifference(model.sidebarWidth, 420)
+  }
+
+  @Test func doubleClickingTheSidebarEdgeRestoresItsWidth() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1600, height: 900))
+    model.sidebarEdgeDragged(by: 100)
+    model.edgeDragEnded()
+
+    model.sidebarEdgeDoubleClicked()
+
+    expectNoDifference(model.sidebarColumnWidth, 260)
+  }
+
+  @Test func draggingTheChatEdgeResizesTheChatAndTheStreamKeepsItsMinimum() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1800, height: 900))
+    var widths: [CGFloat] = []
+    for translation in [-100, -400, 400] as [CGFloat] {
+      model.chatEdgeDragged(by: translation)
+      widths.append(model.chatColumnWidth)
+    }
+    model.edgeDragEnded()
+
+    expectNoDifference(widths, [620, 420, 860])
+    let reopened = makeModel()
+    reopened.viewportChanged(CGSize(width: 1800, height: 900))
+    expectNoDifference(reopened.chatColumnWidth, 860)
+  }
+
+  @Test func doubleClickingTheChatEdgeRestoresItsWidth() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1800, height: 900))
+    model.chatEdgeDragged(by: -200)
+    model.edgeDragEnded()
+
+    model.chatEdgeDoubleClicked()
+
+    expectNoDifference(model.chatColumnWidth, 720)
   }
 
   @Test func chatShrinksBeforeTheStream() {
@@ -4536,7 +4664,7 @@ extension ChangeStreamPageTests {
     model.viewportChanged(CGSize(width: 1360, height: 900))
     model.sidebarToggleTapped()
 
-    expectNoDifference(model.chatColumnWidth, 420)
+    expectNoDifference(model.chatColumnWidth, 680)
   }
 
   @Test func chatGivesWayOnAScreenTooNarrowForAllThreeColumns() {
@@ -4546,7 +4674,7 @@ extension ChangeStreamPageTests {
       model.viewportChanged(CGSize(width: width, height: 900))
       widths.append(model.chatColumnWidth)
     }
-    expectNoDifference(widths, [420, 340, 320])
+    expectNoDifference(widths, [420, 400, 320])
   }
 
   @Test func windowMinimumFollowsTheSidebar() {
@@ -4556,6 +4684,14 @@ extension ChangeStreamPageTests {
     model.sidebarToggleTapped()
 
     #expect(model.windowMinWidth(visibleScreenWidth: 2560) == 1100)
+  }
+
+  @Test func windowMinimumFollowsTheRightPanel() {
+    let model = makeModel()
+
+    model.rightPaneToggleTapped()
+
+    #expect(model.windowMinWidth(visibleScreenWidth: 2560) == 680)
   }
 
   @Test func windowMinimumCappedBySmallScreen() {
