@@ -905,14 +905,16 @@ struct InstantAskModelTests {
     await askingChangeRequest(model)
     pickedUp(chat)
     await turnEnded(chat)
-    recorder.scriptUpdates(.failure(.rejected(code: "INVALID_RELAY_UPDATE", message: "")))
+    recorder.scriptUpdates(.failure(.rejected(code: "INVALID_RELAY_UPDATE", message: "relay already finished")))
 
     fork.report(.done)
     await Task.megaYield()
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, false)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
-    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, "The daemon didn't record the check.")
+    expectNoDifference(
+      model.relayRuns[Self.firstRelay]?.checkFailure,
+      "The daemon refused to record the check (INVALID_RELAY_UPDATE). The daemon said: relay already finished.")
     expectNoDifference(model.relayStatus(loggedRelay(pickedUp: true)), .couldntCheck)
   }
 

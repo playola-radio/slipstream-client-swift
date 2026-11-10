@@ -66,6 +66,8 @@ extension AskForkClient: DependencyKey {
         group.cancelAll()
         return first
       }
+      // Cancelling also ends the event stream, so the reader can win the race with a misleading reason.
+      if Task.isCancelled { throw .unavailable(cancelledDetail) }
       return try outcome.get()
     })
   }
@@ -104,12 +106,9 @@ extension AskForkClient: DependencyKey {
   }
 
   static func stderrSummary(_ tail: String) -> String {
-    let lines = tail.components(separatedBy: .newlines)
-      .map { String(String.UnicodeScalarView($0.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) })) }
-      .map { $0.trimmingCharacters(in: .whitespaces) }
-      .filter { !$0.isEmpty }
+    let lines = tail.components(separatedBy: .newlines).map(DiagnosticText.unwrapped).filter { !$0.isEmpty }
     let summary = lines.suffix(3).joined(separator: " · ")
-    return summary.count > 500 ? "…" + summary.suffix(499) : summary
+    return summary.count > DiagnosticText.limit ? "…" + summary.suffix(DiagnosticText.limit - 1) : summary
   }
 
   private static let cancelledDetail = "The question was cancelled."

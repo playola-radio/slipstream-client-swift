@@ -63,7 +63,8 @@ public struct ForkOutput: Sendable {
     let toolText = tools.isEmpty ? "none" : tools.sorted().joined(separator: ", ")
     let serverText =
       servers.isEmpty ? "none" : serverNames.count == servers.count ? serverNames.joined(separator: ", ") : "\(servers.count)"
-    return "The read-only copy of the chat wasn't isolated. It had tools \(toolText) and MCP servers \(serverText)."
+    return DiagnosticText.line(
+      "The read-only copy of the chat wasn't isolated. It had tools \(toolText) and MCP servers \(serverText).")
   }
 
   private static func errorDetail(_ object: [String: JSONValue]) -> String {
@@ -71,18 +72,18 @@ public struct ForkOutput: Sendable {
   }
 
   private static func errorText(_ object: [String: JSONValue]) -> String? {
-    if case .string(let text)? = object["result"], !QuestionRequest.trim(text).isEmpty {
-      return QuestionRequest.trim(text)
+    if case .string(let text)? = object["result"], !DiagnosticText.line(text).isEmpty {
+      return DiagnosticText.line(text)
     }
     if case .array(let errors)? = object["errors"] {
       let texts = errors.compactMap { error -> String? in
-        guard case .string(let text) = error, !QuestionRequest.trim(text).isEmpty else { return nil }
-        return QuestionRequest.trim(text)
+        guard case .string(let text) = error, !DiagnosticText.line(text).isEmpty else { return nil }
+        return DiagnosticText.line(text)
       }
-      if !texts.isEmpty { return texts.joined(separator: " · ") }
+      if !texts.isEmpty { return DiagnosticText.line(texts.joined(separator: " · ")) }
     }
-    if case .string(let text)? = object["subtype"], !QuestionRequest.trim(text).isEmpty {
-      return QuestionRequest.trim(text)
+    if case .string(let text)? = object["subtype"], text != "success", !DiagnosticText.line(text).isEmpty {
+      return DiagnosticText.line(text)
     }
     return nil
   }

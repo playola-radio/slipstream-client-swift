@@ -92,8 +92,8 @@ final class AgentFake: Sendable {
     continuation.finish()
   }
 
-  func finishEvents(launch: Int? = nil) {
-    state.withLock { $0.continuations[launch ?? $0.continuations.count - 1] }.finish()
+  func finishEvents() {
+    state.withLock { $0.continuations[$0.continuations.count - 1] }.finish()
   }
 
   var environmentClient: AgentEnvironmentClient {

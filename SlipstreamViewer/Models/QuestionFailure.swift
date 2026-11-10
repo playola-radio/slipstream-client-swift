@@ -25,8 +25,8 @@ enum QuestionFailure {
       : " Your draft is kept.")
   }
 
-  private static func daemonSaid(_ message: String, after text: String) -> String {
-    let said = message.trimmingCharacters(in: .whitespacesAndNewlines)
+  static func daemonSaid(_ message: String, after text: String) -> String {
+    let said = DiagnosticText.line(message)
     guard !said.isEmpty, said != text else { return text }
     return text + " The daemon said: " + said + (said.hasSuffix(".") ? "" : ".")
   }

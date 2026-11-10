@@ -101,8 +101,12 @@ struct ForkOutputTests {
 
   @Test func isErrorResultWithoutTextFallsBackToSubtypeThenNoDetails() {
     expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.line(#"{"type":"result","subtype":"error_max_turns","is_error":true}"#)]),
+      .unavailable("Claude Code reported an error: error_max_turns")
+    )
+    expectNoDifference(
       failure([ForkLines.initLine(), ForkLines.result(isError: true)]),
-      .unavailable("Claude Code reported an error: success")
+      .unavailable("Claude Code reported an error: no details")
     )
     expectNoDifference(
       failure([ForkLines.initLine(), ForkLines.line(#"{"type":"result","is_error":true,"result":"  "}"#)]),
@@ -118,6 +122,14 @@ struct ForkOutputTests {
           #"{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["", " Tool crashed ","Retry failed"]}"#),
       ]),
       .unavailable("Claude Code reported an error: Tool crashed · Retry failed")
+    )
+  }
+
+  @Test func isErrorResultTextIsOneBoundedLine() {
+    let long = String(repeating: "x", count: 600)
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.errorResult(result: #"line one\nline two \#(long)"#)]),
+      .unavailable("Claude Code reported an error: " + DiagnosticText.line("line one line two " + long))
     )
   }
 

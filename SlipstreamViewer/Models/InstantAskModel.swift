@@ -583,8 +583,9 @@ final class InstantAskModel: ViewModel {
       let request = updateRequest(relayID, .reported(outcome, text: reply))
     {
       relayRuns[relayID]?.lastReportRequestID = request.requestID
-      isRecorded = await send(request)
-      if isRecorded { recorded(request) } else { cause = "The daemon didn't record the check." }
+      let failure = await sendFailure(request)
+      isRecorded = failure == nil
+      if isRecorded { recorded(request) } else { cause = failure.map(Self.recordingFailure) }
     } else if cause == nil {
       cause = "Claude Code's reply had no report."
     }
@@ -621,20 +622,27 @@ final class InstantAskModel: ViewModel {
   /// kept for the next connection once the retries run out. A refusal is dropped.
   @discardableResult
   private func send(_ request: QuestionRelayUpdateRequest) async -> Bool {
+    await sendFailure(request) == nil
+  }
+
+  /// Nil once the daemon recorded the update.
+  private func sendFailure(_ request: QuestionRelayUpdateRequest) async -> (any Error)? {
+    var lastError: any Error = CancellationError()
     for remaining in (0..<Self.recordingAttempts).reversed() {
       do {
         _ = try await questionClient.updateRelay(request)
-        return true
-      } catch QuestionError.rejected(let code, _) where code != "STORAGE_UNAVAILABLE" {
-        return false
+        return nil
+      } catch QuestionError.rejected(let code, let message) where code != "STORAGE_UNAVAILABLE" {
+        return QuestionError.rejected(code: code, message: message)
       } catch {
+        lastError = error
         guard remaining > 0, (try? await clock.sleep(for: Self.recordingRetryDelay)) != nil else {
           relayRuns[request.relayID]?.unrecorded.append(request)
-          return false
+          return error
         }
       }
     }
-    return false
+    return lastError
   }
 
   @discardableResult
@@ -659,6 +667,11 @@ final class InstantAskModel: ViewModel {
     case .unavailable(let detail): AskFailure(kind: .unavailable, detail: detail)
     case .badReply(let detail): AskFailure(kind: .badReply, detail: detail)
     }
+  }
+
+  private static func recordingFailure(_ error: any Error) -> String {
+    guard case QuestionError.rejected(let code, let message) = error else { return "The daemon didn't record the check." }
+    return QuestionFailure.daemonSaid(message, after: "The daemon refused to record the check (\(code)).")
   }
 
   private static func detail(_ error: AskForkError) -> String {

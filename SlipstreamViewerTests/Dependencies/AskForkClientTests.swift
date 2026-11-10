@@ -215,7 +215,7 @@ struct AskForkClientTests {
   }
 
   @Test func stderrSummaryRemovesControlCharacters() {
-    expectNoDifference(AskForkClient.stderrSummary("\u{1B}[31mboom\u{7}\tdone\r\n"), "[31mboomdone")
+    expectNoDifference(AskForkClient.stderrSummary("\u{1B}[31mboom\u{7}\tdone\r\n"), "[31mboom done")
   }
 
   @Test func stderrSummaryOfBlankTextIsEmpty() {
@@ -261,8 +261,9 @@ struct AskForkClientTests {
     await line(Self.isolatedInit)
 
     run.cancel()
-    _ = await run.value
+    let outcome = await run.value
 
     #expect(agent.shutdowns(0) == 1)
+    expectNoDifference(outcome, .failure(.unavailable("The question was cancelled.")))
   }
 }
