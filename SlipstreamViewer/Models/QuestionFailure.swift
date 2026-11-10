@@ -28,7 +28,7 @@ enum QuestionFailure {
   static func daemonSaid(_ message: String, after text: String) -> String {
     let said = DiagnosticText.line(message)
     guard !said.isEmpty, said != text else { return text }
-    return text + " The daemon said: " + said + (said.hasSuffix(".") ? "" : ".")
+    return DiagnosticText.line(text + " The daemon said: " + said + (said.hasSuffix(".") ? "" : "."))
   }
 
   private static func failureText(_ code: String) -> String {

@@ -142,6 +142,19 @@ struct AskForkClientTests {
       outcome, .failure(.unavailable("Claude Code exited with status 2: warming up · Error: Invalid API key")))
   }
 
+  @Test func exitBeforeResultCapsTheCompletedDetail() async {
+    let run = await start()
+    let stderr = String(repeating: "x", count: 600)
+
+    agent.exit(status: 2, stderrTail: stderr)
+
+    let outcome = await run.value
+    expectNoDifference(
+      outcome,
+      .failure(.unavailable(DiagnosticText.line("Claude Code exited with status 2: " + stderr)))
+    )
+  }
+
   @Test func exitWithOnlyBlankStderrOmitsIt() async {
     let run = await start()
 

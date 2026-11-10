@@ -129,7 +129,7 @@ struct ForkOutputTests {
     let long = String(repeating: "x", count: 600)
     expectNoDifference(
       failure([ForkLines.initLine(), ForkLines.errorResult(result: #"line one\nline two \#(long)"#)]),
-      .unavailable("Claude Code reported an error: " + DiagnosticText.line("line one line two " + long))
+      .unavailable(DiagnosticText.line("Claude Code reported an error: line one line two " + long))
     )
   }
 

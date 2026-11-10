@@ -68,7 +68,7 @@ public struct ForkOutput: Sendable {
   }
 
   private static func errorDetail(_ object: [String: JSONValue]) -> String {
-    "Claude Code reported an error: \(errorText(object) ?? "no details")"
+    DiagnosticText.line("Claude Code reported an error: \(errorText(object) ?? "no details")")
   }
 
   private static func errorText(_ object: [String: JSONValue]) -> String? {

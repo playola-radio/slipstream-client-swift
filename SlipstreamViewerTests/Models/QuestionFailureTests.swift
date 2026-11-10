@@ -21,6 +21,13 @@ struct QuestionFailureTests {
     )
   }
 
+  @Test func rejectionCapsTheCompletedDetail() {
+    expectNoDifference(
+      QuestionFailure.reason(QuestionError.rejected(code: "INVALID_QUESTION", message: String(repeating: "x", count: 600))),
+      DiagnosticText.line(Self.invalidQuestion + " The daemon said: " + String(repeating: "x", count: 600) + ".")
+    )
+  }
+
   @Test func unknownCodeAppendsTheMessageAfterTheCode() {
     expectNoDifference(
       QuestionFailure.reason(QuestionError.rejected(code: "NEW_CODE", message: "something new")),

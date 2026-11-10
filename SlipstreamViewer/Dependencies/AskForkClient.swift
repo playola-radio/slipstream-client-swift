@@ -46,7 +46,7 @@ extension AskForkClient: DependencyKey {
           )
         )
       } catch {
-        throw .unavailable("Claude Code couldn't start: \(reason(error))")
+        throw .unavailable(DiagnosticText.line("Claude Code couldn't start: \(reason(error))"))
       }
 
       let outcome = await withTaskGroup(of: Result<AskForkResult, AskForkError>.self) { group in
@@ -82,7 +82,7 @@ extension AskForkClient: DependencyKey {
     do {
       try await handle.write(Data(request.prompt.utf8))
     } catch {
-      return .failure(.unavailable("The question couldn't be sent to Claude Code: \(reason(error))"))
+      return .failure(.unavailable(DiagnosticText.line("The question couldn't be sent to Claude Code: \(reason(error))")))
     }
     await handle.closeInput()
     var output = ForkOutput(kind: request.kind)
@@ -99,7 +99,7 @@ extension AskForkClient: DependencyKey {
       case .exited(let status, let stderrTail):
         guard status != 0 else { return .failure(.badReply("Claude Code exited without an answer.")) }
         let summary = stderrSummary(stderrTail)
-        return .failure(.unavailable("Claude Code exited with status \(status)" + (summary.isEmpty ? "." : ": \(summary)")))
+        return .failure(.unavailable(DiagnosticText.line("Claude Code exited with status \(status)" + (summary.isEmpty ? "." : ": \(summary)"))))
       }
     }
     return .failure(.unavailable("Claude Code stopped unexpectedly."))
