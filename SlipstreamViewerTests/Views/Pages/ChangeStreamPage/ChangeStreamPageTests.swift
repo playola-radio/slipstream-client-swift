@@ -2515,9 +2515,9 @@ extension ChangeStreamPageTests {
 
   @Test func aPausedRowShowsOnlyWhileItsFolderExists() async throws {
     listCaptures(
-      Fixture.capture(.stopped, reason: "detached", session: "deleted", root: "/work/deleted", binding: nil),
-      Fixture.capture(.stopped, reason: "detached", session: "kept", root: "/work/kept", binding: nil))
-    terminal.setMissing("/work/deleted")
+      Fixture.capture(.stopped, reason: "detached", session: "deleted", root: "/tmp/slipstream-test/workspaces/r/deleted", binding: nil),
+      Fixture.capture(.stopped, reason: "detached", session: "kept", root: "/tmp/slipstream-test/workspaces/r/kept", binding: nil))
+    terminal.setMissing("/tmp/slipstream-test/workspaces/r/deleted")
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
@@ -2526,6 +2526,22 @@ extension ChangeStreamPageTests {
     let row = try #require(model.sessions[id: "kept"])
     #expect(model.isPaused(row))
     expectNoDifference(model.rowActionText(row), "Record")
+  }
+
+  @Test func aPausedRowShowsOnlyInsideTheWorkspacesFolder() async throws {
+    listCaptures(
+      Fixture.capture(
+        .stopped, reason: "detached", session: "conductor", root: "/tmp/conductor-test/workspaces/r/taipei",
+        binding: nil),
+      Fixture.capture(
+        .stopped, reason: "detached", session: "managed", root: "/tmp/slipstream-test/workspaces/r/workspace-1",
+        binding: nil),
+      Fixture.capture(session: "recording", root: "/tmp/conductor-test/workspaces/r/brisbane", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(sidebarRowIDs(model), ["managed", "recording"])
   }
 
   @Test func aPausedRowBrightensWhenSelectedOrHovered() async throws {
