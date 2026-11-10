@@ -461968,6 +461968,1861 @@
           ]
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "uSI5e",
+      "x": 0,
+      "y": 56300,
+      "name": "16 · Bundled recorder · title",
+      "fill": "#E6EDF3",
+      "content": "16 · Bundled recorder — what the window shows while the app runs Slipstream",
+      "fontFamily": "Geist",
+      "fontSize": 40,
+      "fontWeight": "normal"
+    },
+    {
+      "type": "text",
+      "id": "weVeE",
+      "x": 0,
+      "y": 56420,
+      "name": "Label · starting",
+      "fill": "#9EB7CB",
+      "content": "Starting the recorder",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "K7uP6",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--starting",
+      "x": 0,
+      "y": 56470,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "RVvkk": {
+          "enabled": false
+        },
+        "XMMTJ": {
+          "enabled": false
+        },
+        "tXvB3": {
+          "enabled": true,
+          "padding": 40,
+          "alignItems": "center",
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "VIVxy",
+              "name": "Recorder message",
+              "width": 600,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "W1ByU6",
+                  "name": "Recorder headline",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "N4VaS",
+                      "name": "Recorder icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "loader-circle",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    },
+                    {
+                      "type": "text",
+                      "id": "k3JM6",
+                      "name": "Recorder title",
+                      "fill": "#E6EDF3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Starting the recorder 0.3.2 (build 7f3c9a1e)…",
+                      "lineHeight": 1.4,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "j2qRho": {
+          "icon": "circle",
+          "fill": "#8B9AA6",
+          "width": 9,
+          "height": 9
+        },
+        "Dc3Ur": {
+          "content": "Starting the recorder 0.3.2 (build 7f3c9a1e)…",
+          "fill": "#8B9AA6"
+        },
+        "m4qzA": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "Hf2gc",
+      "x": 1300,
+      "y": 56420,
+      "name": "Label · needs-approval",
+      "fill": "#9EB7CB",
+      "content": "Needs background permission",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "e8uNo6",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--needs-approval",
+      "x": 1300,
+      "y": 56470,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "RVvkk": {
+          "enabled": false
+        },
+        "XMMTJ": {
+          "enabled": false
+        },
+        "tXvB3": {
+          "enabled": true,
+          "padding": 40,
+          "alignItems": "center",
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "MzRCb",
+              "name": "Recorder message",
+              "width": 600,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "b62hv",
+                  "name": "Recorder headline",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "cV8vu",
+                      "name": "Recorder icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "shield-alert",
+                      "library": "lucide",
+                      "fill": "#F0A070"
+                    },
+                    {
+                      "type": "text",
+                      "id": "UsNJA",
+                      "name": "Recorder title",
+                      "fill": "#E6EDF3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "macOS hasn't allowed Slipstream to run in the background, so the recorder can't start.",
+                      "lineHeight": 1.4,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lEJP1",
+                  "name": "Error block",
+                  "width": "fill_container",
+                  "fill": "#0F1318",
+                  "cornerRadius": 6,
+                  "stroke": "#2A3640",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "p30AS",
+                      "name": "Error source row",
+                      "width": "fill_container",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "u7ROV",
+                          "name": "Error source",
+                          "fill": "#7D98AD",
+                          "content": "SMAppService",
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "j6Pnm",
+                          "name": "Error source gap",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "wUCjT",
+                          "name": "Copy",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Jv6pI",
+                              "name": "Copy icon",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "copy",
+                              "library": "lucide",
+                              "fill": "#82AAC5"
+                            },
+                            {
+                              "type": "text",
+                              "id": "gMrCx",
+                              "name": "Copy label",
+                              "fill": "#82AAC5",
+                              "content": "Copy",
+                              "fontFamily": "Geist",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a2ose",
+                      "name": "Error body",
+                      "width": "fill_container",
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "aXGUZ",
+                          "name": "Error text",
+                          "fill": "#C9D6E0",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "SMAppService.agent(plistName: \"com.playola.SlipstreamViewer.recorder.plist\")\n  .status = .requiresApproval\n\nTurn on Slipstream in System Settings › General › Login Items.",
+                          "lineHeight": 1.55,
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Pdhxh",
+                  "name": "Recorder actions",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "D8ltv",
+                      "name": "Open Login Items",
+                      "fill": "#2F3A45",
+                      "cornerRadius": 6,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "s2Hfmm",
+                          "name": "Open Login Items label",
+                          "fill": "#E6EDF3",
+                          "content": "Open Login Items",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "j2qRho": {
+          "icon": "circle",
+          "fill": "#FF9F0A",
+          "width": 9,
+          "height": 9
+        },
+        "Dc3Ur": {
+          "content": "Recorder blocked: SMAppService status .requiresApproval",
+          "fill": "#FF9F0A"
+        },
+        "m4qzA": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "j3OPH",
+      "x": 2600,
+      "y": 56420,
+      "name": "Label · update-didnt-finish",
+      "fill": "#9EB7CB",
+      "content": "Update didn't finish",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "PsvtW",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--update-didnt-finish",
+      "x": 2600,
+      "y": 56470,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "RVvkk": {
+          "enabled": false
+        },
+        "XMMTJ": {
+          "enabled": false
+        },
+        "tXvB3": {
+          "enabled": true,
+          "padding": 40,
+          "alignItems": "center",
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "npUZr",
+              "name": "Recorder message",
+              "width": 600,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "EbixS",
+                  "name": "Recorder headline",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "vttDk",
+                      "name": "Recorder icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "circle-alert",
+                      "library": "lucide",
+                      "fill": "#F0A070"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Gkwjb",
+                      "name": "Recorder title",
+                      "fill": "#E6EDF3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "The bundled recorder 0.3.2 failed verification, so the app kept recorder 0.3.1 running.",
+                      "lineHeight": 1.4,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "I09cU3",
+                  "name": "Error block",
+                  "width": "fill_container",
+                  "fill": "#0F1318",
+                  "cornerRadius": 6,
+                  "stroke": "#2A3640",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Wi1Pq",
+                      "name": "Error source row",
+                      "width": "fill_container",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "WGuXH",
+                          "name": "Error source",
+                          "fill": "#7D98AD",
+                          "content": "verify runtime/0.3.2-7f3c9a1e",
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "R7fJL",
+                          "name": "Error source gap",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "u0i0OD",
+                          "name": "Copy",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "l3uuq",
+                              "name": "Copy icon",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "copy",
+                              "library": "lucide",
+                              "fill": "#82AAC5"
+                            },
+                            {
+                              "type": "text",
+                              "id": "AdSsm",
+                              "name": "Copy label",
+                              "fill": "#82AAC5",
+                              "content": "Copy",
+                              "fontFamily": "Geist",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "CDl2Q",
+                      "name": "Error body",
+                      "width": "fill_container",
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "JsOvy",
+                          "name": "Error text",
+                          "fill": "#C9D6E0",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "extract  SlipstreamViewer.app/Contents/Resources/SlipstreamRuntime\n         → runtime/.staging-4f1c2a90\nverify   app/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n  expected sha256:9c1e4b07d2f86a3b5e0c17d94a62bb8e3f0d5c71a28e94b6c03f7d1e5a9b4a41f\n  actual   sha256:3d77f0a9e1c4b8265f0e93a7d1b6c42e8f05a9d37c1e6b2f84a0d5c9e7b108bc\nstaging removed; runtime/current → runtime/0.3.1-2b81c4d0 (unchanged)\nrunning  pid 48213  daemon_version=0.3.1  daemon_build=2b81c4d0  (app service)",
+                          "lineHeight": 1.55,
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "z5bss",
+                  "name": "Recorder actions",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "U3vdP",
+                      "name": "Try again",
+                      "fill": "#2F3A45",
+                      "cornerRadius": 6,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UucVr",
+                          "name": "Try again label",
+                          "fill": "#E6EDF3",
+                          "content": "Try again",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "j2qRho": {
+          "icon": "circle",
+          "fill": "#FF9F0A",
+          "width": 9,
+          "height": 9
+        },
+        "Dc3Ur": {
+          "content": "Recorder 0.3.1 still running · bundled 0.3.2 failed verification (watcher.node hash)",
+          "fill": "#FF9F0A"
+        },
+        "m4qzA": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "TNivs",
+      "x": 3900,
+      "y": 56420,
+      "name": "Label · another-recorder",
+      "fill": "#9EB7CB",
+      "content": "Another recorder is running",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "o3IPH",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--another-recorder",
+      "x": 3900,
+      "y": 56470,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "RVvkk": {
+          "enabled": false
+        },
+        "XMMTJ": {
+          "enabled": false
+        },
+        "tXvB3": {
+          "enabled": true,
+          "padding": 40,
+          "alignItems": "center",
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "OyhqQ",
+              "name": "Recorder message",
+              "width": 600,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "mYaQC",
+                  "name": "Recorder headline",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "xxzJA",
+                      "name": "Recorder icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "circle-alert",
+                      "library": "lucide",
+                      "fill": "#F0A070"
+                    },
+                    {
+                      "type": "text",
+                      "id": "S8XvcI",
+                      "name": "Recorder title",
+                      "fill": "#E6EDF3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "A recorder this app didn't start (pid 30117, npm 0.3.0) is using ~/.slipstream. It's still recording; the app won't stop it unless you replace it.",
+                      "lineHeight": 1.4,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "egoBn",
+                  "name": "Error block",
+                  "width": "fill_container",
+                  "fill": "#0F1318",
+                  "cornerRadius": 6,
+                  "stroke": "#2A3640",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "il3MZ",
+                      "name": "Error source row",
+                      "width": "fill_container",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "GjyZo",
+                          "name": "Error source",
+                          "fill": "#7D98AD",
+                          "content": "status · owner.lock · launchctl",
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "CTX3Z",
+                          "name": "Error source gap",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "xa89Q",
+                          "name": "Copy",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "B6CctR",
+                              "name": "Copy icon",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "copy",
+                              "library": "lucide",
+                              "fill": "#82AAC5"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ciShe",
+                              "name": "Copy label",
+                              "fill": "#82AAC5",
+                              "content": "Copy",
+                              "fontFamily": "Geist",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mB23g",
+                      "name": "Error body",
+                      "width": "fill_container",
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "oDjLw",
+                          "name": "Error text",
+                          "fill": "#C9D6E0",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "status       daemon_version=0.3.0  daemon_build=— (predates build reporting)\nowner.lock   pid 30117\napp service  com.playola.SlipstreamViewer.recorder — not running\npid 30117    /Users/brian/.nvm/versions/node/v24.11.0/bin/node\n               /Users/brian/.nvm/versions/node/v24.11.0/lib/node_modules/@playola-radio/slipstream/dist/cli.js start\nstarted      2026-10-27 09:14:52\nlaunchd      radio.playola.slipstream (~/Library/LaunchAgents/radio.playola.slipstream.plist)",
+                          "lineHeight": 1.55,
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "x5cny",
+                  "name": "Recorder actions",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "kVjma",
+                      "name": "Replace it",
+                      "fill": "#2F3A45",
+                      "cornerRadius": 6,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "lrFwa",
+                          "name": "Replace it label",
+                          "fill": "#E6EDF3",
+                          "content": "Replace it",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "j2qRho": {
+          "icon": "circle",
+          "fill": "#FF9F0A",
+          "width": 9,
+          "height": 9
+        },
+        "Dc3Ur": {
+          "content": "Recorder pid 30117 is npm 0.3.0, not started by this app",
+          "fill": "#FF9F0A"
+        },
+        "m4qzA": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "yeQJL",
+      "x": 0,
+      "y": 57320,
+      "name": "Label · wont-start",
+      "fill": "#9EB7CB",
+      "content": "Won't start",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "HZDOk",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--wont-start",
+      "x": 0,
+      "y": 57370,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "RVvkk": {
+          "enabled": false
+        },
+        "XMMTJ": {
+          "enabled": false
+        },
+        "tXvB3": {
+          "enabled": true,
+          "padding": 40,
+          "alignItems": "center",
+          "justifyContent": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "sCh6E",
+              "name": "Recorder message",
+              "width": 600,
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "H50hoj",
+                  "name": "Recorder headline",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "CeFK6",
+                      "name": "Recorder icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "octagon-x",
+                      "library": "lucide",
+                      "fill": "#FF6B6B"
+                    },
+                    {
+                      "type": "text",
+                      "id": "TTbWx",
+                      "name": "Recorder title",
+                      "fill": "#E6EDF3",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Recorder 0.3.2 exited with code 1 before it was ready.",
+                      "lineHeight": 1.4,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "vOGRy",
+                  "name": "Error block",
+                  "width": "fill_container",
+                  "fill": "#0F1318",
+                  "cornerRadius": 6,
+                  "stroke": "#2A3640",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "oeoD2",
+                      "name": "Error source row",
+                      "width": "fill_container",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 8,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "qhJZk",
+                          "name": "Error source",
+                          "fill": "#7D98AD",
+                          "content": "recorder.log · run started 16:42:06 · exited 16:42:07 · code 1",
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "tRLuL",
+                          "name": "Error source gap",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "u1XlRs",
+                          "name": "Copy",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "vhFZy",
+                              "name": "Copy icon",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "copy",
+                              "library": "lucide",
+                              "fill": "#82AAC5"
+                            },
+                            {
+                              "type": "text",
+                              "id": "POHHH",
+                              "name": "Copy label",
+                              "fill": "#82AAC5",
+                              "content": "Copy",
+                              "fontFamily": "Geist",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Zr80n",
+                      "name": "Error body",
+                      "width": "fill_container",
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Pbnvu",
+                          "name": "Error text",
+                          "fill": "#C9D6E0",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "node:internal/modules/cjs/loader:1586\n  return process.dlopen(module, path.toNamespacedPath(filename));\n                 ^\n\nError: dlopen(~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node, 0x0001): tried: '~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node' (code signature in <7C1A39E2-5B0D-3F8E-A1C4-96D2E07B5F13> '~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node' not valid for use in process: library load disallowed by system policy)\n    at Module._extensions..node (node:internal/modules/cjs/loader:1586:18)\n    at Module.load (node:internal/modules/cjs/loader:1288:32)\n    at Module._load (node:internal/modules/cjs/loader:1104:12)\n    at Module.require (node:internal/modules/cjs/loader:1311:19)\n    at require (node:internal/modules/helpers:179:18)\n    at loadWatcherBinding (file://~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/dist/watcher.js:14:10)\n    at file://~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/dist/daemon.js:41:1 {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.11.0",
+                          "lineHeight": 1.55,
+                          "fontFamily": "Geist Mono",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "FsYGb",
+                  "name": "Recorder actions",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "L8eSe",
+                      "name": "Try again",
+                      "fill": "#2F3A45",
+                      "cornerRadius": 6,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "k4xTI",
+                          "name": "Try again label",
+                          "fill": "#E6EDF3",
+                          "content": "Try again",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ueeuw",
+                      "name": "Open log file",
+                      "fill": "#00000000",
+                      "cornerRadius": 6,
+                      "stroke": "#3E5260",
+                      "strokeWidth": 1,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "fhhAO",
+                          "name": "Open log file label",
+                          "fill": "#E6EDF3",
+                          "content": "Open log file",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "j2qRho": {
+          "icon": "circle",
+          "fill": "#FF6B6B",
+          "width": 9,
+          "height": 9
+        },
+        "Dc3Ur": {
+          "content": "Recorder 0.3.2 exited with code 1: ERR_DLOPEN_FAILED (watcher.node)",
+          "fill": "#FF6B6B"
+        },
+        "m4qzA": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "gVebG",
+      "x": 1300,
+      "y": 57320,
+      "name": "Label · stream-open-restarting",
+      "fill": "#9EB7CB",
+      "content": "Stream open · restarting after update",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "aZBNS",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--stream-open-restarting",
+      "x": 1300,
+      "y": 57370,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "IYbsT": {
+          "type": "frame",
+          "id": "jU5fu",
+          "name": "Footer",
+          "width": "fill_container",
+          "fill": "#191F27",
+          "stroke": "#314351",
+          "strokeWidth": {
+            "top": 1
+          },
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            10,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "TLpr3",
+              "name": "Footer row",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "w1MWe",
+                  "name": "Footer icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "refresh-cw",
+                  "library": "lucide",
+                  "fill": "#8B9AA6"
+                },
+                {
+                  "type": "text",
+                  "id": "UvZRA",
+                  "name": "Footer status",
+                  "fill": "#8B9AA6",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Restarting the recorder 0.3.1 → 0.3.2 (build 7f3c9a1e)… changes resume when it's back",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "AQ3t5",
+      "x": 2600,
+      "y": 57320,
+      "name": "Label · stream-open-needs-approval",
+      "fill": "#9EB7CB",
+      "content": "Stream open · needs background permission",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "rtdm1",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--stream-open-needs-approval",
+      "x": 2600,
+      "y": 57370,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "PaeKG": {
+          "fill": "#A4B4C3"
+        },
+        "IYbsT": {
+          "type": "frame",
+          "id": "s4r3DC",
+          "name": "Footer",
+          "width": "fill_container",
+          "fill": "#191F27",
+          "stroke": "#314351",
+          "strokeWidth": {
+            "top": 1
+          },
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            10,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "klwon",
+              "name": "Footer row",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "wPGAw",
+                  "name": "Footer icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "shield-alert",
+                  "library": "lucide",
+                  "fill": "#FF9F0A"
+                },
+                {
+                  "type": "text",
+                  "id": "VGtRD",
+                  "name": "Footer status",
+                  "fill": "#FF9F0A",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "macOS hasn't allowed Slipstream to run in the background, so the recorder can't start.",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "poiAN",
+                  "name": "Open Login Items",
+                  "fill": "#82AAC5",
+                  "content": "Open Login Items",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "xMoGH",
+              "name": "Error block",
+              "width": "fill_container",
+              "fill": "#0F1318",
+              "cornerRadius": 6,
+              "stroke": "#2A3640",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FkeoN",
+                  "name": "Error source row",
+                  "width": "fill_container",
+                  "stroke": "#2A3640",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 8,
+                  "padding": [
+                    7,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Yxl1R",
+                      "name": "Error source",
+                      "fill": "#7D98AD",
+                      "content": "SMAppService",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "g96YI",
+                      "name": "Error source gap",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "frSKu",
+                      "name": "Copy",
+                      "gap": 5,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "IPIX6",
+                          "name": "Copy icon",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "copy",
+                          "library": "lucide",
+                          "fill": "#82AAC5"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ydT8i",
+                          "name": "Copy label",
+                          "fill": "#82AAC5",
+                          "content": "Copy",
+                          "fontFamily": "Geist",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xgtrd",
+                  "name": "Error body",
+                  "width": "fill_container",
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bd3WN",
+                      "name": "Error text",
+                      "fill": "#C9D6E0",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "SMAppService.agent(plistName: \"com.playola.SlipstreamViewer.recorder.plist\")\n  .status = .requiresApproval\n\nTurn on Slipstream in System Settings › General › Login Items.",
+                      "lineHeight": 1.55,
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "aobTv",
+      "x": 3900,
+      "y": 57320,
+      "name": "Label · stream-open-update-didnt-finish",
+      "fill": "#9EB7CB",
+      "content": "Stream open · update didn't finish",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "sLAQ5",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--stream-open-update-didnt-finish",
+      "x": 3900,
+      "y": 57370,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "PaeKG": {
+          "fill": "#A4B4C3"
+        },
+        "IYbsT": {
+          "type": "frame",
+          "id": "Cbs0J",
+          "name": "Footer",
+          "width": "fill_container",
+          "fill": "#191F27",
+          "stroke": "#314351",
+          "strokeWidth": {
+            "top": 1
+          },
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            10,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "j78Tp",
+              "name": "Footer row",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "q3Om2",
+                  "name": "Footer icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "circle-alert",
+                  "library": "lucide",
+                  "fill": "#FF9F0A"
+                },
+                {
+                  "type": "text",
+                  "id": "Vgown",
+                  "name": "Footer status",
+                  "fill": "#FF9F0A",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "The bundled recorder 0.3.2 failed verification, so the app kept recorder 0.3.1 running.",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "gIrAT",
+                  "name": "Try again",
+                  "fill": "#82AAC5",
+                  "content": "Try again",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "AVqMy",
+              "name": "Error block",
+              "width": "fill_container",
+              "fill": "#0F1318",
+              "cornerRadius": 6,
+              "stroke": "#2A3640",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "yACVB",
+                  "name": "Error source row",
+                  "width": "fill_container",
+                  "stroke": "#2A3640",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 8,
+                  "padding": [
+                    7,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "p3atK",
+                      "name": "Error source",
+                      "fill": "#7D98AD",
+                      "content": "verify runtime/0.3.2-7f3c9a1e",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "oIevo",
+                      "name": "Error source gap",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pAwRV",
+                      "name": "Copy",
+                      "gap": 5,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "A6YaU",
+                          "name": "Copy icon",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "copy",
+                          "library": "lucide",
+                          "fill": "#82AAC5"
+                        },
+                        {
+                          "type": "text",
+                          "id": "axhUL",
+                          "name": "Copy label",
+                          "fill": "#82AAC5",
+                          "content": "Copy",
+                          "fontFamily": "Geist",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "i0vub0",
+                  "name": "Error body",
+                  "width": "fill_container",
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "VRZpe",
+                      "name": "Error text",
+                      "fill": "#C9D6E0",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "extract  SlipstreamViewer.app/Contents/Resources/SlipstreamRuntime\n         → runtime/.staging-4f1c2a90\nverify   app/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n  expected sha256:9c1e4b07d2f86a3b5e0c17d94a62bb8e3f0d5c71a28e94b6c03f7d1e5a9b4a41f\n  actual   sha256:3d77f0a9e1c4b8265f0e93a7d1b6c42e8f05a9d37c1e6b2f84a0d5c9e7b108bc\nstaging removed; runtime/current → runtime/0.3.1-2b81c4d0 (unchanged)\nrunning  pid 48213  daemon_version=0.3.1  daemon_build=2b81c4d0  (app service)",
+                      "lineHeight": 1.55,
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "i1TscP",
+      "x": 0,
+      "y": 58220,
+      "name": "Label · stream-open-another-recorder",
+      "fill": "#9EB7CB",
+      "content": "Stream open · another recorder is running",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "RbXdB",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--stream-open-another-recorder",
+      "x": 0,
+      "y": 58270,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "PaeKG": {
+          "fill": "#A4B4C3"
+        },
+        "IYbsT": {
+          "type": "frame",
+          "id": "onNQe",
+          "name": "Footer",
+          "width": "fill_container",
+          "fill": "#191F27",
+          "stroke": "#314351",
+          "strokeWidth": {
+            "top": 1
+          },
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            10,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "WVbwA",
+              "name": "Footer row",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "domYv",
+                  "name": "Footer icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "circle-alert",
+                  "library": "lucide",
+                  "fill": "#FF9F0A"
+                },
+                {
+                  "type": "text",
+                  "id": "vox4C",
+                  "name": "Footer status",
+                  "fill": "#FF9F0A",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "A recorder this app didn't start (pid 30117, npm 0.3.0) is using ~/.slipstream. It's still recording; the app won't stop it unless you replace it.",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "peXag",
+                  "name": "Replace it",
+                  "fill": "#82AAC5",
+                  "content": "Replace it",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "aWTqo",
+              "name": "Error block",
+              "width": "fill_container",
+              "fill": "#0F1318",
+              "cornerRadius": 6,
+              "stroke": "#2A3640",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "J3GX1",
+                  "name": "Error source row",
+                  "width": "fill_container",
+                  "stroke": "#2A3640",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 8,
+                  "padding": [
+                    7,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tr0wA",
+                      "name": "Error source",
+                      "fill": "#7D98AD",
+                      "content": "status · owner.lock · launchctl",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Z1KDPF",
+                      "name": "Error source gap",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iWoVV",
+                      "name": "Copy",
+                      "gap": 5,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "VDcr0",
+                          "name": "Copy icon",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "copy",
+                          "library": "lucide",
+                          "fill": "#82AAC5"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ibUIt",
+                          "name": "Copy label",
+                          "fill": "#82AAC5",
+                          "content": "Copy",
+                          "fontFamily": "Geist",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "O5EsAE",
+                  "name": "Error body",
+                  "width": "fill_container",
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OnOZ7",
+                      "name": "Error text",
+                      "fill": "#C9D6E0",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "status       daemon_version=0.3.0  daemon_build=— (predates build reporting)\nowner.lock   pid 30117\napp service  com.playola.SlipstreamViewer.recorder — not running\npid 30117    /Users/brian/.nvm/versions/node/v24.11.0/bin/node\n               /Users/brian/.nvm/versions/node/v24.11.0/lib/node_modules/@playola-radio/slipstream/dist/cli.js start\nstarted      2026-10-27 09:14:52\nlaunchd      radio.playola.slipstream (~/Library/LaunchAgents/radio.playola.slipstream.plist)",
+                      "lineHeight": 1.55,
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "Rw6fw",
+      "x": 1300,
+      "y": 58220,
+      "name": "Label · stream-open-wont-start",
+      "fill": "#9EB7CB",
+      "content": "Stream open · won't start",
+      "fontFamily": "Geist",
+      "fontSize": 22,
+      "fontWeight": "normal"
+    },
+    {
+      "id": "pIu3P",
+      "type": "ref",
+      "ref": "AyBoP",
+      "name": "recorder--stream-open-wont-start",
+      "x": 1300,
+      "y": 58270,
+      "descendants": {
+        "NFnlH": {
+          "content": "nairobi"
+        },
+        "PaeKG": {
+          "fill": "#A4B4C3"
+        },
+        "IYbsT": {
+          "type": "frame",
+          "id": "v5Wdgo",
+          "name": "Footer",
+          "width": "fill_container",
+          "fill": "#191F27",
+          "stroke": "#314351",
+          "strokeWidth": {
+            "top": 1
+          },
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            10,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "N8wj3I",
+              "name": "Footer row",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "GzQMh",
+                  "name": "Footer icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "octagon-x",
+                  "library": "lucide",
+                  "fill": "#FF6B6B"
+                },
+                {
+                  "type": "text",
+                  "id": "U5stPV",
+                  "name": "Footer status",
+                  "fill": "#FF6B6B",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Recorder 0.3.2 exited with code 1 before it was ready.",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "DUpOB",
+                  "name": "Try again",
+                  "fill": "#82AAC5",
+                  "content": "Try again",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Vwcr4",
+              "name": "Error block",
+              "width": "fill_container",
+              "fill": "#0F1318",
+              "cornerRadius": 6,
+              "stroke": "#2A3640",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "B0epsF",
+                  "name": "Error source row",
+                  "width": "fill_container",
+                  "stroke": "#2A3640",
+                  "strokeWidth": {
+                    "bottom": 1
+                  },
+                  "gap": 8,
+                  "padding": [
+                    7,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "UHFSf",
+                      "name": "Error source",
+                      "fill": "#7D98AD",
+                      "content": "recorder.log · run started 16:42:06 · exited 16:42:07 · code 1",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "k9ri2",
+                      "name": "Error source gap",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q0MErQ",
+                      "name": "Copy",
+                      "gap": 5,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "fJ1XK",
+                          "name": "Copy icon",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "copy",
+                          "library": "lucide",
+                          "fill": "#82AAC5"
+                        },
+                        {
+                          "type": "text",
+                          "id": "M2HZx",
+                          "name": "Copy label",
+                          "fill": "#82AAC5",
+                          "content": "Copy",
+                          "fontFamily": "Geist",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jlQUH",
+                  "name": "Error body",
+                  "width": "fill_container",
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "AQRFa",
+                      "name": "Error text",
+                      "fill": "#C9D6E0",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "node:internal/modules/cjs/loader:1586\n  return process.dlopen(module, path.toNamespacedPath(filename));\n                 ^\n\nError: dlopen(~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node, 0x0001): tried: '~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node' (code signature in <7C1A39E2-5B0D-3F8E-A1C4-96D2E07B5F13> '~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node' not valid for use in process: library load disallowed by system policy)\n    at Module._extensions..node (node:internal/modules/cjs/loader:1586:18)\n    at Module.load (node:internal/modules/cjs/loader:1288:32)\n    at Module._load (node:internal/modules/cjs/loader:1104:12)\n    at Module.require (node:internal/modules/cjs/loader:1311:19)\n    at require (node:internal/modules/helpers:179:18)\n    at loadWatcherBinding (file://~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/dist/watcher.js:14:10)\n    at file://~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/dist/daemon.js:41:1 {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.11.0",
+                      "lineHeight": 1.55,
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
     }
   ],
   "variables": {

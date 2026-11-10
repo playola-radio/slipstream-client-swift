@@ -1,0 +1,55 @@
+{
+  "frame": "aZBNS",
+  "component": "AyBoP",
+  "changed": {
+    "type": "frame",
+    "id": "jU5fu",
+    "name": "Footer",
+    "width": "fill_container",
+    "fill": "#191F27",
+    "stroke": "#314351",
+    "strokeWidth": {
+      "top": 1
+    },
+    "layout": "vertical",
+    "gap": 10,
+    "padding": [
+      10,
+      20
+    ],
+    "children": [
+      {
+        "type": "frame",
+        "id": "TLpr3",
+        "name": "Footer row",
+        "width": "fill_container",
+        "gap": 8,
+        "alignItems": "center",
+        "children": [
+          {
+            "type": "icon",
+            "id": "w1MWe",
+            "name": "Footer icon",
+            "width": 13,
+            "height": 13,
+            "icon": "refresh-cw",
+            "library": "lucide",
+            "fill": "#8B9AA6"
+          },
+          {
+            "type": "text",
+            "id": "UvZRA",
+            "name": "Footer status",
+            "fill": "#8B9AA6",
+            "textGrowth": "fixed-width",
+            "width": "fill_container",
+            "content": "Restarting the recorder 0.3.1 → 0.3.2 (build 7f3c9a1e)… changes resume when it's back",
+            "fontFamily": "Geist",
+            "fontSize": 11,
+            "fontWeight": "normal"
+          }
+        ]
+      }
+    ]
+  }
+}
