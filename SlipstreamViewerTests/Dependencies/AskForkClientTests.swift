@@ -101,19 +101,54 @@ struct AskForkClientTests {
     await line(#"{"type":"system","subtype":"init","tools":["Bash","Read"],"mcp_servers":[]}"#)
 
     let outcome = await run.value
-    expectNoDifference(outcome, .failure(.unavailable))
+    expectNoDifference(
+      outcome,
+      .failure(
+        .unavailable(
+          "The read-only copy of the chat wasn't isolated. It had tools Bash, Read and MCP servers none."))
+    )
     #expect(agent.shutdowns(0) == 1)
   }
 
-  @Test func exitBeforeResultIsUnavailable() async {
+  @Test func errorResultCarriesClaudesOwnText() async {
+    let run = await start()
+
+    await line(Self.isolatedInit)
+    await line(#"{"type":"result","subtype":"success","is_error":true,"result":"Invalid API key"}"#)
+
+    let outcome = await run.value
+    expectNoDifference(outcome, .failure(.unavailable("Claude Code reported an error: Invalid API key")))
+  }
+
+  @Test func exitBeforeResultNamesTheStatus() async {
     let run = await start()
 
     await line(Self.isolatedInit)
     agent.exit(status: 1)
 
     let outcome = await run.value
-    expectNoDifference(outcome, .failure(.unavailable))
+    expectNoDifference(outcome, .failure(.unavailable("Claude Code exited with status 1.")))
     #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func exitBeforeResultIncludesStderr() async {
+    let run = await start()
+
+    await line(Self.isolatedInit)
+    agent.exit(status: 2, stderrTail: "\nwarming up\nError: Invalid API key\n\n")
+
+    let outcome = await run.value
+    expectNoDifference(
+      outcome, .failure(.unavailable("Claude Code exited with status 2: warming up · Error: Invalid API key")))
+  }
+
+  @Test func exitWithOnlyBlankStderrOmitsIt() async {
+    let run = await start()
+
+    agent.exit(status: 3, stderrTail: " \n\t\n")
+
+    let outcome = await run.value
+    expectNoDifference(outcome, .failure(.unavailable("Claude Code exited with status 3.")))
   }
 
   @Test func cleanExitBeforeResultIsBadReply() async {
@@ -123,7 +158,7 @@ struct AskForkClientTests {
     agent.exit(status: 0)
 
     let outcome = await run.value
-    expectNoDifference(outcome, .failure(.badReply))
+    expectNoDifference(outcome, .failure(.badReply("Claude Code exited without an answer.")))
   }
 
   @Test func overflowIsBadReply() async {
@@ -132,17 +167,68 @@ struct AskForkClientTests {
     agent.send(.overflow)
 
     let outcome = await run.value
-    expectNoDifference(outcome, .failure(.badReply))
+    expectNoDifference(outcome, .failure(.badReply("Claude Code's reply was too long to read.")))
     #expect(agent.shutdowns(0) == 1)
   }
 
-  @Test func launchFailureIsUnavailable() async {
+  @Test func streamEndingWithoutExitIsUnavailable() async {
+    let run = await start()
+
+    agent.finishEvents()
+
+    let outcome = await run.value
+    expectNoDifference(outcome, .failure(.unavailable("Claude Code stopped unexpectedly.")))
+  }
+
+  @Test func launchFailureNamesTheErrno() async {
     agent.setLaunchError(AgentProcessError.launchFailed(errno: ENOENT))
     let run = await start()
 
     let outcome = await run.value
-    expectNoDifference(outcome, .failure(.unavailable))
+    expectNoDifference(
+      outcome, .failure(.unavailable("Claude Code couldn't start: No such file or directory")))
     #expect(agent.shutdownCount == 0)
+  }
+
+  @Test func otherLaunchFailureUsesItsDescription() async {
+    struct Broken: LocalizedError { var errorDescription: String? { "the disk is full" } }
+    agent.setLaunchError(Broken())
+    let run = await start()
+
+    let outcome = await run.value
+    expectNoDifference(outcome, .failure(.unavailable("Claude Code couldn't start: the disk is full")))
+  }
+
+  @Test func promptWriteFailureNamesTheErrno() async {
+    agent.setWriteError(AgentProcessError.writeFailed(errno: EPIPE))
+    let run = await start()
+
+    let outcome = await run.value
+    expectNoDifference(
+      outcome, .failure(.unavailable("The question couldn't be sent to Claude Code: Broken pipe")))
+    #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func stderrSummaryKeepsTheLastThreeNonEmptyLines() {
+    expectNoDifference(
+      AskForkClient.stderrSummary("one\n\n two \nthree\n\nfour\n"), "two · three · four")
+  }
+
+  @Test func stderrSummaryRemovesControlCharacters() {
+    expectNoDifference(AskForkClient.stderrSummary("\u{1B}[31mboom\u{7}\tdone\r\n"), "[31mboomdone")
+  }
+
+  @Test func stderrSummaryOfBlankTextIsEmpty() {
+    expectNoDifference(AskForkClient.stderrSummary(" \n\t \n"), "")
+  }
+
+  @Test func stderrSummaryCapsAtFiveHundredCharactersKeepingTheEnd() {
+    let long = String(repeating: "a", count: 600) + "END"
+    let summary = AskForkClient.stderrSummary(long)
+    expectNoDifference(summary.count, 500)
+    expectNoDifference(summary.first, "…")
+    #expect(summary.hasSuffix("aaaEND"))
+    expectNoDifference(AskForkClient.stderrSummary(String(repeating: "b", count: 500)), String(repeating: "b", count: 500))
   }
 
   @Test func overTimeLimitShutsDownAsTimedOut() async {

@@ -9,16 +9,26 @@ enum QuestionFailure {
     }
   }
 
-  static func message(_ error: any Error, hasUncertainSubmission: Bool) -> String {
-    let reason = switch error {
+  static func reason(_ error: any Error) -> String {
+    switch error {
     case QuestionError.unavailable:
       "The question service isn't available. Attach the agent session through the shared daemon, then retry."
-    case QuestionError.rejected(let code, _): failureText(code)
+    case QuestionError.rejected(let code, let message):
+      daemonSaid(message, after: failureText(code))
     default: "The daemon's response wasn't received or couldn't be verified."
     }
-    return reason + (hasUncertainSubmission
+  }
+
+  static func message(_ error: any Error, hasUncertainSubmission: Bool) -> String {
+    reason(error) + (hasUncertainSubmission
       ? " An earlier submission may already be queued. Retry unchanged to reuse its request ID. Editing sends a separate question."
       : " Your draft is kept.")
+  }
+
+  private static func daemonSaid(_ message: String, after text: String) -> String {
+    let said = message.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !said.isEmpty, said != text else { return text }
+    return text + " The daemon said: " + said + (said.hasSuffix(".") ? "" : ".")
   }
 
   private static func failureText(_ code: String) -> String {

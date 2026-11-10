@@ -46,7 +46,7 @@ extension AskForkClient: DependencyKey {
           )
         )
       } catch {
-        throw .unavailable
+        throw .unavailable("Claude Code couldn't start: \(reason(error))")
       }
 
       let outcome = await withTaskGroup(of: Result<AskForkResult, AskForkError>.self) { group in
@@ -56,10 +56,10 @@ extension AskForkClient: DependencyKey {
             try await clock.sleep(for: timeLimit)
             return .failure(.timedOut)
           } catch {
-            return .failure(.unavailable)
+            return .failure(.unavailable(cancelledDetail))
           }
         }
-        let first = await group.next() ?? .failure(.unavailable)
+        let first = await group.next() ?? .failure(.unavailable(cancelledDetail))
         // Before the group waits for the other task: a prompt write blocked on a full pipe only
         // returns once the process is gone.
         await handle.shutdown()
@@ -80,7 +80,7 @@ extension AskForkClient: DependencyKey {
     do {
       try await handle.write(Data(request.prompt.utf8))
     } catch {
-      return .failure(.unavailable)
+      return .failure(.unavailable("The question couldn't be sent to Claude Code: \(reason(error))"))
     }
     await handle.closeInput()
     var output = ForkOutput(kind: request.kind)
@@ -93,12 +93,34 @@ extension AskForkClient: DependencyKey {
           return .failure(error)
         }
       case .overflow:
-        return .failure(.badReply)
-      case .exited(let status, _):
-        return .failure(status == 0 ? .badReply : .unavailable)
+        return .failure(.badReply("Claude Code's reply was too long to read."))
+      case .exited(let status, let stderrTail):
+        guard status != 0 else { return .failure(.badReply("Claude Code exited without an answer.")) }
+        let summary = stderrSummary(stderrTail)
+        return .failure(.unavailable("Claude Code exited with status \(status)" + (summary.isEmpty ? "." : ": \(summary)")))
       }
     }
-    return .failure(.unavailable)
+    return .failure(.unavailable("Claude Code stopped unexpectedly."))
+  }
+
+  static func stderrSummary(_ tail: String) -> String {
+    let lines = tail.components(separatedBy: .newlines)
+      .map { String(String.UnicodeScalarView($0.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) })) }
+      .map { $0.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.isEmpty }
+    let summary = lines.suffix(3).joined(separator: " · ")
+    return summary.count > 500 ? "…" + summary.suffix(499) : summary
+  }
+
+  private static let cancelledDetail = "The question was cancelled."
+
+  private static func reason(_ error: any Error) -> String {
+    switch error {
+    case AgentProcessError.launchFailed(let code), AgentProcessError.writeFailed(let code):
+      String(cString: strerror(code))
+    default:
+      error.localizedDescription
+    }
   }
 }
 

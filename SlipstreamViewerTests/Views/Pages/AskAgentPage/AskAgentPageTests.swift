@@ -471,7 +471,7 @@ extension AskAgentPageTests {
     #expect(await model.askTapped() == nil)
     expectNoDifference(
       model.errorMessage,
-      "This workspace's chat was relinked after the app last checked. Press ⌘R to see which chat is linked now, then ask again. Your draft is kept.")
+      "This workspace's chat was relinked after the app last checked. Press ⌘R to see which chat is linked now, then ask again. The daemon said: relinked. Your draft is kept.")
     model.captureChanged(Self.capture(binding: CaptureBinding(generation: "8", state: .connected)), route: .outside)
     #expect(await model.askTapped() == nil)
     expectNoDifference(sent.value.map(\.verb), [.ask(bindingGeneration: "7"), .ask(bindingGeneration: "7")])
@@ -508,7 +508,7 @@ extension AskAgentPageTests {
     _ = await model.askTapped()
     expectNoDifference(
       model.errorMessage,
-      "The agent chat for this capture hasn't confirmed it can answer. Run `slipstream attach` inside that chat. The question stays bound to its original capture. Your draft is kept."
+      "The agent chat for this capture hasn't confirmed it can answer. Run `slipstream attach` inside that chat. The question stays bound to its original capture. The daemon said: no. Your draft is kept."
     )
     expectNoDifference(model.draft, "Why?")
   }

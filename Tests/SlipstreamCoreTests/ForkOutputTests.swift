@@ -14,6 +14,9 @@ enum ForkLines {
     let session = sessionID.map { #","session_id":"\#($0)""# } ?? ""
     return line(#"{"type":"result","subtype":"success","is_error":\#(isError)\#(session),"structured_output":\#(structured)}"#)
   }
+  static func errorResult(result: String) -> Data {
+    line(#"{"type":"result","subtype":"error_during_execution","is_error":true,"result":"\#(result)"}"#)
+  }
   static func line(_ text: String) -> Data { Data(text.utf8) }
 }
 
@@ -42,53 +45,114 @@ struct ForkOutputTests {
     )
   }
 
-  @Test func initWithExtraToolIsUnavailable() {
-    #expect(throws: AskForkError.unavailable) {
-      try read([ForkLines.initLine(tools: #"["Bash","Glob","Grep","Read","StructuredOutput"]"#)])
+  func failure(_ lines: [Data], kind: AskForkKind = .answer(allowsChangeRequests: false)) -> AskForkError? {
+    do throws(AskForkError) {
+      _ = try read(lines, kind: kind)
+      return nil
+    } catch {
+      return error
     }
   }
 
-  @Test func initWithMcpServerIsUnavailable() {
-    #expect(throws: AskForkError.unavailable) {
-      try read([ForkLines.initLine(servers: #"[{"name":"slipstream","status":"connected"}]"#)])
-    }
+  @Test func initWithExtraToolNamesTheToolsAndNoServers() {
+    expectNoDifference(
+      failure([ForkLines.initLine(tools: #"["Bash","Glob","Grep","Read","StructuredOutput"]"#)]),
+      .unavailable(
+        "The read-only copy of the chat wasn't isolated. It had tools Bash, Glob, Grep, Read, StructuredOutput and MCP servers none.")
+    )
+  }
+
+  @Test func initWithMcpServerNamesTheServer() {
+    expectNoDifference(
+      failure([ForkLines.initLine(servers: #"[{"name":"slipstream","status":"connected"},{"name":"other"}]"#)]),
+      .unavailable(
+        "The read-only copy of the chat wasn't isolated. It had tools Glob, Grep, Read, StructuredOutput and MCP servers slipstream, other.")
+    )
+  }
+
+  @Test func initWithUnnamedMcpServersCountsThem() {
+    expectNoDifference(
+      failure([ForkLines.initLine(servers: #"[1,{"status":"connected"}]"#)]),
+      .unavailable(
+        "The read-only copy of the chat wasn't isolated. It had tools Glob, Grep, Read, StructuredOutput and MCP servers 2.")
+    )
   }
 
   @Test func initWithoutToolListIsUnavailable() {
-    #expect(throws: AskForkError.unavailable) {
-      try read([ForkLines.line(#"{"type":"system","subtype":"init","mcp_servers":[]}"#)])
-    }
+    expectNoDifference(
+      failure([ForkLines.line(#"{"type":"system","subtype":"init","mcp_servers":[]}"#)]),
+      .unavailable("The read-only copy of the chat didn't report its tools or MCP servers.")
+    )
   }
 
-  @Test func resultBeforeInitIsUnavailable() {
-    #expect(throws: AskForkError.unavailable) { try read([ForkLines.stateRunning, ForkLines.result()]) }
+  @Test func resultBeforeInitIsBadReply() {
+    expectNoDifference(
+      failure([ForkLines.stateRunning, ForkLines.result()]),
+      .badReply("Claude Code answered before reporting its setup.")
+    )
   }
 
-  @Test func isErrorResultIsUnavailable() {
-    #expect(throws: AskForkError.unavailable) { try read([ForkLines.initLine(), ForkLines.result(isError: true)]) }
+  @Test func isErrorResultCarriesClaudesOwnText() {
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.errorResult(result: " Invalid API key · Please run /login ")]),
+      .unavailable("Claude Code reported an error: Invalid API key · Please run /login")
+    )
+  }
+
+  @Test func isErrorResultWithoutTextFallsBackToSubtypeThenNoDetails() {
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.result(isError: true)]),
+      .unavailable("Claude Code reported an error: success")
+    )
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.line(#"{"type":"result","is_error":true,"result":"  "}"#)]),
+      .unavailable("Claude Code reported an error: no details")
+    )
+  }
+
+  @Test func isErrorResultBeforeInitStillCarriesClaudesOwnText() {
+    expectNoDifference(
+      failure([ForkLines.errorResult(result: "Credit balance is too low")]),
+      .unavailable("Claude Code reported an error: Credit balance is too low")
+    )
   }
 
   @Test func missingSessionIDIsBadReply() {
-    #expect(throws: AskForkError.badReply) { try read([ForkLines.initLine(), ForkLines.result(sessionID: nil)]) }
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.result(sessionID: nil)]), .badReply("The reply had no session id."))
   }
 
   @Test func missingStructuredOutputIsBadReply() {
-    #expect(throws: AskForkError.badReply) {
-      try read([ForkLines.initLine(), ForkLines.line(#"{"type":"result","is_error":false,"session_id":"\#(ForkLines.forkID)"}"#)])
-    }
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.line(#"{"type":"result","is_error":false,"session_id":"\#(ForkLines.forkID)"}"#)]),
+      .badReply("The reply had no structured answer.")
+    )
   }
 
   @Test func whitespaceReplyIsBadReply() {
-    #expect(throws: AskForkError.badReply) { try read([ForkLines.initLine(), ForkLines.result(#"{"reply":" \n　"}"#)]) }
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.result(#"{"reply":" \n　"}"#)]), .badReply("The reply was empty."))
+  }
+
+  @Test func nonTextReplyIsBadReply() {
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.result(#"{"reply":3}"#)]), .badReply("The reply had no text."))
   }
 
   @Test func extraSchemaFieldIsBadReply() {
-    #expect(throws: AskForkError.badReply) {
-      try read([ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes.","is_change_request":false}"#)])
-    }
-    #expect(throws: AskForkError.badReply) {
-      try read([ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes."}"#)], kind: .answer(allowsChangeRequests: true))
-    }
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes.","is_change_request":false}"#)]),
+      .badReply("The reply had fields other than its text.")
+    )
+    expectNoDifference(
+      failure([ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes."}"#)], kind: .answer(allowsChangeRequests: true)),
+      .badReply("The reply had fields other than its text and change-request flag.")
+    )
+    expectNoDifference(
+      failure(
+        [ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes.","other":true}"#)], kind: .answer(allowsChangeRequests: true)),
+      .badReply("The reply had no change-request flag.")
+    )
   }
 
   @Test func unrelatedLinesAreIgnored() throws {
@@ -115,11 +179,13 @@ struct ForkOutputTests {
   }
 
   @Test func reportOutsideItsSchemaIsBadReply() {
-    for structured in [
-      #"{"reply":"Done.","outcome":"maybe"}"#, #"{"reply":"Done."}"#,
-      #"{"reply":"Done.","outcome":"done","is_change_request":false}"#,
+    for (structured, detail) in [
+      (#"{"reply":"Done.","outcome":"maybe"}"#, "The report had no recognized outcome."),
+      (#"{"reply":"Done.","other":"done"}"#, "The report had no recognized outcome."),
+      (#"{"reply":"Done."}"#, "The report had no recognized outcome."),
+      (#"{"reply":"Done.","outcome":"done","is_change_request":false}"#, "The report had fields other than its reply and outcome."),
     ] {
-      #expect(throws: AskForkError.badReply) { try read([ForkLines.initLine(), ForkLines.result(structured)], kind: .report) }
+      expectNoDifference(failure([ForkLines.initLine(), ForkLines.result(structured)], kind: .report), .badReply(detail))
     }
   }
 }

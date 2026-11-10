@@ -67,6 +67,13 @@ struct QuestionThreadPageView: View {
                 .font(DesignTokens.Reply.agentFont)
                 .foregroundStyle(DesignTokens.Reply.failureDetailColor)
             }
+            if let detail = model.pendingFailureDetail {
+              Text(detail)
+                .font(DesignTokens.Reply.agentFont)
+                .foregroundStyle(DesignTokens.Reply.failureDetailColor)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            }
             Button(action: model.tryAgainTapped) {
               Text(model.tryAgainText)
                 .font(DesignTokens.Reply.tryAgainFont)

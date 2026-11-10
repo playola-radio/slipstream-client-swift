@@ -213,7 +213,7 @@ func ask(_ parent: UUID, _ evalCase: EvalCase) -> Result<AskForkResult, AskForkE
     }
   let arguments = ClaudeInvocation.forkArguments(parentSessionID: parent, model: model, effort: effort, schema: schema)
   var output = ForkOutput(kind: kind)
-  var result: Result<AskForkResult, AskForkError> = .failure(.unavailable)
+  var result: Result<AskForkResult, AskForkError>?
   let status = run(arguments, input: prompt, timeLimit: 120) { line in
     do throws(AskForkError) {
       guard let answer = try output.read(line) else { return false }
@@ -223,8 +223,8 @@ func ask(_ parent: UUID, _ evalCase: EvalCase) -> Result<AskForkResult, AskForkE
     }
     return true
   }
-  if status == nil, case .failure(.unavailable) = result { return .failure(.timedOut) }
-  return result
+  if let result { return result }
+  return .failure(status == nil ? .timedOut : .unavailable("Claude Code ended without an answer."))
 }
 
 /// A chat that was sent its case's change request the way the app relays it. One may edit files;

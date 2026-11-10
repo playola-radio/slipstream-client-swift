@@ -15,6 +15,7 @@ import Testing
 @Suite(.serialized, .mainSerialExecutor)
 struct QuestionThreadPageTests {
   let storage = InMemoryStorage()
+  let clock = TestClock()
   let uuid = UUIDGenerator.incrementing
 
   static let key = QuestionThreadKey(storeID: "store-a", sessionID: Fixture.session, rootQuestionID: "q1")
@@ -60,13 +61,13 @@ struct QuestionThreadPageTests {
   }
 
   /// The thread's chat is open as a tab in `/w`.
-  func makeInstantAsk() -> InstantAskModel {
+  func makeInstantAsk(agent: AgentFake = AgentFake(), clock: TestClock<Duration>? = nil) -> InstantAskModel {
     withDependencies { $0.defaultFileStorage = .inMemory } operation: {
       @Shared(.chatTabs) var stored
       $stored.withLock {
         $0 = [ChatTabRecord(id: Self.tab, folder: "/w", model: "claude-opus-5-5", effort: .high, isWaiting: false)]
       }
-      return InstantAskModel.fake(chat: ChatPageModel(), fork: fork, recorder: recorder)
+      return InstantAskModel.fake(chat: ChatPageModel(), fork: fork, recorder: recorder, agent: agent, clock: clock)
     }
   }
 
@@ -526,22 +527,43 @@ extension QuestionThreadPageTests {
   }
 
   @Test(arguments: [
-    (AskForkError.timedOut, "no reply within 120 seconds"),
-    (.unavailable, "the chat couldn't be reached"),
-    (.badReply, "the reply couldn't be read"),
+    (AskForkError.timedOut, "no reply within 120 seconds", nil),
+    (.unavailable("Claude Code exited with status 1."), "the chat couldn't be reached", "Claude Code exited with status 1."),
+    (.badReply("The reply was empty."), "the reply couldn't be read", "The reply was empty."),
   ])
-  func couldntAnswerShowsReasonAndTryAgain(error: AskForkError, reason: String) async {
+  func couldntAnswerShowsReasonAndTryAgain(error: AskForkError, reason: String, detail: String?) async {
     let model = makeModel([Self.answered], link: Self.recorded)
     await followUpSent(model)
     fork.reply(.failure(error))
     await Task.megaYield()
     expectNoDifference(model.pendingFailureText, reason)
+    expectNoDifference(model.pendingFailureDetail, detail)
     expectNoDifference(model.couldntAnswerText, "Couldn't get an answer")
     expectNoDifference(model.tryAgainText, "Try again")
     model.tryAgainTapped()
     await Task.megaYield()
     #expect(model.pendingFailureText == nil)
+    #expect(model.pendingFailureDetail == nil)
     expectNoDifference(fork.requests.count, 2)
+  }
+
+  @Test func missingEnvironmentShowsClaudeIsntReady() async {
+    let agent = AgentFake()
+    agent.setEnvironmentError(.claudeNotFound)
+    let model = makeModel([Self.answered], link: Self.recorded, instantAsk: makeInstantAsk(agent: agent))
+    await followUpSent(model)
+    expectNoDifference(model.pendingFailureText, "Claude Code isn't ready")
+    expectNoDifference(model.pendingFailureDetail, "Couldn't find claude on your login shell's PATH.")
+  }
+
+  @Test func followUpWithoutAChatShowsNoChatIsOpen() async {
+    let instantAsk = withDependencies { $0.defaultFileStorage = .inMemory } operation: {
+      InstantAskModel.fake(chat: ChatPageModel(), fork: fork, recorder: recorder)
+    }
+    let model = makeModel([Self.answered], link: Self.recorded, instantAsk: instantAsk)
+    await followUpSent(model)
+    expectNoDifference(model.pendingFailureText, "no chat is open for this folder")
+    expectNoDifference(model.pendingFailureDetail, "No chat is open for w. Open one in Slipstream, then try again.")
   }
 
   @Test func couldntSaveShowsReasonAndTryAgain() async {
@@ -551,6 +573,22 @@ extension QuestionThreadPageTests {
     fork.answer()
     await Task.megaYield()
     expectNoDifference(model.pendingFailureText, "it couldn't be saved")
+    expectNoDifference(
+      model.pendingFailureDetail,
+      "This source selection couldn't be verified. Select up to 200 lines totaling at most 16 KiB from an available snapshot. The daemon said: No."
+    )
+  }
+
+  @Test func unconfirmedSaveShowsDaemonDidntConfirm() async {
+    recorder.script(.failure(.outcomeUnknown), .failure(.outcomeUnknown), .failure(.outcomeUnknown))
+    let model = makeModel([Self.answered], link: Self.recorded, instantAsk: makeInstantAsk(clock: clock))
+    await followUpSent(model)
+    fork.answer()
+    await Task.megaYield()
+    await clock.advance(by: .seconds(5))
+    await Task.megaYield()
+    expectNoDifference(model.pendingFailureText, "it couldn't be saved")
+    expectNoDifference(model.pendingFailureDetail, "The daemon didn't confirm it saved the answer.")
   }
 
   @Test func followUpOnRecordedThreadUsesInstantAsk() async throws {
@@ -801,10 +839,28 @@ extension QuestionThreadPageTests {
         lines: [
           .init(mark: .done, label: "Sent", detail: "14:02"),
           .init(mark: .done, label: "Picked up", detail: "14:03"),
-          .init(mark: .warning, label: "Couldn't check whether this was done", detail: "14:05"),
+          .init(
+            mark: .warning, label: "Couldn't check whether this was done",
+            detail: "14:05 · Claude Code didn't answer within 120 seconds."),
         ],
         action: .checkAgain, isActionDisabled: false, report: nil))
     expectNoDifference(model.actionText(.checkAgain), "Check again")
+  }
+
+  @Test func couldntCheckLineIncludesTheCause() async {
+    let (instantAsk, _) = makeRelayingInstantAsk(AgentFake())
+    let turns = [Self.answered, Self.onIt(Self.relay(pickedUp: true))]
+    handOver(instantAsk, turns)
+    await Task.megaYield()
+    fork.reply(.failure(.unavailable("Claude Code exited with status 1: Invalid API key")))
+    await Task.megaYield()
+    let model = makeModel(turns, link: Self.recorded, instantAsk: instantAsk)
+
+    expectNoDifference(
+      progress(model)?.lines.last,
+      .init(
+        mark: .warning, label: "Couldn't check whether this was done",
+        detail: "14:05 · Claude Code exited with status 1: Invalid API key"))
   }
 
   @Test func checkAgainDisabledWhileChecking() async throws {
