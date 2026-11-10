@@ -23,8 +23,9 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 - When asking the agent a question or checking whether a requested change was done
   fails, the reply now says why, such as Claude Code's own error, a missing setup
   step or the daemon's reason, instead of only "the chat couldn't be reached".
-- The terminals pane always shows the selected workspace's own terminals. Another
-  workspace's setup output no longer appears there, or opens in its place.
+- Once setup creates the new workspace, the terminals pane keeps each workspace's
+  terminals separate, so another workspace's setup output no longer appears there
+  or opens in its place.
 
 ## [0.2.0] - 2026-11-06
 
