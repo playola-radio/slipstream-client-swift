@@ -67,6 +67,13 @@ struct QuestionThreadPageView: View {
                 .font(DesignTokens.Reply.agentFont)
                 .foregroundStyle(DesignTokens.Reply.failureDetailColor)
             }
+            if let detail = model.pendingFailureDetail {
+              Text(detail)
+                .font(DesignTokens.Reply.agentFont)
+                .foregroundStyle(DesignTokens.Reply.failureDetailColor)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            }
             Button(action: model.tryAgainTapped) {
               Text(model.tryAgainText)
                 .font(DesignTokens.Reply.tryAgainFont)
@@ -171,6 +178,13 @@ private struct RelayProgressView: View {
             .lineLimit(1)
             .truncationMode(.middle)
         }
+      }
+      if let failure = progress.failure {
+        Text(failure)
+          .font(DesignTokens.Reply.agentFont)
+          .foregroundStyle(DesignTokens.Reply.failureDetailColor)
+          .fixedSize(horizontal: false, vertical: true)
+          .textSelection(.enabled)
       }
       if let action = progress.action {
         Button {

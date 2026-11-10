@@ -190,8 +190,8 @@ struct InstantAskModelTests {
 
   @Test(arguments: [
     (AskForkError.timedOut, AskFailure.noReply),
-    (.unavailable, .chatUnavailable),
-    (.badReply, .badReply),
+    (.unavailable("Claude Code exited with status 1."), AskFailure(kind: .unavailable, detail: "Claude Code exited with status 1.")),
+    (.badReply("The reply was empty."), AskFailure(kind: .badReply, detail: "The reply was empty.")),
   ])
   func copyFailureMapsToReason(error: AskForkError, failure: AskFailure) async {
     let model = makeModel()
@@ -204,13 +204,18 @@ struct InstantAskModelTests {
     expectNoDifference(recorder.requests, [])
   }
 
-  @Test func unresolvedEnvironmentIsChatUnavailable() async {
-    agent.setEnvironmentError(.claudeNotFound)
+  @Test(arguments: [
+    (AgentEnvironmentError.claudeNotFound, "Couldn't find claude on your login shell's PATH."),
+    (.tooOld(found: "2.1.200"), "Slipstream needs Claude Code \(AgentEnvironmentClient.minimumVersion) or newer (found 2.1.200)."),
+  ])
+  func unresolvedEnvironmentSaysWhatIsMissing(error: AgentEnvironmentError, detail: String) async {
+    agent.setEnvironmentError(error)
     let model = makeModel()
 
     await asking(model, question())
 
-    expectNoDifference(model.pending, [entry(state: .couldntAnswer(.chatUnavailable))])
+    expectNoDifference(
+      model.pending, [entry(state: .couldntAnswer(AskFailure(kind: .environment, detail: detail)))])
   }
 
   // MARK: - Recording
@@ -278,13 +283,40 @@ struct InstantAskModelTests {
     await Task.megaYield()
 
     expectNoDifference(recorder.requests.count, 1)
-    expectNoDifference(model.pending, [entry(state: .couldntAnswer(.notSaved))])
+    expectNoDifference(
+      model.pending,
+      [
+        entry(
+          state: .couldntAnswer(
+            AskFailure(
+              kind: .notSaved, detail: QuestionFailure.reason(QuestionError.rejected(code: "INVALID_CONTEXT", message: "")))))
+      ])
+  }
+
+  @Test func refusedRecordingCarriesTheDaemonsMessage() async {
+    let model = makeModel()
+    recorder.script(.failure(.rejected(code: "INVALID_CONTEXT", message: "snapshot is gone")))
+
+    await asking(model, question())
+    fork.answer()
+    await Task.megaYield()
+
+    expectNoDifference(
+      model.pending.map(\.state),
+      [
+        .couldntAnswer(
+          AskFailure(
+            kind: .notSaved,
+            detail:
+              "This source selection couldn't be verified. Select up to 200 lines totaling at most 16 KiB from an available snapshot. The daemon said: snapshot is gone."
+          ))
+      ])
   }
 
   @Test func tryAgainOnCouldntAnswerRunsNewCopyWithNewRequestID() async {
     let model = makeModel()
     await asking(model, question())
-    fork.reply(.failure(.unavailable))
+    fork.reply(.failure(.unavailable("Claude Code stopped unexpectedly.")))
     await Task.megaYield()
 
     let retried = model.tryAgainTapped(requestID: Self.firstRequest)
@@ -299,14 +331,18 @@ struct InstantAskModelTests {
   @Test func tryAgainWithNoTabKeepsQuestion() async {
     let (model, chat) = makeModelAndChat()
     await asking(model, question())
-    fork.reply(.failure(.unavailable))
+    fork.reply(.failure(.unavailable("Claude Code stopped unexpectedly.")))
     await Task.megaYield()
     chat.capturesArrived([CaptureSummary(sessionID: Self.capture, root: "/w", state: .recording)])
 
     let retried = model.tryAgainTapped(requestID: Self.firstRequest)
 
     #expect(retried == Self.firstRequest)
-    expectNoDifference(model.pending, [entry(state: .couldntAnswer(.chatUnavailable))])
+    expectNoDifference(model.pending, [entry(state: .couldntAnswer(.noChat(folder: "/w")))])
+    expectNoDifference(
+      model.pending.first?.state,
+      .couldntAnswer(
+        AskFailure(kind: .noChat, detail: "No chat is connected to w. Send a message in a chat tab to connect it, then try again.")))
     expectNoDifference(fork.requests.count, 1)
   }
 
@@ -403,12 +439,12 @@ struct InstantAskModelTests {
     expectNoDifference(fork.requests, [])
   }
 
-  @Test func followUpWithNoTabIsChatUnavailable() async {
+  @Test func followUpWithNoTabIsNoChat() async {
     let model = makeModel(records: [])
 
     await asking(model, question(replyTo: "q-1", threadChat: Self.threadChat))
 
-    expectNoDifference(model.pending.map(\.state), [.couldntAnswer(.chatUnavailable)])
+    expectNoDifference(model.pending.map(\.state), [.couldntAnswer(.noChat(folder: "/w"))])
     expectNoDifference(model.pending.map(\.chatSessionID), [Self.threadChat])
     expectNoDifference(fork.requests, [])
   }
@@ -805,8 +841,49 @@ struct InstantAskModelTests {
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .idle)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, "Claude Code didn't answer within 120 seconds.")
     expectNoDifference(model.relayStatus(loggedRelay(pickedUp: true)), .couldntCheck)
     expectNoDifference(steps.map(\.update), [.pickedUp])
+  }
+
+  @Test(arguments: [
+    (AskForkError.unavailable("Claude Code stopped unexpectedly."), "Claude Code stopped unexpectedly."),
+    (.badReply("The reply was empty."), "The reply was empty."),
+  ])
+  func failedReportKeepsTheForkDetail(error: AskForkError, cause: String) async {
+    let (model, chat) = makeModelAndChat()
+    await askingChangeRequest(model)
+    pickedUp(chat)
+    await turnEnded(chat)
+
+    fork.reply(.failure(error))
+    await Task.megaYield()
+
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, cause)
+  }
+
+  @Test func unresolvedEnvironmentFailsTheCheckWithItsMessage() async {
+    let (model, chat) = makeModelAndChat()
+    await askingChangeRequest(model)
+    pickedUp(chat)
+    agent.setEnvironmentError(.claudeNotFound)
+
+    await turnEnded(chat)
+
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, "Couldn't find claude on your login shell's PATH.")
+    expectNoDifference(fork.requests.count, 1)
+  }
+
+  @Test func answerInsteadOfReportFailsTheCheck() async {
+    let (model, chat) = makeModelAndChat()
+    await askingChangeRequest(model)
+    pickedUp(chat)
+    await turnEnded(chat)
+
+    fork.answer()
+    await Task.megaYield()
+
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, "Claude Code's reply had no report.")
   }
 
   @Test func failedCheckStillRerunsAfterTurnEnd() async {
@@ -828,13 +905,16 @@ struct InstantAskModelTests {
     await askingChangeRequest(model)
     pickedUp(chat)
     await turnEnded(chat)
-    recorder.scriptUpdates(.failure(.rejected(code: "INVALID_RELAY_UPDATE", message: "")))
+    recorder.scriptUpdates(.failure(.rejected(code: "INVALID_RELAY_UPDATE", message: "relay already finished")))
 
     fork.report(.done)
     await Task.megaYield()
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, false)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
+    expectNoDifference(
+      model.relayRuns[Self.firstRelay]?.checkFailure,
+      "The daemon refused to record the check (INVALID_RELAY_UPDATE). The daemon said: relay already finished.")
     expectNoDifference(model.relayStatus(loggedRelay(pickedUp: true)), .couldntCheck)
   }
 
@@ -847,6 +927,7 @@ struct InstantAskModelTests {
 
     expectNoDifference(fork.requests, [])
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, "The chat for this change is closed.")
   }
 
   @Test func checkAgainKeepsFailureUntilItsReport() async {
@@ -867,6 +948,7 @@ struct InstantAskModelTests {
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.report, .idle)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, nil)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, nil)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, true)
   }
 
@@ -884,10 +966,12 @@ struct InstantAskModelTests {
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, false)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, 1_700_000_000_000)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, "The daemon didn't record the check.")
     await model.daemonConnected(storeID: "store-1")
 
     expectNoDifference(model.relayRuns[Self.firstRelay]?.isDone, true)
     expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailedAtMs, nil)
+    expectNoDifference(model.relayRuns[Self.firstRelay]?.checkFailure, nil)
   }
 
   @Test func checkAgainIgnoredWhileChecking() async {

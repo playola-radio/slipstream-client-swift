@@ -11,6 +11,8 @@ struct RelayProgress: Equatable {
   let isActionDisabled: Bool
   /// The agent's answer to whether it made the change.
   let report: Report?
+  /// Why the last check couldn't tell whether the change was made.
+  var failure: String? = nil
 
   struct Line: Equatable, Hashable {
     let mark: Mark
@@ -130,10 +132,24 @@ final class QuestionThreadPageModel: ViewModel {
   /// Why the pending turn has no answer, or `nil` while it is still being answered.
   var pendingFailureText: String? {
     switch pendingTurn?.state {
-    case .couldntAnswer(.noReply): "no reply within 120 seconds"
-    case .couldntAnswer(.chatUnavailable): "the chat couldn't be reached"
-    case .couldntAnswer(.badReply): "the reply couldn't be read"
-    case .couldntAnswer(.notSaved), .couldntRecord: "it couldn't be saved"
+    case .couldntAnswer(let failure):
+      switch failure.kind {
+      case .noReply: "no reply within 120 seconds"
+      case .noChat: "no chat is connected to this folder"
+      case .environment: "Claude Code isn't ready"
+      case .unavailable: "the chat couldn't be reached"
+      case .badReply: "the reply couldn't be read"
+      case .notSaved: "it couldn't be saved"
+      }
+    case .couldntRecord: "it couldn't be saved"
+    case .answering, .recording, .recorded, nil: nil
+    }
+  }
+
+  var pendingFailureDetail: String? {
+    switch pendingTurn?.state {
+    case .couldntAnswer(let failure): failure.detail
+    case .couldntRecord: "The daemon didn't confirm it saved the answer."
     case .answering, .recording, .recorded, nil: nil
     }
   }
@@ -182,13 +198,15 @@ final class QuestionThreadPageModel: ViewModel {
       lines += relay.changedPaths.map { .init(mark: .working, label: "Working", detail: "changes seen in \($0)") }
     }
     var action: RelayProgress.Action?
+    var failure: String?
     switch status {
     case .notDoneYet:
       lines.append(.init(mark: .notDoneYet, label: "Not done yet", detail: "checking again when the agent's next turn ends"))
     case .couldntCheck:
-      let failedAt = run?.checkFailedAtMs.map(clockTime) ?? ""
-      lines.append(.init(mark: .warning, label: "Couldn't check whether this was done", detail: failedAt))
+      lines.append(
+        .init(mark: .warning, label: "Couldn't check whether this was done", detail: run?.checkFailedAtMs.map(clockTime) ?? ""))
       action = .checkAgain
+      failure = run?.checkFailure
     case .notDelivered:
       lines.append(.init(mark: .failed, label: "Not delivered", detail: "the chat stopped before the agent read this"))
       action = .sendAgain
@@ -205,7 +223,8 @@ final class QuestionThreadPageModel: ViewModel {
     case nil: false
     }
     return RelayProgress(
-      relayID: relay.id, lines: lines, action: action, isActionDisabled: isActionDisabled, report: report)
+      relayID: relay.id, lines: lines, action: action, isActionDisabled: isActionDisabled, report: report,
+      failure: failure)
   }
 
   func actionText(_ action: RelayProgress.Action) -> String {

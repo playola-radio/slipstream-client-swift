@@ -20,16 +20,30 @@ Every merge to `main` that carries a new version releases from GitHub Actions
 
 ## Release
 
-1. On `develop`, move the finished entries under `## [Unreleased]` in `CHANGELOG.md`
-   into a dated heading for the new version, e.g. `## [0.2.0] - 2026-11-20`, then:
+The `/prep-release` skill (`.claude/skills/prep-release`) walks through all of this,
+including checking the notes against the PRs merged since the last release.
+
+1. Pull requests add their release notes as files under `changelog.d/` (format in
+   `changelog.d/README.md`), not to `CHANGELOG.md`. On a branch off `develop`, make sure
+   those notes, plus any bullets still under `## [Unreleased]` in `CHANGELOG.md`, cover
+   every user-facing change since the last release
+   (`ruby packaging/release_notes.rb notes CHANGELOG.md changelog.d` prints them), commit
+   so the working tree is clean, then:
 
    ```bash
-   bundle exec fastlane mac bump version:0.2.0   # or plain `bump` for a build-only bump
+   make prep-release VERSION=0.3.0
    ```
 
-   `bump` edits `MARKETING_VERSION` and the integer `CURRENT_PROJECT_VERSION` (the
-   `sparkle:version`, which must only ever go up) in `project.yml` and commits.
-2. Open the `develop` → `main` release PR (`/create-release-pr`) and merge it.
+   This moves those notes under `## [0.3.0] - <today>`, deletes the `changelog.d/` files
+   it moved, and bumps `MARKETING_VERSION` and the integer `CURRENT_PROJECT_VERSION` (the
+   `sparkle:version`, which must only ever go up) in `project.yml`, in one commit. It
+   refuses a malformed note (naming the file and line), a release with no `### Changes`
+   notes, or a version already in the changelog. `### Ops` notes are recorded in the
+   changelog but left out of the update dialog. For a
+   build-only bump of the same version, run `bundle exec fastlane mac bump`. If the
+   preparation commit fails, it restores the clean tree so the command can be rerun.
+2. Merge that branch into `develop`, then open the `develop` → `main` release PR and
+   merge it.
 
 The workflow's first job reads the version from `project.yml` and stops if the tag
 `v<version>-b<build>` already exists, so a merge without a bump publishes nothing.

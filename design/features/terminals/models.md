@@ -27,14 +27,13 @@ struct TerminalState: Codable, Equatable, Sendable {
 - **Indexes / constraints:**
   - Tab ids are unique (`IdentifiedArray`).
   - At most one Setup tab with `folder == nil` (scope item 3). Starting New Workspace replaces it.
-  - A Setup tab whose `folder` is nil, or isn't in the daemon's workspace list, shows at the
-    front of every workspace's strip, and alone in the pane when no workspace is selected
-    (spec R-1, R-13). Its selection when no workspace is selected isn't stored; it's simply
-    shown.
+  - A Setup tab whose `folder` is nil shows at the front of every workspace's strip, and alone
+    in the pane when no workspace is selected (spec R-13). Its selection when no workspace is
+    selected isn't stored; it's simply shown. Any other tab shows only in its own `folder`.
   - A `selectedTabIDs` value names a tab that is shown in that folder: one whose `folder` is that
-    key, or a Setup tab shown in every workspace. When that Setup tab moves or closes, other
-    keys pointing at it are left alone: a dangling id falls back to the first tab in the strip,
-    and it's never an error (spec R-29, S-7).
+    key, or the folderless Setup tab. Moving the Setup tab to its folder removes every other key
+    pointing at it. A dangling id falls back to the workspace's own first tab, then the first tab
+    in the strip, and it's never an error (spec R-29, decision log 2026-11-09).
   - "Always one terminal tab" (scope item 4) applies to a shown workspace that isn't being
     archived. No Terminal 1 is created during archive or quit.
 - **Why one file:** moving the Setup tab to its workspace and selecting it there are one write,

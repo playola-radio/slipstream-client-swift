@@ -20,11 +20,21 @@ struct ChangeStreamPageView: View {
     HStack(spacing: 0) {
       if model.isSidebarShown {
         WorkspaceSidebarView(model: model)
-          .frame(width: DesignTokens.Workspace.sidebarWidth)
+          .frame(width: model.sidebarColumnWidth)
+          .transition(.move(edge: .leading))
+        resizeHandle(dragged: model.sidebarEdgeDragged, doubleClicked: model.sidebarEdgeDoubleClicked)
       }
-      detailPane.frame(width: model.chatColumnWidth)
-      rightPane.frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
+      detailPane
+        .frame(width: model.detailPaneWidth)
+        .frame(maxWidth: model.detailPaneMaxWidth)
+      if model.isRightPaneShown {
+        resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
+        rightPane
+          .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
+          .transition(.move(edge: .trailing))
+      }
     }
+    .clipped()
     .frame(
       minWidth: model.windowMinWidth(visibleScreenWidth: NSScreen.main?.visibleFrame.width ?? .infinity),
       minHeight: functionChangesDemo == nil ? 480 : DesignTokens.FunctionMap.demoWorkspaceMinHeight)
@@ -58,13 +68,16 @@ struct ChangeStreamPageView: View {
     }
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
+    .toolbar(removing: .title)
+    .toolbarBackground(DesignTokens.WindowHeader.fill, for: .windowToolbar)
+    .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
+    .focusedSceneValue(model)
     .task { await model.viewAppeared() }
     .task { model.openIn.viewAppeared() }
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
     .task { await model.chat.clockTask() }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-      model.chat.appActivityChanged(isActive: true)
-      model.openIn.viewAppeared()
+      Task { await model.appBecameActive() }
     }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
       model.chat.appActivityChanged(isActive: false)
@@ -136,6 +149,26 @@ struct ChangeStreamPageView: View {
     }
   }
 
+  /// Straddles the edge between two columns: zero width in the row, with a wider grab area.
+  private func resizeHandle(
+    dragged: @escaping (CGFloat) -> Void, doubleClicked: @escaping () -> Void
+  ) -> some View {
+    Color.clear
+      .frame(width: 0)
+      .overlay {
+        Color.clear
+          .frame(width: DesignTokens.Workspace.resizeHandleWidth)
+          .contentShape(Rectangle())
+          .pointerStyle(.columnResize)
+          .onTapGesture(count: 2, perform: doubleClicked)
+          .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+              .onChanged { dragged($0.translation.width) }
+              .onEnded { _ in model.edgeDragEnded() })
+      }
+      .zIndex(1)
+  }
+
   private var rightPane: some View {
     VStack(spacing: 0) {
       rightPaneStrip
@@ -166,6 +199,7 @@ struct ChangeStreamPageView: View {
                 .font(DesignTokens.Fonts.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
                 .foregroundStyle(DesignTokens.Colors.paneSubtitle(isQuestionSummary: model.isQuestionSummaryShown))
                 .lineLimit(1)
+                .truncationMode(.tail)
             }
           }
           .padding(.horizontal, DesignTokens.RightPane.Tab.horizontalPadding)
@@ -179,6 +213,7 @@ struct ChangeStreamPageView: View {
         .buttonStyle(.plain)
       }
       Spacer(minLength: 0)
+      compareFunctionsButton
     }
     .padding(.leading, DesignTokens.RightPane.Strip.leadingPadding)
     .padding(.trailing, DesignTokens.RightPane.Strip.trailingPadding)
@@ -186,6 +221,25 @@ struct ChangeStreamPageView: View {
     .overlay(alignment: .bottom) {
       Rectangle().fill(DesignTokens.RightPane.Strip.stroke).frame(height: 1)
     }
+  }
+
+  private var compareFunctionsButton: some View {
+    Button { model.compareFunctionsTapped() } label: {
+      HStack(spacing: DesignTokens.WindowHeader.Compare.gap) {
+        IconView(icon: DesignTokens.WindowHeader.Compare.icon(isEnabled: model.canCompareFunctions))
+        Text(model.compareFunctionsText)
+          .font(DesignTokens.WindowHeader.Compare.font)
+          .foregroundStyle(DesignTokens.WindowHeader.Compare.color(isEnabled: model.canCompareFunctions))
+      }
+      .padding(.horizontal, DesignTokens.WindowHeader.Compare.horizontalPadding)
+      .frame(maxHeight: .infinity)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .disabled(!model.canCompareFunctions)
+    .help(model.compareFunctionsHelpText)
+    .fixedSize(horizontal: true, vertical: false)
+    .layoutPriority(1)
   }
 
   private var feedPane: some View {
@@ -396,28 +450,72 @@ struct ChangeStreamPageView: View {
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
-      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") { model.sidebarToggleTapped() }
+      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") {
+        withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.sidebarToggleTapped() }
+      }
+        .labelStyle(.iconOnly)
+        .font(.system(size: DesignTokens.WindowHeader.toggleSize))
+        .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
         .help(model.sidebarToggleHelpText)
     }
-    ToolbarItem(placement: .navigation) {
-      Text(model.toolbarTitleText)
-    }
+    .withoutGlass()
+    ToolbarItem(placement: .navigation) { breadcrumb }
+      .withoutGlass()
     if model.isWorkspaceBusy {
       ToolbarItem(placement: .navigation) {
         ProgressView().controlSize(.small)
       }
+      .withoutGlass()
+    }
+    if #available(macOS 26, *) {
+      ToolbarSpacer(.flexible)
+    }
+    if model.isOpenInShown {
+      ToolbarItem {
+        OpenInButton(model: model.openIn)
+      }
+      .withoutGlass()
     }
     ToolbarItem {
-      Button(model.refreshButtonText, systemImage: "arrow.clockwise") {
-        Task { await model.refreshTapped() }
+      Button(model.rightPaneToggleHelpText, systemImage: "sidebar.right") {
+        withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.rightPaneToggleTapped() }
+      }
+      .labelStyle(.iconOnly)
+      .font(.system(size: DesignTokens.WindowHeader.toggleSize))
+      .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
+      .help(model.rightPaneToggleHelpText)
+    }
+    .withoutGlass()
+  }
+
+  private var breadcrumb: some View {
+    HStack(spacing: DesignTokens.WindowHeader.Breadcrumb.gap) {
+      if let repository = model.breadcrumbRepositoryText {
+        IconView(icon: DesignTokens.WindowHeader.Breadcrumb.repositoryIcon)
+        Text(repository)
+          .font(DesignTokens.WindowHeader.Breadcrumb.repositoryFont)
+          .foregroundStyle(DesignTokens.WindowHeader.Breadcrumb.repositoryColor)
+        IconView(icon: DesignTokens.WindowHeader.Breadcrumb.chevron)
+      }
+      if let workspace = model.breadcrumbWorkspaceText {
+        IconView(icon: DesignTokens.WindowHeader.Breadcrumb.workspaceIcon)
+        Text(workspace)
+          .font(DesignTokens.WindowHeader.Breadcrumb.workspaceFont)
+          .foregroundStyle(DesignTokens.WindowHeader.Breadcrumb.workspaceColor)
       }
     }
-    ToolbarItem {
-      Button(model.compareFunctionsText) { model.compareFunctionsTapped() }
-        .disabled(!model.canCompareFunctions)
-    }
-    ToolbarItem {
-      OpenInButton(model: model.openIn)
+    .lineLimit(1)
+    .accessibilityElement(children: .combine)
+  }
+}
+
+private extension ToolbarContent {
+  @ToolbarContentBuilder
+  func withoutGlass() -> some ToolbarContent {
+    if #available(macOS 26, *) {
+      sharedBackgroundVisibility(.hidden)
+    } else {
+      self
     }
   }
 }
@@ -433,12 +531,28 @@ private struct OpenInButton: View {
         }
       }
     } label: {
-      if let app = model.selectedApp {
-        Image(nsImage: model.icon(for: app))
+      HStack(spacing: 0) {
+        if let app = model.selectedApp {
+          Image(nsImage: model.icon(for: app))
+            .padding(.horizontal, DesignTokens.WindowHeader.OpenIn.appIconPadding)
+        }
+        Rectangle().fill(DesignTokens.WindowHeader.OpenIn.stroke).frame(width: 1)
+        IconView(icon: DesignTokens.WindowHeader.OpenIn.chevron)
+          .padding(.horizontal, DesignTokens.WindowHeader.OpenIn.chevronPadding)
       }
+      .frame(height: DesignTokens.WindowHeader.OpenIn.height)
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.WindowHeader.OpenIn.radius)
+          .strokeBorder(DesignTokens.WindowHeader.OpenIn.stroke)
+      }
+      .contentShape(Rectangle())
     } primaryAction: {
       Task { await model.openTapped() }
     }
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .menuIndicator(.hidden)
+    .fixedSize()
     .help(model.openHelpText)
     .accessibilityLabel(model.openHelpText)
     .disabled(model.isOpenDisabled)

@@ -54,4 +54,18 @@ extension SharedKey where Self == AppStorageKey<Bool>.Default {
   static var isSidebarHidden: Self {
     Self[.appStorage("isSidebarHidden"), default: false]
   }
+
+  static var isRightPaneHidden: Self {
+    Self[.appStorage("isRightPaneHidden"), default: false]
+  }
+}
+
+extension SharedKey where Self == AppStorageKey<Double>.Default {
+  static var sidebarWidth: Self {
+    Self[.appStorage("sidebarWidth"), default: DesignTokens.Workspace.sidebarWidth]
+  }
+
+  static var chatWidth: Self {
+    Self[.appStorage("chatWidth"), default: DesignTokens.Workspace.chatWidth]
+  }
 }

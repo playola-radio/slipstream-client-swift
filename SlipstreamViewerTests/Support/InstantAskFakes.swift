@@ -1,3 +1,4 @@
+import Clocks
 import Dependencies
 import Foundation
 import SlipstreamCore
@@ -67,7 +68,7 @@ final class ForkFake: Sendable {
         if !isHeld { continuation.resume() }
       }
       self.state.withLock { $0.stopCount += 1 }
-      throw .unavailable
+      throw .unavailable("Claude Code stopped unexpectedly.")
     })
   }
 }
@@ -136,12 +137,16 @@ final class RecordFake: Sendable {
 
 extension InstantAskModel {
   /// Answers with `fork` and records with `recorder`, choosing from `chat`'s tabs.
-  static func fake(chat: ChatPageModel, fork: ForkFake, recorder: RecordFake = RecordFake()) -> InstantAskModel {
+  static func fake(
+    chat: ChatPageModel, fork: ForkFake, recorder: RecordFake = RecordFake(), agent: AgentFake = AgentFake(),
+    clock: TestClock<Duration>? = nil
+  ) -> InstantAskModel {
     withDependencies {
-      $0.agentEnvironment = AgentFake().environmentClient
+      $0.agentEnvironment = agent.environmentClient
       $0.askFork = fork.client
       $0.questionClient = recorder.client
       $0.uuid = .incrementing
+      if let clock { $0.continuousClock = clock }
     } operation: {
       InstantAskModel(chat: chat)
     }

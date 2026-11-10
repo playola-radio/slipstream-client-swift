@@ -83,13 +83,13 @@ struct CaptureStatusTests {
       "Taking the first snapshot of this workspace. Changes aren't covered until it finishes.")
     expectNoDifference(
       Self.status(.queued).detailText(timeZone: Self.utc),
-      "Slipstream has accepted this workspace and will start it shortly. Refresh to check again.")
+      "Slipstream has accepted this workspace and will start it shortly. Press ⌘R to check again.")
     expectNoDifference(
       Self.status(.stopped, reason: "maintenance").detailText(timeZone: Self.utc),
-      "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Refresh to check again.")
+      "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Press ⌘R to check again.")
     expectNoDifference(
       Self.status(.unknown("hibernating")).detailText(timeZone: Self.utc),
-      "Update Slipstream Viewer to read this state.")
+      "Update Slipstream to read this state.")
     #expect(Self.status(.recording).detailText(timeZone: Self.utc) == nil)
     #expect(Self.status(.stopped, reason: "archived").detailText(timeZone: Self.utc) == nil)
   }
@@ -220,7 +220,7 @@ struct CaptureStatusTests {
   }
 
   @Test func askNoticeFollowsThePrecedence() {
-    let unknown = "Capture state is unknown, so questions are disabled. Refresh to check again."
+    let unknown = "Capture state is unknown, so questions are disabled. Press ⌘R to check again."
     let notRecording = "This workspace isn't recording, so its chat can't receive questions."
     let noChat = "No chat is connected yet. Send a message in a chat tab to connect it."
     let waiting = "The agent chat hasn't confirmed it can answer yet. It confirms on its next tool call after `slipstream attach`."

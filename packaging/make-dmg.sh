@@ -11,7 +11,7 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST="$REPO_ROOT/packaging/dist"
-APP="$DIST/SlipstreamViewer.app"
+APP="$DIST/Slipstream.app"
 [ -d "$APP" ] || { echo "error: no app at $APP (run build/sign/notarize first)" >&2; exit 1; }
 IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Playola Radio, Incorporated (FSRSPV9N9Q)}"
 # CI passes an App Store Connect API key; local releases use a keychain profile.
@@ -27,7 +27,7 @@ rm -f "$DMG"
 
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/slipstream-dmg.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
-/usr/bin/ditto "$APP" "$STAGE/SlipstreamViewer.app"
+/usr/bin/ditto "$APP" "$STAGE/Slipstream.app"
 ln -s /Applications "$STAGE/Applications"
 echo "==> Building DMG: $(basename "$DMG")"
 hdiutil create -volname "Slipstream $SHORT" \

@@ -18,7 +18,7 @@ abort "sign_update not executable: #{sign_update}" unless File.executable?(sign_
 abort "dmg not found: #{dmg}" unless File.file?(dmg)
 abort "notes file not found: #{notes_file}" unless File.file?(notes_file)
 
-app = File.join(File.dirname(dmg), "SlipstreamViewer.app")
+app = File.join(File.dirname(dmg), "Slipstream.app")
 # Read plist keys via argv (no shell) so an app path with spaces/quotes/metacharacters
 # can't break or inject — matches the Open3 handling used for sign_update below.
 def plist(plist_buddy, app, key)
@@ -72,7 +72,7 @@ if doc.nil?
   doc = REXML::Document.new(<<~XML)
     <?xml version="1.0" encoding="utf-8"?>
     <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-      <channel><title>SlipstreamViewer</title></channel>
+      <channel><title>Slipstream</title></channel>
     </rss>
   XML
 end

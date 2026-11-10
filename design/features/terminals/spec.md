@@ -75,9 +75,9 @@ open a shell in a workspace from the app.
      - It switches the window to the new workspace only if the user hasn't picked another
        workspace since starting New Workspace (R-4). The Setup tab moves either way: the move
        is by tab id and never depends on which workspace is showing.
-     - **A Setup tab whose folder isn't in the workspace list** (no path yet, or recording with
-       the daemon failed) shows at the front of every workspace's strip, and in the pane when no
-       workspace is selected, until it's closed or its workspace appears (R-1, R-13).
+     - **A Setup tab with no folder yet** shows at the front of every workspace's strip, and in
+       the pane when no workspace is selected, until it's closed or gets its folder (R-13). Once
+       it has a folder it shows only in that workspace's strip (2026-11-09).
      - An older CLI prints only the final line, so the app switches when setup finishes. A setup
        script that prints its own `workspace_path:` line for a folder that isn't a managed
        workspace is ignored by the check above. (The app can't check the repo name: the user may
@@ -329,6 +329,12 @@ These come from the Phase 5 review below; the plan turns each into tasks and tes
   quit move into the pane PR.
   One of them changes the approved models.md: `SetupStatus.running` no longer stores
   `startedAt` (R-28).
+- 2026-11-09 Brian approved reversing the orphaned-Setup call and S-7 after the terminals pane
+  showed one workspace's Setup tab while the chat showed another. A Setup tab that has a folder
+  shows only in that workspace, whether or not the workspace list has loaded; moving it clears
+  every other workspace's selection of it; and a dangling selection falls back to the
+  workspace's own first tab before a folderless Setup. Cost: a Setup whose workspace never
+  appears in the list (R-1) can no longer be reached from another workspace.
 - 2026-10-25 Brian chose **A** for D1 (simplicity gate S-1): a closed tab's log is deleted before
   its record, and launch no longer cleans up logs. This changes the write order in the approved
   models.md and R-7.
@@ -341,7 +347,7 @@ code (12 blocking, 17 should-fix, 2 minor; raw report kept out of the repo). Eve
 
 | # | Finding (severity) | Disposition |
 |---|---|---|
-| R-1 | Recording fails: the folder exists but the daemon never lists it, so a Setup moved there can't be reached (blocking) | Resolved: a Setup tab whose folder isn't in the workspace list shows at the front of every strip (scope 3, models.md) |
+| R-1 | Recording fails: the folder exists but the daemon never lists it, so a Setup moved there can't be reached (blocking) | Resolved: a Setup tab whose folder isn't in the workspace list shows at the front of every strip (scope 3, models.md). Reversed 2026-11-09: a workspace could show another workspace's terminal (decision log) |
 | R-2 | `terminate()` then waiting for SwiftTerm's exit callback can hang (blocking) | Resolved: adapter-owned bounded stop (Architecture → Requirements) |
 | R-3 | Final status can be saved before the last output reaches the log (should-fix) | Resolved: status saved only after the writer flushes (Requirements) |
 | R-4 | Releasing the busy gate lets a late refresh select the wrong workspace (blocking) | Resolved: auto-switch only if the user hasn't picked a workspace since; move by tab id; archive and New Workspace stay exclusive (scope 3, Requirements) |
@@ -369,7 +375,7 @@ code (12 blocking, 17 should-fix, 2 minor; raw report kept out of the repo). Eve
 | R-26 | A fake session factory leaks real side effects into model tests (should-fix) | Resolved: closure-based runtime covering launch, events, busy, stop and history (Requirements) |
 | R-27 | Fakes can't prove SwiftTerm's real ordering (should-fix) | Resolved: small real-pty integration suite (Requirements) |
 | R-28 | Persisted `startedAt` serves nothing after relaunch (minor, twice) | Resolved: `running` has no payload; the live session times it with the continuous clock (models.md). Changes approved models.md, flagged to Brian |
-| R-29 | A folderless Setup selected under several workspaces leaves stale selections (should-fix) | Resolved: a stale selection falls back to the first tab, so nothing is pruned (S-7); no new Terminal 1 during archive or quit (models.md) |
+| R-29 | A folderless Setup selected under several workspaces leaves stale selections (should-fix) | Resolved: a stale selection falls back to the first tab, so nothing is pruned (S-7); no new Terminal 1 during archive or quit (models.md). Since 2026-11-09 moving the Setup clears the stale selections |
 | R-30 | Downgrade, archive, upgrade leaves orphan records (should-fix) | Accepted: those tabs show "This folder no longer exists" and close normally; a missing workspace list never deletes anything (models.md) |
 | R-31 | No acceptance matrix (blocking) | Resolved: the implementation plan carries Codex's matrix as its acceptance gates |
 
@@ -391,7 +397,7 @@ these ids.
 | S-4 | `WorkspaceOutcome.workspacePath` is dead once create moves to the tab; keep only failure text (Opus, Codex 1) | Adopted |
 | S-5 | `isInputEnabled` derived: input goes to the process handle, which doesn't exist during replay (Opus) | Adopted |
 | S-6 | "Saved before shown" test and its surface spy prove nothing, since append only queues (Opus) | Adopted |
-| S-7 | Don't prune selections when the Setup tab moves or closes; the first-tab fallback gives the same result (Opus) | Adopted; R-29's behaviour is unchanged |
+| S-7 | Don't prune selections when the Setup tab moves or closes; the first-tab fallback gives the same result (Opus) | Adopted; R-29's behaviour is unchanged. Reversed for moves 2026-11-09: the fallback didn't give the same result (decision log) |
 | S-8 | No compaction on read; append compacts (Opus) | Adopted |
 | S-9 | Drop duplicate and literal tests (`finishedComesAfterTheLastOutput`, `terminalValues`, per-string display tests) (Opus, Codex 6) | Adopted |
 | S-10 | `isFolderMissing` computed from `missingFolderPath` (Opus, Codex 4) | Adopted |

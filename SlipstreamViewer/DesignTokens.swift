@@ -577,7 +577,48 @@ enum DesignTokens {
   }
 
   enum OpenInButton {
-    static let iconSize: CGFloat = 16
+    static let iconSize: CGFloat = 14
+  }
+
+  enum WindowHeader {
+    private static let secondary = Color(hex: 0x8B9AA6)
+    private static let muted = Color(hex: 0x5C6B77)
+
+    static let fill = Sidebar.fill
+    static let toggleSize: CGFloat = 15
+    static let toggleColor = secondary
+
+    enum Breadcrumb {
+      static let gap: CGFloat = 7
+      static let repositoryIcon = Icons.Icon(assetName: "FolderGit2", size: 13, color: secondary)
+      static let workspaceIcon = Icons.Icon(assetName: "GitBranch", size: 13, color: secondary)
+      static let chevron = Icons.Icon(assetName: "ChevronRight", size: 12, color: muted)
+      static let repositoryFont = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let repositoryColor = secondary
+      static let workspaceFont = variableFont(family: geistFamily, size: 12.5, weight: 500)
+      static let workspaceColor = Color(hex: 0xE6EDF3)
+    }
+
+    enum OpenIn {
+      static let height: CGFloat = 24
+      static let radius: CGFloat = 5
+      static let stroke = Sidebar.stroke
+      static let appIconPadding: CGFloat = 6
+      static let chevron = Icons.Icon(assetName: "ChevronDown", size: 12, color: secondary)
+      static let chevronPadding: CGFloat = 5
+    }
+
+    enum Compare {
+      static let gap: CGFloat = 6
+      static let horizontalPadding: CGFloat = 8
+      static let font = variableFont(family: geistFamily, size: 12, weight: 400)
+
+      static func icon(isEnabled: Bool) -> Icons.Icon {
+        Icons.Icon(assetName: "GitCompare", size: 14, color: color(isEnabled: isEnabled))
+      }
+
+      static func color(isEnabled: Bool) -> Color { isEnabled ? secondary : muted }
+    }
   }
 
   enum Stream {
@@ -587,9 +628,13 @@ enum DesignTokens {
 
   enum Workspace {
     static let sidebarWidth: CGFloat = 260
+    static let sidebarMinWidth: CGFloat = 200
+    static let sidebarMaxWidth: CGFloat = 420
     static let chatWidth: CGFloat = 720
     static let chatMinWidth: CGFloat = 420
     static let chatNarrowScreenMinWidth: CGFloat = 320
+    static let resizeHandleWidth: CGFloat = 8
+    static let paneToggleAnimation = Animation.snappy(duration: 0.2)
   }
 
   enum Sidebar {

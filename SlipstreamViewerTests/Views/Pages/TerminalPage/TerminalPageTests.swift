@@ -439,6 +439,7 @@ extension TerminalPageTests {
     #expect(path == created)
     expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.folder, created)
     #expect(fake.saved?.selectedTabIDs[created] == UUID(1))
+    await model.workspaceChanged(folder: created)
     #expect(setupTab(model)?.footerText == "Setting up workspace-1…")
   }
 
@@ -486,9 +487,10 @@ extension TerminalPageTests {
     let (model, setup) = await startedSetup()
     fake.send("workspace_path: \(created)\r\n")
     _ = await setup.value
+    await model.workspaceChanged(folder: created)
 
     await clock.advance(by: .milliseconds(14_900))
-    fake.finish(.exited(0))
+    fake.finish(.exited(0), launch: 1)
     await Task.megaYield()
 
     expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.finished(seconds: 14)))
@@ -500,8 +502,9 @@ extension TerminalPageTests {
     let (model, setup) = await startedSetup()
     fake.send("workspace_path: \(created)\r\n")
     _ = await setup.value
+    await model.workspaceChanged(folder: created)
 
-    fake.finish(.exited(1))
+    fake.finish(.exited(1), launch: 1)
     await Task.megaYield()
 
     expectNoDifference(fake.saved?.tabs[id: UUID(1)]?.kind, .setup(.failed(exitStatus: 1)))
@@ -561,29 +564,59 @@ extension TerminalPageTests {
 
   @Test func movedSetupLeavesOtherWorkspaces() async {
     let (model, setup) = await startedSetup()
-    model.workspacesListed([a, created])
 
     fake.send("workspace_path: \(created)\r\n")
     _ = await setup.value
 
     expectNoDifference(model.shownTabs.map(\.id), [UUID(0)])
     #expect(model.selectedTab?.id == UUID(0))
+    expectNoDifference(fake.saved?.selectedTabIDs, [created: UUID(1)])
   }
 
-  @Test func orphanSetupShowsInEveryStrip() async {
+  @Test func movedSetupShowsOnlyInItsWorkspace() async {
     let (model, setup) = await startedSetup()
-    model.workspacesListed([a, b])
     fake.send("workspace_path: \(created)\r\n")
     _ = await setup.value
 
-    expectNoDifference(model.shownTabs.map(\.title), ["Setup", "Terminal 1"])
+    expectNoDifference(model.shownTabs.map(\.title), ["Terminal 1"])
     await model.workspaceChanged(folder: b)
+    expectNoDifference(model.shownTabs.map(\.title), ["Terminal 1"])
+    await model.workspaceChanged(folder: created)
     expectNoDifference(model.shownTabs.map(\.title), ["Setup", "Terminal 1"])
+  }
+
+  @Test func anotherWorkspacesSetupNeverShowsEvenWhenSelected() async {
+    let model = makeModel(
+      [
+        terminal(100, in: a, number: 1),
+        TerminalTabRecord(id: UUID(101), folder: b, kind: .setup(.finished(seconds: 3))),
+      ],
+      selected: [a: UUID(101)]
+    )
+
+    await model.workspaceChanged(folder: a)
+
+    expectNoDifference(model.shownTabs.map(\.id), [UUID(100)])
+    #expect(model.selectedTab?.id == UUID(100))
+  }
+
+  @Test func danglingSelectionPrefersTheWorkspacesOwnTab() async {
+    let model = makeModel(
+      [
+        TerminalTabRecord(id: UUID(101), folder: nil, kind: .setup(.failed(exitStatus: 1))),
+        terminal(100, in: a, number: 1),
+      ],
+      selected: [a: UUID(999)]
+    )
+
+    await model.workspaceChanged(folder: a)
+
+    expectNoDifference(model.shownTabs.map(\.id), [UUID(101), UUID(100)])
+    #expect(model.selectedTab?.id == UUID(100))
   }
 
   @Test func closeConfirmationSurvivesMove() async {
     let (model, setup) = await startedSetup()
-    model.workspacesListed([a, created])
     await model.closeTabTapped(UUID(1))
     #expect(setupTab(model)?.isCloseConfirmationVisible == true)
 
@@ -599,7 +632,6 @@ extension TerminalPageTests {
 
   @Test func archiveMarksRunningSetupInterrupted() async {
     let (model, setup) = await startedSetup()
-    model.workspacesListed([a, created])
     fake.send("workspace_path: \(created)\r\n")
     _ = await setup.value
     await model.workspaceChanged(folder: created)
@@ -612,7 +644,6 @@ extension TerminalPageTests {
 
   @Test func archiveWhileFinishedSetupFlushesStaysInterrupted() async {
     let (model, setup) = await startedSetup()
-    model.workspacesListed([a, created])
     fake.send("workspace_path: \(created)\r\n")
     _ = await setup.value
     await model.workspaceChanged(folder: created)

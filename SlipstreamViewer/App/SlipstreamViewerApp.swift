@@ -52,9 +52,11 @@ struct SlipstreamViewerApp: App {
           .accessibilityHidden(true)
       }
     }
-    .windowToolbarStyle(.unified)
+    .windowToolbarStyle(.unifiedCompact)
     .commands {
       UpdaterCommands(model: updater)
+      ReloadCommands()
+      PaneCommands()
       FontSizeCommands(model: fontSize)
     }
   }
