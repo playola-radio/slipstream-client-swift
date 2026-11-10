@@ -1441,10 +1441,12 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// One row per folder, so a recreated folder's old capture is hidden. Unknown capture state
   /// hides nothing.
+  /// Only workspaces `slipstream workspace create` made keep a row while paused.
   private func isListed(_ session: SessionOption) -> Bool {
     if session.id == selectedSession?.id { return true }
     let status = captureStatus(of: session)
     guard case .available = status.availability else { return true }
+    guard !status.isPaused || isArchivable(session) else { return false }
     return !status.isInactive && listedCaptureSessionIDs.contains(session.id)
   }
 
