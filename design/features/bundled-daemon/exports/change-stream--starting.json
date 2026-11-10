@@ -1,0 +1,46 @@
+{
+  "frame": "K7uP6",
+  "component": "AyBoP",
+  "changed": {
+    "type": "frame",
+    "id": "VIVxy",
+    "name": "Recorder message",
+    "width": 600,
+    "layout": "vertical",
+    "gap": 12,
+    "children": [
+      {
+        "type": "frame",
+        "id": "W1ByU6",
+        "name": "Recorder headline",
+        "width": "fill_container",
+        "gap": 8,
+        "children": [
+          {
+            "type": "icon",
+            "id": "N4VaS",
+            "name": "Recorder icon",
+            "width": 16,
+            "height": 16,
+            "icon": "loader-circle",
+            "library": "lucide",
+            "fill": "#8B9AA6"
+          },
+          {
+            "type": "text",
+            "id": "k3JM6",
+            "name": "Recorder title",
+            "fill": "#E6EDF3",
+            "textGrowth": "fixed-width",
+            "width": "fill_container",
+            "content": "Starting the recorder 0.3.2 (build 7f3c9a1e)…",
+            "lineHeight": 1.4,
+            "fontFamily": "Geist",
+            "fontSize": 14,
+            "fontWeight": "600"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -41,3 +41,13 @@ Zone `SP9Ol` ("12 · Capture states — is each workspace really recording?"). S
 | Change stream · 34 capture and chat-link states | see `features/capture-states/screens.md` | Exploring | `exports/change-stream--*.png` |
 | Stream picker · menu open / state unavailable | `kIilE`, `eGE4q` | Exploring | `exports/stream-picker--*.png` |
 | Ask Agent · 6 gate states | `gETof`, `J7Gw4`, `y3rtsC`, `ssOml`, `TX08u`, `WCdUs` | Exploring | `exports/ask-agent--*.png` |
+
+## Bundled recorder
+
+Zone 16 (title `uSI5e`, "16 · Bundled recorder"). Spec: `features/bundled-daemon/spec.md`.
+
+| Frame | Node ID | Status | Notes |
+|---|---|---|---|
+| Change stream · starting, update didn't finish, another recorder, won't start | `K7uP6`, `PsvtW`, `o3IPH`, `HZDOk` | Approved 2026-11-10 | `exports/change-stream--*.png`; full message in the feed |
+| Change stream · stream open: restarting, update didn't finish, another recorder, won't start | `aZBNS`, `sLAQ5`, `RbXdB`, `pIu3P` | Approved 2026-11-10 | Docked above the footer |
+| Change stream · migration incomplete | `Y1Pnk` | Approved 2026-11-10 | Always docked |

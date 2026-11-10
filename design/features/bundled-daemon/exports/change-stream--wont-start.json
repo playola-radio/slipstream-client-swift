@@ -1,0 +1,201 @@
+{
+  "frame": "HZDOk",
+  "component": "AyBoP",
+  "changed": {
+    "type": "frame",
+    "id": "sCh6E",
+    "name": "Recorder message",
+    "width": 600,
+    "layout": "vertical",
+    "gap": 12,
+    "children": [
+      {
+        "type": "frame",
+        "id": "H50hoj",
+        "name": "Recorder headline",
+        "width": "fill_container",
+        "gap": 8,
+        "children": [
+          {
+            "type": "icon",
+            "id": "CeFK6",
+            "name": "Recorder icon",
+            "width": 16,
+            "height": 16,
+            "icon": "octagon-x",
+            "library": "lucide",
+            "fill": "#FF6B6B"
+          },
+          {
+            "type": "text",
+            "id": "TTbWx",
+            "name": "Recorder title",
+            "fill": "#E6EDF3",
+            "textGrowth": "fixed-width",
+            "width": "fill_container",
+            "content": "Recorder 0.3.2 exited with code 1 before it was ready.",
+            "lineHeight": 1.4,
+            "fontFamily": "Geist",
+            "fontSize": 14,
+            "fontWeight": "600"
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "vOGRy",
+        "name": "Error block",
+        "width": "fill_container",
+        "fill": "#0F1318",
+        "cornerRadius": 6,
+        "stroke": "#2A3640",
+        "strokeWidth": 1,
+        "layout": "vertical",
+        "children": [
+          {
+            "type": "frame",
+            "id": "oeoD2",
+            "name": "Error source row",
+            "width": "fill_container",
+            "stroke": "#2A3640",
+            "strokeWidth": {
+              "bottom": 1
+            },
+            "gap": 8,
+            "padding": [
+              7,
+              10
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "qhJZk",
+                "name": "Error source",
+                "fill": "#7D98AD",
+                "content": "daemon.log since the app started the recorder at 16:42:06 · last exit code = 1",
+                "fontFamily": "Geist Mono",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "frame",
+                "id": "tRLuL",
+                "name": "Error source gap",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "frame",
+                "id": "u1XlRs",
+                "name": "Copy",
+                "gap": 5,
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "icon",
+                    "id": "vhFZy",
+                    "name": "Copy icon",
+                    "width": 12,
+                    "height": 12,
+                    "icon": "copy",
+                    "library": "lucide",
+                    "fill": "#82AAC5"
+                  },
+                  {
+                    "type": "text",
+                    "id": "POHHH",
+                    "name": "Copy label",
+                    "fill": "#82AAC5",
+                    "content": "Copy",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "normal"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "Zr80n",
+            "name": "Error body",
+            "width": "fill_container",
+            "padding": 10,
+            "children": [
+              {
+                "type": "text",
+                "id": "Pbnvu",
+                "name": "Error text",
+                "fill": "#C9D6E0",
+                "textGrowth": "fixed-width",
+                "width": "fill_container",
+                "content": "node:internal/modules/cjs/loader:1586\n  return process.dlopen(module, path.toNamespacedPath(filename));\n                 ^\n\nError: dlopen(~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node, 0x0001): tried: '~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node' (code signature in <7C1A39E2-5B0D-3F8E-A1C4-96D2E07B5F13> '~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/node_modules/@parcel/watcher-darwin-arm64/watcher.node' not valid for use in process: library load disallowed by system policy)\n    at Module._extensions..node (node:internal/modules/cjs/loader:1586:18)\n    at Module.load (node:internal/modules/cjs/loader:1288:32)\n    at Module._load (node:internal/modules/cjs/loader:1104:12)\n    at Module.require (node:internal/modules/cjs/loader:1311:19)\n    at require (node:internal/modules/helpers:179:18)\n    at loadWatcherBinding (file://~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/dist/watcher.js:14:10)\n    at file://~/Library/Application Support/com.playola.SlipstreamViewer/runtime/0.3.2-7f3c9a1e/app/dist/daemon.js:41:1 {\n  code: 'ERR_DLOPEN_FAILED'\n}\n\nNode.js v24.11.0",
+                "lineHeight": 1.55,
+                "fontFamily": "Geist Mono",
+                "fontSize": 10.5,
+                "fontWeight": "normal"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "FsYGb",
+        "name": "Recorder actions",
+        "gap": 8,
+        "children": [
+          {
+            "type": "frame",
+            "id": "L8eSe",
+            "name": "Try again",
+            "fill": "#2F3A45",
+            "cornerRadius": 6,
+            "padding": [
+              6,
+              12
+            ],
+            "children": [
+              {
+                "type": "text",
+                "id": "k4xTI",
+                "name": "Try again label",
+                "fill": "#E6EDF3",
+                "content": "Try again",
+                "fontFamily": "Geist",
+                "fontSize": 12.5,
+                "fontWeight": "500"
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "Ueeuw",
+            "name": "Open log file",
+            "fill": "#00000000",
+            "cornerRadius": 6,
+            "stroke": "#3E5260",
+            "strokeWidth": 1,
+            "padding": [
+              6,
+              12
+            ],
+            "children": [
+              {
+                "type": "text",
+                "id": "fhhAO",
+                "name": "Open log file label",
+                "fill": "#E6EDF3",
+                "content": "Open log file",
+                "fontFamily": "Geist",
+                "fontSize": 12.5,
+                "fontWeight": "500"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
