@@ -18,6 +18,7 @@ module ReleaseNotes
     usage:
       release_notes.rb extract <changelog> <version> <output>
       release_notes.rb notes <changelog> <fragments-dir>
+      release_notes.rb pending <changelog> <fragments-dir>
       release_notes.rb promote <changelog> <fragments-dir> <version> <YYYY-MM-DD>
   TEXT
 
@@ -96,6 +97,11 @@ module ReleaseNotes
     notes
   end
 
+  # Whether promote has ### Changes notes to release. Ops-only notes wait for one.
+  def self.pending?(changelog, fragments)
+    !collect(changelog, fragments)[:changes].empty?
+  end
+
   def self.render(notes)
     sections = []
     sections << notes[:changes].join("\n") unless notes[:changes].empty?
@@ -163,6 +169,11 @@ module ReleaseNotes
       changelog_path, fragments_dir = arguments
       notes = render(collect(File.read(changelog_path), read_fragments(fragments_dir)))
       puts notes unless notes.empty?
+    when "pending"
+      raise Error, USAGE unless arguments.length == 2
+
+      changelog_path, fragments_dir = arguments
+      puts pending?(File.read(changelog_path), read_fragments(fragments_dir))
     when "promote"
       raise Error, USAGE unless arguments.length == 4
 

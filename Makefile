@@ -16,8 +16,8 @@ demo-headless:
 	node scripts/demo.mjs --no-app $(DEMO_FLAGS)
 
 # Moves CHANGELOG.md's [Unreleased] notes and the changelog.d/ notes under VERSION,
-# deletes those changelog.d/ files and bumps project.yml, in one commit. Run on a branch
-# off develop; merging develop to main then publishes it.
+# deletes those changelog.d/ files and bumps project.yml, in one commit. Only for a
+# version other than the next patch: run on a branch off develop; merging it publishes it.
 prep-release:
 	@test -n "$(VERSION)" || { echo "usage: make prep-release VERSION=x.y.z" >&2; exit 1; }
 	bundle exec fastlane mac bump version:$(VERSION)

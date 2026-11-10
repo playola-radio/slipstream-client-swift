@@ -1,0 +1,176 @@
+{
+  "frame": "PsvtW",
+  "component": "AyBoP",
+  "changed": {
+    "type": "frame",
+    "id": "npUZr",
+    "name": "Recorder message",
+    "width": 600,
+    "layout": "vertical",
+    "gap": 12,
+    "children": [
+      {
+        "type": "frame",
+        "id": "EbixS",
+        "name": "Recorder headline",
+        "width": "fill_container",
+        "gap": 8,
+        "children": [
+          {
+            "type": "icon",
+            "id": "vttDk",
+            "name": "Recorder icon",
+            "width": 16,
+            "height": 16,
+            "icon": "circle-alert",
+            "library": "lucide",
+            "fill": "#F0A070"
+          },
+          {
+            "type": "text",
+            "id": "Gkwjb",
+            "name": "Recorder title",
+            "fill": "#E6EDF3",
+            "textGrowth": "fixed-width",
+            "width": "fill_container",
+            "content": "The copy of recorder 0.3.2 didn't match the one signed into the app, so the app kept recorder 0.3.1 running.",
+            "lineHeight": 1.4,
+            "fontFamily": "Geist",
+            "fontSize": 14,
+            "fontWeight": "600"
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "I09cU3",
+        "name": "Error block",
+        "width": "fill_container",
+        "fill": "#0F1318",
+        "cornerRadius": 6,
+        "stroke": "#2A3640",
+        "strokeWidth": 1,
+        "layout": "vertical",
+        "children": [
+          {
+            "type": "frame",
+            "id": "Wi1Pq",
+            "name": "Error source row",
+            "width": "fill_container",
+            "stroke": "#2A3640",
+            "strokeWidth": {
+              "bottom": 1
+            },
+            "gap": 8,
+            "padding": [
+              7,
+              10
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "WGuXH",
+                "name": "Error source",
+                "fill": "#7D98AD",
+                "content": "compare runtime/.staging-4f1c2a90 with Slipstream.app",
+                "fontFamily": "Geist Mono",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "frame",
+                "id": "R7fJL",
+                "name": "Error source gap",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "frame",
+                "id": "u0i0OD",
+                "name": "Copy",
+                "gap": 5,
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "icon",
+                    "id": "l3uuq",
+                    "name": "Copy icon",
+                    "width": 12,
+                    "height": 12,
+                    "icon": "copy",
+                    "library": "lucide",
+                    "fill": "#82AAC5"
+                  },
+                  {
+                    "type": "text",
+                    "id": "AdSsm",
+                    "name": "Copy label",
+                    "fill": "#82AAC5",
+                    "content": "Copy",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "normal"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "CDl2Q",
+            "name": "Error body",
+            "width": "fill_container",
+            "padding": 10,
+            "children": [
+              {
+                "type": "text",
+                "id": "JsOvy",
+                "name": "Error text",
+                "fill": "#C9D6E0",
+                "textGrowth": "fixed-width",
+                "width": "fill_container",
+                "content": "copy     Slipstream.app/Contents/Resources/SlipstreamRuntime\n         → runtime/.staging-4f1c2a90\ncompare  app/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n  expected sha256:9c1e4b07d2f86a3b5e0c17d94a62bb8e3f0d5c71a28e94b6c03f7d1e5a9b4a41f\n  actual   sha256:3d77f0a9e1c4b8265f0e93a7d1b6c42e8f05a9d37c1e6b2f84a0d5c9e7b108bc\nstaging removed; runtime/current → runtime/0.3.1-2b81c4d0 (unchanged)\nrunning  pid 48213  daemon_version=0.3.1  daemon_build=2b81c4d0  (radio.playola.slipstream)",
+                "lineHeight": 1.55,
+                "fontFamily": "Geist Mono",
+                "fontSize": 10.5,
+                "fontWeight": "normal"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "z5bss",
+        "name": "Recorder actions",
+        "gap": 8,
+        "children": [
+          {
+            "type": "frame",
+            "id": "U3vdP",
+            "name": "Try again",
+            "fill": "#2F3A45",
+            "cornerRadius": 6,
+            "padding": [
+              6,
+              12
+            ],
+            "children": [
+              {
+                "type": "text",
+                "id": "UucVr",
+                "name": "Try again label",
+                "fill": "#E6EDF3",
+                "content": "Try again",
+                "fontFamily": "Geist",
+                "fontSize": 12.5,
+                "fontWeight": "500"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

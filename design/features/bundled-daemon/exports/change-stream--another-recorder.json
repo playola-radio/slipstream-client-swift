@@ -1,0 +1,176 @@
+{
+  "frame": "o3IPH",
+  "component": "AyBoP",
+  "changed": {
+    "type": "frame",
+    "id": "OyhqQ",
+    "name": "Recorder message",
+    "width": 600,
+    "layout": "vertical",
+    "gap": 12,
+    "children": [
+      {
+        "type": "frame",
+        "id": "mYaQC",
+        "name": "Recorder headline",
+        "width": "fill_container",
+        "gap": 8,
+        "children": [
+          {
+            "type": "icon",
+            "id": "xxzJA",
+            "name": "Recorder icon",
+            "width": 16,
+            "height": 16,
+            "icon": "circle-alert",
+            "library": "lucide",
+            "fill": "#F0A070"
+          },
+          {
+            "type": "text",
+            "id": "S8XvcI",
+            "name": "Recorder title",
+            "fill": "#E6EDF3",
+            "textGrowth": "fixed-width",
+            "width": "fill_container",
+            "content": "A recorder this app didn't start (pid 30117, npm 0.3.0) is using ~/.slipstream. It's still recording; the app won't stop it unless you replace it.",
+            "lineHeight": 1.4,
+            "fontFamily": "Geist",
+            "fontSize": 14,
+            "fontWeight": "600"
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "egoBn",
+        "name": "Error block",
+        "width": "fill_container",
+        "fill": "#0F1318",
+        "cornerRadius": 6,
+        "stroke": "#2A3640",
+        "strokeWidth": 1,
+        "layout": "vertical",
+        "children": [
+          {
+            "type": "frame",
+            "id": "il3MZ",
+            "name": "Error source row",
+            "width": "fill_container",
+            "stroke": "#2A3640",
+            "strokeWidth": {
+              "bottom": 1
+            },
+            "gap": 8,
+            "padding": [
+              7,
+              10
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "GjyZo",
+                "name": "Error source",
+                "fill": "#7D98AD",
+                "content": "status · owner.lock · launchctl",
+                "fontFamily": "Geist Mono",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "frame",
+                "id": "CTX3Z",
+                "name": "Error source gap",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "frame",
+                "id": "xa89Q",
+                "name": "Copy",
+                "gap": 5,
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "icon",
+                    "id": "B6CctR",
+                    "name": "Copy icon",
+                    "width": 12,
+                    "height": 12,
+                    "icon": "copy",
+                    "library": "lucide",
+                    "fill": "#82AAC5"
+                  },
+                  {
+                    "type": "text",
+                    "id": "ciShe",
+                    "name": "Copy label",
+                    "fill": "#82AAC5",
+                    "content": "Copy",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "normal"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "mB23g",
+            "name": "Error body",
+            "width": "fill_container",
+            "padding": 10,
+            "children": [
+              {
+                "type": "text",
+                "id": "oDjLw",
+                "name": "Error text",
+                "fill": "#C9D6E0",
+                "textGrowth": "fixed-width",
+                "width": "fill_container",
+                "content": "status       daemon_version=0.3.0  daemon_build=— (predates build reporting)\nowner.lock   pid 30117\nlaunchd      radio.playola.slipstream — not loaded\npid 30117    /Users/brian/.nvm/versions/node/v24.11.0/bin/node\n               /Users/brian/.nvm/versions/node/v24.11.0/lib/node_modules/@playola-radio/slipstream/dist/cli.js start\nstarted      2026-10-27 09:14:52",
+                "lineHeight": 1.55,
+                "fontFamily": "Geist Mono",
+                "fontSize": 10.5,
+                "fontWeight": "normal"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "x5cny",
+        "name": "Recorder actions",
+        "gap": 8,
+        "children": [
+          {
+            "type": "frame",
+            "id": "kVjma",
+            "name": "Replace it",
+            "fill": "#2F3A45",
+            "cornerRadius": 6,
+            "padding": [
+              6,
+              12
+            ],
+            "children": [
+              {
+                "type": "text",
+                "id": "lrFwa",
+                "name": "Replace it label",
+                "fill": "#E6EDF3",
+                "content": "Replace it",
+                "fontFamily": "Geist",
+                "fontSize": 12.5,
+                "fontWeight": "500"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

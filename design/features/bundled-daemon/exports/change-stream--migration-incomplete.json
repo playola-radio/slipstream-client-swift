@@ -1,0 +1,164 @@
+{
+  "frame": "Y1Pnk",
+  "component": "AyBoP",
+  "changed": {
+    "type": "frame",
+    "id": "M4LazV",
+    "name": "Footer",
+    "width": "fill_container",
+    "fill": "#191F27",
+    "stroke": "#314351",
+    "strokeWidth": {
+      "top": 1
+    },
+    "layout": "vertical",
+    "gap": 10,
+    "padding": [
+      10,
+      20
+    ],
+    "children": [
+      {
+        "type": "frame",
+        "id": "tlrjB",
+        "name": "Footer row",
+        "width": "fill_container",
+        "gap": 8,
+        "alignItems": "center",
+        "children": [
+          {
+            "type": "icon",
+            "id": "tahJn",
+            "name": "Footer icon",
+            "width": 13,
+            "height": 13,
+            "icon": "circle-alert",
+            "library": "lucide",
+            "fill": "#FF9F0A"
+          },
+          {
+            "type": "text",
+            "id": "bFcun",
+            "name": "Footer status",
+            "fill": "#FF9F0A",
+            "textGrowth": "fixed-width",
+            "width": "fill_container",
+            "content": "Recorder 0.3.2 is running, but 2 setup changes didn't finish: the slipstream command link and one agent hook file still point at the old npm install.",
+            "fontFamily": "Geist",
+            "fontSize": 11,
+            "fontWeight": "normal"
+          },
+          {
+            "type": "text",
+            "id": "X6NQYU",
+            "name": "Try again",
+            "fill": "#82AAC5",
+            "content": "Try again",
+            "fontFamily": "Geist",
+            "fontSize": 11,
+            "fontWeight": "normal"
+          }
+        ]
+      },
+      {
+        "type": "frame",
+        "id": "D5t7Jj",
+        "name": "Error block",
+        "width": "fill_container",
+        "fill": "#0F1318",
+        "cornerRadius": 6,
+        "stroke": "#2A3640",
+        "strokeWidth": 1,
+        "layout": "vertical",
+        "children": [
+          {
+            "type": "frame",
+            "id": "d31vkN",
+            "name": "Error source row",
+            "width": "fill_container",
+            "stroke": "#2A3640",
+            "strokeWidth": {
+              "bottom": 1
+            },
+            "gap": 8,
+            "padding": [
+              7,
+              10
+            ],
+            "alignItems": "center",
+            "children": [
+              {
+                "type": "text",
+                "id": "tQV4b",
+                "name": "Error source",
+                "fill": "#7D98AD",
+                "content": "~/.local/bin links · slipstream adopt-app · exit 1",
+                "fontFamily": "Geist Mono",
+                "fontSize": 10,
+                "fontWeight": "normal"
+              },
+              {
+                "type": "frame",
+                "id": "UqM05",
+                "name": "Error source gap",
+                "width": "fill_container",
+                "height": 1
+              },
+              {
+                "type": "frame",
+                "id": "FNYo7",
+                "name": "Copy",
+                "gap": 5,
+                "alignItems": "center",
+                "children": [
+                  {
+                    "type": "icon",
+                    "id": "mOc0G",
+                    "name": "Copy icon",
+                    "width": 12,
+                    "height": 12,
+                    "icon": "copy",
+                    "library": "lucide",
+                    "fill": "#82AAC5"
+                  },
+                  {
+                    "type": "text",
+                    "id": "Kqcdq",
+                    "name": "Copy label",
+                    "fill": "#82AAC5",
+                    "content": "Copy",
+                    "fontFamily": "Geist",
+                    "fontSize": 11,
+                    "fontWeight": "normal"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "frame",
+            "id": "MmJ4u",
+            "name": "Error body",
+            "width": "fill_container",
+            "padding": 10,
+            "children": [
+              {
+                "type": "text",
+                "id": "AU3ZT",
+                "name": "Error text",
+                "fill": "#C9D6E0",
+                "textGrowth": "fixed-width",
+                "width": "fill_container",
+                "content": "link  /Users/brian/.local/bin/slipstream\n      File exists and isn't a symlink; left alone.\n\n$ ~/Library/Application Support/com.playola.SlipstreamViewer/runtime/bin/slipstream adopt-app --store /Users/brian/.slipstream\nrewrote /Users/brian/conductor/workspaces/slipstream/nairobi/.claude/settings.local.json (backup /Users/brian/conductor/workspaces/slipstream/nairobi/.claude/settings.local.json.slipstream-backup-1762785727113)\nunchanged /Users/brian/conductor/workspaces/slipstream/nairobi/.codex/hooks.json\nrewrote /Users/brian/.codex/config.toml (backup /Users/brian/.codex/config.toml.slipstream-backup-1762785727140)\nfailed /Users/brian/playola/playola-radio-ios/.claude/settings.local.json: EACCES: permission denied, open '/Users/brian/playola/playola-radio-ios/.claude/settings.local.json'\nexit 1",
+                "lineHeight": 1.55,
+                "fontFamily": "Geist Mono",
+                "fontSize": 10.5,
+                "fontWeight": "normal"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
