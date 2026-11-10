@@ -1,0 +1,945 @@
+{
+  "type": "frame",
+  "id": "vSnUH",
+  "name": "workspace-names--rename-dialog--too-long",
+  "clip": true,
+  "width": 760,
+  "height": 560,
+  "fill": "#12171D",
+  "cornerRadius": 10,
+  "stroke": "#2A3640",
+  "strokeWidth": 1,
+  "layout": "vertical",
+  "children": [
+    {
+      "type": "frame",
+      "id": "ZVLmI",
+      "name": "Window toolbar",
+      "width": "fill_container",
+      "height": 52,
+      "fill": "#191F27",
+      "stroke": "#2A3640",
+      "strokeWidth": {
+        "bottom": 1
+      },
+      "gap": 14,
+      "padding": [
+        0,
+        16
+      ],
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "KebIQ",
+          "name": "Traffic lights",
+          "gap": 8,
+          "children": [
+            {
+              "type": "ellipse",
+              "id": "WKyFT",
+              "name": "Light",
+              "fill": "#F0A4AB",
+              "width": 12,
+              "height": 12
+            },
+            {
+              "type": "ellipse",
+              "id": "B9urh",
+              "name": "Light",
+              "fill": "#E4C282",
+              "width": 12,
+              "height": 12
+            },
+            {
+              "type": "ellipse",
+              "id": "j3GzZ",
+              "name": "Light",
+              "fill": "#8DD9B1",
+              "width": 12,
+              "height": 12
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "gtRAO",
+          "name": "Workspace picker",
+          "fill": "#222A33",
+          "cornerRadius": 6,
+          "gap": 6,
+          "padding": [
+            6,
+            10
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "axRun",
+              "name": "Breadcrumb",
+              "fill": "#E6EDF3",
+              "content": "slipstream-client-swift  \u203a  Workspace rename menu",
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "500"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "a9LaNI",
+      "name": "Body",
+      "width": "fill_container",
+      "height": "fill_container",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "MSslC",
+          "x": 0,
+          "y": 0,
+          "name": "Sidebar",
+          "width": 260,
+          "height": 507,
+          "fill": "#0E1318",
+          "stroke": "#2A3640",
+          "strokeWidth": {
+            "right": 1
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "uww2a",
+              "name": "Sidebar header",
+              "width": "fill_container",
+              "height": 40,
+              "stroke": "#2A3640",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "padding": [
+                0,
+                10,
+                0,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "B0zQtH",
+                  "name": "Title",
+                  "fill": "#E6EDF3",
+                  "content": "Workspaces",
+                  "fontFamily": "Geist",
+                  "fontSize": 12.5,
+                  "fontWeight": "550"
+                },
+                {
+                  "type": "frame",
+                  "id": "p6jGS",
+                  "name": "spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "z6idN",
+                  "name": "Hide sidebar",
+                  "padding": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "kZo7s",
+                      "name": "panel-left-close",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "panel-left-close",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "X8EPdK",
+              "name": "Repo list",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 14,
+              "padding": [
+                10,
+                8
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "f5O0L4",
+                  "name": "Repo \u00b7 playola",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Qrux6",
+                      "name": "Repo header",
+                      "width": "fill_container",
+                      "height": 30,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        6,
+                        0,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "hyg5X",
+                          "name": "folder-git-2",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "folder-git-2",
+                          "library": "lucide",
+                          "fill": "#7D98AD"
+                        },
+                        {
+                          "type": "text",
+                          "id": "o3UXbC",
+                          "name": "Repo name",
+                          "fill": "#C9D6DF",
+                          "content": "playola",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "550"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "y0hAyd",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "DOK2F",
+                          "name": "New workspace",
+                          "cornerRadius": 4,
+                          "padding": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "zehNY",
+                              "name": "plus",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "p0zsPW",
+                      "name": "Workspace \u00b7 Station report emails",
+                      "width": "fill_container",
+                      "height": 32,
+                      "cornerRadius": 5,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10,
+                        0,
+                        26
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "S5bf7",
+                          "name": "git-branch",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "git-branch",
+                          "library": "lucide",
+                          "fill": "#6B7C89"
+                        },
+                        {
+                          "type": "text",
+                          "id": "uM0nx",
+                          "name": "Workspace name",
+                          "fill": "#A9B7C2",
+                          "content": "Station report emails",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "MhLOM",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "icon",
+                          "id": "neyrf",
+                          "name": "loader-circle",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "loader-circle",
+                          "library": "lucide",
+                          "fill": "#6CB6FF"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LSNfr",
+                      "name": "Workspace \u00b7 Redis cache bandwidth",
+                      "width": "fill_container",
+                      "height": 32,
+                      "cornerRadius": 5,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10,
+                        0,
+                        26
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Xz1sa",
+                          "name": "git-branch",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "git-branch",
+                          "library": "lucide",
+                          "fill": "#6B7C89"
+                        },
+                        {
+                          "type": "text",
+                          "id": "usX7E",
+                          "name": "Workspace name",
+                          "fill": "#A9B7C2",
+                          "content": "Redis cache bandwidth",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NQ9le",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "jgSj0",
+                      "name": "Workspace \u00b7 bilbao-v1",
+                      "width": "fill_container",
+                      "height": 32,
+                      "cornerRadius": 5,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10,
+                        0,
+                        26
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "KNJkV",
+                          "name": "git-branch",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "git-branch",
+                          "library": "lucide",
+                          "fill": "#6B7C89"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Ch6SB",
+                          "name": "Workspace name",
+                          "fill": "#A9B7C2",
+                          "content": "bilbao-v1",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FLUt3",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rl1P2",
+                  "name": "Repo \u00b7 slipstream-client-swift",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hgi48",
+                      "name": "Repo header",
+                      "width": "fill_container",
+                      "height": 30,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        6,
+                        0,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "ONR6T",
+                          "name": "folder-git-2",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "folder-git-2",
+                          "library": "lucide",
+                          "fill": "#7D98AD"
+                        },
+                        {
+                          "type": "text",
+                          "id": "k0nCiA",
+                          "name": "Repo name",
+                          "fill": "#C9D6DF",
+                          "content": "slipstream-client-swift",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "550"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "OwjMh",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "k3q1y",
+                          "name": "New workspace",
+                          "cornerRadius": 4,
+                          "padding": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "NgdfJ",
+                              "name": "plus",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mMuJE",
+                      "name": "Workspace \u00b7 Workspace rename menu",
+                      "width": "fill_container",
+                      "height": 32,
+                      "fill": "#222A33",
+                      "cornerRadius": 5,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10,
+                        0,
+                        26
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "bowPi",
+                          "name": "git-branch",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "git-branch",
+                          "library": "lucide",
+                          "fill": "#C9D6DF"
+                        },
+                        {
+                          "type": "text",
+                          "id": "CGn7Q",
+                          "name": "Workspace name",
+                          "fill": "#E6EDF3",
+                          "content": "Workspace rename menu",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "B8Do3X",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "icon",
+                          "id": "f9eV31",
+                          "name": "loader-circle",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "loader-circle",
+                          "library": "lucide",
+                          "fill": "#6CB6FF"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "f2ZND",
+                      "name": "Workspace \u00b7 Polling backoff",
+                      "width": "fill_container",
+                      "height": 32,
+                      "cornerRadius": 5,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10,
+                        0,
+                        26
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "m3dE0c",
+                          "name": "git-branch",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "git-branch",
+                          "library": "lucide",
+                          "fill": "#6B7C89"
+                        },
+                        {
+                          "type": "text",
+                          "id": "O3Yqvj",
+                          "name": "Workspace name",
+                          "fill": "#A9B7C2",
+                          "content": "Polling backoff",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NX7UB",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "stUqc",
+                      "name": "Workspace \u00b7 tacoma-v3",
+                      "width": "fill_container",
+                      "height": 32,
+                      "cornerRadius": 5,
+                      "gap": 8,
+                      "padding": [
+                        0,
+                        10,
+                        0,
+                        26
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "cGL7z",
+                          "name": "git-branch",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "git-branch",
+                          "library": "lucide",
+                          "fill": "#6B7C89"
+                        },
+                        {
+                          "type": "text",
+                          "id": "C15jsN",
+                          "name": "Workspace name",
+                          "fill": "#A9B7C2",
+                          "content": "tacoma-v3",
+                          "fontFamily": "Geist",
+                          "fontSize": 12.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "TuMrm",
+                          "name": "spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "S3BnN9",
+                          "name": "Needs you",
+                          "fill": "#E4C282",
+                          "width": 7,
+                          "height": 7
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qt1l7",
+              "name": "Sidebar footer",
+              "width": "fill_container",
+              "height": 44,
+              "stroke": "#2A3640",
+              "strokeWidth": {
+                "top": 1
+              },
+              "gap": 8,
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "J0QnZa",
+                  "name": "folder-plus",
+                  "width": 14,
+                  "height": 14,
+                  "icon": "folder-plus",
+                  "library": "lucide",
+                  "fill": "#8B9AA6"
+                },
+                {
+                  "type": "text",
+                  "id": "bbmmN",
+                  "fill": "#8B9AA6",
+                  "content": "Add repository\u2026",
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "cL8qU",
+          "x": 260,
+          "y": 0,
+          "name": "Chat",
+          "width": 500,
+          "height": 507,
+          "fill": "#12171D",
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Iz8qG",
+              "name": "Tab strip",
+              "width": "fill_container",
+              "height": 40,
+              "stroke": "#2A3640",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "padding": [
+                0,
+                16
+              ],
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "NWm3t",
+                  "name": "Tab",
+                  "height": 40,
+                  "stroke": "#6CB6FF",
+                  "strokeWidth": {
+                    "bottom": 2
+                  },
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mTN1S",
+                      "fill": "#E6EDF3",
+                      "content": "Add rename to sidebar rows",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Xk3jG",
+          "x": 0,
+          "y": 0,
+          "name": "Scrim",
+          "width": 760,
+          "height": 507,
+          "fill": "#05080BA6"
+        },
+        {
+          "type": "frame",
+          "id": "E1Z2Oy",
+          "x": 170,
+          "y": 70,
+          "name": "Rename dialog",
+          "width": 420,
+          "fill": "#1B222A",
+          "cornerRadius": 12,
+          "stroke": "#34414E",
+          "strokeWidth": 1,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#000000A0",
+            "offset": {
+              "x": 0,
+              "y": 10
+            },
+            "blur": 28
+          },
+          "layout": "vertical",
+          "gap": 14,
+          "padding": 24,
+          "children": [
+            {
+              "type": "frame",
+              "id": "prnoS",
+              "name": "Header",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "voz4D",
+                  "name": "folder",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "folder",
+                  "library": "lucide",
+                  "fill": "#A9B7C2"
+                },
+                {
+                  "type": "text",
+                  "id": "ukdPJ",
+                  "fill": "#E6EDF3",
+                  "content": "Rename workspace",
+                  "fontFamily": "Geist",
+                  "fontSize": 17,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qMTU3",
+              "name": "Name field",
+              "clip": true,
+              "width": "fill_container",
+              "height": 38,
+              "fill": "#11171D",
+              "cornerRadius": 6,
+              "stroke": "#F0A4AB",
+              "strokeWidth": 1.5,
+              "gap": 1,
+              "padding": [
+                0,
+                10
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "F00qor",
+                  "name": "Value",
+                  "fill": "#E6EDF3",
+                  "content": "Session polling backoff and retry for the sidebar list",
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "sylcB",
+                  "name": "Caret",
+                  "width": 1.5,
+                  "height": 17,
+                  "fill": "#E6EDF3"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "JjpZE",
+              "name": "Error",
+              "width": "fill_container",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "fUdSs",
+                  "name": "circle-alert",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "circle-alert",
+                  "library": "lucide",
+                  "fill": "#F0A4AB"
+                },
+                {
+                  "type": "text",
+                  "id": "Gvkvv",
+                  "fill": "#F0A4AB",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "That name is too long. Shorten it to save.",
+                  "lineHeight": 1.35,
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "Zo9EJ",
+              "name": "Helper",
+              "fill": "#6B7C89",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Only changes the name shown in Slipstream. The folder and branch stay the same.",
+              "lineHeight": 1.4,
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "Srccl",
+              "name": "Buttons",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BSOpA",
+                  "name": "spacer",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "MM9kN",
+                  "name": "Button \u00b7 Cancel",
+                  "height": 32,
+                  "cornerRadius": 6,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tEQco",
+                      "fill": "#C9D6DF",
+                      "content": "Cancel",
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "g2CPnJ",
+                  "name": "Button \u00b7 Rename",
+                  "height": 32,
+                  "fill": "#26303A",
+                  "cornerRadius": 6,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SLgg0",
+                      "fill": "#56646F",
+                      "content": "Rename",
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

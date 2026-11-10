@@ -1,5 +1,7 @@
 # Stream names
 
+> **Superseded 2026-11-10 by [`workspace-names`](../workspace-names/spec.md).** Storage and validation carry over; the attach `--name` path and the rename sheet do not.
+
 Rename workspace streams from the app, and have the agent give its workspace a name when it
 attaches.
 
