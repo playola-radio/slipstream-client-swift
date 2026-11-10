@@ -11,6 +11,8 @@ struct RelayProgress: Equatable {
   let isActionDisabled: Bool
   /// The agent's answer to whether it made the change.
   let report: Report?
+  /// Why the last check couldn't tell whether the change was made.
+  var failure: String? = nil
 
   struct Line: Equatable, Hashable {
     let mark: Mark
@@ -196,13 +198,15 @@ final class QuestionThreadPageModel: ViewModel {
       lines += relay.changedPaths.map { .init(mark: .working, label: "Working", detail: "changes seen in \($0)") }
     }
     var action: RelayProgress.Action?
+    var failure: String?
     switch status {
     case .notDoneYet:
       lines.append(.init(mark: .notDoneYet, label: "Not done yet", detail: "checking again when the agent's next turn ends"))
     case .couldntCheck:
-      let detail = [run?.checkFailedAtMs.map(clockTime), run?.checkFailure].compactMap { $0 }.joined(separator: " · ")
-      lines.append(.init(mark: .warning, label: "Couldn't check whether this was done", detail: detail))
+      lines.append(
+        .init(mark: .warning, label: "Couldn't check whether this was done", detail: run?.checkFailedAtMs.map(clockTime) ?? ""))
       action = .checkAgain
+      failure = run?.checkFailure
     case .notDelivered:
       lines.append(.init(mark: .failed, label: "Not delivered", detail: "the chat stopped before the agent read this"))
       action = .sendAgain
@@ -219,7 +223,8 @@ final class QuestionThreadPageModel: ViewModel {
     case nil: false
     }
     return RelayProgress(
-      relayID: relay.id, lines: lines, action: action, isActionDisabled: isActionDisabled, report: report)
+      relayID: relay.id, lines: lines, action: action, isActionDisabled: isActionDisabled, report: report,
+      failure: failure)
   }
 
   func actionText(_ action: RelayProgress.Action) -> String {

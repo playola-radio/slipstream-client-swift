@@ -179,6 +179,13 @@ private struct RelayProgressView: View {
             .truncationMode(.middle)
         }
       }
+      if let failure = progress.failure {
+        Text(failure)
+          .font(DesignTokens.Reply.agentFont)
+          .foregroundStyle(DesignTokens.Reply.failureDetailColor)
+          .fixedSize(horizontal: false, vertical: true)
+          .textSelection(.enabled)
+      }
       if let action = progress.action {
         Button {
           Task {

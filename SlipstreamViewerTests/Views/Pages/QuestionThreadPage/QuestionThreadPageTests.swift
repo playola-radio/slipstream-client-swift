@@ -839,15 +839,14 @@ extension QuestionThreadPageTests {
         lines: [
           .init(mark: .done, label: "Sent", detail: "14:02"),
           .init(mark: .done, label: "Picked up", detail: "14:03"),
-          .init(
-            mark: .warning, label: "Couldn't check whether this was done",
-            detail: "14:05 · Claude Code didn't answer within 120 seconds."),
+          .init(mark: .warning, label: "Couldn't check whether this was done", detail: "14:05"),
         ],
-        action: .checkAgain, isActionDisabled: false, report: nil))
+        action: .checkAgain, isActionDisabled: false, report: nil,
+        failure: "Claude Code didn't answer within 120 seconds."))
     expectNoDifference(model.actionText(.checkAgain), "Check again")
   }
 
-  @Test func couldntCheckLineIncludesTheCause() async {
+  @Test func couldntCheckShowsTheCauseOnItsOwn() async {
     let (instantAsk, _) = makeRelayingInstantAsk(AgentFake())
     let turns = [Self.answered, Self.onIt(Self.relay(pickedUp: true))]
     handOver(instantAsk, turns)
@@ -856,11 +855,7 @@ extension QuestionThreadPageTests {
     await Task.megaYield()
     let model = makeModel(turns, link: Self.recorded, instantAsk: instantAsk)
 
-    expectNoDifference(
-      progress(model)?.lines.last,
-      .init(
-        mark: .warning, label: "Couldn't check whether this was done",
-        detail: "14:05 · Claude Code exited with status 1: Invalid API key"))
+    expectNoDifference(progress(model)?.failure, "Claude Code exited with status 1: Invalid API key")
   }
 
   @Test func checkAgainDisabledWhileChecking() async throws {
