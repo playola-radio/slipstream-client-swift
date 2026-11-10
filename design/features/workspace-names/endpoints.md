@@ -84,19 +84,16 @@ reads `naming`'s presence on `/v1/sessions`.
      `AGENT_NOT_CONNECTED`.
   5. **Admission.** The write is registered in the capture's existing in-flight set (`track`,
      as `beginTask` does), so unlink and maintenance drain it, and is then queued on the
-     metadata lock. The lock is also the authority fence: a revocation request serializes
-     behind its current holder, then marks later queued work unavailable.
+     metadata lock.
   6. Under the lock, read `name.json`. If `agent_name` is set and `replace_existing` is not
      `true`, or it already equals the trimmed name, reply `changed: false` without writing.
   7. Write and fsync the temp file.
   8. **Publication check, immediately before the atomic rename, with no await between:**
      store ownership held, daemon not tearing down and activation not lost → else
-     `STORAGE_UNAVAILABLE`, and the temp file is removed. The authority fence remains held
-     through submission of the rename, so revocation cannot interleave after this check and
-     make this writer stale. There is no binding re-check: the target is the session the chat
-     was linked to at entry, so a name that lands after an unlink still names the session the
-     agent worked in. (No tombstone check either: `delete_session` refuses a session whose
-     capture isn't stopped.)
+     `STORAGE_UNAVAILABLE`, and the temp file is removed. There is no binding re-check: the
+     target is the session the chat was linked to at entry, so a name that lands after an
+     unlink still names the session the agent worked in. (No tombstone check either:
+     `delete_session` refuses a session whose capture isn't stopped.)
   9. Rename over `name.json`, fsync the directory, reply `changed: true`. `user_name` is never
      touched. A failure after the rename → `STORAGE_UNAVAILABLE` (the name may have landed).
 - **No event.** The app picks the name up on its next `/v1/sessions` poll.
@@ -132,15 +129,13 @@ reads `naming`'s presence on `/v1/sessions`.
   1. `session_id` is a lowercase UUIDv4 → else `PROTOCOL`.
   2. `name` is present and a string or `null` → else `PROTOCOL`.
   3. A string `name` is valid → else `INVALID_NAME`.
-  4. Queue on the metadata lock, which also serializes a pending authority revocation with
-     its active writer.
+  4. Queue on the metadata lock.
   5. Session directory exists with no tombstone → else `SESSION_NOT_FOUND` ("session was
      deleted" when tombstoned).
   6. Read `name.json`, set `user_name`, write and fsync the temp file.
   7. **Publication check, immediately before the atomic rename, with no await between:** store
-     ownership held and daemon not tearing down → else `STORAGE_UNAVAILABLE`. The authority
-     fence remains held through rename submission. Then rename and fsync the directory. A
-     rename that races a `delete_session` can leave `name.json` in a
+     ownership held and daemon not tearing down → else `STORAGE_UNAVAILABLE`. Then rename and
+     fsync the directory. A rename that races a `delete_session` can leave `name.json` in a
      tombstoned directory; that is harmless (the list never reads it for a removed session, and
      `gc` removes it), so there is no delete re-check.
 - **Admission:** refused only when the daemon is compromised (store lock lost) or tearing down

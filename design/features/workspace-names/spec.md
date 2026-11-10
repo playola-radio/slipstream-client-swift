@@ -68,10 +68,7 @@ the work.
 ```
 
 The daemon publishes it crash-safe, under one daemon-wide metadata lock that teardown
-drains. That lock is also the authority fence: a teardown, activation-loss or store-lock-loss
-transition serializes with its holder, so a write admitted while it owns the fence either
-commits before revocation takes effect or sees revocation before it can submit its rename.
-Each writer re-checks its authority immediately before publishing (see
+drains. Each writer re-checks its authority immediately before publishing (see
 [endpoints.md](./endpoints.md)).
 
 **D2 — Effective name (kept).** The name shown is `user_name ?? agent_name ?? folder name`.
@@ -346,3 +343,9 @@ client `6de9526` and daemon `4117951`, 2026-11-10. Dispositions:
 - 2026-11-10: Brian approved screen C rev 3 ("saved and approved"): frame `WQ2uK` with the
   "didn't reply" headline and the raw-error block with Copy, and frame `q1Niht` with the
   "deleted" copy. All frames re-exported in Phase 8.
+- 2026-11-10: PR #76 review (CodeRabbit). Brian approved: naming menu actions (Rename, "Use
+  agent's name") are disabled while either write is in flight, because each request opens its
+  own socket and a clear sent first could land after a newer rename; the queued notice and the
+  no-chat copy resolve the workspace name by session id when shown. Brian rejected the proposed
+  metadata-lock "authority fence": the publication check already runs with no await before the
+  rename and teardown drains the lock, so it added machinery without closing a real gap.

@@ -164,8 +164,7 @@ either PR. This plan points at them and does not repeat them.
   - Any other I/O error throws.
   - `writeNaming` follows `publishTombstone` (`src/maintenance.ts:55-79`) step for step, with
     one addition: it calls `assertOwnership()` after the temp file's `sync()` and immediately
-    before `rename`, with no await in between. The caller holds the metadata authority fence
-    through rename submission, so revocation cannot interleave after this check.
+    before `rename`, with no await in between.
   - If `assertOwnership()` throws, `writeNaming` removes the temp file and rethrows
     unchanged.
   - The written body is `{"version":1,"agent_name":…,"user_name":…}`.
@@ -182,9 +181,6 @@ either PR. This plan points at them and does not repeat them.
     missing key, and a numeric value;
   - `assertOwnership throwing leaves no name.json and no temp file`, where the directory
     listing equals what it was before;
-  - `revocation queued after rename submission waits for the fenced write`: hold the rename in
-    the filesystem seam, request revocation, release the rename, then assert the write commits
-    before revocation completes and a later write is rejected;
   - `write into a missing session directory throws StorageError`;
   - `file mode is 0600`.
 - [ ] **Add a test to `maintenance.test.ts`:** `removeSessionHistory also removes name.json`.
@@ -253,10 +249,6 @@ either PR. This plan points at them and does not repeat them.
 **Decisions:**
 - **Teardown:** `doTeardown` adds `await metadataTail` after the per-capture inflight drain
   (:455) and before `reader.close()`.
-- **Authority fence:** activation loss, store-lock loss and teardown enqueue their revocation
-  on the metadata chain. The current holder retains authority through its rename submission;
-  the revocation runs next, marks authority unavailable, and all later holders fail the
-  publication check. This supplies the commit boundary that a check alone cannot provide.
 - **Publication check** (the `assertOwnership` passed to `writeNaming`): throw
   `QuestionError('STORAGE_UNAVAILABLE')` if `compromised || torn`. It is the only teardown
   check; the lock adds none of its own.
@@ -284,9 +276,6 @@ either PR. This plan points at them and does not repeat them.
     - hold the write with a gate in the test;
     - start teardown;
     - expect the store lock to be released only after the rename settles.
-  - `revocation after rename submission is serialized`: hold the filesystem rename after
-    `assertOwnership`, request store-lock loss, then release it; the first rename commits
-    before revocation resolves and a subsequent rename returns `STORAGE_UNAVAILABLE`.
 - [ ] **Run them.** They should FAIL.
 - [ ] **Implement.**
   - The handler runs the checks in endpoints.md order.

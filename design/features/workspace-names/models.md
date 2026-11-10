@@ -55,19 +55,15 @@ types. Both are listed here. Storage and validation carry over from
   written; there is no delete path.
 - **Serialization:** one daemon-wide in-process metadata lock (a promise chain) is taken by
   `name_workspace` and `rename_session`. Operations run in lock order, so an agent name and a
-  user rename never lose each other's field. The same lock is the authority fence: a
-  teardown, activation-loss or store-lock-loss transition waits for the active holder before
-  revoking authority, and rejects queued work. Thus an admitted writer either commits while
-  authority is still held or observes revocation before submitting its atomic rename. The lock
-  is separate from `runMaintenance`, so renaming the recording session works.
-  `delete_session` and `gc` don't take it; a write that races a delete can leave `name.json`
-  in a tombstoned directory, which is harmless — the list reports `null` names for a removed
-  session without reading the file, and `gc`'s `removeSessionHistory` unlinks it.
-- **Lock lifetime:** authority revocation is queued through the lock before teardown drains
-  its tail and releases the store lock. A queued operation that runs after revocation starts
-  replies `STORAGE_UNAVAILABLE` without writing. Each writer checks its authority immediately
-  before the atomic rename (see [endpoints.md](./endpoints.md)); the fence keeps that check
-  effective through rename submission. `name_workspace` is also registered in the capture's
+  user rename never lose each other's field. The lock is separate from `runMaintenance`, so
+  renaming the recording session works. `delete_session` and `gc` don't take it; a write that
+  races a delete can leave `name.json` in a tombstoned directory, which is harmless — the
+  list reports `null` names for a removed session without reading the file, and `gc`'s
+  `removeSessionHistory` unlinks it.
+- **Lock lifetime:** teardown awaits the lock's chain tail after draining attach and
+  maintenance, before releasing the store lock. A queued operation that runs after teardown
+  starts replies `STORAGE_UNAVAILABLE` without writing. Each writer checks its authority
+  immediately before the atomic rename (see [endpoints.md](./endpoints.md)). `name_workspace` is also registered in the capture's
   in-flight set so unlink and maintenance drain it. A failed operation removes its temp file
   and releases the lock without breaking the chain.
 - **Readers:** only the HTTP session list reads `name.json`, adding names after
