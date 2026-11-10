@@ -98,17 +98,18 @@ extension AskForkClient: DependencyKey {
         return .failure(.badReply("Claude Code's reply was too long to read."))
       case .exited(let status, let stderrTail):
         guard status != 0 else { return .failure(.badReply("Claude Code exited without an answer.")) }
-        let summary = stderrSummary(stderrTail)
-        return .failure(.unavailable(DiagnosticText.line("Claude Code exited with status \(status)" + (summary.isEmpty ? "." : ": \(summary)"))))
+        let exited = "Claude Code exited with status \(status)"
+        let summary = stderrSummary(stderrTail, limit: DiagnosticText.limit - exited.count - 2)
+        return .failure(.unavailable(exited + (summary.isEmpty ? "." : ": \(summary)")))
       }
     }
     return .failure(.unavailable("Claude Code stopped unexpectedly."))
   }
 
-  static func stderrSummary(_ tail: String) -> String {
+  static func stderrSummary(_ tail: String, limit: Int = DiagnosticText.limit) -> String {
     let lines = tail.components(separatedBy: .newlines).map(DiagnosticText.unwrapped).filter { !$0.isEmpty }
     let summary = lines.suffix(3).joined(separator: " · ")
-    return summary.count > DiagnosticText.limit ? "…" + summary.suffix(DiagnosticText.limit - 1) : summary
+    return summary.count > limit ? "…" + summary.suffix(limit - 1) : summary
   }
 
   private static let cancelledDetail = "The question was cancelled."
