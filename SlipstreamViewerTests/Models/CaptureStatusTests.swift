@@ -89,7 +89,7 @@ struct CaptureStatusTests {
       "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Press ⌘R to check again.")
     expectNoDifference(
       Self.status(.unknown("hibernating")).detailText(timeZone: Self.utc),
-      "Update Slipstream Viewer to read this state.")
+      "Update Slipstream to read this state.")
     #expect(Self.status(.recording).detailText(timeZone: Self.utc) == nil)
     #expect(Self.status(.stopped, reason: "archived").detailText(timeZone: Self.utc) == nil)
   }

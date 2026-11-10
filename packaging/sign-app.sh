@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Inside-out Developer ID + hardened-runtime signing.
 #
-#   packaging/sign-app.sh packaging/dist/SlipstreamViewer.app
+#   packaging/sign-app.sh packaging/dist/Slipstream.app
 #
 # Signs Sparkle's nested helpers, then embedded frameworks, then the app. `--deep`
 # is used only to verify, never to sign: it applies one identity/entitlement set
@@ -10,7 +10,7 @@
 # Override the identity with SIGN_IDENTITY=... (defaults to Playola Developer ID).
 set -euo pipefail
 
-APP="${1:?usage: sign-app.sh /path/to/SlipstreamViewer.app}"
+APP="${1:?usage: sign-app.sh /path/to/Slipstream.app}"
 IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Playola Radio, Incorporated (FSRSPV9N9Q)}"
 TEAM_ID="FSRSPV9N9Q"
 

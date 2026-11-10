@@ -57,7 +57,7 @@ struct CaptureStatus: Equatable, Sendable {
     case (.stopped, "maintenance"):
       return "Slipstream is cleaning up its storage. Capture resumes on its own afterwards. Press ⌘R to check again."
     case (.unknown, _):
-      return "Update Slipstream Viewer to read this state."
+      return "Update Slipstream to read this state."
     default:
       return nil
     }
