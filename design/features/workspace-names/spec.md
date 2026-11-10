@@ -68,7 +68,10 @@ the work.
 ```
 
 The daemon publishes it crash-safe, under one daemon-wide metadata lock that teardown
-drains. Each writer re-checks its authority immediately before publishing (see
+drains. That lock is also the authority fence: a teardown, activation-loss or store-lock-loss
+transition serializes with its holder, so a write admitted while it owns the fence either
+commits before revocation takes effect or sees revocation before it can submit its rename.
+Each writer re-checks its authority immediately before publishing (see
 [endpoints.md](./endpoints.md)).
 
 **D2 — Effective name (kept).** The name shown is `user_name ?? agent_name ?? folder name`.
@@ -165,8 +168,9 @@ it becomes clear what the workspace is about".
   the inline row edit. The field opens with the current name selected. Return saves and Esc
   cancels. There is no "Also rename branch" option, because renaming is display-only.
 - One model owns every name mutation (Rename and "Use agent's name"): the target session id,
-  the draft, whether a write is in flight, and the error. A completion only updates the
-  dialog if that same session's dialog is still open.
+  the draft, the active mutation and the error. It serializes them: while either a rename or
+  clear is in flight, neither menu action starts another mutation. A rename completion only
+  updates the dialog if that same session's dialog is still open.
 - The dialog's draft is captured when it opens; polls never change it.
 - While saving, Cancel, Esc and the field are disabled, so the dialog can't be dismissed
   mid-write.

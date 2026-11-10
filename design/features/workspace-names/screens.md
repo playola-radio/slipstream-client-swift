@@ -76,7 +76,7 @@ Slipstream. The folder and branch stay the same."
 | Editing | Dialog just opened, or typing a valid name | `T7NimN` | ![Rename dialog — editing](exports/rename-dialog--editing.png) |
 | Empty | The field is empty or only spaces; "Rename" is disabled | `VsUYq` | ![Rename dialog — empty](exports/rename-dialog--empty.png) |
 | Too long / invalid | The name is over 64 UTF-8 bytes ("That name is too long. Shorten it to save."), or contains a line break or control character ("Names can't contain line breaks or special characters."); "Rename" is disabled | `vSnUH` | ![Rename dialog — too long](exports/rename-dialog--too-long.png) |
-| Saving | The rename request is in flight; field, Cancel and Esc are disabled | `I3qxN` | ![Rename dialog — saving](exports/rename-dialog--saving.png) |
+| Saving | The rename request is in flight; field, Cancel and Esc are disabled. While either a rename or Use agent's name request is in flight, both naming menu actions are disabled so mutations cannot race | `I3qxN` | ![Rename dialog — saving](exports/rename-dialog--saving.png) |
 | Save failed | No reply, an error other than not-found, or a malformed reply. A headline that names the failure, then the raw error in a selectable monospace block with a Copy button (see "Error text" below). The list refreshes in the background, so a save that did land shows in the row; "Try again" resends | `WQ2uK` | ![Rename dialog — save failed](exports/rename-dialog--save-failed.png) |
 | Workspace gone | The daemon replied `SESSION_NOT_FOUND` (the session was deleted). Copy: "This workspace was deleted, so it can't be renamed." Only "Close". Archiving doesn't trigger this; archived workspaces can still be renamed | `q1Niht` | ![Rename dialog — gone](exports/rename-dialog--gone.png) |
 

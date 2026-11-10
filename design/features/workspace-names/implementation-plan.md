@@ -133,7 +133,7 @@ either PR. This plan points at them and does not repeat them.
 - [ ] **Run it.** `node --test src/workspace-name.test.ts` should FAIL because the module is
   missing.
 - [ ] **Implement `validateName`.** Run the checks in models.md order. Use
-  `String.prototype.isWellFormed`, a regex over `[\u0000-\u001f\u007f-\u009f  ]`,
+  `String.prototype.isWellFormed`, a regex over `[\u0000-\u001f\u007f-\u009f\u2028\u2029]`,
   `.trim()` and `Buffer.byteLength(s, 'utf8') > 64`. The `message` names the failed rule in
   plain English. It becomes the `INVALID_NAME` message.
 - [ ] **Run it.** It should PASS. Then commit: `feat: validate workspace names`.
@@ -164,7 +164,8 @@ either PR. This plan points at them and does not repeat them.
   - Any other I/O error throws.
   - `writeNaming` follows `publishTombstone` (`src/maintenance.ts:55-79`) step for step, with
     one addition: it calls `assertOwnership()` after the temp file's `sync()` and immediately
-    before `rename`, with no await in between.
+    before `rename`, with no await in between. The caller holds the metadata authority fence
+    through rename submission, so revocation cannot interleave after this check.
   - If `assertOwnership()` throws, `writeNaming` removes the temp file and rethrows
     unchanged.
   - The written body is `{"version":1,"agent_name":…,"user_name":…}`.
@@ -181,6 +182,9 @@ either PR. This plan points at them and does not repeat them.
     missing key, and a numeric value;
   - `assertOwnership throwing leaves no name.json and no temp file`, where the directory
     listing equals what it was before;
+  - `revocation queued after rename submission waits for the fenced write`: hold the rename in
+    the filesystem seam, request revocation, release the rename, then assert the write commits
+    before revocation completes and a later write is rejected;
   - `write into a missing session directory throws StorageError`;
   - `file mode is 0600`.
 - [ ] **Add a test to `maintenance.test.ts`:** `removeSessionHistory also removes name.json`.
@@ -249,6 +253,10 @@ either PR. This plan points at them and does not repeat them.
 **Decisions:**
 - **Teardown:** `doTeardown` adds `await metadataTail` after the per-capture inflight drain
   (:455) and before `reader.close()`.
+- **Authority fence:** activation loss, store-lock loss and teardown enqueue their revocation
+  on the metadata chain. The current holder retains authority through its rename submission;
+  the revocation runs next, marks authority unavailable, and all later holders fail the
+  publication check. This supplies the commit boundary that a check alone cannot provide.
 - **Publication check** (the `assertOwnership` passed to `writeNaming`): throw
   `QuestionError('STORAGE_UNAVAILABLE')` if `compromised || torn`. It is the only teardown
   check; the lock adds none of its own.
@@ -276,6 +284,9 @@ either PR. This plan points at them and does not repeat them.
     - hold the write with a gate in the test;
     - start teardown;
     - expect the store lock to be released only after the rename settles.
+  - `revocation after rename submission is serialized`: hold the filesystem rename after
+    `assertOwnership`, request store-lock loss, then release it; the first rename commits
+    before revocation resolves and a subsequent rename returns `STORAGE_UNAVAILABLE`.
 - [ ] **Run them.** They should FAIL.
 - [ ] **Implement.**
   - The handler runs the checks in endpoints.md order.
@@ -511,10 +522,13 @@ either PR. This plan points at them and does not repeat them.
       `hasHistory && naming != nil`. Otherwise it returns the no-history tooltip when
       `!hasHistory`, else the older-daemon tooltip.
     - `isUseAgentNameEnabled(_:) -> Bool`, which is `naming?.userName != nil`.
-  - `InstantQuestion` gains `workspaceName: String`, and `AskFailure.noChat(folder:)` becomes
-    `noChat(workspaceName:)`. The copy is unchanged apart from the substituted name.
-  - `AskAgentPageModel` and `QuestionThreadPageModel` take `workspaceName: String` at init.
-    `ChangeStreamPageModel` passes `rowName(session)`.
+  - `InstantQuestion` carries `sessionID: String`, not a cached workspace name, and
+    `AskFailure.noChat(folder:)` becomes `noChat(sessionID:)`. Its display text resolves that
+    id through the parent-supplied `workspaceName(for:)` resolver. The copy is unchanged apart
+    from the substituted name.
+  - `AskAgentPageModel` and `QuestionThreadPageModel` take the stable `sessionID` and the
+    read-only `workspaceName(for:)` resolver at init. `ChangeStreamPageModel` supplies a
+    resolver over its current sessions/selected-session snapshots, using `rowName`.
 
 **Decisions:**
 - **One publication step.** Where `sessions` is rebuilt (:1050), set
@@ -523,7 +537,8 @@ either PR. This plan points at them and does not repeat them.
   disagree.
 - **Labels.** Delete `sessionLabels` and the loop that applies it. A listed session's
   `label` stays its id, which `rowName` only shows while the folder is still unknown. The
-  queued notice switches from `.label` to `rowName`.
+  queued notice and no-chat question keep the session id and resolve it through `rowName` at
+  display time, so a poll changes every visible name together.
 - **Unchanged.** `RecordingControlsModel` and `TerminalTabModel` keep the folder name.
 
 - [ ] **Write failing tests:**
@@ -533,10 +548,10 @@ either PR. This plan points at them and does not repeat them.
     - `namesUpdateRowAndBreadcrumbTogether`: list a session with an agent name, select it,
       re-list with a user name, reload, then
       `expectNoDifference([model.rowName(model.sessions[0]), model.breadcrumbWorkspaceText], [user, user])`;
-    - `queuedNoticeUsesName`;
+    - `queuedNoticeUsesLatestNameAfterPoll`;
     - `renameDisabledReasons`, covering three rows: named, capture-only and `naming == nil`;
     - `useAgentNameEnabledOnlyWithUserName`;
-  - in `InstantAskModelTests`, `noChatCopyUsesWorkspaceName`.
+  - in `InstantAskModelTests`, `noChatCopyUsesLatestWorkspaceNameAfterPoll`.
 - [ ] **Run them.** They should FAIL.
 - [ ] **Implement.** Then fix every existing test that constructs these types or asserts on
   the deleted timestamp labels.
@@ -627,12 +642,16 @@ either PR. This plan points at them and does not repeat them.
   - **State:**
     - `private(set) var dialog: Dialog?`, where
       `struct Dialog: Identifiable { let id: String /* session id */; var draft: String; var phase: Phase }`;
+    - `private(set) var activeMutation: Mutation?`, where `Mutation` identifies the target
+      session and whether the in-flight operation is `.rename` or `.clear`.
     - `enum Phase: Equatable { case editing, saving, saveFailed(headline: String, detail: String), gone, rejected(String) }`.
   - **Display text:** `titleText`, `helperText`, `validationMessage: String?`,
     `failureHeadline: String?`, `failureDetail: String?` (the error block), `primaryButtonTitle`
     ("Rename", or "Try again" after a failed save), and `isRenameEnabled`.
   - **View helpers:**
     - `isSaving`, which disables the field, Cancel and Esc;
+    - `isMutationInFlight`, which disables both naming menu actions while a rename or clear
+      is in flight;
     - `isCloseOnly`, true for `.gone`.
   - **User actions:**
     - `renameTapped(sessionID:currentName:)` opens the dialog with
@@ -652,9 +671,11 @@ either PR. This plan points at them and does not repeat them.
   - Too long when `trimmed.utf8.count > 64`.
   - Empty shows no message and disables Rename. Too long and control characters show the
     screens.md copy. The trimmed draft is what gets sent.
-- **Stale completions.** A completion changes `dialog` only if `dialog?.id` is still the
-  session it was sent for. It always calls `onWriteFinished`: the refresh is harmless and
-  shows a write that did land.
+- **Mutation serialization and stale completions.** Starting either action records
+  `activeMutation`; attempts to start another Rename or Use agent's name while it is non-nil
+  do nothing. A completion clears it only when it still identifies that operation. A rename
+  completion changes `dialog` only if `dialog?.id` is still the session it was sent for. It
+  always calls `onWriteFinished`: the refresh is harmless and shows a write that did land.
 - **Outcome mapping.** Every outcome calls `onWriteFinished` after the write.
   - Success closes the dialog.
   - `.rejected("SESSION_NOT_FOUND", _)` gives `.gone`.
@@ -665,7 +686,8 @@ either PR. This plan points at them and does not repeat them.
     `.rejected(code, message)` → `"\(code): \(message)"`; `.outcomeUnknown` and `.unavailable`
     → the fixed `OUTCOME_UNKNOWN: …` and `DAEMON_UNAVAILABLE: …` lines; anything else →
     `String(describing: error)`. The clear-failure alert uses the same function.
-- **Use agent's name.** Any failure calls `onClearFailed(errorDetail(error))`. The parent
+- **Use agent's name.** The clear remains `activeMutation` until its request and
+  `onWriteFinished` complete; any failure calls `onClearFailed(errorDetail(error))`. The parent
   extends its existing alert: `workspaceFailed(title:text:)` gains an optional
   `detail: String?` (stored as `workspaceFailureDetail`), the alert's message shows it, and a
   "Copy error" button appears only when it is non-nil. Existing callers pass nil and are
@@ -688,6 +710,8 @@ either PR. This plan points at them and does not repeat them.
   - `sessionNotFoundShowsGone`;
   - `invalidNameShowsDaemonMessage`;
   - `useAgentNameSendsNull`;
+  - `clearBlocksSubsequentRename`: hold a clear, verify Rename and a second clear do not send,
+    then release it and verify Rename can send;
   - `useAgentNameFailureRaisesAlert`, whose alert detail is
     `"STORAGE_UNAVAILABLE: store lock lost"` for that rejection, and whose
     `copyWorkspaceFailureTapped()` copies that detail to the fake pasteboard.
