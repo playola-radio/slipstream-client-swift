@@ -1,13 +1,14 @@
 ---
 name: prep-release
-description: Get a new Slipstream for macOS version ready to ship — check the changelog.d/ release notes against the PRs merged since the last release, pick the version, run `make prep-release`, and open the PRs that publish it. Use when asked to cut, prep, or ship a release of this app.
+description: Get a Slipstream for macOS version other than the automatic next patch (usually a minor bump) ready to ship — check the changelog.d/ release notes against the PRs merged since the last release, pick the version, run `make prep-release`, and open the PR whose merge publishes it. Use when asked to cut, prep, or ship a minor or major release of this app.
 ---
 
 # Prep a release
 
-Publishing is automatic: merging `develop` → `main` with a new version in `project.yml`
-builds, notarizes, uploads, and tags it (`.github/workflows/release.yml`). This skill gets
-the changelog and version right before that merge. Background: `packaging/README.md`.
+Publishing is automatic: every merge to `develop` with user-facing notes bumps the patch
+version and releases it (`.github/workflows/release.yml`). Use this skill only for a
+different version, such as a minor bump for a big feature: it gets the changelog and
+version right in a PR whose merge publishes them. Background: `packaging/README.md`.
 
 ## 1. Find what shipped since the last release
 
@@ -38,8 +39,8 @@ before the release PR merges.
 
 ## 3. Pick the version
 
-Read `MARKETING_VERSION` in `project.yml`. While on 0.x: bump the minor version if any PR
-is a `feature:`, otherwise the patch version.
+Read `MARKETING_VERSION` in `project.yml`. While on 0.x, bump the minor version; a patch
+needs no skill, since merging the notes releases one.
 
 **Stop and show the user the drafted notes, the PR list, and the proposed version. Wait
 for confirmation before committing anything.**
@@ -59,14 +60,12 @@ commit. It changes nothing if a note is malformed (it names the file and line), 
 version is already in the changelog, or there are no `### Changes` notes. If it fails, fix
 the cause; don't hand-edit the version or the changelog.
 
-## 5. Open the PRs
+## 5. Open the PR
 
-1. Push and open the bump PR against `develop` using the normal PR workflow, titled
-   `chore: get version <version> ready to ship`.
-2. After it merges, open the `develop` → `main` release PR titled
-   `release: v<version> — <plain-English theme>`. Don't use `/create-release-pr` here: it
-   edits `server/package.json` and pushes to `develop`.
+Push and open the bump PR against `develop` using the normal PR workflow, titled
+`chore: get version <version> ready to ship`. Merging it publishes it: the workflow sees
+an untagged version and releases the bump commit.
 
-Merging the release PR publishes it. Afterwards, confirm with
-`gh run list --workflow release --limit 1` and check that the new version appears in
+Afterwards, confirm with `gh run list --workflow release --limit 1` and check that the new
+version appears in
 `https://playola-static.s3.amazonaws.com/downloads/SlipstreamViewer/appcast.xml`.

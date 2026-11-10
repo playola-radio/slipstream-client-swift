@@ -340,6 +340,52 @@ class ReleaseNotesTest < Minitest::Test
     end
   end
 
+  def test_pending_when_a_fragment_has_changes
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    assert ReleaseNotes.pending?(changelog, "changelog.d/a.md" => "### Changes\n\n- New.\n")
+  end
+
+  def test_pending_when_unreleased_still_has_bullets
+    assert ReleaseNotes.pending?(CHANGELOG, {})
+  end
+
+  def test_not_pending_with_only_ops_notes
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    refute ReleaseNotes.pending?(changelog, "changelog.d/a.md" => "### Ops\n\n- Add the secret.\n")
+  end
+
+  def test_pending_cli_fails_on_a_malformed_note
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
+      File.write(changelog, CHANGELOG)
+      File.write(File.join(fragments, "bad.md"), "Not a bullet.\n")
+
+      stdout, stderr, status = run_cli("pending", changelog, fragments)
+
+      refute status.success?
+      assert_empty stdout
+      assert_match(/bad\.md:1/, stderr)
+    end
+  end
+
+  def test_pending_cli_prints_whether_a_release_is_due
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
+      File.write(changelog, ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"))
+
+      stdout, stderr, status = run_cli("pending", changelog, fragments)
+
+      assert status.success?, stderr
+      assert_equal "false\n", stdout
+    end
+  end
+
   def test_bump_restores_a_clean_tree_after_the_commit_fails
     Dir.mktmpdir do |directory|
       %w[.gitignore project.yml].each do |path|

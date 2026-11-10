@@ -2,8 +2,8 @@
 
 A pull request with a change someone using the app would notice adds one new file here
 instead of editing `CHANGELOG.md`, so pull requests never conflict over release notes.
-`make prep-release` moves every note into `CHANGELOG.md` under the new version and
-deletes the files.
+Merging one to `develop` releases it: CI bumps the patch version, moves every note into
+`CHANGELOG.md` under that version and deletes the files.
 
 Name the file after the change, in kebab case, for example `changelog.d/pause-recording.md`:
 
@@ -15,7 +15,7 @@ Name the file after the change, in kebab case, for example `changelog.d/pause-re
 
 ### Ops
 
-- Add the `EXAMPLE_KEY` secret to the `release` GitHub environment before merging to main.
+- Add the `EXAMPLE_KEY` secret to the `release` GitHub environment before merging.
 ```
 
 - **`### Changes`**: what changes for the person using the app, not how it was built.

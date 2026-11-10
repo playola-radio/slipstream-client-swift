@@ -7,8 +7,8 @@ to S3. Installed copies update themselves through Sparkle
 pipeline as Playola Interview Editor (`~/playola/logic-utils/packaging`), minus the
 bundled Python engine.
 
-Every merge to `main` that carries a new version releases from GitHub Actions
-(`.github/workflows/release.yml`). The same fastlane lane can still run locally.
+Merges to `develop` release from GitHub Actions (`.github/workflows/release.yml`). The
+same fastlane lane can still run locally.
 
 ## Download links
 
@@ -20,50 +20,56 @@ Every merge to `main` that carries a new version releases from GitHub Actions
 
 ## Release
 
-The `/prep-release` skill (`.claude/skills/prep-release`) walks through all of this,
-including checking the notes against the PRs merged since the last release.
+While Slipstream's only user is its developer, every merge to `develop` that brings
+user-facing notes releases a new patch version. Pull requests add their notes as files
+under `changelog.d/` (format in `changelog.d/README.md`), not to `CHANGELOG.md`; a pure
+chore adds none and ships with the next release that has notes.
 
-1. Pull requests add their release notes as files under `changelog.d/` (format in
-   `changelog.d/README.md`), not to `CHANGELOG.md`. On a branch off `develop`, make sure
-   those notes, plus any bullets still under `## [Unreleased]` in `CHANGELOG.md`, cover
-   every user-facing change since the last release
-   (`ruby packaging/release_notes.rb notes CHANGELOG.md changelog.d` prints them), commit
-   so the working tree is clean, then:
+On each merge, `packaging/prepare-release.sh` looks at the tip of `develop`:
 
-   ```bash
-   make prep-release VERSION=0.3.0
-   ```
+- **The version in `project.yml` is already tagged** (`v<version>-b<build>`) and notes
+  with a `### Changes` bullet are waiting: it runs `fastlane mac bump` for the next patch
+  version and pushes that commit to `develop`. The bump moves the notes under
+  `## [<version>] - <today>` in `CHANGELOG.md`, deletes the `changelog.d/` files it moved,
+  and raises the integer `CURRENT_PROJECT_VERSION` (the `sparkle:version`, which must
+  only ever go up). `### Ops`-only notes wait for a release with changes.
+- **The version is not tagged yet:** it releases the commit that bumped to it, without
+  bumping again. That covers a version prepared by hand and a release that failed.
+- **Otherwise** it publishes nothing.
 
-   This moves those notes under `## [0.3.0] - <today>`, deletes the `changelog.d/` files
-   it moved, and bumps `MARKETING_VERSION` and the integer `CURRENT_PROJECT_VERSION` (the
-   `sparkle:version`, which must only ever go up) in `project.yml`, in one commit. It
-   refuses a malformed note (naming the file and line), a release with no `### Changes`
-   notes, or a version already in the changelog. `### Ops` notes are recorded in the
-   changelog but left out of the update dialog. For a
-   build-only bump of the same version, run `bundle exec fastlane mac bump`. If the
-   preparation commit fails, it restores the clean tree so the command can be rerun.
-2. Merge that branch into `develop`, then open the `develop` → `main` release PR and
-   merge it.
+The workflow then runs both test jobs on the commit it chose, builds, signs, notarizes,
+uploads, and pushes the tag at that commit. A malformed note fails the run, naming the
+file and line. Merges that land while a release is running are released together by the
+next run; if `develop` moves while the bump is being pushed, the newer merge's run does
+the release. Notes left waiting (after a failed release, say) go out with the next merge,
+or run the workflow by hand from the Actions tab.
 
-The workflow's first job reads the version from `project.yml` and stops if the tag
-`v<version>-b<build>` already exists, so a merge without a bump publishes nothing.
-Otherwise it builds, signs, notarizes, uploads, and pushes that tag at the released
-commit. `release` refuses a dirty tree, aborts before building if the version has no
-changelog section, and refuses a build that is not newer than every published one.
+To release a minor version instead of the next patch, on a branch off `develop` with a
+clean tree, run
+
+```bash
+make prep-release VERSION=0.5.0
+```
+
+and merge it. That does the same bump with the version you name, and refuses a version
+already in the changelog. The `/prep-release` skill (`.claude/skills/prep-release`) walks
+through it, including checking the notes against the PRs merged since the last release.
+`release` refuses a dirty tree, aborts before building if the version has no changelog
+section, and refuses a build that is not newer than every published one.
 
 ### If a release fails
 
-Re-run the workflow. That is safe until the upload starts. If it got further:
+Re-run the failed jobs. That is safe until the upload starts. If it got further:
 
 - **Appcast uploaded, tag push failed:** the release is live. Push the tag by hand at
-  the merge commit: `git tag v0.2.0-b5 <sha> && git push origin v0.2.0-b5`.
+  the commit the run released: `git tag v0.2.0-b5 <sha> && git push origin v0.2.0-b5`.
 - **DMG uploaded, appcast not:** nobody is offered the build, and a re-run stops at
-  "release artifact already exists". Run `fastlane mac bump` on `develop` and merge
-  again; the orphaned DMG is harmless.
+  "release artifact already exists". Run `bundle exec fastlane mac bump` on a branch
+  off `develop` and merge it; the orphaned DMG is harmless.
 
 ## CI credentials
 
-The `release` GitHub environment (deployments from `main` only) holds:
+The `release` GitHub environment (deployments from `develop` only) holds:
 
 | Secret | What |
 | --- | --- |
