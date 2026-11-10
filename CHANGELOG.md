@@ -10,6 +10,13 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.0] - 2026-11-10
+
+- The app is now called Slipstream instead of SlipstreamViewer in the menu bar, the
+  About window and update prompts. New downloads install as Slipstream.app.
+- A paused workspace stays in the sidebar only if Slipstream created it. Paused Conductor
+  workspaces and other folders no longer clutter the list.
+
 ## [0.3.0] - 2026-11-10
 
 - See the workspace name in a slimmer window header, with the sidebar toggle and
