@@ -41,8 +41,32 @@ struct PendingAsk: Identifiable, Equatable, Sendable {
   }
 }
 
-enum AskFailure: Equatable, Sendable {
-  case noReply, chatUnavailable, badReply, notSaved
+struct AskFailure: Equatable, Sendable {
+  enum Kind: Equatable, Sendable { case noReply, noChat, environment, unavailable, badReply, notSaved }
+
+  let kind: Kind
+  let detail: String?
+
+  static let noReply = Self(kind: .noReply, detail: nil)
+
+  static func noChat(folder: String) -> Self {
+    Self(
+      kind: .noChat,
+      detail: "No chat is connected to \(URL(fileURLWithPath: folder).lastPathComponent). Send a message in a chat tab to connect it, then try again.")
+  }
+
+  static func environment(_ error: any Error) -> Self {
+    Self(kind: .environment, detail: sentence(for: error))
+  }
+
+  static func notSaved(_ error: any Error) -> Self {
+    Self(kind: .notSaved, detail: QuestionFailure.reason(error))
+  }
+
+  static func sentence(for error: any Error) -> String {
+    let message = (error as? AgentEnvironmentError)?.message ?? error.localizedDescription
+    return message.hasSuffix(".") ? message : message + "."
+  }
 }
 
 /// A change request written to a chat tab, from the write until its report says it is done.
@@ -60,6 +84,7 @@ struct RelayRun: Equatable, Sendable {
   var report: Report = .idle
   /// When the last check failed; it stays shown while a new check runs.
   var checkFailedAtMs: Int64?
+  var checkFailure: String?
   var lastReportRequestID: String?
   var isDone = false
   /// Checked once the log replay catches up, if its chat is idle: set when a replay hands it over
@@ -167,7 +192,7 @@ final class InstantAskModel: ViewModel {
     case .couldntAnswer:
       guard let question = questions[requestID], let index = pending.index(id: requestID) else { return nil }
       guard answeringTab(for: question) != nil else {
-        pending[id: requestID]?.state = .couldntAnswer(.chatUnavailable)
+        pending[id: requestID]?.state = .couldntAnswer(.noChat(folder: question.folder))
         return requestID
       }
       forget(requestID)
@@ -299,7 +324,7 @@ final class InstantAskModel: ViewModel {
         source: question.source,
         replyToQuestionID: question.replyToQuestionID,
         text: question.text,
-        state: tab == nil ? .couldntAnswer(.chatUnavailable) : .answering
+        state: tab == nil ? .couldntAnswer(.noChat(folder: question.folder)) : .answering
       ),
       at: index
     )
@@ -330,8 +355,11 @@ final class InstantAskModel: ViewModel {
 
   private func answer(_ requestID: String, question: InstantQuestion, tab: ChatTabRecord, attempt: Int) async {
     let allowsChangeRequests = await supportsRelays(question)
-    guard let environment = try? await agentEnvironment.resolve() else {
-      return publish(requestID, attempt, .couldntAnswer(.chatUnavailable))
+    let environment: AgentEnvironment
+    do {
+      environment = try await agentEnvironment.resolve()
+    } catch {
+      return publish(requestID, attempt, .couldntAnswer(.environment(error)))
     }
     let result: AskForkResult
     do throws(AskForkError) {
@@ -392,7 +420,7 @@ final class InstantAskModel: ViewModel {
           return
         }
       } catch {
-        return publish(requestID, attempt, isOutcomeUnknown ? .couldntRecord : .couldntAnswer(.notSaved))
+        return publish(requestID, attempt, isOutcomeUnknown ? .couldntRecord : .couldntAnswer(.notSaved(error)))
       }
     }
   }
@@ -525,30 +553,46 @@ final class InstantAskModel: ViewModel {
   private func check(_ relayID: String) async {
     guard let run = relayRuns[relayID] else { return }
     var result: AskForkResult?
-    if let tab = chat.tabs[id: run.chatSessionID]?.record, let environment = try? await agentEnvironment.resolve() {
-      result = try? await askFork.run(
-        AskForkRequest(
-          parentSessionID: tab.id,
-          folder: tab.folder,
-          environment: environment,
-          model: tab.model,
-          effort: tab.effort,
-          prompt: AskPrompt.report(source: run.source, earlier: run.earlier, request: run.request),
-          kind: .report
-        )
-      )
+    var cause: String?
+    if let tab = chat.tabs[id: run.chatSessionID]?.record {
+      do {
+        let environment = try await agentEnvironment.resolve()
+        do throws(AskForkError) {
+          result = try await askFork.run(
+            AskForkRequest(
+              parentSessionID: tab.id,
+              folder: tab.folder,
+              environment: environment,
+              model: tab.model,
+              effort: tab.effort,
+              prompt: AskPrompt.report(source: run.source, earlier: run.earlier, request: run.request),
+              kind: .report
+            )
+          )
+        } catch {
+          cause = Self.detail(error)
+        }
+      } catch {
+        cause = AskFailure.sentence(for: error)
+      }
+    } else {
+      cause = "The chat for this change is closed."
     }
     var isRecorded = false
     if !Task.isCancelled, case .report(let reply, let outcome) = result,
       let request = updateRequest(relayID, .reported(outcome, text: reply))
     {
       relayRuns[relayID]?.lastReportRequestID = request.requestID
-      isRecorded = await send(request)
-      if isRecorded { recorded(request) }
+      let failure = await sendFailure(request)
+      isRecorded = failure == nil
+      if isRecorded { recorded(request) } else { cause = failure.map(Self.recordingFailure) }
+    } else if cause == nil {
+      cause = "Claude Code's reply had no report."
     }
     guard !Task.isCancelled, case .checking(let rerun) = relayRuns[relayID]?.report else { return }
     relayRuns[relayID]?.report = .idle
     relayRuns[relayID]?.checkFailedAtMs = isRecorded ? nil : Int64(now.timeIntervalSince1970 * 1000)
+    relayRuns[relayID]?.checkFailure = isRecorded ? nil : cause
     if rerun, relayRuns[relayID]?.isDone == false { startCheck(relayID) }
   }
 
@@ -557,6 +601,7 @@ final class InstantAskModel: ViewModel {
     if outcome == .done { relayRuns[request.relayID]?.isDone = true }
     if relayRuns[request.relayID]?.lastReportRequestID == request.requestID {
       relayRuns[request.relayID]?.checkFailedAtMs = nil
+      relayRuns[request.relayID]?.checkFailure = nil
     }
   }
 
@@ -577,20 +622,27 @@ final class InstantAskModel: ViewModel {
   /// kept for the next connection once the retries run out. A refusal is dropped.
   @discardableResult
   private func send(_ request: QuestionRelayUpdateRequest) async -> Bool {
+    await sendFailure(request) == nil
+  }
+
+  /// Nil once the daemon recorded the update.
+  private func sendFailure(_ request: QuestionRelayUpdateRequest) async -> (any Error)? {
+    var lastError: any Error = CancellationError()
     for remaining in (0..<Self.recordingAttempts).reversed() {
       do {
         _ = try await questionClient.updateRelay(request)
-        return true
-      } catch QuestionError.rejected(let code, _) where code != "STORAGE_UNAVAILABLE" {
-        return false
+        return nil
+      } catch QuestionError.rejected(let code, let message) where code != "STORAGE_UNAVAILABLE" {
+        return QuestionError.rejected(code: code, message: message)
       } catch {
+        lastError = error
         guard remaining > 0, (try? await clock.sleep(for: Self.recordingRetryDelay)) != nil else {
           relayRuns[request.relayID]?.unrecorded.append(request)
-          return false
+          return error
         }
       }
     }
-    return false
+    return lastError
   }
 
   @discardableResult
@@ -612,8 +664,20 @@ final class InstantAskModel: ViewModel {
   private static func failure(_ error: AskForkError) -> AskFailure {
     switch error {
     case .timedOut: .noReply
-    case .unavailable: .chatUnavailable
-    case .badReply: .badReply
+    case .unavailable(let detail): AskFailure(kind: .unavailable, detail: detail)
+    case .badReply(let detail): AskFailure(kind: .badReply, detail: detail)
+    }
+  }
+
+  private static func recordingFailure(_ error: any Error) -> String {
+    guard case QuestionError.rejected(let code, let message) = error else { return "The daemon didn't record the check." }
+    return QuestionFailure.daemonSaid(message, after: "The daemon refused to record the check (\(code)).")
+  }
+
+  private static func detail(_ error: AskForkError) -> String {
+    switch error {
+    case .timedOut: "Claude Code didn't answer within 120 seconds."
+    case .unavailable(let detail), .badReply(let detail): detail
     }
   }
 }
