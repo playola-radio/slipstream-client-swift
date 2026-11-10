@@ -2,12 +2,12 @@ name: release
 
 # Every merge to develop publishes, while Slipstream's only user is its developer:
 # packaging/prepare-release.sh bumps the patch version when changelog.d/ has notes, or
-# picks a version bumped by hand that isn't released yet. Merges that land while a
-# release runs are released together by the next run.
+# publishes a version that isn't released yet as it is. Only the newest merge's run
+# releases, so its workflow and tests always match the code they ship.
 on:
   push:
     branches: [develop]
-  workflow_dispatch: # retry after a failure, or release notes left waiting
+  workflow_dispatch: # retry a failed release, or release notes left waiting
 
 concurrency:
   group: release
@@ -27,9 +27,6 @@ jobs:
       sha: ${{ steps.prepare.outputs.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: develop # the tip, which may be newer than this run's merge
-          fetch-depth: 0 # finds the commit that bumped an unreleased version
       - uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
         with:
           ruby-version: "3.3"

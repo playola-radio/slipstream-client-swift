@@ -25,7 +25,9 @@ user-facing notes releases a new patch version. Pull requests add their notes as
 under `changelog.d/` (format in `changelog.d/README.md`), not to `CHANGELOG.md`; a pure
 chore adds none and ships with the next release that has notes.
 
-On each merge, `packaging/prepare-release.sh` looks at the tip of `develop`:
+On each merge, `packaging/prepare-release.sh` decides what to publish. If `develop` has
+already moved past that merge it does nothing, leaving the release to the newer merge's
+run (merges that land while a release runs go out together). Otherwise:
 
 - **The version in `project.yml` is already tagged** (`v<version>-b<build>`) and notes
   with a `### Changes` bullet are waiting: it runs `fastlane mac bump` for the next patch
@@ -33,16 +35,15 @@ On each merge, `packaging/prepare-release.sh` looks at the tip of `develop`:
   `## [<version>] - <today>` in `CHANGELOG.md`, deletes the `changelog.d/` files it moved,
   and raises the integer `CURRENT_PROJECT_VERSION` (the `sparkle:version`, which must
   only ever go up). `### Ops`-only notes wait for a release with changes.
-- **The version is not tagged yet:** it releases the commit that bumped to it, without
-  bumping again. That covers a version prepared by hand and a release that failed.
+- **The version is not tagged yet:** it releases the merge as it is, without bumping
+  again. That covers a version prepared by hand and a release that failed. Notes merged
+  since that bump stay in `changelog.d/` for the next release.
 - **Otherwise** it publishes nothing.
 
 The workflow then runs both test jobs on the commit it chose, builds, signs, notarizes,
 uploads, and pushes the tag at that commit. A malformed note fails the run, naming the
-file and line. Merges that land while a release is running are released together by the
-next run; if `develop` moves while the bump is being pushed, the newer merge's run does
-the release. Notes left waiting (after a failed release, say) go out with the next merge,
-or run the workflow by hand from the Actions tab.
+file and line. Notes left waiting (after a failed release, say) go out with the next
+merge, or run the workflow by hand from the Actions tab.
 
 To release a minor version instead of the next patch, on a branch off `develop` with a
 clean tree, run
@@ -59,7 +60,9 @@ section, and refuses a build that is not newer than every published one.
 
 ### If a release fails
 
-Re-run the failed jobs. That is safe until the upload starts. If it got further:
+Re-run the failed jobs, or run the workflow by hand from the Actions tab if `develop` has
+moved on since (re-running a whole old run publishes nothing). That is safe until the
+upload starts. If it got further:
 
 - **Appcast uploaded, tag push failed:** the release is live. Push the tag by hand at
   the commit the run released: `git tag v0.2.0-b5 <sha> && git push origin v0.2.0-b5`.

@@ -31,11 +31,14 @@ class PrepareReleaseTest < Minitest::Test
       FileUtils.mkdir_p(File.dirname(File.join(@work, path)))
       FileUtils.cp(File.join(ROOT, path), File.join(@work, path))
     end
+    project = File.join(@work, "project.yml")
+    File.write(project, File.read(project)
+      .sub(/MARKETING_VERSION: "[^"]*"/, 'MARKETING_VERSION: "0.4.0"')
+      .sub(/CURRENT_PROJECT_VERSION: "\d+"/, 'CURRENT_PROJECT_VERSION: "4"'))
     File.write(File.join(@work, "CHANGELOG.md"), CHANGELOG)
     FileUtils.mkdir_p(File.join(@work, "changelog.d"))
     File.write(File.join(@work, "changelog.d/README.md"), "# Not a note\n")
     commit(@work, "chore: bump to 0.4.0 (4)")
-    @bump = head(@work)
   end
 
   def teardown
@@ -64,15 +67,16 @@ class PrepareReleaseTest < Minitest::Test
     assert_equal ["README.md"], Dir.children(File.join(@work, "changelog.d"))
   end
 
-  def test_publishes_the_commit_that_bumped_to_an_unreleased_version
+  def test_publishes_an_unreleased_version_as_it_is
     add_note("later.md", "### Changes\n\n- Later.\n")
 
     outputs, = prepare
 
-    assert_equal({ "release" => "true", "sha" => @bump }, outputs)
+    assert_equal({ "release" => "true", "sha" => head(@work) }, outputs)
+    assert_match(/MARKETING_VERSION: "0\.4\.0"/, File.read(File.join(@work, "project.yml")))
   end
 
-  def test_leaves_the_release_to_a_newer_merge_when_develop_moved
+  def test_leaves_the_release_to_a_newer_merge
     tag("v0.4.0-b4")
     add_note("fix.md", "### Changes\n\n- Fixed.\n")
     other = File.join(@directory, "other")

@@ -64,7 +64,7 @@ the cause; don't hand-edit the version or the changelog.
 
 Push and open the bump PR against `develop` using the normal PR workflow, titled
 `chore: get version <version> ready to ship`. Merging it publishes it: the workflow sees
-an untagged version and releases the bump commit.
+an untagged version and releases that merge as it is.
 
 Afterwards, confirm with `gh run list --workflow release --limit 1` and check that the new
 version appears in
