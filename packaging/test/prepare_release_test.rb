@@ -91,6 +91,31 @@ class PrepareReleaseTest < Minitest::Test
     assert_equal head(other), git(@origin, "rev-parse", "develop").strip
   end
 
+  def test_leaves_the_release_to_a_newer_merge_when_the_bump_push_is_rejected
+    tag("v0.4.0-b4")
+    add_note("fix.md", "### Changes\n\n- Fixed.\n")
+    other = File.join(@directory, "other")
+    git(@directory, "clone", "--quiet", @origin, other)
+    configure(other)
+    File.write(File.join(other, "newer.txt"), "newer\n")
+    commit_without_pushing(other, "feature: newer merge")
+    newer = head(other)
+    git(other, "push", "--quiet", "origin", "HEAD:refs/hidden/newer")
+    hook = File.join(@origin, "hooks", "pre-receive")
+    File.write(hook, <<~SH)
+      #!/usr/bin/env bash
+      env -u GIT_QUARANTINE_PATH -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \\
+        git update-ref refs/heads/develop #{newer}
+      exit 1
+    SH
+    FileUtils.chmod("u+x", hook)
+
+    outputs, = prepare
+
+    assert_equal({ "release" => "false" }, outputs)
+    assert_equal newer, git(@origin, "rev-parse", "develop").strip
+  end
+
   def test_fails_on_a_malformed_note
     tag("v0.4.0-b4")
     add_note("bad.md", "Not a bullet.\n")
@@ -135,6 +160,11 @@ class PrepareReleaseTest < Minitest::Test
     git(directory, "add", ".")
     git(directory, "commit", "--quiet", "-m", message)
     git(directory, "push", "--quiet", "origin", "HEAD:develop")
+  end
+
+  def commit_without_pushing(directory, message)
+    git(directory, "add", ".")
+    git(directory, "commit", "--quiet", "-m", message)
   end
 
   def head(directory)

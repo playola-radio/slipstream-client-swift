@@ -26,8 +26,9 @@ under `changelog.d/` (format in `changelog.d/README.md`), not to `CHANGELOG.md`;
 chore adds none and ships with the next release that has notes.
 
 On each merge, `packaging/prepare-release.sh` decides what to publish. If `develop` has
-already moved past that merge it does nothing, leaving the release to the newer merge's
-run (merges that land while a release runs go out together). Otherwise:
+already moved past that merge before its tip check, it does nothing and leaves the release to
+the newer merge's run. A merge that lands after preparation does not go out with the older run.
+Otherwise:
 
 - **The version in `project.yml` is already tagged** (`v<version>-b<build>`) and notes
   with a `### Changes` bullet are waiting: it runs `fastlane mac bump` for the next patch
@@ -37,7 +38,7 @@ run (merges that land while a release runs go out together). Otherwise:
   only ever go up). `### Ops`-only notes wait for a release with changes.
 - **The version is not tagged yet:** it releases the merge as it is, without bumping
   again. That covers a version prepared by hand and a release that failed. Notes merged
-  since that bump stay in `changelog.d/` for the next release.
+  after that bump stay in `changelog.d/` and wait for a later release that promotes them.
 - **Otherwise** it publishes nothing.
 
 The workflow then runs both test jobs on the commit it chose, builds, signs, notarizes,

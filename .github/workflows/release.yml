@@ -48,8 +48,28 @@ jobs:
     with:
       ref: ${{ needs.prepare.outputs.sha }}
 
-  release:
+  freshness:
     needs: [prepare, tests]
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.tip.outputs.release }}
+    steps:
+      - id: tip
+        env:
+          SELECTED_SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          tip="$(git ls-remote --exit-code "https://github.com/${{ github.repository }}.git" refs/heads/develop | cut -f1)"
+          if [[ "$tip" == "$SELECTED_SHA" ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "develop moved to $tip; its run will release it"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: [prepare, tests, freshness]
+    if: needs.freshness.outputs.release == 'true'
     runs-on: macos-26
     timeout-minutes: 110 # under the AWS session below, so credentials outlive the job
     environment: release
