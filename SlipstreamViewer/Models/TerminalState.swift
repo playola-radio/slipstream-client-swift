@@ -26,10 +26,11 @@ enum SetupStatus: Codable, Equatable, Sendable {
 }
 
 extension TerminalState {
-  func tabs(shownIn folder: String?, listed: Set<String>) -> [TerminalTabRecord] {
-    let orphans = tabs.elements.filter { $0.isOrphanSetup(listed: listed) }
-    guard let folder else { return orphans }
-    return orphans + tabs.elements.filter { $0.folder == folder && !$0.isOrphanSetup(listed: listed) }
+  /// A workspace shows only its own tabs, after any Setup still waiting for a workspace.
+  func tabs(shownIn folder: String?) -> [TerminalTabRecord] {
+    let folderless = tabs.elements.filter { $0.folder == nil }
+    guard let folder else { return folderless }
+    return folderless + tabs.elements.filter { $0.folder == folder }
   }
 
   func nextTerminalNumber(in folder: String) -> Int {
@@ -42,15 +43,8 @@ extension TerminalState {
 
   mutating func moveSetup(_ id: TerminalTabRecord.ID, to folder: String) {
     tabs[id: id]?.folder = folder
+    selectedTabIDs = selectedTabIDs.filter { $0.value != id }
     selectedTabIDs[folder] = id
-  }
-}
-
-extension TerminalTabRecord {
-  fileprivate func isOrphanSetup(listed: Set<String>) -> Bool {
-    guard case .setup = kind else { return false }
-    guard let folder else { return true }
-    return !listed.contains(folder)
   }
 }
 

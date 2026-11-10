@@ -1149,7 +1149,6 @@ final class ChangeStreamPageModel: ViewModel {
         _ = select(session.id)
         self.pendingPreferredRoot = nil
       }
-      terminals.workspacesListed(Set(sessions.compactMap(\.root)))
     } catch {
       guard generation == sessionsGeneration else {
         if refresh == refreshGeneration { captureRefreshFailed() }
