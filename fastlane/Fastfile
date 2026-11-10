@@ -35,10 +35,10 @@ platform :mac do
       sh("cd .. && git restore --source=HEAD --staged --worktree project.yml CHANGELOG.md changelog.d")
       raise
     end
-    UI.success("Bumped to #{marketing} (#{new_build}). Merging develop to main publishes it.")
+    UI.success("Bumped to #{marketing} (#{new_build}). Merging it to develop publishes it.")
   end
 
-  # Runs on merge to main (.github/workflows/release.yml) or locally. Needs the
+  # Runs on merge to develop (.github/workflows/release.yml) or locally. Needs the
   # Developer ID identity, notarization credentials (NOTARY_PROFILE, or
   # NOTARY_KEY/NOTARY_KEY_ID/NOTARY_ISSUER), the Sparkle EdDSA key (Keychain account
   # `slipstream-viewer`, or SPARKLE_ED_KEY_FILE), and AWS write access through the

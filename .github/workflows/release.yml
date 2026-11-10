@@ -1,10 +1,13 @@
 name: release
 
-# Every merge to main publishes the version in project.yml, unless that version's
-# tag already exists (the merge carried no `fastlane mac bump`).
+# Every merge to develop publishes, while Slipstream's only user is its developer:
+# packaging/prepare-release.sh bumps the patch version when changelog.d/ has notes, or
+# publishes a version that isn't released yet as it is. Only the newest merge's run
+# releases, so its workflow and tests always match the code they ship.
 on:
   push:
-    branches: [main]
+    branches: [develop]
+  workflow_dispatch: # retry a failed release, or release notes left waiting
 
 concurrency:
   group: release
@@ -14,30 +17,59 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  prepare:
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the version bump to develop
     outputs:
-      release: ${{ steps.tag.outputs.release }}
+      release: ${{ steps.prepare.outputs.release }}
+      sha: ${{ steps.prepare.outputs.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Skip versions that are already released
-        id: tag
+      - uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - id: prepare
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: packaging/prepare-release.sh
+
+  # The bump commit is pushed with GITHUB_TOKEN, which starts no workflows, so test
+  # exactly what is about to ship here.
+  tests:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    uses: ./.github/workflows/swift-test.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  freshness:
+    needs: [prepare, tests]
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.tip.outputs.release }}
+    steps:
+      - id: tip
+        env:
+          SELECTED_SHA: ${{ needs.prepare.outputs.sha }}
         run: |
-          version="$(sed -n 's/.*MARKETING_VERSION: "\([0-9][0-9.]*\)".*/\1/p' project.yml)"
-          build="$(sed -n 's/.*CURRENT_PROJECT_VERSION: "\([0-9]*\)".*/\1/p' project.yml)"
-          [[ -n "$version" && -n "$build" ]] || { echo "cannot read version from project.yml" >&2; exit 1; }
-          tag="v$version-b$build"
-          status=0
-          git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || status=$?
-          case "$status" in
-            0) echo "$tag is already released; nothing to do"; echo "release=false" >> "$GITHUB_OUTPUT" ;;
-            2) echo "releasing $tag"; echo "release=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "cannot check for tag $tag" >&2; exit "$status" ;;
-          esac
+          tip="$(git ls-remote --exit-code "https://github.com/${{ github.repository }}.git" refs/heads/develop | cut -f1)"
+          if [[ "$tip" == "$SELECTED_SHA" ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "develop moved to $tip; its run will release it"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
 
   release:
-    needs: check
-    if: needs.check.outputs.release == 'true'
+    needs: [prepare, tests, freshness]
+    if: needs.freshness.outputs.release == 'true'
     runs-on: macos-26
     timeout-minutes: 110 # under the AWS session below, so credentials outlive the job
     environment: release
@@ -46,6 +78,8 @@ jobs:
       id-token: write # assume the AWS upload role
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
       - run: sudo xcode-select -s /Applications/Xcode_26.5.app
       - run: brew install xcodegen
       - run: xcodebuild -downloadComponent MetalToolchain

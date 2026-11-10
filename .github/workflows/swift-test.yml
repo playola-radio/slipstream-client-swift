@@ -4,6 +4,11 @@ on:
   pull_request:
   push:
     branches: [develop, main]
+  workflow_call: # release.yml tests the exact commit it is about to publish
+    inputs:
+      ref:
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -13,6 +18,8 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
       - run: sudo xcode-select -s /Applications/Xcode_26.5.app
       - run: swift --version
       - run: swift test
@@ -30,11 +37,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
         with:
           ruby-version: "3.3"
           bundler-cache: true # the bump test runs fastlane
-      - run: ruby packaging/test/release_notes_test.rb
+      - run: |
+          for test in packaging/test/*_test.rb; do
+            ruby "$test"
+          done
       - run: |
           for script in packaging/*.sh; do
             bash -n "$script"
