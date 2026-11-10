@@ -169,12 +169,18 @@ struct ForkOutputTests {
     )
     expectNoDifference(
       failure([ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes."}"#)], kind: .answer(allowsChangeRequests: true)),
-      .badReply("The reply had fields other than its text and change-request flag.")
+      .badReply("The reply had no change-request flag.")
     )
     expectNoDifference(
       failure(
         [ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes.","other":true}"#)], kind: .answer(allowsChangeRequests: true)),
       .badReply("The reply had no change-request flag.")
+    )
+    expectNoDifference(
+      failure(
+        [ForkLines.initLine(), ForkLines.result(#"{"reply":"Yes.","is_change_request":true,"other":1}"#)],
+        kind: .answer(allowsChangeRequests: true)),
+      .badReply("The reply had fields other than its text and change-request flag.")
     )
   }
 

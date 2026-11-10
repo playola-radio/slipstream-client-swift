@@ -109,10 +109,10 @@ public struct ForkOutput: Sendable {
       guard output.count == 1 else { throw .badReply("The reply had fields other than its text.") }
       return .answer(forkSessionID: forkSessionID, reply: reply, isChangeRequest: false)
     }
-    guard output.count == 2 else { throw .badReply("The reply had fields other than its text and change-request flag.") }
     guard case .bool(let isChangeRequest)? = output["is_change_request"] else {
       throw .badReply("The reply had no change-request flag.")
     }
+    guard output.count == 2 else { throw .badReply("The reply had fields other than its text and change-request flag.") }
     return .answer(forkSessionID: forkSessionID, reply: reply, isChangeRequest: isChangeRequest)
   }
 }
