@@ -28,7 +28,6 @@ final class TerminalPageModel: ViewModel {
   private(set) var folder: String?
   /// Live tabs, by record id. A tab is created and started the first time its workspace shows.
   private var tabs: IdentifiedArrayOf<TerminalTabModel> = []
-  private var listedFolders: Set<String> = []
   /// Folders being archived: their tabs are stopped and none start until restored or forgotten.
   private var stoppedFolders: Set<String> = []
   private var isQuitting = false
@@ -37,13 +36,15 @@ final class TerminalPageModel: ViewModel {
   private var hoveredTabID: TerminalTabRecord.ID?
 
   var shownTabs: [TerminalTabModel] {
-    state.tabs(shownIn: folder, listed: listedFolders).compactMap { tabs[id: $0.id] }
+    state.tabs(shownIn: folder).compactMap { tabs[id: $0.id] }
   }
 
   var selectedTab: TerminalTabModel? {
     let shown = shownTabs
     let selectedID = folder.flatMap { state.selectedTabIDs[$0] }
-    return shown.first { $0.id == selectedID } ?? shown.first
+    return shown.first { $0.id == selectedID }
+      ?? shown.first { state.tabs[id: $0.id]?.folder == folder }
+      ?? shown.first
   }
 
   var hasKeyboardFocus: Bool { focusedTabID != nil }
@@ -57,7 +58,7 @@ final class TerminalPageModel: ViewModel {
   // MARK: - View Helpers
 
   var isEmptyStateVisible: Bool {
-    folder == nil && state.tabs(shownIn: nil, listed: listedFolders).isEmpty
+    folder == nil && state.tabs(shownIn: nil).isEmpty
   }
 
   var showsNewTabButton: Bool { folder != nil }
@@ -114,10 +115,6 @@ final class TerminalPageModel: ViewModel {
     } else {
       await startShownTabs()
     }
-  }
-
-  func workspacesListed(_ folders: Set<String>) {
-    listedFolders = folders
   }
 
   func newTabTapped() async {
@@ -254,7 +251,7 @@ final class TerminalPageModel: ViewModel {
   }
 
   private func startShownTabs() async {
-    let starting = state.tabs(shownIn: folder, listed: listedFolders)
+    let starting = state.tabs(shownIn: folder)
       .filter { tabs[id: $0.id] == nil && canStartTabs(in: $0.folder) }
       .map { makeTab($0.id) }
     await withTaskGroup { group in

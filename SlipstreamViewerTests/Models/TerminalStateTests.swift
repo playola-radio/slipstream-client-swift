@@ -29,38 +29,37 @@ struct TerminalStateTests {
     expectNoDifference(decoded, state)
   }
 
-  @Test func orphanSetupShowsFirstInEveryFolder() {
+  @Test func folderlessSetupShowsFirstInEveryFolder() {
     let state = TerminalState(tabs: [
       TerminalTabRecord(id: Self.first, folder: "/w/a", kind: .terminal(number: 1)),
       TerminalTabRecord(id: Self.setup, folder: nil, kind: .setup(.running)),
-      TerminalTabRecord(id: Self.other, folder: "/w/unlisted", kind: .setup(.failed(exitStatus: 1))),
+      TerminalTabRecord(id: Self.other, folder: "/w/c", kind: .setup(.failed(exitStatus: 1))),
       TerminalTabRecord(id: Self.second, folder: "/w/b", kind: .terminal(number: 1)),
     ])
 
-    expectNoDifference(
-      state.tabs(shownIn: "/w/a", listed: ["/w/a", "/w/b"]).map(\.id), [Self.setup, Self.other, Self.first])
-    expectNoDifference(
-      state.tabs(shownIn: "/w/b", listed: ["/w/a", "/w/b"]).map(\.id), [Self.setup, Self.other, Self.second])
+    expectNoDifference(state.tabs(shownIn: "/w/a").map(\.id), [Self.setup, Self.first])
+    expectNoDifference(state.tabs(shownIn: "/w/b").map(\.id), [Self.setup, Self.second])
   }
 
-  @Test func orphanSetupShowsAloneWithNoFolder() {
+  @Test func folderlessSetupShowsAloneWithNoFolder() {
     let state = TerminalState(tabs: [
       TerminalTabRecord(id: Self.first, folder: "/w/a", kind: .terminal(number: 1)),
       TerminalTabRecord(id: Self.setup, folder: nil, kind: .setup(.running)),
     ])
 
-    expectNoDifference(state.tabs(shownIn: nil, listed: ["/w/a"]).map(\.id), [Self.setup])
+    expectNoDifference(state.tabs(shownIn: nil).map(\.id), [Self.setup])
   }
 
-  @Test func listedSetupShowsOnlyInItsFolder() {
+  @Test func setupWithFolderShowsOnlyInItsFolder() {
     let state = TerminalState(tabs: [
       TerminalTabRecord(id: Self.setup, folder: "/w/a", kind: .setup(.finished(seconds: 3))),
       TerminalTabRecord(id: Self.first, folder: "/w/a", kind: .terminal(number: 1)),
       TerminalTabRecord(id: Self.second, folder: "/w/b", kind: .terminal(number: 1)),
     ])
 
-    expectNoDifference(state.tabs(shownIn: "/w/a", listed: ["/w/a", "/w/b"]).map(\.id), [Self.setup, Self.first])
-    expectNoDifference(state.tabs(shownIn: "/w/b", listed: ["/w/a", "/w/b"]).map(\.id), [Self.second])
+    expectNoDifference(state.tabs(shownIn: "/w/a").map(\.id), [Self.setup, Self.first])
+    expectNoDifference(state.tabs(shownIn: "/w/b").map(\.id), [Self.second])
+    expectNoDifference(state.tabs(shownIn: nil).map(\.id), [])
   }
 
   @Test func nextNumberIsHighestPlusOne() {
@@ -74,7 +73,7 @@ struct TerminalStateTests {
     #expect(state.nextTerminalNumber(in: "/w/c") == 1)
   }
 
-  @Test func moveSetupSetsFolderAndSelectsIt() {
+  @Test func moveSetupSelectsItOnlyInItsNewFolder() {
     var state = TerminalState(
       tabs: [
         TerminalTabRecord(id: Self.setup, folder: nil, kind: .setup(.running)),
@@ -87,7 +86,7 @@ struct TerminalStateTests {
       state.moveSetup(Self.setup, to: "/w/new")
     } changes: {
       $0.tabs[id: Self.setup]?.folder = "/w/new"
-      $0.selectedTabIDs["/w/new"] = Self.setup
+      $0.selectedTabIDs = ["/w/new": Self.setup]
     }
   }
 }
