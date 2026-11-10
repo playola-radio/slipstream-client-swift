@@ -342,7 +342,7 @@ struct InstantAskModelTests {
     expectNoDifference(
       model.pending.first?.state,
       .couldntAnswer(
-        AskFailure(kind: .noChat, detail: "No chat is open for w. Open one in Slipstream, then try again.")))
+        AskFailure(kind: .noChat, detail: "No chat is connected to w. Send a message in a chat tab to connect it, then try again.")))
     expectNoDifference(fork.requests.count, 1)
   }
 

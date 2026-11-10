@@ -67,12 +67,24 @@ public struct ForkOutput: Sendable {
   }
 
   private static func errorDetail(_ object: [String: JSONValue]) -> String {
-    for key in ["result", "subtype"] {
-      if case .string(let text)? = object[key], !QuestionRequest.trim(text).isEmpty {
-        return "Claude Code reported an error: \(QuestionRequest.trim(text))"
-      }
+    "Claude Code reported an error: \(errorText(object) ?? "no details")"
+  }
+
+  private static func errorText(_ object: [String: JSONValue]) -> String? {
+    if case .string(let text)? = object["result"], !QuestionRequest.trim(text).isEmpty {
+      return QuestionRequest.trim(text)
     }
-    return "Claude Code reported an error: no details"
+    if case .array(let errors)? = object["errors"] {
+      let texts = errors.compactMap { error -> String? in
+        guard case .string(let text) = error, !QuestionRequest.trim(text).isEmpty else { return nil }
+        return QuestionRequest.trim(text)
+      }
+      if !texts.isEmpty { return texts.joined(separator: " · ") }
+    }
+    if case .string(let text)? = object["subtype"], !QuestionRequest.trim(text).isEmpty {
+      return QuestionRequest.trim(text)
+    }
+    return nil
   }
 
   private func answer(_ output: [String: JSONValue], forkSessionID: String) throws(AskForkError) -> AskForkResult {

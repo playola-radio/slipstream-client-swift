@@ -562,8 +562,8 @@ extension QuestionThreadPageTests {
     }
     let model = makeModel([Self.answered], link: Self.recorded, instantAsk: instantAsk)
     await followUpSent(model)
-    expectNoDifference(model.pendingFailureText, "no chat is open for this folder")
-    expectNoDifference(model.pendingFailureDetail, "No chat is open for w. Open one in Slipstream, then try again.")
+    expectNoDifference(model.pendingFailureText, "no chat is connected to this folder")
+    expectNoDifference(model.pendingFailureDetail, "No chat is connected to w. Send a message in a chat tab to connect it, then try again.")
   }
 
   @Test func couldntSaveShowsReasonAndTryAgain() async {

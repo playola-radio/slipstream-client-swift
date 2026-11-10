@@ -110,6 +110,17 @@ struct ForkOutputTests {
     )
   }
 
+  @Test func isErrorResultWithoutResultReadsTheErrorsArray() {
+    expectNoDifference(
+      failure([
+        ForkLines.initLine(),
+        ForkLines.line(
+          #"{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["", " Tool crashed ","Retry failed"]}"#),
+      ]),
+      .unavailable("Claude Code reported an error: Tool crashed · Retry failed")
+    )
+  }
+
   @Test func isErrorResultBeforeInitStillCarriesClaudesOwnText() {
     expectNoDifference(
       failure([ForkLines.errorResult(result: "Credit balance is too low")]),

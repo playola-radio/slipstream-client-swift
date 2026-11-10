@@ -133,7 +133,7 @@ final class QuestionThreadPageModel: ViewModel {
     case .couldntAnswer(let failure):
       switch failure.kind {
       case .noReply: "no reply within 120 seconds"
-      case .noChat: "no chat is open for this folder"
+      case .noChat: "no chat is connected to this folder"
       case .environment: "Claude Code isn't ready"
       case .unavailable: "the chat couldn't be reached"
       case .badReply: "the reply couldn't be read"

@@ -52,7 +52,7 @@ struct AskFailure: Equatable, Sendable {
   static func noChat(folder: String) -> Self {
     Self(
       kind: .noChat,
-      detail: "No chat is open for \(URL(fileURLWithPath: folder).lastPathComponent). Open one in Slipstream, then try again.")
+      detail: "No chat is connected to \(URL(fileURLWithPath: folder).lastPathComponent). Send a message in a chat tab to connect it, then try again.")
   }
 
   static func environment(_ error: any Error) -> Self {
