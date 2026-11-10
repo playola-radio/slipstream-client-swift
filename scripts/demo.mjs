@@ -389,7 +389,7 @@ async function launchApp() {
   await must('xcodegen', ['generate', '--quiet'], { cwd: repo });
   const derived = join(repo, '.build', 'demo-app');
   await must('xcodebuild', ['-scheme', 'SlipstreamViewer', '-destination', 'platform=macOS', '-derivedDataPath', derived, '-quiet', 'build'], { cwd: repo });
-  const binary = join(derived, 'Build/Products/Debug/SlipstreamViewer.app/Contents/MacOS/SlipstreamViewer');
+  const binary = join(derived, 'Build/Products/Debug/Slipstream.app/Contents/MacOS/Slipstream');
   return spawnTracked(binary, [], { env: { ...process.env, SLIPSTREAM_STORE: store }, stdio: 'ignore' });
 }
 
@@ -429,7 +429,7 @@ try {
   }
   log(`daemon  store ${store}`);
   log(`capture session ${sessionID}`);
-  log(`to open another window by hand: SLIPSTREAM_STORE=${store} <SlipstreamViewer binary>`);
+  log(`to open another window by hand: SLIPSTREAM_STORE=${store} <Slipstream binary>`);
 
   if (withApp) {
     const app = await launchApp();

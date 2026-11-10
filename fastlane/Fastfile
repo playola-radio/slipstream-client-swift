@@ -69,11 +69,11 @@ platform :mac do
     sh("cd .. && ruby packaging/release_notes.rb extract CHANGELOG.md '#{release_short}' '#{notes}'")
 
     sh("cd .. && packaging/build-app.sh")
-    sh("cd .. && packaging/sign-app.sh packaging/dist/SlipstreamViewer.app")
-    sh("cd .. && packaging/notarize-app.sh packaging/dist/SlipstreamViewer.app")
+    sh("cd .. && packaging/sign-app.sh packaging/dist/Slipstream.app")
+    sh("cd .. && packaging/notarize-app.sh packaging/dist/Slipstream.app")
     sh("cd .. && packaging/make-dmg.sh")
 
-    plist = "packaging/dist/SlipstreamViewer.app/Contents/Info.plist"
+    plist = "packaging/dist/Slipstream.app/Contents/Info.plist"
     short = sh("cd .. && /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' #{plist}").strip
     build = sh("cd .. && /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' #{plist}").strip
     UI.user_error!("built version #{short} does not match release notes #{release_short}") unless short == release_short

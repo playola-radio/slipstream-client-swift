@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Notarize + staple a signed .app for Gatekeeper acceptance on clean Macs.
 #
-#   packaging/notarize-app.sh /path/to/SlipstreamViewer.app
+#   packaging/notarize-app.sh /path/to/Slipstream.app
 #
 # Requires a notarytool keychain profile:
 #   xcrun notarytool store-credentials qie-notary \
@@ -10,7 +10,7 @@
 # or an App Store Connect API key: NOTARY_KEY=<.p8 path> NOTARY_KEY_ID=… NOTARY_ISSUER=…
 set -euo pipefail
 
-APP="${1:?usage: notarize-app.sh /path/to/SlipstreamViewer.app}"
+APP="${1:?usage: notarize-app.sh /path/to/Slipstream.app}"
 ZIP="${APP%.app}-notarize.zip"
 
 # CI passes an App Store Connect API key; local releases use a keychain profile.

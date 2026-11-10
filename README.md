@@ -41,7 +41,7 @@ The app finds the daemon through its store directory. It uses `~/.slipstream` un
 ```sh
 SLIPSTREAM_STORE=/tmp/ss-qa/.slipstream \
   "$(xcodebuild -scheme SlipstreamViewer -showBuildSettings 2>/dev/null \
-      | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/SlipstreamViewer.app/Contents/MacOS/SlipstreamViewer"
+      | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/Slipstream.app/Contents/MacOS/Slipstream"
 ```
 
 In Xcode, set `SLIPSTREAM_STORE` under Product → Scheme → Edit Scheme → Run → Environment
