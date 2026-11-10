@@ -8,7 +8,9 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 ## [Unreleased]
 
-### Changes
+<!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
+
+## [0.3.0] - 2026-11-10
 
 - See the workspace name in a slimmer window header, with the sidebar toggle and
   **Open in** close at hand.
@@ -18,6 +20,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
   the workspaces sidebar with **⌘B**, the change stream and terminals with **⌥⌘B**.
 - Drag the edge of the sidebar or the chat to resize it; double-click the edge to
   put it back. Slipstream remembers the sizes and what's hidden.
+- When asking the agent a question or checking whether a requested change was done
+  fails, the reply now says why, such as Claude Code's own error, a missing setup
+  step or the daemon's reason, instead of only "the chat couldn't be reached".
+- The terminals pane always shows the selected workspace's own terminals. Another
+  workspace's setup output no longer appears there, or opens in its place.
 
 ## [0.2.0] - 2026-11-06
 
