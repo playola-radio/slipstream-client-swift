@@ -132,6 +132,36 @@ xcrun stapler validate /tmp/Slipstream.dmg
 Then install from the DMG on a Mac without the dev tools, launch it, and confirm an
 earlier release offers the update through **Check for Updates…**.
 
+## Bundled recorder release gate
+
+Before merging a change to how the app runs its recorder, run this on a clean, offline Apple
+Silicon Mac, VM or test user with no Node, no nvm and no `~/.slipstream`. Never on a Mac whose
+recorder you rely on. Record each line's result in the pull request.
+
+1. First launch → the recorder is running. `slipstream status` works from a new terminal
+   through `~/.local/bin`.
+2. Quit the app → the recorder keeps running (`launchctl print gui/$(id -u)/radio.playola.slipstream`
+   shows the pid).
+3. Reboot → the recorder runs before the app is opened.
+4. Move or delete `Slipstream.app` → recording continues (the recorder runs from Application
+   Support). This is supported.
+5. Turn Slipstream off in Login Items, then quit and relaunch → "won't start", with
+   `service install`'s full launchctl output as the evidence.
+6. Install on quit: install vN, publish vN+1 to a test appcast, quit → the app relaunches on
+   vN+1 and the recorder switches (restarting → running). An MCP call from a running agent
+   still succeeds.
+7. Migration on a copy of a real setup (an npm recorder under `radio.playola.slipstream`):
+   the LaunchAgent plist now points into Application Support, and hooks and connector configs
+   point at the shims, with backups present.
+8. Native module: a capture records a file change (proves `watcher.node` loads from the
+   copied runtime).
+9. Each recorder state in `design/features/bundled-daemon/screens.md`, checked against its
+   SwiftUI preview in `RecorderMessageView.swift`.
+10. Two app builds that bundle the same recorder, launched alternately → the newer build
+    keeps the recorder, the older one shows "another recorder", and nothing restarts.
+
+Lines 6 and 7 may use a Debug-signed build against a disposable store (`SLIPSTREAM_STORE`).
+
 ## Invariants
 
 Sparkle installs an update when either its EdDSA signature verifies against the
