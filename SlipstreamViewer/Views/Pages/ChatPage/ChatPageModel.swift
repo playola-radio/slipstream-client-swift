@@ -43,9 +43,11 @@ final class ChatPageModel: ViewModel {
   private var linkFailures: [UUID: LinkRefusal] = [:]
   /// The folder just shown: its next capture read is the moment its window opens.
   private var openingFolder: String?
-  /// Tabs closed while they were connecting, by folder: if the next capture read shows one linked,
-  /// its link moves off. Any outcome counts, since a refused attach can still have linked.
+  /// Tabs closed while not known to be linked, by folder: if the next capture read shows one linked,
+  /// its link moves off. An attach can land before the read that would show it.
   private var strandedLinks: [UUID: String] = [:]
+  /// Folders with a send's link retries running: one at a time, however many sends or turns.
+  private var sendLinkingFolders: Set<String> = []
 
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
   @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
@@ -298,7 +300,7 @@ final class ChatPageModel: ViewModel {
     tabs[id: id] = nil
     if let linked {
       await linkedTabClosed(in: folder, generation: linked.generation)
-    } else if bindings == nil {
+    } else {
       strandedLinks[id] = folder
     }
   }
@@ -482,8 +484,12 @@ final class ChatPageModel: ViewModel {
   }
 
   private func messageSent(_ id: UUID) {
-    guard let folder = records[id: id]?.folder, isUnlinked(folder) else { return }
-    Task { [weak self] in await self?.linkWhileWorking(id, in: folder) }
+    guard let folder = records[id: id]?.folder, isUnlinked(folder), !sendLinkingFolders.contains(folder) else { return }
+    sendLinkingFolders.insert(folder)
+    Task { [weak self] in
+      await self?.linkWhileWorking(id, in: folder)
+      self?.sendLinkingFolders.remove(folder)
+    }
   }
 
   /// A turn that ends while its tab isn't on screen leaves the tab waiting. While nothing is

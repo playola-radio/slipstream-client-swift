@@ -47,7 +47,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
   @ObservationIgnored var onReadinessChanged: () -> Void = {}
-  /// Called each time a send reaches the process, so the page can link the chat while it works.
+  /// Called each time a message reaches the process, so the page can link the chat while it works.
   @ObservationIgnored var onMessageSent: () -> Void = {}
   /// Called once per relay, when the agent reads it or its process ends first.
   @ObservationIgnored var onRelayDelivery: (RelayDelivery) -> Void = { _ in }
@@ -262,7 +262,6 @@ final class ChatTabModel: ViewModel, Identifiable {
       $record.withLock { $0.isWaiting = false }
     }
     messageReachedProcess()
-    onMessageSent()
   }
 
   /// Writes straight away, even mid-turn: the agent reads it after its current step. The draft
@@ -612,6 +611,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   private func messageReachedProcess() {
     hasSentMessage = true
     onReadinessChanged()
+    onMessageSent()
   }
 
   @discardableResult

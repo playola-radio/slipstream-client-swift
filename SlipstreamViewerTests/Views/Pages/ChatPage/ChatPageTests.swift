@@ -1898,12 +1898,19 @@ struct ChatPageTests {
     #expect(link.calls.count == 3)
   }
 
-  @Test func sendWhileLinkedDoesNotLink() async {
-    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
-
+  @Test func aSendDuringAnEarlierTurnsRetriesJoinsThemInsteadOfStartingMore() async {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
     await send(model, "hi")
+    await line(Line.result())
+    #expect(link.calls.count == 2)
 
-    #expect(link.calls.isEmpty)
+    await send(model, "again")
+    #expect(link.calls.count == 2)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 3)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 4)
   }
 
   @Test func stopBeforeAnyMessageIsWrittenLeavesNothingToConnect() async throws {
@@ -2085,6 +2092,29 @@ struct ChatPageTests {
     await Task.megaYield()
 
     expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
+  }
+
+  @Test func closingATabWhileItsNewLinkIsBeingReadMovesTheLinkOff() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    let next = captures(binding(.setupPending, chat: UUID(50), generation: "g2"))
+    let closing = LockIsolated(true)
+    model.onLinkChanged = { [weak model] in
+      guard closing.withValue({ defer { $0 = false }; return $0 }) else { return }
+      await model?.closeTabTapped(UUID(50))
+      model?.capturesArrived(next)
+    }
+
+    await model.connectTapped(UUID(50))
+    await Task.megaYield()
+
+    expectNoDifference(
+      link.calls,
+      [
+        .link(folder: "/w", tabID: UUID(50), replacing: "g1"),
+        .link(folder: "/w", tabID: Self.saved, replacing: "g2"),
+      ]
+    )
   }
 
   @Test func closingUnlinkedTabChangesNothing() async {
