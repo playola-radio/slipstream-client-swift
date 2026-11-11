@@ -26,7 +26,7 @@ enum PRFixture {
   static let statusCommand = ["git", "status", "--porcelain=v1"]
   static let upstreamCommand = ["git", "rev-parse", "--abbrev-ref", "@{upstream}"]
   static let unpushedCommand = ["git", "rev-list", "--count", "@{upstream}..HEAD"]
-  static let fetchCommand = ["git", "fetch", "origin", "develop"]
+  static let fetchCommand = ["git", "fetch", "origin", "+refs/heads/develop:refs/remotes/origin/develop"]
   static let localBranchesCommand = ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"]
   static let remoteBranchesCommand = ["git", "ls-remote", "--heads", "origin"]
   static let actionsRuns = "https://github.com/playola-radio/slipstream-client-swift/actions/runs"
@@ -52,7 +52,7 @@ enum PRFixture {
   }
 
   static func switchCommand(_ name: String) -> [String] {
-    ["git", "switch", "--no-track", "-c", name, "FETCH_HEAD"]
+    ["git", "switch", "--no-track", "-c", name, "origin/develop"]
   }
 
   static func repositoryJSON(isFork: Bool = false, mergeMethod: String = "MERGE") -> String {

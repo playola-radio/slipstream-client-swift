@@ -252,7 +252,9 @@ final class PRStatusBarModel: ViewModel {
     let title = Self.continueFailedTitle
     let target = Self.target(of: snapshot)
     do throws(PRBarFailure) {
-      _ = try await output(["git", "fetch", "origin", target], in: folder, timeout: Self.longTimeout, title: title)
+      _ = try await output(
+        ["git", "fetch", "origin", "+refs/heads/\(target):refs/remotes/origin/\(target)"], in: folder,
+        timeout: Self.longTimeout, title: title)
       let local = try await output(
         ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"], in: folder, timeout: Self.gitTimeout,
         title: title)
@@ -265,7 +267,7 @@ final class PRStatusBarModel: ViewModel {
         throw PRBarFailure(title: title, details: "Folder: \(folder)\n\(change)")
       }
       _ = try await output(
-        ["git", "switch", "--no-track", "-c", name, "FETCH_HEAD"], in: folder, timeout: Self.gitTimeout,
+        ["git", "switch", "--no-track", "-c", name, "origin/\(target)"], in: folder, timeout: Self.gitTimeout,
         title: title)
     } catch {
       failedAction = FailedAction(folder: folder, failure: error)

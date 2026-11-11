@@ -235,7 +235,9 @@ is while merging) while an operation is in flight or any chat tab in the workspa
 Shown only in Merged, which already guarantees a clean worktree whose `HEAD` is the merged head.
 Disabled, like the agent buttons, while an action runs or a chat in the folder is working (D15).
 
-1. `git fetch origin <target>`.
+1. `git fetch origin +refs/heads/<target>:refs/remotes/origin/<target>`. The explicit refspec
+   updates `origin/<target>` even in a single-branch clone; `FETCH_HEAD` is not used because any
+   other fetch in the repo can rewrite it before the switch.
 2. Pick `<name>`: the old branch with `-2`, `-3`… (an existing `-N` suffix is incremented); the
    first name that exists neither locally nor on origin. One `git for-each-ref
    --format=%(refname:short) refs/heads` and one `git ls-remote --heads origin` supply both lists;
