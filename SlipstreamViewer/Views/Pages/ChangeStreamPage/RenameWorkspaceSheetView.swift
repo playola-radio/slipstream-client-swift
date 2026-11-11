@@ -3,6 +3,7 @@ import SwiftUI
 struct RenameWorkspaceSheetView: View {
   @Bindable var model: WorkspaceNamingModel
   @FocusState private var isFieldFocused: Bool
+  @State private var selection: TextSelection?
 
   var body: some View {
     VStack(alignment: .leading, spacing: DesignTokens.RenameDialog.gap) {
@@ -40,11 +41,14 @@ struct RenameWorkspaceSheetView: View {
     .background(DesignTokens.RenameDialog.fill)
     .interactiveDismissDisabled(model.isSaving)
     .onExitCommand { model.cancelTapped() }
-    .onAppear { isFieldFocused = true }
+    .onAppear {
+      isFieldFocused = true
+      selection = TextSelection(range: model.draft.startIndex..<model.draft.endIndex)
+    }
   }
 
   private var field: some View {
-    TextField("", text: $model.draft)
+    TextField("", text: $model.draft, selection: $selection)
       .textFieldStyle(.plain)
       .font(DesignTokens.RenameDialog.fieldFont)
       .foregroundStyle(DesignTokens.RenameDialog.fieldTextColor(isDisabled: model.isFieldDisabled))
