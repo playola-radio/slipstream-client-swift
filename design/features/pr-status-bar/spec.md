@@ -241,7 +241,8 @@ Disabled, like the agent buttons, while an action runs or a chat in the folder i
    --format=%(refname:short) refs/heads` and one `git ls-remote --heads origin` supply both lists;
    a pure function in Core picks the name.
 3. Recheck at click time that the branch, `HEAD` (the PR's `headRefOid`) and a clean
-   `git status` still hold; if not, show the failure and reload instead of switching.
+   `git status` still hold, and that no chat in the folder started working during the fetch; if
+   not, show the failure and reload instead of switching.
 4. `git switch --no-track -c <name> origin/<target>`. No upstream is set; the next Create PR
    pushes it.
 5. Any failure shows in Details; success refreshes. The chats stay.

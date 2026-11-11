@@ -1084,6 +1084,25 @@ struct PRStatusBarTests {
     expectNoDifference(Array(repo.calls.dropFirst(readCalls)), [])
   }
 
+  @Test func continueStopsWhenAChatStartsWorkingDuringTheFetch() async throws {
+    scriptMerged(local: "b\n", remote: "")
+    repo.set(PRFixture.switchCommand("b-2"))
+    repo.hold(PRFixture.fetchCommand)
+    let model = makeModel()
+    await load(model)
+
+    let tapped = Task { await model.continueTapped() }
+    await Task.megaYield()
+    try await #require(model.chat.selectedTab).enqueueUserMessage("hi")
+    repo.release()
+    await tapped.value
+
+    expectNoDifference(repo.calls(PRFixture.switchCommand("b-2")), [])
+    expectNoDifference(
+      model.failure,
+      PRBarFailure(title: "Couldn't start a new branch", details: "Folder: /w\nA chat in this folder started working."))
+  }
+
   @Test func continueDisabledWhileAnOperationRuns() async {
     scriptMerged(local: "b\n", remote: "")
     repo.set(PRFixture.switchCommand("b-2"))

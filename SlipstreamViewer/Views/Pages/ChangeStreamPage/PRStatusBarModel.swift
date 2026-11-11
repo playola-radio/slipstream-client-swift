@@ -433,6 +433,7 @@ final class PRStatusBarModel: ViewModel {
     let head = try await output(["git", "rev-parse", "HEAD"], in: folder, timeout: Self.gitTimeout, title: title)
     if head != snapshot.pullRequest?.headRefOid { return "HEAD moved since the PR merged." }
     if try await uncommittedCount(in: folder, title: title) > 0 { return "The branch has uncommitted changes." }
+    if chat.hasWorkingTab(in: folder) { return "A chat in this folder started working." }
     return nil
   }
 
