@@ -181,7 +181,11 @@ public struct RuntimeInstall: Sendable {
   private func currentIdentity() throws(RuntimeInstallError) -> RuntimeIdentity? {
     guard let target = Self.symlinkDestination(root.appendingPathComponent("current").path) else { return nil }
     let directory = root.appendingPathComponent(target).path
-    guard Self.mode(of: directory) != nil else { return nil }
+    var info = stat()
+    guard lstat(directory, &info) == 0 else {
+      if errno == ENOENT { return nil }
+      throw .posix(step: "read current runtime", path: directory)
+    }
     return try Self.identity(of: directory)
   }
 
