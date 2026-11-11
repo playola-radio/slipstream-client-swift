@@ -28,6 +28,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Shared(.isRightPaneHidden) var isRightPaneHidden
   @ObservationIgnored @Shared(.sidebarWidth) var sidebarWidth
   @ObservationIgnored @Shared(.chatWidth) var chatWidth
+  @ObservationIgnored @Shared(.sidebarRepositories) var sidebarRepositories
 
   // MARK: - Initialization
 
@@ -79,6 +80,8 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var archiveTarget: SessionOption?
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
   private(set) var sidebarGroups: [SidebarGroup] = []
+  /// Repo groups whose main checkout was already looked up this run, found or not.
+  @ObservationIgnored private var lookedUpRepositories: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -321,7 +324,8 @@ final class ChangeStreamPageModel: ViewModel {
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
       if captureAvailability == .failed { return "The capture list didn't load. Press ⌘R to check again." }
-      return sidebarGroups.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
+      return sidebarGroups.allSatisfy(\.rows.isEmpty)
+        ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
@@ -1586,8 +1590,25 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func sidebarInputsChanged() {
-    let groups = SidebarGroup.groups(sessions.filter(isListed), roots: workspaceRoots)
+    let groups = SidebarGroup.groups(
+      sessions.filter(isListed), roots: workspaceRoots, repositories: sidebarRepositories)
     if groups != sidebarGroups { sidebarGroups = groups }
+    rememberRepositories(in: groups)
+  }
+
+  /// Looks up each new repo group's main checkout once, so the group outlives its last workspace.
+  private func rememberRepositories(in groups: [SidebarGroup]) {
+    for group in groups {
+      guard let name = group.repository, sidebarRepositories[name] == nil, let folder = group.rows.first?.root,
+        lookedUpRepositories.insert(name).inserted
+      else { continue }
+      let workspace = workspace
+      Task { [weak self] in
+        guard let repository = await workspace.repository(URL(filePath: folder)), let self else { return }
+        $sidebarRepositories.withLock { $0[name] = Self.normalizedFolder(repository.path) }
+        sidebarInputsChanged()
+      }
+    }
   }
 
   /// A capture list with everything that touches the disk already worked out off the main actor.

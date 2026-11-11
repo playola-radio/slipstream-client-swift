@@ -66,6 +66,30 @@ struct WorkspaceClientTests {
     #expect(failure?.hasPrefix("Couldn't run /nonexistent-runtime/bin/slipstream: ") == true)
   }
 
+  @Test func repositoryOfAWorktreeIsItsMainCheckout() async throws {
+    let folder = FileManager.default.temporaryDirectory.appending(path: "repo-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let main = folder.appending(path: "r")
+    let worktree = folder.appending(path: "lisbon")
+    try FileManager.default.createDirectory(at: main, withIntermediateDirectories: true)
+    for arguments in [
+      ["init", "-q"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"],
+      ["worktree", "add", "-q", worktree.path],
+    ] {
+      let (output, status) = try WorkspaceClient.run(
+        "/usr/bin/git", ["-C", main.path] + arguments, environment: ProcessInfo.processInfo.environment)
+      try #require(status == 0, Comment(rawValue: output))
+    }
+
+    let mainOfWorktree = await WorkspaceClient.repository(of: worktree)
+    let mainOfMain = await WorkspaceClient.repository(of: main)
+    let outside = await WorkspaceClient.repository(of: folder)
+
+    expectNoDifference(mainOfWorktree?.resolvingSymlinksInPath().path, main.resolvingSymlinksInPath().path)
+    expectNoDifference(mainOfMain?.resolvingSymlinksInPath().path, main.resolvingSymlinksInPath().path)
+    #expect(outside == nil)
+  }
+
   private func makeShim(_ body: String) throws -> URL {
     let folder = FileManager.default.temporaryDirectory.appending(path: "shim-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

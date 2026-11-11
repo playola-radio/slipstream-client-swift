@@ -27,16 +27,21 @@ struct WorkspaceRoots: Equatable, Sendable {
 struct SidebarGroup: Identifiable, Equatable, Sendable {
   var repository: String?
   var rows: [SessionOption]
+  /// The repo's main checkout, remembered so the group outlives its last workspace.
+  var repositoryFolder: String?
 
   var id: String { repository ?? rows[0].id }
   /// The group names a folder, so it never takes a workspace's name.
   var name: String { repository ?? Self.folderName(rows[0]) }
-  var newWorkspaceFolder: String? { rows.first?.root }
+  var newWorkspaceFolder: String? { rows.first?.root ?? repositoryFolder }
 
-  /// Repos A→Z, then folders outside the workspace roots; rows in natural folder order. The
-  /// order never depends on input order or on a workspace's name, so rows never jump.
-  static func groups(_ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?) -> [SidebarGroup] {
-    var rowsByRepository: [String: [SessionOption]] = [:]
+  /// Repos A→Z, including remembered repos with no workspaces, then folders outside the
+  /// workspace roots; rows in natural folder order. The order never depends on input order or on
+  /// a workspace's name, so rows never jump.
+  static func groups(
+    _ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?, repositories: [String: String] = [:]
+  ) -> [SidebarGroup] {
+    var rowsByRepository: [String: [SessionOption]] = roots == nil ? [:] : repositories.mapValues { _ in [] }
     var folders: [SidebarGroup] = []
     for session in sessions {
       if let repository = session.root.flatMap({ roots?.repository(of: $0) }) {
@@ -46,7 +51,10 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
       }
     }
     let repositories = rowsByRepository
-      .map { SidebarGroup(repository: $0.key, rows: $0.value.sorted(by: isInFolderOrder)) }
+      .map {
+        SidebarGroup(
+          repository: $0.key, rows: $0.value.sorted(by: isInFolderOrder), repositoryFolder: repositories[$0.key])
+      }
       .sorted { precedes(($0.name, $0.id), ($1.name, $1.id)) }
     return repositories + folders.sorted { isInFolderOrder($0.rows[0], $1.rows[0]) }
   }
@@ -69,6 +77,19 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
     case .orderedDescending: false
     case .orderedSame: lhs.id < rhs.id
     }
+  }
+}
+
+/// Each sidebar repo group's name and its main checkout.
+extension SharedKey where Self == FileStorageKey<[String: String]>.Default {
+  static var sidebarRepositories: Self {
+    Self[
+      .fileStorage(
+        .applicationSupportDirectory
+          .appending(component: Bundle.main.bundleIdentifier ?? "com.playola.SlipstreamViewer")
+          .appending(component: "sidebarRepositories.json")),
+      default: [:]
+    ]
   }
 }
 

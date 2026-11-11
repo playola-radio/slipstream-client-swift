@@ -147,6 +147,19 @@ struct WorkspaceSidebarTests {
     expectNoDifference(Self.names(groups), [["r", "workspace-1", "aaa first by name"]])
   }
 
+  @Test func aRememberedRepoKeepsItsGroupWithoutWorkspaces() {
+    let groups = SidebarGroup.groups(
+      [Self.session("/u/slipstream/workspaces/zeta/w")], roots: Self.roots,
+      repositories: ["alpha": "/code/alpha", "zeta": "/code/zeta"])
+
+    expectNoDifference(Self.names(groups), [["alpha"], ["zeta", "w"]])
+    expectNoDifference(groups.map(\.newWorkspaceFolder), ["/code/alpha", "/u/slipstream/workspaces/zeta/w"])
+  }
+
+  @Test func rememberedReposWaitForTheRoots() {
+    #expect(SidebarGroup.groups([], roots: nil, repositories: ["alpha": "/code/alpha"]).isEmpty)
+  }
+
   @Test func onlyManagedWorkspacesAreArchivable() {
     expectNoDifference(
       [
