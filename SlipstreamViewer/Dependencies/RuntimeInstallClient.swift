@@ -12,7 +12,13 @@ struct RuntimeInstallClient: Sendable {
 extension RuntimeInstallClient {
   static let runtimeRoot = FileManager.default.homeDirectoryForCurrentUser
     .appending(path: "Library/Application Support/com.playola.SlipstreamViewer/runtime", directoryHint: .isDirectory)
-  static let shim = runtimeRoot.appending(path: "bin/slipstream")
+  #if DEBUG
+    static let shim =
+      ProcessInfo.processInfo.environment["SLIPSTREAM_CLI"].map { URL(fileURLWithPath: $0) }
+      ?? runtimeRoot.appending(path: "bin/slipstream")
+  #else
+    static let shim = runtimeRoot.appending(path: "bin/slipstream")
+  #endif
 }
 
 extension RuntimeInstallClient: DependencyKey {

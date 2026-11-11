@@ -84,15 +84,15 @@ extension RecorderServiceClient: DependencyKey {
         defer { try? handle.close() }
         let end = try handle.seekToEnd()
         // A rotated log is shorter than the recorded size, so all of it is new.
-        let start = offset <= end ? offset : 0
-        let from = max(start, end > logLimit ? end - logLimit : 0)
-        try handle.seek(toOffset: from)
+        try handle.seek(toOffset: offset <= end ? offset : 0)
         return String(decoding: try handle.readToEnd() ?? Data(), as: UTF8.self)
       },
       runShim: { arguments in
         let environment = (try? await AgentEnvironmentClient.loginEnvironment()) ?? ProcessInfo.processInfo.environment
+        try Task.checkCancellation()
         let shim = RuntimeInstallClient.shim.path
-        let (output, status) = try await WorkspaceClient.runInBackground(shim, arguments, environment: environment)
+        let (output, status) = try await WorkspaceClient.runInBackground(
+          shim, arguments, environment: environment, keepsAllOutput: true)
         return ShimRun(command: commandLine([shim] + arguments), exitCode: status, output: output)
       },
       openLog: { _ = NSWorkspace.shared.open(logFile) }
@@ -112,8 +112,6 @@ extension RecorderServiceClient: DependencyKey {
       openLog: unimplemented("RecorderServiceClient.openLog")
     )
   }
-
-  private static let logLimit: UInt64 = 65_536
 }
 
 extension DependencyValues {

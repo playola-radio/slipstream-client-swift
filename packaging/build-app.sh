@@ -18,11 +18,16 @@ xcodebuild \
   -derivedDataPath "$REPO_ROOT/packaging/build/app" \
   -destination 'generic/platform=macOS' \
   -skipPackagePluginValidation \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=NO \
   CODE_SIGNING_ALLOWED=NO \
   build
 
 BUILT="$REPO_ROOT/packaging/build/app/Build/Products/Release/Slipstream.app"
 [ -d "$BUILT" ] || { echo "error: build produced no .app at $BUILT" >&2; exit 1; }
+# The bundled node runtime is arm64 only, so the app must be too.
+ARCHS_BUILT=$(lipo -archs "$BUILT/Contents/MacOS/Slipstream")
+[ "$ARCHS_BUILT" = arm64 ] || { echo "error: Slipstream.app is $ARCHS_BUILT, expected arm64 only" >&2; exit 1; }
 
 DEST_APP="$DIST/Slipstream.app"
 mkdir -p "$DIST"

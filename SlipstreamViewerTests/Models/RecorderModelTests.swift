@@ -21,8 +21,12 @@ struct RecorderModelTests {
   nonisolated static let installCommand = "service install --store test-store"
   nonisolated static let adoptCommand = "adopt-app --store test-store"
 
-  let fake = RecorderFake()
   let clock = TestClock()
+  let fake: RecorderFake
+
+  init() {
+    fake = RecorderFake(clock: clock)
+  }
 
   func makeModel() -> RecorderModel {
     withDependencies {
@@ -37,7 +41,7 @@ struct RecorderModelTests {
   func runOwnedOldBuild() {
     fake.running.setValue(Self.oldBuild)
     fake.lockPID.setValue(48213)
-    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil, raw: ""))
+    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil))
   }
 
   func runUnmanagedDaemon() {
@@ -49,7 +53,7 @@ struct RecorderModelTests {
   func oldDaemonExits() {
     fake.running.setValue(nil)
     fake.lockPID.setValue(nil)
-    fake.job.setValue(LaunchdJob(pid: nil, lastExit: "0", raw: ""))
+    fake.job.setValue(LaunchdJob(pid: nil, lastExit: "0"))
   }
 
   @Test func updateDidntFinishKeepsOldRunning() async {
@@ -114,7 +118,7 @@ struct RecorderModelTests {
   @Test func sameBuildIsRunningWithoutAdopting() async {
     fake.running.setValue(Self.bundledBuild)
     fake.lockPID.setValue(501)
-    fake.job.setValue(LaunchdJob(pid: 501, lastExit: nil, raw: ""))
+    fake.job.setValue(LaunchdJob(pid: 501, lastExit: nil))
     let model = makeModel()
 
     await model.appLaunched()
@@ -165,13 +169,115 @@ struct RecorderModelTests {
     await clock.advance(by: .milliseconds(250))
     #expect(!fake.events.value.contains(Self.installCommand))
 
-    fake.job.setValue(LaunchdJob(pid: nil, lastExit: "0", raw: ""))
+    fake.job.setValue(LaunchdJob(pid: nil, lastExit: "0"))
     await clock.advance(by: .milliseconds(250))
     #expect(fake.events.value.contains(Self.installCommand))
 
     await clock.advance(by: .milliseconds(250))
     await launch.value
     expectNoDifference(model.state, .running)
+  }
+
+  @Test func serviceInstallWaitsForLiveLockHolder() async {
+    fake.lockPID.setValue(30117)
+    fake.descriptions.setValue([30117: "Mon Oct 27 09:14:52 2026     node /npm/slipstream/dist/cli.js start"])
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    await clock.advance(by: .milliseconds(250))
+    expectNoDifference(model.state, .starting(Self.bundled))
+    expectNoDifference(fake.events.value, ["prepare", "activate"])
+
+    fake.lockPID.setValue(nil)
+    await clock.advance(by: .milliseconds(250))
+    expectNoDifference(fake.events.value, ["prepare", "activate", Self.installCommand])
+
+    await clock.advance(by: .milliseconds(250))
+    await launch.value
+    expectNoDifference(model.state, .running)
+  }
+
+  @Test func probeFailureWhileStoppingIsWontStart() async {
+    runOwnedOldBuild()
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    fake.statusError.setValue(RecorderServiceError(description: "status reply wasn't JSON"))
+    await clock.advance(by: .milliseconds(250))
+    await launch.value
+
+    expectNoDifference(
+      model.state,
+      .wontStart(
+        Self.bundled, .probe,
+        Evidence(source: "status · owner.lock · launchctl", text: "status reply wasn't JSON")))
+    #expect(!fake.events.value.contains(Self.installCommand))
+  }
+
+  @Test func probeFailureWhileStartingIsWontStart() async {
+    fake.startsOnInstall.setValue(nil)
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    fake.statusError.setValue(RecorderServiceError(description: "status reply wasn't JSON"))
+    await clock.advance(by: .milliseconds(250))
+    await launch.value
+
+    expectNoDifference(
+      model.state,
+      .wontStart(
+        Self.bundled, .probe,
+        Evidence(source: "status · owner.lock · launchctl", text: "status reply wasn't JSON")))
+  }
+
+  @Test func retryWaitsForTheInstallInFlight() async {
+    fake.installTakes.setValue(.seconds(1))
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+    expectNoDifference(fake.events.value, ["prepare", "activate", Self.installCommand])
+
+    let retry = Task { await model.tryAgainTapped() }
+    await Task.megaYield()
+    expectNoDifference(fake.events.value, ["prepare", "activate", Self.installCommand])
+
+    await clock.advance(by: .seconds(1))
+    await launch.value
+    await retry.value
+
+    expectNoDifference(model.state, .running)
+    expectNoDifference(fake.events.value, ["prepare", "activate", Self.installCommand, "prepare", "activate"])
+  }
+
+  @Test func quitStopsRecorderWork() async {
+    runOwnedOldBuild()
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    model.quitConfirmed()
+    oldDaemonExits()
+    await clock.advance(by: .milliseconds(500))
+    await launch.value
+
+    expectNoDifference(fake.events.value, ["prepare", "activate", "terminate 48213"])
+  }
+
+  @Test func cancellingLaunchStopsRecorderWork() async {
+    runOwnedOldBuild()
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    launch.cancel()
+    oldDaemonExits()
+    await clock.advance(by: .milliseconds(500))
+    await launch.value
+
+    expectNoDifference(fake.events.value, ["prepare", "activate", "terminate 48213"])
   }
 
   @Test func flipFailureStopsNothing() async {
@@ -220,7 +326,7 @@ struct RecorderModelTests {
   @Test func olderAppDoesNotStopNewerDaemon() async {
     fake.running.setValue(DaemonBuild(version: "0.3.3", build: "9d0e1f2a-0000-0000-0000-000000000000"))
     fake.lockPID.setValue(48213)
-    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil, raw: ""))
+    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil))
     fake.activation.setValue(
       .success(.newerActive(RuntimeIdentity(version: "0.3.3", build: "9d0e1f2a-0000", appBuild: 14))))
     let model = makeModel()
@@ -232,13 +338,30 @@ struct RecorderModelTests {
       return
     }
     #expect(!model.replaceIsAvailable)
-    expectNoDifference(fake.events.value, ["prepare", "activate"])
+    expectNoDifference(fake.events.value, ["prepare"])
+  }
+
+  @Test func newerManagedDaemonIsNeverStopped() async {
+    fake.running.setValue(DaemonBuild(version: "0.4.0", build: "9d0e1f2a-0000-0000-0000-000000000000"))
+    fake.lockPID.setValue(48213)
+    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil))
+    fake.descriptions.setValue([48213: "Mon Oct 27 09:14:52 2026     node /npm/slipstream/dist/cli.js start"])
+    let model = makeModel()
+
+    await model.appLaunched()
+
+    guard case .anotherRecorder(pid: 48213, _, _) = model.state else {
+      Issue.record("Expected another recorder, got \(model.state)")
+      return
+    }
+    #expect(!model.replaceIsAvailable)
+    expectNoDifference(fake.events.value, ["prepare"])
   }
 
   @Test func sameDaemonVersionOlderAppBuildIsAnotherRecorder() async {
     fake.running.setValue(DaemonBuild(version: "0.3.2", build: "c0ffee00-0000-0000-0000-000000000000"))
     fake.lockPID.setValue(48213)
-    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil, raw: ""))
+    fake.job.setValue(LaunchdJob(pid: 48213, lastExit: nil))
     fake.activation.setValue(
       .success(.newerActive(RuntimeIdentity(version: "0.3.2", build: "c0ffee00-0000", appBuild: 13))))
     let model = makeModel()
@@ -261,7 +384,7 @@ struct RecorderModelTests {
     let launch = Task { await model.appLaunched() }
     await Task.megaYield()
 
-    fake.job.setValue(LaunchdJob(pid: nil, lastExit: "1", raw: ""))
+    fake.job.setValue(LaunchdJob(pid: nil, lastExit: "1"))
     await clock.advance(by: .milliseconds(250))
     await launch.value
 
@@ -369,6 +492,7 @@ struct RecorderModelTests {
         {"token": "short-but-secret", "pid": 1}
         SLIPSTREAM_TOKEN=\(secret)
         token: '\(secret)'
+        {"error":"descriptor: {\\"token\\":\\"\(secret)\\"}"}
         """)
 
     expectNoDifference(
@@ -379,6 +503,7 @@ struct RecorderModelTests {
           {"token": "<redacted>", "pid": 1}
           SLIPSTREAM_TOKEN=<redacted>
           token: '<redacted>'
+          {"error":"descriptor: {\\"token\\":\\"<redacted>\\"}"}
           """))
     #expect(!evidence.text.contains(secret) && !evidence.source.contains(secret))
   }
@@ -403,6 +528,7 @@ struct RecorderModelTests {
 }
 
 final class RecorderFake: Sendable {
+  let clock: TestClock<Duration>
   let events = LockIsolated<[String]>([])
   let prepareResult = LockIsolated<Result<PreparedRuntime, RuntimeInstallError>>(
     .success(RecorderModelTests.prepared))
@@ -415,6 +541,12 @@ final class RecorderFake: Sendable {
   let logSize = LockIsolated<UInt64>(0)
   let shimResults = LockIsolated<[String: (Int32, String)]>([:])
   let startsOnInstall = LockIsolated<DaemonBuild?>(RecorderModelTests.bundledBuild)
+  let statusError = LockIsolated<RecorderServiceError?>(nil)
+  let installTakes = LockIsolated<Duration?>(nil)
+
+  init(clock: TestClock<Duration>) {
+    self.clock = clock
+  }
 
   var runtimeInstall: RuntimeInstallClient {
     RuntimeInstallClient(
@@ -439,13 +571,19 @@ final class RecorderFake: Sendable {
       job: { self.job.value },
       terminate: { pid in self.record("terminate \(pid)") },
       ownerLockPID: { _ in self.lockPID.value },
-      daemonBuild: { _ in self.running.value },
+      daemonBuild: { _ in
+        if let error = self.statusError.value { throw error }
+        return self.running.value
+      },
       processDescription: { pid in self.descriptions.value[pid] },
       logSize: { self.logSize.value },
       logSince: { offset in "log after \(offset)" },
       runShim: { arguments in
         self.record(arguments.joined(separator: " "))
         let (exitCode, output) = self.shimResults.value[arguments[0]] ?? (0, "")
+        if arguments[0] == "service", let duration = self.installTakes.value {
+          await Task { try? await self.clock.sleep(for: duration) }.value
+        }
         if arguments[0] == "service", exitCode == 0 {
           self.running.setValue(self.startsOnInstall.value)
         }

@@ -5315,7 +5315,7 @@ extension ChangeStreamPageTests {
   }
 
   @Test func anotherRecorderOffersReplaceIt() async {
-    let recorderFake = RecorderFake()
+    let recorderFake = RecorderFake(clock: clock)
     recorderFake.running.setValue(DaemonBuild(version: "0.3.0", build: nil))
     recorderFake.lockPID.setValue(30117)
     recorderFake.descriptions.setValue([30117: "node /npm/slipstream/dist/cli.js start"])

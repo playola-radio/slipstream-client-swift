@@ -87,20 +87,21 @@ extension WorkspaceClient: DependencyKey {
   }
 
   static func runInBackground(
-    _ executable: String, _ arguments: [String], environment: [String: String]
+    _ executable: String, _ arguments: [String], environment: [String: String], keepsAllOutput: Bool = false
   ) async throws -> (output: String, status: Int32) {
     try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global().async {
-        continuation.resume(with: Result { try run(executable, arguments, environment: environment) })
+        continuation.resume(
+          with: Result { try run(executable, arguments, environment: environment, keepsAllOutput: keepsAllOutput) })
       }
     }
   }
 
   /// Runs a command to completion with stdout and stderr merged, keeping the last
-  /// `outputLimit` bytes. Stops reading once it has exited and its output is drained, so a
+  /// `outputLimit` bytes unless `keepsAllOutput`. Stops reading once it has exited and its output is drained, so a
   /// background job started by a setup script can't hold the pipe open.
   static func run(
-    _ executable: String, _ arguments: [String], environment: [String: String]
+    _ executable: String, _ arguments: [String], environment: [String: String], keepsAllOutput: Bool = false
   ) throws -> (output: String, status: Int32) {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: executable)
@@ -126,7 +127,7 @@ extension WorkspaceClient: DependencyKey {
         if count < 0 && errno == EINTR { continue }
         if count <= 0 { break }
         output.append(contentsOf: buffer[..<count])
-        if output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
+        if !keepsAllOutput, output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
         if hasExited {
           outputAfterExit += count
           if outputAfterExit >= outputLimit { break }

@@ -117,6 +117,9 @@ schemes:
         - variable: SLIPSTREAM_EXTERNAL_DAEMON
           value: "1"
           isEnabled: false
+        - variable: SLIPSTREAM_CLI
+          value: /path/to/slipstream/bin/slipstream
+          isEnabled: false
     test:
       config: Debug
       targets:

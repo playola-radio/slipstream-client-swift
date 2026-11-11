@@ -1,12 +1,10 @@
 public struct LaunchdJob: Equatable, Sendable {
   public let pid: Int32?
   public let lastExit: String?
-  public let raw: String
 
-  public init(pid: Int32?, lastExit: String?, raw: String) {
+  public init(pid: Int32?, lastExit: String?) {
     self.pid = pid
     self.lastExit = lastExit
-    self.raw = raw
   }
 }
 
@@ -24,6 +22,6 @@ public enum LaunchctlPrint {
       default: break
       }
     }
-    return LaunchdJob(pid: pid, lastExit: lastExit, raw: output)
+    return LaunchdJob(pid: pid, lastExit: lastExit)
   }
 }

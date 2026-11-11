@@ -23,7 +23,7 @@ struct Evidence: Equatable, Sendable {
     (try! NSRegularExpression(pattern: #"("token"\s*:\s*)"(?:[^"\\]|\\.)*""#), #"$1"<redacted>""#),
     (
       try! NSRegularExpression(
-        pattern: #"(token["']?\s*[:=]?\s*["']?|Bearer\s+)[A-Za-z0-9_\-]{32,}"#, options: .caseInsensitive),
+        pattern: #"(token\\?["']?\s*[:=]?\s*\\?["']?|Bearer\s+)[A-Za-z0-9_\-]{32,}"#, options: .caseInsensitive),
       "$1<redacted>"
     ),
   ]
@@ -126,6 +126,11 @@ final class RecorderModel: ViewModel {
     service.openLog()
   }
 
+  func quitConfirmed() {
+    work?.cancel()
+    generation += 1
+  }
+
   // MARK: - Private Helpers
 
   private struct ReplaceTarget {
@@ -145,12 +150,21 @@ final class RecorderModel: ViewModel {
   private var store: URL { URL(fileURLWithPath: daemon.storeID) }
 
   private func own(_ operation: @escaping @MainActor (Int) async -> Void) async {
-    work?.cancel()
+    let previous = work
+    previous?.cancel()
     generation += 1
     let mine = generation
-    let task = Task { await operation(mine) }
+    let task = Task {
+      await previous?.value
+      guard self.isCurrent(mine) else { return }
+      await operation(mine)
+    }
     work = task
-    await task.value
+    await withTaskCancellationHandler {
+      await task.value
+    } onCancel: {
+      task.cancel()
+    }
   }
 
   private func isCurrent(_ mine: Int) -> Bool {
@@ -206,7 +220,7 @@ final class RecorderModel: ViewModel {
     do {
       probe = try await self.probe()
     } catch {
-      publish(.wontStart(bundled, .probe, Evidence(source: Self.probeSource, text: "\(error)")), mine)
+      publishProbeFailure(bundled, error, mine)
       return
     }
     guard isCurrent(mine) else { return }
@@ -219,7 +233,7 @@ final class RecorderModel: ViewModel {
       publish(.running, mine)
       return
     }
-    guard let lockPID = probe.lockPID, lockPID == probe.job?.pid else {
+    guard let lockPID = probe.lockPID, lockPID == probe.job?.pid, !running.isNewer(than: bundled) else {
       await reportAnotherRecorder(running, probe, bundled, prepared, newer: nil, mine)
       return
     }
@@ -320,11 +334,11 @@ final class RecorderModel: ViewModel {
       publish(.wontStart(bundled, .stop(pid: pid), Evidence(source: "kill -TERM \(pid)", text: "\(error)")), mine)
       return
     }
-    guard await waitUntilGone(pid, mine) else { return }
+    guard await waitUntilGone(pid, bundled, mine) else { return }
     await install(bundled, prepared, mine)
   }
 
-  private func waitUntilGone(_ pid: Int32, _ mine: Int) async -> Bool {
+  private func waitUntilGone(_ pid: Int32, _ bundled: RuntimeIdentity, _ mine: Int) async -> Bool {
     while true {
       do {
         try await clock.sleep(for: Self.pollInterval)
@@ -332,21 +346,43 @@ final class RecorderModel: ViewModel {
         return false
       }
       guard isCurrent(mine) else { return false }
-      if await isGone(pid) { return isCurrent(mine) }
+      do {
+        if try await isGone(pid) { return isCurrent(mine) }
+      } catch {
+        publishProbeFailure(bundled, error, mine)
+        return false
+      }
     }
   }
 
-  private func isGone(_ pid: Int32) async -> Bool {
-    do {
-      guard try await service.daemonBuild(store) == nil else { return false }
-      guard service.ownerLockPID(store) != pid else { return false }
-      return try await service.job()?.pid == nil
-    } catch {
-      return false
-    }
+  private func isGone(_ pid: Int32) async throws -> Bool {
+    guard try await service.daemonBuild(store) == nil else { return false }
+    guard service.ownerLockPID(store) != pid else { return false }
+    return try await service.job()?.pid == nil
   }
 
   private func install(_ bundled: RuntimeIdentity, _ prepared: PreparedRuntime, _ mine: Int) async {
+    while true {
+      let probe: Probe
+      do {
+        probe = try await self.probe()
+      } catch {
+        publishProbeFailure(bundled, error, mine)
+        return
+      }
+      guard isCurrent(mine) else { return }
+      if probe.running != nil || probe.job?.pid != nil {
+        await evaluate(bundled, prepared, mine)
+        return
+      }
+      guard let lockPID = probe.lockPID, await service.processDescription(lockPID) != nil else { break }
+      do {
+        try await clock.sleep(for: Self.pollInterval)
+      } catch {
+        return
+      }
+      guard isCurrent(mine) else { return }
+    }
     let logOffset = service.logSize()
     let run: ShimRun
     do {
@@ -378,8 +414,15 @@ final class RecorderModel: ViewModel {
         return
       }
       guard isCurrent(mine) else { return }
-      if let running = try? await service.daemonBuild(store) {
-        guard isCurrent(mine) else { return }
+      let running: DaemonBuild?
+      do {
+        running = try await service.daemonBuild(store)
+      } catch {
+        publishProbeFailure(bundled, error, mine)
+        return
+      }
+      guard isCurrent(mine) else { return }
+      if let running {
         guard running == DaemonBuild(version: bundled.version, build: bundled.build) else {
           await evaluate(bundled, prepared, mine)
           return
@@ -388,9 +431,15 @@ final class RecorderModel: ViewModel {
         if migrate { await self.migrate(bundled, mine) }
         return
       }
+      let job: LaunchdJob?
+      do {
+        job = try await service.job()
+      } catch {
+        publishProbeFailure(bundled, error, mine)
+        return
+      }
       guard isCurrent(mine) else { return }
-      if let job = try? await service.job(), job.pid == nil, let lastExit = job.lastExit {
-        guard isCurrent(mine) else { return }
+      if let job, job.pid == nil, let lastExit = job.lastExit {
         let log: String
         do {
           log = try service.logSince(logOffset)
@@ -444,6 +493,10 @@ final class RecorderModel: ViewModel {
     let lockPID = service.ownerLockPID(store)
     let job = try await service.job()
     return Probe(running: running, lockPID: lockPID, job: job)
+  }
+
+  private func publishProbeFailure(_ bundled: RuntimeIdentity, _ error: any Error, _ mine: Int) {
+    publish(.wontStart(bundled, .probe, Evidence(source: Self.probeSource, text: "\(error)")), mine)
   }
 
   private func runningLine(_ running: DaemonBuild, _ probe: Probe) -> String {

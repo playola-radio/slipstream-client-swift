@@ -6,13 +6,13 @@ struct LaunchctlPrintTests {
   @Test func parsesRunningJob() {
     expectNoDifference(
       LaunchctlPrint.job(in: runningJob),
-      LaunchdJob(pid: 4308, lastExit: nil, raw: runningJob))
+      LaunchdJob(pid: 4308, lastExit: nil))
   }
 
   @Test func parsesStoppedJobWithLastExit() {
     expectNoDifference(
       LaunchctlPrint.job(in: stoppedJob),
-      LaunchdJob(pid: nil, lastExit: "0", raw: stoppedJob))
+      LaunchdJob(pid: nil, lastExit: "0"))
   }
 }
 
