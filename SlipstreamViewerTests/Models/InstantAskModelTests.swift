@@ -64,7 +64,7 @@ struct InstantAskModelTests {
         CaptureSummary(
           sessionID: Self.capture, root: "/w", state: .recording,
           binding: CaptureBinding(generation: "g1", state: .connected, harnessSessionID: Self.linked.uuidString.lowercased()))
-      ])
+      ].currentByFolder())
       return (InstantAskModel(chat: chat), chat)
     }
   }
@@ -333,7 +333,7 @@ struct InstantAskModelTests {
     await asking(model, question())
     fork.reply(.failure(.unavailable("Claude Code stopped unexpectedly.")))
     await Task.megaYield()
-    chat.capturesArrived([CaptureSummary(sessionID: Self.capture, root: "/w", state: .recording)])
+    chat.capturesArrived([CaptureSummary(sessionID: Self.capture, root: "/w", state: .recording)].currentByFolder())
 
     let retried = model.tryAgainTapped(requestID: Self.firstRequest)
 

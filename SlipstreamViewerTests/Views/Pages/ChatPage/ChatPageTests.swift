@@ -1629,7 +1629,7 @@ struct ChatPageTests {
     for id in withMessage { agent.setTranscript(id, .found([.title("Old")])) }
     let model = makeModel(records: records)
     model.workspaceChanged(folder: "/w", emptyText: nil)
-    model.capturesArrived(captures)
+    model.capturesArrived(captures.currentByFolder())
     await Task.megaYield()
     return model
   }
@@ -1637,7 +1637,7 @@ struct ChatPageTests {
   func refresh(_ model: ChatPageModel, to next: [CaptureSummary], count: LockIsolated<Int>? = nil) {
     model.onLinkChanged = { [weak model] in
       count?.withValue { $0 += 1 }
-      model?.capturesArrived(next)
+      model?.capturesArrived(next.currentByFolder())
     }
   }
 
@@ -1744,7 +1744,7 @@ struct ChatPageTests {
   @Test func windowOpenLinksWhenTheCapturesArriveBeforeTheFolder() async {
     agent.setTranscript(Self.saved, .found([.title("Old")]))
     let model = makeModel(records: [record()])
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     model.workspaceChanged(folder: "/w", emptyText: nil)
     await Task.megaYield()
 
@@ -1806,7 +1806,7 @@ struct ChatPageTests {
   @Test func recordedLinksTheFirstTabWithAMessage() async {
     let model = await openWindow(
       records: [record(), record(UUID(50))], withMessage: [UUID(50)], captures: Self.paused)
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
 
     model.recorded(folder: "/w")
     await Task.megaYield()
@@ -1829,7 +1829,7 @@ struct ChatPageTests {
     model.recorded(folder: "/w")
     await Task.megaYield()
 
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
@@ -1842,7 +1842,7 @@ struct ChatPageTests {
     await Task.megaYield()
     #expect(link.calls.isEmpty)
 
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
@@ -1851,9 +1851,9 @@ struct ChatPageTests {
   @Test func ordinaryRefreshNeverStartsAutoLink() async {
     let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
 
-    model.capturesArrived(captures(binding(.unlinked)))
+    model.capturesArrived(captures(binding(.unlinked)).currentByFolder())
     await Task.megaYield()
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await Task.megaYield()
 
     #expect(link.calls.isEmpty)
@@ -1867,7 +1867,7 @@ struct ChatPageTests {
     #expect(link.calls.count == 1)
     #expect(model.linkIcon(for: try tab(model, UUID(0))) == nil)
 
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await clock.advance(by: .seconds(60))
     #expect(link.calls.count == 1)
 
@@ -1975,7 +1975,7 @@ struct ChatPageTests {
     model.capturesArrived(nil)
 
     await model.closeTabTapped(Self.saved)
-    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g2")])
@@ -2016,7 +2016,7 @@ struct ChatPageTests {
     await Task.megaYield()
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g1")])
 
-    model.capturesArrived(captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    model.capturesArrived(captures(binding(.setupPending, chat: UUID(50), generation: "g2")).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
@@ -2093,7 +2093,7 @@ struct ChatPageTests {
     link.setOutcomes(.refused(.slotsFull))
     await model.connectTapped(Self.saved)
 
-    model.capturesArrived(captures(binding(.connected, generation: "g2")))
+    model.capturesArrived(captures(binding(.connected, generation: "g2")).currentByFolder())
 
     #expect(model.linkIcon(for: try tab(model, Self.saved)) == .connected)
   }
@@ -2109,10 +2109,10 @@ struct ChatPageTests {
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == .failed)
     #expect(model.askRoute(forFolder: "/w") == .app)
-    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")).currentByFolder())
     #expect(model.linkIcon(for: tab) == .failed)
 
-    model.capturesArrived(captures(binding(.connected, generation: "g2")))
+    model.capturesArrived(captures(binding(.connected, generation: "g2")).currentByFolder())
     #expect(model.linkIcon(for: tab) == .connected)
   }
 

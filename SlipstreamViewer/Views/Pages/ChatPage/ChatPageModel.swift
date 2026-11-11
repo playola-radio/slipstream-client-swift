@@ -242,18 +242,15 @@ final class ChatPageModel: ViewModel {
     await tab.shown()
   }
 
-  /// Called with every capture read; `nil` when the read failed or lists no captures.
-  func capturesArrived(_ captures: [CaptureSummary]?) {
-    guard let captures else {
+  /// Called with every capture read, as `currentByFolder()`; `nil` when the read failed.
+  func capturesArrived(_ currentByFolder: [String: CaptureSummary]?) {
+    guard let currentByFolder else {
       bindings = nil
       return
     }
-    let folders = Set(captures.map { ChangeStreamPageModel.normalizedFolder($0.root) })
-    let bindings = Dictionary(uniqueKeysWithValues: folders.compactMap { folder in
-      captures.current(in: folder)?.binding.map { (folder, $0) }
-    })
+    let bindings = currentByFolder.compactMapValues(\.binding)
     self.bindings = bindings
-    pausedFolders = folders.filter { captures.current(in: $0)?.isPaused == true }
+    pausedFolders = Set(currentByFolder.filter(\.value.isPaused).keys)
     for (id, folder) in strandedLinks {
       strandedLinks[id] = nil
       guard let binding = bindings[folder], binding.isLive, binding.isLinked(toChat: id) else { continue }
