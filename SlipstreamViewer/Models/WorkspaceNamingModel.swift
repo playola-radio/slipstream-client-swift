@@ -129,7 +129,10 @@ final class WorkspaceNamingModel: ViewModel {
   func draftChanged(_ draft: String) {
     guard var dialog, dialog.phase != .saving, dialog.phase != .gone else { return }
     dialog.draft = draft
-    if case .rejected = dialog.phase { dialog.phase = .editing }
+    switch dialog.phase {
+    case .rejected, .saveFailed: dialog.phase = .editing
+    case .editing, .saving, .gone: break
+    }
     self.dialog = dialog
   }
 

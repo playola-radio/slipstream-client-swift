@@ -177,6 +177,19 @@ struct WorkspaceNamingModelTests {
     expectNoDifference([model.failureHeadline, model.failureDetail], expected)
   }
 
+  @Test func editingAfterAFailedSaveClearsTheFailure() async {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
+    nameFake.setFailures(.unavailable)
+    await model.renameConfirmed()
+
+    model.draftChanged("Sidebar polling")
+
+    expectNoDifference(
+      model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "Sidebar polling", phase: .editing))
+    expectNoDifference([model.primaryButtonTitle, model.errorText], ["Rename", nil])
+  }
+
   @Test func copyErrorCopiesDetail() async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
