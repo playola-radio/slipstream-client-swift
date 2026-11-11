@@ -80,8 +80,8 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var archiveTarget: SessionOption?
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
   private(set) var sidebarGroups: [SidebarGroup] = []
-  /// Repo groups whose main checkout was already looked up this run, found or not.
-  @ObservationIgnored private var lookedUpRepositories: Set<String> = []
+  /// Workspace folders whose main checkout was already looked up this run, found or not.
+  @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -1600,14 +1600,15 @@ final class ChangeStreamPageModel: ViewModel {
   /// and a moved checkout is followed while the repo still has one.
   private func rememberRepositories(in groups: [SidebarGroup]) {
     for group in groups {
-      guard let name = group.repository, let folder = group.rows.first?.root,
-        lookedUpRepositories.insert(name).inserted
-      else { continue }
-      let workspace = workspace
-      Task { [weak self] in
-        guard let repository = await workspace.repository(URL(filePath: folder)), let self else { return }
-        $sidebarRepositories.withLock { $0[name] = Self.normalizedFolder(repository.path) }
-        sidebarInputsChanged()
+      guard let name = group.repository else { continue }
+      for row in group.rows {
+        guard let folder = row.root, lookedUpRepositoryFolders.insert(folder).inserted else { continue }
+        let workspace = workspace
+        Task { [weak self] in
+          guard let repository = await workspace.repository(URL(filePath: folder)), let self else { return }
+          $sidebarRepositories.withLock { $0[name] = Self.normalizedFolder(repository.path) }
+          sidebarInputsChanged()
+        }
       }
     }
   }

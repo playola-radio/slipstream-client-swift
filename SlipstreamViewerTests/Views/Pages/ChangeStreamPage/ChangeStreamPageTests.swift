@@ -4630,6 +4630,35 @@ extension ChangeStreamPageTests {
     await creating.value
   }
 
+  @Test func aLiveWorkspaceRemembersItsRepoWhenAnArchivedWorkspaceSortsFirst() async {
+    let archivedRoot = "/work/slipstream/workspaces/r/archived"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: archivedRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    let lookedUp = LockIsolated<[String]>([])
+    let model = makeModel(workspace: workspaceClient(repository: { folder in
+      lookedUp.withValue { $0.append(folder.path) }
+      return folder.path == Self.workspaceRoot ? URL(filePath: "/code/r") : nil
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    fake.setSessions([])
+    fake.setCaptures([])
+    await model.reloadShortcutPressed()
+
+    expectNoDifference(lookedUp.value, [archivedRoot, Self.workspaceRoot])
+    expectNoDifference(Self.names(model.sidebarGroups), [["r"]])
+  }
+
   @Test func aRememberedRepoShowsWithoutWorkspacesOnLaunch() async {
     let fileStorage = FileStorage.inMemory
     withDependencies { $0.defaultFileStorage = fileStorage } operation: {
