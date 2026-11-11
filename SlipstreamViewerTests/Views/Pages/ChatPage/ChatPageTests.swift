@@ -22,6 +22,8 @@ struct ChatPageTests {
   let clock = TestClock()
   let elapsed = LockIsolated<TimeInterval>(0)
   let copied = LockIsolated<[String]>([])
+  let opened = LockIsolated<[URL]>([])
+  let openError = LockIsolated<(any Error)?>(nil)
 
   func makeModel(records: [ChatTabRecord] = []) -> ChatPageModel {
     withDependencies {
@@ -35,6 +37,10 @@ struct ChatPageTests {
       $0.date = DateGenerator { [elapsed] in Self.start.addingTimeInterval(elapsed.value) }
       $0.timeZone = TimeZone(identifier: "UTC")!
       $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
+      $0.attachments.open = { [opened, openError] file in
+        if let error = openError.value { throw error }
+        opened.withValue { $0.append(file) }
+      }
     } operation: {
       @Shared(.chatTabs) var stored
       $stored.withLock { $0 = IdentifiedArray(uniqueElements: records) }
@@ -2706,5 +2712,102 @@ struct ChatPageTests {
     await model.closeTabTapped(tab.id)
 
     expectNoDifference(signals.value, [.delivery(Self.saved, .exitedUnread(relayID: Self.relayID))])
+  }
+}
+
+// MARK: - Queued messages and attachment chips
+
+extension ChatPageTests {
+  func idleTab(draft: String = "half typed") throws -> ChatTabModel {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    tab.draft = draft
+    return tab
+  }
+
+  @Test func enqueueWhenIdleStartsTurnAndKeepsDraft() async throws {
+    let tab = try idleTab()
+
+    try await tab.enqueueUserMessage("Commit and push all changes")
+
+    #expect(agent.launches.count == 1)
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Commit and push all changes"))])
+    expectNoDifference(
+      tab.projection.items.map(\.kind), [.userMessage("Commit and push all changes")])
+    #expect(tab.isWorking)
+    #expect(tab.draft == "half typed")
+  }
+
+  @Test func enqueueMidTurnWritesImmediately() async throws {
+    let tab = try idleTab(draft: "hi")
+    await tab.send()
+    #expect(tab.isWorking)
+    tab.draft = "half typed"
+
+    try await tab.enqueueUserMessage("Commit and push all changes")
+
+    expectNoDifference(
+      agent.writes(0),
+      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.userMessage("Commit and push all changes"))])
+    #expect(tab.isWorking)
+    #expect(tab.draft == "half typed")
+  }
+
+  @Test func enqueueWriteFailureRemovesRowAndThrows() async throws {
+    let tab = try idleTab()
+    agent.setWriteError(WriteFailed())
+
+    await #expect(throws: WriteFailed.self) { try await tab.enqueueUserMessage("Commit and push all changes") }
+
+    expectNoDifference(tab.projection.items, [])
+    #expect(!tab.isWorking)
+    #expect(tab.draft == "half typed")
+  }
+
+  @Test func enqueueOnClosedTabThrows() async throws {
+    let tab = try idleTab()
+    await tab.close()
+
+    await #expect(throws: MessageNotWritten.self) { try await tab.enqueueUserMessage("Commit and push all changes") }
+
+    expectNoDifference(agent.launches.indices.flatMap(agent.writes), [])
+    #expect(!tab.isWorking)
+  }
+
+  static let marked = "Create a PR @\u{27E6}PR instructions.md\u{27E7}(/tmp/x/PR%20instructions.md)"
+
+  func markedRow(_ text: String = marked) -> TranscriptItem {
+    TranscriptItem(id: "u", kind: .userMessage(text))
+  }
+
+  @Test func markerRendersAsAttachment() throws {
+    let tab = try idleTab()
+
+    expectNoDifference(
+      tab.attachment(for: markedRow()),
+      AttachmentMarker.Parsed(body: "Create a PR", name: "PR instructions.md", path: "/tmp/x/PR instructions.md"))
+    #expect(tab.attachment(for: markedRow("Create a PR")) == nil)
+    #expect(tab.attachment(for: TranscriptItem(id: "r", kind: .reply(Self.marked))) == nil)
+  }
+
+  @Test func attachmentTapOpensFile() throws {
+    let tab = try idleTab()
+
+    tab.attachmentTapped(markedRow())
+
+    expectNoDifference(opened.value, [URL(fileURLWithPath: "/tmp/x/PR instructions.md")])
+    #expect(tab.attachmentAlert == nil)
+  }
+
+  @Test func attachmentTapMissingFileShowsAlert() throws {
+    let tab = try idleTab()
+    openError.setValue(AttachmentError.missing("/tmp/x/PR instructions.md"))
+
+    tab.attachmentTapped(markedRow())
+
+    #expect(tab.attachmentAlert?.contains("/tmp/x/PR instructions.md") == true)
+    tab.attachmentAlertDismissed()
+    #expect(tab.attachmentAlert == nil)
   }
 }

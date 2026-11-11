@@ -1071,6 +1071,19 @@ enum DesignTokens {
       static let maxWidth: CGFloat = 520
     }
 
+    enum Attachment {
+      static let height: CGFloat = 26
+      static let fill = Color(hex: 0x1A2129)
+      static let radius: CGFloat = 5
+      static let stroke = Color(hex: 0x33404C)
+      static let strokeWidth: CGFloat = 1
+      static let gap: CGFloat = 6
+      static let horizontalPadding: CGFloat = 9
+      static let icon = Icons.Icon(assetName: "FileText", size: 13, color: Color(hex: 0x8B9AA6))
+      static let nameFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let nameColor = Color(hex: 0xB7C3CD)
+    }
+
     enum Relay {
       static let gap: CGFloat = 8
       static let tagGap: CGFloat = 6

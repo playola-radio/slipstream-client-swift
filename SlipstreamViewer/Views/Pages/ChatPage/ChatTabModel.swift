@@ -10,6 +10,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.agentProcess) var agentProcess
+  @ObservationIgnored @Dependency(\.attachments) var attachments
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
   @ObservationIgnored @Dependency(\.date) var date
@@ -36,6 +37,11 @@ final class ChatTabModel: ViewModel, Identifiable {
   var projection = TranscriptProjection()
   var draft = ""
   var errorText: String?
+  var attachmentAlert: String?
+  var isAttachmentAlertPresented: Bool {
+    get { attachmentAlert != nil }
+    set { if !newValue { attachmentAlertDismissed() } }
+  }
   var isWorking: Bool { activeTurn != nil }
   var isTitleBold: Bool { record.isWaiting }
   var showsSpinner: Bool { isWorking }
@@ -84,6 +90,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   let thinkingText = "Thinking"
   let closeAccessibilityLabel = "Close chat"
   let copyAccessibilityLabel = "Copy reply"
+  let attachmentAlertTitle = "Couldn't open the file"
+  let attachmentAlertDismissText = "OK"
 
   var pickerText: String {
     Self.pickerText(model: record.model, effort: record.effort)
@@ -119,6 +127,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .gap:
       return Self.gapText
     }
+  }
+
+  func attachment(for item: TranscriptItem) -> AttachmentMarker.Parsed? {
+    guard case .userMessage = item.kind else { return nil }
+    return AttachmentMarker.parse(rowText(for: item))
   }
 
   func relayLabel(for item: TranscriptItem) -> String? {
@@ -239,16 +252,9 @@ final class ChatTabModel: ViewModel, Identifiable {
       return
     }
     guard let handle, activeTurn?.id == turn else { return }
-    let itemID = uuid().uuidString
-    let launch = handleGeneration
-    let isQueued = hasUnreadInput
-    projection.userSent(text, id: itemID)
-    if isQueued { queuedSends += 1 }
     do {
-      try await handle.write(ClaudeInvocation.userMessage(text))
+      try await writeUserMessage(text, to: handle)
     } catch {
-      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
-      projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
       // An echo means the process is already working on a message it read for this turn.
       if activeTurn?.isEchoed == false { activeTurn = nil }
@@ -289,6 +295,32 @@ final class ChatTabModel: ViewModel, Identifiable {
       projection.markRelay(id: itemID, delivery: .notDelivered)
       if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
       throw RelayNotWritten()
+    }
+    if let startedTurn, activeTurn?.id == startedTurn {
+      $record.withLock { $0.isWaiting = false }
+    }
+  }
+
+  /// Writes like `send()` but also mid-turn, and never reads or clears the draft. Throws when
+  /// nothing reached the process.
+  func enqueueUserMessage(_ text: String) async throws {
+    if activeTurn == nil { await awaitRetired() }
+    guard !isClosed, !Task.isCancelled else { throw MessageNotWritten() }
+    let startedTurn = activeTurn == nil ? beginTurn() : nil
+    if handle == nil, startedTurn != nil {
+      _ = await start()
+    } else if handle == nil {
+      for task in starting { _ = await task.value }
+    }
+    guard let handle, !isClosed, !Task.isCancelled else {
+      if let startedTurn, activeTurn?.id == startedTurn { activeTurn = nil }
+      throw MessageNotWritten()
+    }
+    do {
+      try await writeUserMessage(text, to: handle)
+    } catch {
+      if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
+      throw error
     }
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
@@ -350,6 +382,19 @@ final class ChatTabModel: ViewModel, Identifiable {
     pasteboard.copy(projection.replyText(endingAt: footer.id))
   }
 
+  func attachmentTapped(_ item: TranscriptItem) {
+    guard let parsed = attachment(for: item) else { return }
+    do {
+      try attachments.open(URL(fileURLWithPath: parsed.path))
+    } catch {
+      attachmentAlert = error.localizedDescription
+    }
+  }
+
+  func attachmentAlertDismissed() {
+    attachmentAlert = nil
+  }
+
   func clockTicked() {
     guard isWorking else { return }
     now = date.now
@@ -406,6 +451,22 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let turnFailedText = "Claude couldn't finish this turn"
   private static let crashedText = "Claude stopped unexpectedly"
   private static let gapText = "Part of this conversation couldn't be shown"
+
+  /// Projects the message and writes it, taking the row back out when the write fails.
+  private func writeUserMessage(_ text: String, to handle: AgentProcessHandle) async throws {
+    let itemID = uuid().uuidString
+    let launch = handleGeneration
+    let isQueued = hasUnreadInput
+    projection.userSent(text, id: itemID)
+    if isQueued { queuedSends += 1 }
+    do {
+      try await handle.write(ClaudeInvocation.userMessage(text))
+    } catch {
+      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
+      projection.removeUserMessage(id: itemID)
+      throw error
+    }
+  }
 
   /// Tracked, so a shutdown can wait for a launch that is still on its way. The generation is
   /// taken before the task is scheduled, so a shutdown in between still invalidates it.
@@ -703,3 +764,5 @@ enum RelayDelivery: Equatable, Sendable {
 }
 
 struct RelayNotWritten: Error {}
+
+struct MessageNotWritten: Error {}
