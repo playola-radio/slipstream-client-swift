@@ -1351,25 +1351,6 @@ final class ChangeStreamPageModel: ViewModel {
         !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
-      await withTaskGroup(of: (String, SessionStarted?).self) { group in
-        for summary in summaries {
-          group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
-        }
-        var starts: [String: SessionStarted] = [:]
-        for await (id, start) in group {
-          starts[id] = start
-          guard generation == sessionsGeneration else { return }
-          if let start {
-            let root = Self.normalizedFolder(start.root)
-            sessions[id: id]?.root = root
-            if selectedSession?.id == id { selectedSession?.root = root }
-          }
-          for (id, label) in sessionLabels(starts) {
-            sessions[id: id]?.label = label
-            if selectedSession?.id == id { selectedSession?.label = label }
-          }
-        }
-      }
       if selectedSession == nil, !isCreatingWorkspaceSelected, let folder = chat.folder,
         let session = sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
