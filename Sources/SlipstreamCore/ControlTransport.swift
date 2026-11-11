@@ -151,6 +151,10 @@ public struct DaemonBuild: Equatable, Sendable {
     self.build = build
   }
 
+  public func isNewer(than bundled: RuntimeIdentity) -> Bool {
+    RuntimeInstall.isVersion(version, newerThan: bundled.version)
+  }
+
   static func decode(_ data: Data) throws -> Self {
     try ControlReply.check(data)
     guard let fields = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

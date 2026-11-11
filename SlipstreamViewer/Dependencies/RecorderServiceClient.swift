@@ -1,3 +1,4 @@
+import AppKit
 import Darwin
 import Dependencies
 import Foundation
@@ -18,6 +19,7 @@ struct RecorderServiceClient: Sendable {
   var logSize: @Sendable () -> UInt64
   var logSince: @Sendable (UInt64) throws -> String
   var runShim: @Sendable ([String]) async throws -> ShimRun
+  var openLog: @Sendable () -> Void
 }
 
 struct RecorderServiceError: Error, Equatable, CustomStringConvertible {
@@ -92,7 +94,8 @@ extension RecorderServiceClient: DependencyKey {
         let shim = RuntimeInstallClient.shim.path
         let (output, status) = try await WorkspaceClient.runInBackground(shim, arguments, environment: environment)
         return ShimRun(command: commandLine([shim] + arguments), exitCode: status, output: output)
-      }
+      },
+      openLog: { _ = NSWorkspace.shared.open(logFile) }
     )
   }
 
@@ -105,7 +108,8 @@ extension RecorderServiceClient: DependencyKey {
       processDescription: unimplemented("RecorderServiceClient.processDescription", placeholder: nil),
       logSize: unimplemented("RecorderServiceClient.logSize", placeholder: 0),
       logSince: unimplemented("RecorderServiceClient.logSince", placeholder: ""),
-      runShim: unimplemented("RecorderServiceClient.runShim")
+      runShim: unimplemented("RecorderServiceClient.runShim"),
+      openLog: unimplemented("RecorderServiceClient.openLog")
     )
   }
 

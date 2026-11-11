@@ -8,6 +8,7 @@ struct SlipstreamViewerApp: App {
   @State private var instantAsk: InstantAskModel
   @State private var terminals = TerminalPageModel()
   @State private var updater = UpdaterModel()
+  @State private var recorder = RecorderModel()
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   init() {
@@ -42,6 +43,10 @@ struct SlipstreamViewerApp: App {
       .task {
         updater.appLaunched()
         await terminals.launched()
+      }
+      .task {
+        guard !isTesting else { return }
+        await recorder.appLaunched()
       }
       .modifier(QuitFlowHandoff(
         chat: chat, instantAsk: instantAsk, terminals: terminals, appDelegate: appDelegate, windowID: Self.windowID))
