@@ -49,6 +49,7 @@ final class WorkspaceNamingModel: ViewModel {
   // MARK: - Display Text
 
   let titleText = "Rename workspace"
+  let fieldAccessibilityLabel = "Workspace name"
   let helperText = "Only changes the name shown in Slipstream. The folder and branch stay the same."
   let cancelButtonTitle = "Cancel"
   let closeButtonTitle = "Close"

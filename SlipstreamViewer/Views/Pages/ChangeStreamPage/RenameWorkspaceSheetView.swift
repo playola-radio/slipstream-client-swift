@@ -49,6 +49,7 @@ struct RenameWorkspaceSheetView: View {
 
   private var field: some View {
     TextField("", text: $model.draft, selection: $selection)
+      .accessibilityLabel(model.fieldAccessibilityLabel)
       .textFieldStyle(.plain)
       .font(DesignTokens.RenameDialog.fieldFont)
       .foregroundStyle(DesignTokens.RenameDialog.fieldTextColor(isDisabled: model.isFieldDisabled))

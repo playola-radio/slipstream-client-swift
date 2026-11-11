@@ -39,9 +39,9 @@ struct WorkspaceNamingModelTests {
     expectNoDifference(
       model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "Workspace rename menu", phase: .editing))
     expectNoDifference(
-      [model.titleText, model.helperText, model.primaryButtonTitle],
+      [model.titleText, model.fieldAccessibilityLabel, model.helperText, model.primaryButtonTitle],
       [
-        "Rename workspace", "Only changes the name shown in Slipstream. The folder and branch stay the same.",
+        "Rename workspace", "Workspace name", "Only changes the name shown in Slipstream. The folder and branch stay the same.",
         "Rename",
       ])
     #expect(model.isRenameEnabled)

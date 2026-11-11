@@ -206,6 +206,7 @@ private struct WorkspaceRowView: View {
       if model.isArchivable(session) {
         Divider()
         Button(model.archiveMenuText, systemImage: "archivebox") { model.archiveTapped(session) }
+          .disabled(model.isWorkspaceBusy)
       }
     }
   }
