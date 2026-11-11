@@ -34,7 +34,7 @@ enum RecorderState: Equatable {
   case running
   case restarting(from: String, to: RuntimeIdentity)
   case updateDidntFinish(running: DaemonBuild, bundled: RuntimeIdentity, UpdateFailure, Evidence)
-  case anotherRecorder(pid: Int32, running: DaemonBuild, Evidence)
+  case anotherRecorder(pid: Int32, running: DaemonBuild, bundled: RuntimeIdentity, Evidence)
   case wontStart(RuntimeIdentity?, StartFailure, Evidence)
   case migrationIncomplete(RuntimeIdentity, MigrationFailure, Evidence)
   case external
@@ -299,7 +299,7 @@ final class RecorderModel: ViewModel {
           + "newer than this app's \(bundled.version) (app build \(bundled.appBuild))")
     }
     let evidence = Evidence(source: Self.probeSource, text: lines.joined(separator: "\n"))
-    publish(.anotherRecorder(pid: pid, running: running, evidence), mine)
+    publish(.anotherRecorder(pid: pid, running: running, bundled: bundled, evidence), mine)
     if current == nil, pid > 0, let description, !running.isNewer(than: bundled) {
       replaceTarget = ReplaceTarget(
         pid: pid, description: description, running: running, bundled: bundled, prepared: prepared)

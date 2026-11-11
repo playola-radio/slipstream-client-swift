@@ -85,6 +85,8 @@ extension TerminalRuntimeClient: DependencyKey {
         return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
       },
       launch: { launch in
+        // Shell tabs share the environment, so a missing shim only fails the launch that runs it.
+        if launch.executable == RuntimeInstallClient.shim.path { _ = try RuntimeInstallClient.installedShim() }
         let process = try TerminalProcess(launch)
         return TerminalProcessHandle(
           events: process.events,

@@ -197,7 +197,13 @@ private struct RecorderMessagePreview: View {
 #Preview("Another recorder") {
   RecorderMessagePreview(
     state: .anotherRecorder(
-      pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil), previewEvidence))
+      pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil), bundled: previewIdentity, previewEvidence))
+}
+
+#Preview("Newer recorder") {
+  RecorderMessagePreview(
+    state: .anotherRecorder(
+      pid: 8594, running: DaemonBuild(version: "0.3.3", build: nil), bundled: previewIdentity, previewEvidence))
 }
 
 #Preview("Won't start") {

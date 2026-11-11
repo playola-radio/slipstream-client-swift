@@ -20,7 +20,7 @@ extension ChatLinkClient: DependencyKey {
       captures: { try await daemon.listCaptures(daemon.discover())?.captures ?? [] },
       run: { arguments, environment in
         let (output, status) = try await WorkspaceClient.runInBackground(
-          RuntimeInstallClient.shim.path, arguments, environment: environment)
+          try RuntimeInstallClient.installedShim(), arguments, environment: environment)
         return (status, output)
       }
     )

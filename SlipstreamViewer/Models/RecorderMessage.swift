@@ -86,16 +86,27 @@ struct RecorderMessage: Equatable {
       self.init(
         icon: .warning, tone: .warning, headline: headline, footer: footer, evidence: evidence, actions: [.tryAgain])
 
-    case let .anotherRecorder(pid, running, evidence):
+    case let .anotherRecorder(pid, running, bundled, evidence):
       let who = running.build.map { "recorder \(running.version) (build \($0.prefix(8)))" } ?? "npm \(running.version)"
       let path = (store as NSString).abbreviatingWithTildeInPath
-      let ending = replaceIsAvailable
-        ? "It's still recording; the app won't stop it unless you replace it."
-        : "It's still recording; the app won't stop it."
+      let (headline, footer) =
+        if running.isNewer(than: bundled) {
+          (
+            "A recorder newer than this app's \(bundled.version) (pid \(pid), \(who)) is using \(path). "
+              + "It's still recording; update Slipstream so the app can switch to its own recorder.",
+            "Recorder pid \(pid) is \(who), newer than this app's \(bundled.version)"
+          )
+        } else {
+          (
+            "A recorder this app didn't start (pid \(pid), \(who)) is using \(path). "
+              + (replaceIsAvailable
+                ? "It's still recording; the app won't stop it unless you replace it."
+                : "It's still recording; the app won't stop it."),
+            "Recorder pid \(pid) is \(who), not started by this app"
+          )
+        }
       self.init(
-        icon: .warning, tone: .warning,
-        headline: "A recorder this app didn't start (pid \(pid), \(who)) is using \(path). \(ending)",
-        footer: "Recorder pid \(pid) is \(who), not started by this app",
+        icon: .warning, tone: .warning, headline: headline, footer: footer,
         evidence: evidence, actions: replaceIsAvailable ? [.replaceIt] : [])
 
     case let .wontStart(bundled, failure, evidence):
