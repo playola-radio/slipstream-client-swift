@@ -463,7 +463,7 @@ final class ChangeStreamPageModel: ViewModel {
   var footerMessage: RecordingMessage? { recording.footerMessage }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
-  var isFooterShown: Bool { !isRecorderDockShown && (selectedSession?.hasHistory ?? true) }
+  var isFooterShown: Bool { selectedSession?.hasHistory ?? true }
 
   var recorderMessageIsDocked: Bool {
     if case .migrationIncomplete = recorder.state { return true }
@@ -736,16 +736,17 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func recorderActionTapped(_ action: RecorderMessage.Action) async {
+    let generation = sessionsGeneration
     switch action {
     case .tryAgain:
       switch recorder.state {
       case .running, .external: break
       default: await recorder.tryAgainTapped()
       }
-      await reloadSessions()
+      if isShown && generation == sessionsGeneration { await reloadSessions() }
     case .replaceIt:
       await recorder.replaceItTapped()
-      await reloadSessions()
+      if isShown && generation == sessionsGeneration { await reloadSessions() }
     case .openLogFile:
       recorder.openLogTapped()
     }

@@ -269,7 +269,7 @@ struct RecorderModelTests {
   }
 
   @Test func outcomeUnknownBeforeInstallWaitsWithoutInstalling() async {
-    fake.statusErrors.setValue([.outcomeUnknown])
+    fake.statusErrorsWhileEnvironmentLoads.setValue([.outcomeUnknown])
     let model = makeModel()
     let launch = Task { await model.appLaunched() }
     await Task.megaYield()
@@ -614,6 +614,7 @@ final class RecorderFake: Sendable {
   let startsOnInstall = LockIsolated<DaemonBuild?>(RecorderModelTests.bundledBuild)
   let statusError = LockIsolated<RecorderServiceError?>(nil)
   let statusErrors = LockIsolated<[QuestionError]>([])
+  let statusErrorsWhileEnvironmentLoads = LockIsolated<[QuestionError]>([])
   let installTakes = LockIsolated<Duration?>(nil)
   let startsWhileEnvironmentLoads = LockIsolated<DaemonBuild?>(nil)
 
@@ -653,6 +654,7 @@ final class RecorderFake: Sendable {
       logSize: { self.logSize.value },
       logSince: { offset in "log after \(offset)" },
       shimEnvironment: {
+        self.statusErrors.withValue { $0.append(contentsOf: self.statusErrorsWhileEnvironmentLoads.value) }
         if let build = self.startsWhileEnvironmentLoads.value {
           self.running.setValue(build)
           self.lockPID.setValue(501)

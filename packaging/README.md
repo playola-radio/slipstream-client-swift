@@ -157,8 +157,10 @@ recorder you rely on. Record each line's result in the pull request.
    copied runtime).
 9. Each recorder state in `design/features/bundled-daemon/screens.md`, checked against its
    SwiftUI preview in `RecorderMessageView.swift`.
-10. Two app builds that bundle the same recorder, launched alternately → the newer build
-    keeps the recorder, the older one shows "another recorder", and nothing restarts.
+10. Two app builds that bundle the same recorder version, launched alternately → when their
+    daemon build ids differ, the newer app build keeps the recorder and the older one shows
+    "another recorder"; when the daemon build is identical, both show running. Nothing restarts
+    in either case.
 
 Lines 6 and 7 may use a Debug-signed build against a disposable store (`SLIPSTREAM_STORE`).
 

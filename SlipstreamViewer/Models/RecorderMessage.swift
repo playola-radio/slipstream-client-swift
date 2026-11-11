@@ -36,7 +36,7 @@ struct RecorderMessage: Equatable {
   var evidence: Evidence?
   var actions: [Action]
 
-  var dockedActions: [Action] { Array(actions.prefix(1)) }
+  var dockedActions: [Action] { actions }
 
   func isPrimary(_ action: Action) -> Bool { action == actions.first }
 

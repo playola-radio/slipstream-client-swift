@@ -5354,6 +5354,13 @@ extension ChangeStreamPageTests {
         actions: [.tryAgain, .openLogFile]))
   }
 
+  @Test func dockedRecorderMessageKeepsEveryAction() async {
+    let model = await closedStreamModel(Self.recorderStates[4])
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(model.recorderMessage?.dockedActions, [.tryAgain, .openLogFile])
+  }
+
   @Test func migrationIncompleteNamesWhatStillPointsAtNpm() async {
     let model = await closedStreamModel(Self.recorderStates[5])
     defer { model.viewDisappeared() }
@@ -5380,6 +5387,40 @@ extension ChangeStreamPageTests {
     let isMigration = if case .migrationIncomplete = state { true } else { false }
     expectNoDifference(model.selectedSession != nil, isStreamOpen)
     expectNoDifference(model.recorderMessageIsDocked, isStreamOpen || isMigration)
+  }
+
+  @Test func persistentRecorderDockKeepsTheSelectedStreamFooterVisible() async {
+    let model = makeModel(recorder: RecorderModel(state: Self.recorderStates[5]))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    #expect(model.isRecorderDockShown)
+    #expect(model.isFooterShown)
+  }
+
+  @Test func recorderRetryDoesNotReloadAfterThePageDisappears() async {
+    let recorderFake = RecorderFake(clock: clock)
+    let recorder = withDependencies {
+      $0.continuousClock = clock
+      $0.recorderService = recorderFake.service
+      $0.runtimeInstall = recorderFake.runtimeInstall
+    } operation: {
+      RecorderModel(
+        state: .wontStart(
+          RecorderModelTests.bundled, .probe,
+          Evidence(source: "status", text: "connection closed")))
+    }
+    let model = makeModel(recorder: recorder)
+    await model.viewAppeared()
+    let calls = fake.sessionsCallCount
+
+    let retry = Task { await model.recorderActionTapped(.tryAgain) }
+    await Task.megaYield()
+    model.viewDisappeared()
+    await clock.advance(by: .milliseconds(250))
+    await retry.value
+
+    expectNoDifference(fake.sessionsCallCount, calls)
   }
 
   @Test func connectionErrorShowsDetail() async {
