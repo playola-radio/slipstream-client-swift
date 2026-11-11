@@ -2272,6 +2272,43 @@ struct ChatPageTests {
     expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("again"))])
   }
 
+  @Test func linkSeenAfterLaunchRestartsTheChatToTellItItsTools() async {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    await send(model, "hi")
+    await line(Line.result())
+
+    model.capturesArrived(captures(binding(.connected)).currentByFolder())
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 1)
+    await send(model, "again")
+
+    expectNoDifference(
+      agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
+  }
+
+  @Test func laterReadsLeaveAChatThatKnewItsLinkRunning() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+    await send(model, "hi")
+    await line(Line.result())
+
+    model.capturesArrived(captures(binding(.connected)).currentByFolder())
+    await Task.megaYield()
+
+    #expect(agent.shutdowns(0) == 0)
+  }
+
+  @Test func slashCommandLeadsItsMessageAndTheInstructionWaits() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "/review")
+    await line(Line.result())
+
+    await send(model, "hi")
+
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("/review")), firstMessage("hi")])
+  }
+
   @Test func failedWriteKeepsTheInstructionForTheRetry() async {
     agent.setWriteError(WriteFailed())
     let model = makeModel(records: [record()])

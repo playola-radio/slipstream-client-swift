@@ -1,4 +1,3 @@
-import CustomDump
 import SlipstreamCore
 import Testing
 
@@ -54,7 +53,7 @@ struct SlipstreamInstructionTests {
     let lines: [AgentLine] = [
       .user(
         uuid: "u1", timestamp: nil, isPrompt: false,
-        blocks: [.toolResult(toolUseID: "t1", text: SlipstreamInstruction.linked.block, isError: false)])
+        blocks: [.toolResult(toolUseID: "t1", text: SlipstreamInstruction.prefixed("Go", with: [.linked]), isError: false)])
     ]
 
     #expect(!SlipstreamInstruction.linked.wasSent(in: lines))

@@ -59,6 +59,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   private var needsHistory: Bool
   /// The process predates this chat's link, so it is dropped when the running turn ends.
   @ObservationIgnored private var reloadWhenIdle = false
+  /// Whether the current process launched after its link was seen.
+  @ObservationIgnored private var launchedLinked = false
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var handleGeneration = 0
   /// Relays written to each launch that it hasn't echoed yet, in the order they were sent.
@@ -248,7 +250,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     let isQueued = hasUnreadInput
     projection.userSent(text, id: itemID)
     if isQueued { queuedSends += 1 }
-    let sentInstructions = takeInstructions()
+    let sentInstructions = takeInstructions(for: text)
     do {
       try await handle.write(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: sentInstructions)))
     } catch {
@@ -286,7 +288,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     let itemID = message.relayID.uuidString
     projection.userSent(message.text, id: itemID, relay: RelayMark(label: message.label, delivery: .waiting))
     unreadRelays[launch, default: []].append(message.relayID)
-    let sentInstructions = takeInstructions()
+    let sentInstructions = takeInstructions(for: message.text)
     do {
       try await handle.write(
         ClaudeInvocation.userMessage(
@@ -376,6 +378,13 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
+  /// A capture read shows this chat linked, perhaps from outside the app or after a read that
+  /// lagged the link; a process launched before it knew is handled as if just linked.
+  func linkSeen() {
+    guard handle != nil, !launchedLinked else { return }
+    streamLinked()
+  }
+
   /// Shuts down for good: a send still waiting on an earlier shutdown launches nothing.
   func close() async {
     isClosed = true
@@ -454,7 +463,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
-      instructions = Self.instructions(session: session, lookup: lookup, isLinked: isStreamLinked())
+      launchedLinked = isStreamLinked()
+      instructions = Self.instructions(session: session, lookup: lookup, isLinked: launchedLinked)
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
       followers[generation] = Task { [weak self] in
         for await event in handle.events {
@@ -527,7 +537,9 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  private func takeInstructions() -> [SlipstreamInstruction] {
+  /// A slash command only runs when it leads the message, so the guidance waits for the next one.
+  private func takeInstructions(for text: String) -> [SlipstreamInstruction] {
+    guard !text.hasPrefix("/") else { return [] }
     defer { instructions = [] }
     return instructions
   }

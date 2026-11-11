@@ -250,6 +250,7 @@ final class ChatPageModel: ViewModel {
     }
     let bindings = currentByFolder.compactMapValues(\.binding)
     self.bindings = bindings
+    for tab in tabs where isLinked(tab.id) { tab.linkSeen() }
     pausedFolders = Set(currentByFolder.filter(\.value.isPaused).keys)
     for (id, folder) in strandedLinks {
       strandedLinks[id] = nil
