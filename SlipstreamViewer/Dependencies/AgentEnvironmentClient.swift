@@ -239,8 +239,10 @@ extension AgentEnvironmentClient: DependencyKey {
       capture.status = process.terminationStatus
       return capture
     }
-    // An interactive shell ignores SIGTERM.
-    kill(process.processIdentifier, SIGKILL)
+    // An interactive shell ignores SIGTERM. The command leads its own process group, so killing
+    // the group also stops anything it started.
+    let pid = process.processIdentifier
+    if kill(-pid, SIGKILL) != 0 { kill(pid, SIGKILL) }
     process.waitUntilExit()
     capture.didTimeOut = true
     return capture

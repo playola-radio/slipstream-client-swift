@@ -187,6 +187,12 @@ final class PRStatusBarModel: ViewModel {
 
   var isContinueShown: Bool { status == .merged }
 
+  /// Waits like the agent buttons: switching branches under a working agent would move its files.
+  var isContinueEnabled: Bool {
+    guard operation == nil, let folder = chat.folder else { return false }
+    return !chat.hasWorkingTab(in: folder)
+  }
+
   var isArchiveShown: Bool { isContinueShown && isArchivable() }
 
   var isDetailsShown: Bool { failure != nil }
@@ -239,7 +245,7 @@ final class PRStatusBarModel: ViewModel {
 
   /// Starts the next branch from the latest target (spec "Actions → Continue").
   func continueTapped() async {
-    guard isContinueShown, operation == nil, let folder = chat.folder, let snapshot else { return }
+    guard isContinueShown, isContinueEnabled, let folder = chat.folder, let snapshot else { return }
     failedAction = nil
     operation = .continuing
     defer { operation = nil }
@@ -254,8 +260,13 @@ final class PRStatusBarModel: ViewModel {
         ["git", "ls-remote", "--heads", "origin"], in: folder, timeout: Self.gitTimeout, title: title)
       let taken = local.split(separator: "\n").map(String.init) + Self.remoteBranches(remote)
       let name = PRInstructions.nextBranchName(after: snapshot.branch, taken: Set(taken))
+      if let change = try await changeSinceMerge(snapshot, in: folder, title: title) {
+        reloadRequested()
+        throw PRBarFailure(title: title, details: "Folder: \(folder)\n\(change)")
+      }
       _ = try await output(
-        ["git", "switch", "-c", name, "origin/\(target)"], in: folder, timeout: Self.gitTimeout, title: title)
+        ["git", "switch", "--no-track", "-c", name, "origin/\(target)"], in: folder, timeout: Self.gitTimeout,
+        title: title)
     } catch {
       failedAction = FailedAction(folder: folder, failure: error)
     }
@@ -412,6 +423,19 @@ final class PRStatusBarModel: ViewModel {
     }
   }
 
+  /// Merged was shown for a clean worktree at the merged head; says what no longer holds.
+  private func changeSinceMerge(_ snapshot: RepoSnapshot, in folder: String, title: String)
+    async throws(PRBarFailure) -> String?
+  {
+    let branch = try await output(
+      ["git", "rev-parse", "--abbrev-ref", "HEAD"], in: folder, timeout: Self.gitTimeout, title: title)
+    if branch != snapshot.branch { return "The checked-out branch changed from \(snapshot.branch) to \(branch)." }
+    let head = try await output(["git", "rev-parse", "HEAD"], in: folder, timeout: Self.gitTimeout, title: title)
+    if head != snapshot.pullRequest?.headRefOid { return "HEAD moved since the PR merged." }
+    if try await uncommittedCount(in: folder, title: title) > 0 { return "The branch has uncommitted changes." }
+    return nil
+  }
+
   private func merge(_ snapshot: RepoSnapshot, in folder: String) async {
     guard let pullRequest = snapshot.pullRequest else { return }
     operation = .merging
@@ -485,7 +509,7 @@ final class PRStatusBarModel: ViewModel {
     let pullRequest = PRStatus.selectPullRequest(pullRequests, head: head, uncommitted: uncommitted)
 
     var snapshot = RepoSnapshot(
-      head: head, branch: branch, uncommittedCount: uncommitted, defaultBranch: repository.defaultBranch,
+      branch: branch, uncommittedCount: uncommitted, defaultBranch: repository.defaultBranch,
       mergeMethod: repository.mergeMethod, pullRequest: pullRequest, pushState: nil, aheadOfTarget: nil)
     switch pullRequest?.state {
     case nil:

@@ -6,7 +6,6 @@ public enum PushState: Equatable, Sendable {
 
 /// The facts one status check gathered about the workspace's branch.
 public struct RepoSnapshot: Equatable, Sendable {
-  public var head: String
   public var branch: String
   public var uncommittedCount: Int
   public var defaultBranch: String
@@ -18,7 +17,6 @@ public struct RepoSnapshot: Equatable, Sendable {
   public var aheadOfTarget: Int?
 
   public init(
-    head: String,
     branch: String,
     uncommittedCount: Int,
     defaultBranch: String,
@@ -27,7 +25,6 @@ public struct RepoSnapshot: Equatable, Sendable {
     pushState: PushState?,
     aheadOfTarget: Int?
   ) {
-    self.head = head
     self.branch = branch
     self.uncommittedCount = uncommittedCount
     self.defaultBranch = defaultBranch
@@ -50,7 +47,7 @@ public enum WaitingReason: Equatable, Sendable {
 
 /// Where the branch's pull request stands. The pull request itself stays on the snapshot.
 public enum PRStatus: Equatable, Sendable {
-  case noPRUncommitted(count: Int)
+  case noPRUncommitted
   case noPRCommitted(ahead: Int, target: String)
   case nothingToSubmit
   case commitAndPush
@@ -68,7 +65,7 @@ public enum PRStatus: Equatable, Sendable {
   public init(snapshot: RepoSnapshot) {
     guard let pullRequest = snapshot.pullRequest else {
       if snapshot.uncommittedCount > 0 {
-        self = .noPRUncommitted(count: snapshot.uncommittedCount)
+        self = .noPRUncommitted
       } else if let ahead = snapshot.aheadOfTarget, ahead > 0 {
         self = .noPRCommitted(ahead: ahead, target: snapshot.defaultBranch)
       } else {

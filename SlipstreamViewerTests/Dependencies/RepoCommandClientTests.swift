@@ -52,6 +52,19 @@ struct RepoCommandClientTests {
     expectNoDifference(result.ending, .timedOut(.milliseconds(200)))
   }
 
+  @Test func timeoutKillsTheCommandsChildren() async throws {
+    let result = await client.run(
+      ["sh", "-c", "sleep 60 & echo $!; wait"], URL(fileURLWithPath: "/tmp"), .milliseconds(500))
+    let pid = try #require(pid_t(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)))
+    defer { kill(pid, SIGKILL) }
+
+    let deadline = Date.now.addingTimeInterval(2)
+    while kill(pid, 0) == 0 && Date.now < deadline { usleep(20_000) }
+
+    expectNoDifference(result.ending, .timedOut(.milliseconds(500)))
+    #expect(kill(pid, 0) == -1 && errno == ESRCH)
+  }
+
   @Test func missingToolFails() async {
     let result = await client.run(["definitely-not-a-tool"], URL(fileURLWithPath: "/tmp"), .seconds(10))
 

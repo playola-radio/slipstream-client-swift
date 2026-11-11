@@ -89,6 +89,7 @@ struct PRStatusBarView: View {
     ) {
       Task { await model.continueTapped() }
     }
+    .disabled(!model.isContinueEnabled)
   }
 
   private var archiveButton: some View {

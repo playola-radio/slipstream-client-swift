@@ -71,6 +71,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var echoes: Set<String> = []
   /// Sends written behind an unread relay of the current launch and not yet read.
   @ObservationIgnored private var queuedSends = 0
+  /// Messages of the current launch enqueued mid-turn and not yet echoed.
+  @ObservationIgnored private var unreadEnqueues: Set<UUID> = []
   @ObservationIgnored private var followers: [Int: Task<Void, Never>] = [:]
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
   @ObservationIgnored private var starting: [Task<Bool, Never>] = []
@@ -317,7 +319,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       throw MessageNotWritten()
     }
     do {
-      try await writeUserMessage(text, to: handle)
+      try await writeUserMessage(text, to: handle, isMidTurn: startedTurn == nil)
     } catch {
       if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
       throw error
@@ -452,18 +454,21 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let crashedText = "Claude stopped unexpectedly"
   private static let gapText = "Part of this conversation couldn't be shown"
 
-  /// Projects the message and writes it, taking the row back out when the write fails.
-  private func writeUserMessage(_ text: String, to handle: AgentProcessHandle) async throws {
-    let itemID = uuid().uuidString
+  /// Projects the message and writes it, taking the row back out when the write fails. A
+  /// mid-turn message carries its id, so its own echo marks it read.
+  private func writeUserMessage(_ text: String, to handle: AgentProcessHandle, isMidTurn: Bool = false) async throws {
+    let id = uuid()
     let launch = handleGeneration
-    let isQueued = hasUnreadInput
-    projection.userSent(text, id: itemID)
+    let isQueued = !isMidTurn && hasUnreadInput
+    projection.userSent(text, id: id.uuidString)
     if isQueued { queuedSends += 1 }
+    if isMidTurn { unreadEnqueues.insert(id) }
     do {
-      try await handle.write(ClaudeInvocation.userMessage(text))
+      try await handle.write(ClaudeInvocation.userMessage(text, uuid: isMidTurn ? id : nil))
     } catch {
       if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
-      projection.removeUserMessage(id: itemID)
+      if launch == handleGeneration { unreadEnqueues.remove(id) }
+      projection.removeUserMessage(id: id.uuidString)
       throw error
     }
   }
@@ -505,6 +510,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
+      unreadEnqueues = []
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
       followers[generation] = Task { [weak self] in
         for await event in handle.events {
@@ -644,7 +650,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       Task { try? await handle.write(reply) }
     case .echo(let uuid):
       guard echoes.insert(uuid).inserted else { return }
-      if !isPickup { queuedSends = max(0, queuedSends - 1) }
+      let isEnqueued = UUID(uuidString: uuid).map { unreadEnqueues.remove($0) != nil } ?? false
+      if !isPickup && !isEnqueued { queuedSends = max(0, queuedSends - 1) }
       // A message queued behind a finished or stopped turn starts a turn of its own.
       if activeTurn == nil { beginTurn() } else { activeTurn?.isEchoed = true }
     default:
@@ -686,10 +693,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     titleRefresh = Task { [weak self] in await self?.refreshTitle(generation: generation) }
   }
 
-  /// A process that predates a link stays up until it has read every relay sent to it, and
-  /// every send queued behind one.
+  /// A process that predates a link stays up until it has read every relay sent to it, every
+  /// send queued behind one, and every message enqueued mid-turn.
   private var hasUnreadInput: Bool {
-    handle != nil && (queuedSends > 0 || !(unreadRelays[handleGeneration] ?? []).isEmpty)
+    handle != nil
+      && (queuedSends > 0 || !unreadEnqueues.isEmpty || !(unreadRelays[handleGeneration] ?? []).isEmpty)
   }
 
   private func duration(of turn: ActiveTurn) -> Duration {

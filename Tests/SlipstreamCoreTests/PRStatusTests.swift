@@ -47,7 +47,6 @@ private func snapshot(
   ahead: Int? = nil
 ) -> RepoSnapshot {
   RepoSnapshot(
-    head: "head",
     branch: "b/x",
     uncommittedCount: uncommitted,
     defaultBranch: "develop",
@@ -78,7 +77,7 @@ struct PRStatusTests {
   }
 
   @Test(arguments: [
-    (snapshot(uncommitted: 2, ahead: 0), PRStatus.noPRUncommitted(count: 2)),
+    (snapshot(uncommitted: 2, ahead: 0), PRStatus.noPRUncommitted),
     (snapshot(uncommitted: 0, ahead: 3), .noPRCommitted(ahead: 3, target: "develop")),
     (snapshot(uncommitted: 0, ahead: 0), .nothingToSubmit),
   ])

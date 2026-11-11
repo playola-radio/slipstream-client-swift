@@ -107,6 +107,9 @@ struct PRInstructionsTests {
     ("b-2", [], "b-3"),
     ("b-2", ["b-3"], "b-4"),
     ("feature/x", [], "feature/x-2"),
+    ("feature-9223372036854775807", [], "feature-9223372036854775807-2"),
+    ("feature-9223372036854775806", ["feature-9223372036854775807"], "feature-9223372036854775806-2"),
+    ("feature-9223372036854775807", ["feature-9223372036854775807-2"], "feature-9223372036854775807-3"),
   ] as [(String, Set<String>, String)])
   func nextBranchName(branch: String, taken: Set<String>, expected: String) {
     expectNoDifference(PRInstructions.nextBranchName(after: branch, taken: taken), expected)

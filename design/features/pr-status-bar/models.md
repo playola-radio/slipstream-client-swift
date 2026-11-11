@@ -53,7 +53,6 @@ Decoded by `__typename` (`CheckRun` / `StatusContext`, spec step 8) into one sha
 
 | Field | Type | Notes |
 |---|---|---|
-| `head` | `String` | Local `HEAD` SHA |
 | `branch` | `String` | |
 | `uncommittedCount` | `Int` | `git status --porcelain=v1` lines |
 | `defaultBranch` | `String` | From `gh repo view` (`GitHubRepository`: `isFork`, `defaultBranch`, `mergeMethod`); target when there is no PR |
@@ -68,7 +67,7 @@ A pure function `PRStatus(snapshot:)` over a non-nil snapshot (a nil snapshot me
 
 | Case | Payload |
 |---|---|
-| `noPRUncommitted(count:)` / `noPRCommitted(ahead:, target:)` / `nothingToSubmit` | |
+| `noPRUncommitted` / `noPRCommitted(ahead:, target:)` / `nothingToSubmit` | |
 | `commitAndPush`, `conflicts(target:)`, `checksFailed(failed:, total:)`, `checksRunning(done:, total:)`, `draft`, `ready`, `waiting(reason:)` | the PR itself comes from `snapshot.pullRequest` |
 | `merged`, `closed` | — |
 

@@ -50,7 +50,7 @@ enum PRFixture {
   }
 
   static func switchCommand(_ name: String) -> [String] {
-    ["git", "switch", "-c", name, "origin/develop"]
+    ["git", "switch", "--no-track", "-c", name, "origin/develop"]
   }
 
   static func repositoryJSON(isFork: Bool = false, mergeMethod: String = "MERGE") -> String {
@@ -108,7 +108,7 @@ enum PRFixture {
     uncommitted: Int = 0, pullRequest: GitHubPullRequest? = nil, push: PushState? = nil, ahead: Int? = 3
   ) -> RepoSnapshot {
     RepoSnapshot(
-      head: head, branch: "b", uncommittedCount: uncommitted, defaultBranch: "develop", mergeMethod: "MERGE",
+      branch: "b", uncommittedCount: uncommitted, defaultBranch: "develop", mergeMethod: "MERGE",
       pullRequest: pullRequest, pushState: push, aheadOfTarget: ahead)
   }
 }
@@ -1047,6 +1047,9 @@ struct PRStatusBarTests {
         .init(arguments: PRFixture.fetchCommand, folder: "/w", timeout: .seconds(60)),
         .init(arguments: PRFixture.localBranchesCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.remoteBranchesCommand, folder: "/w", timeout: .seconds(10)),
+        .init(arguments: PRFixture.branchCommand, folder: "/w", timeout: .seconds(10)),
+        .init(arguments: PRFixture.headCommand, folder: "/w", timeout: .seconds(10)),
+        .init(arguments: PRFixture.statusCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.switchCommand("b-3"), folder: "/w", timeout: .seconds(10)),
       ])
     expectNoDifference(model.failure, nil)
@@ -1065,6 +1068,57 @@ struct PRStatusBarTests {
     expectNoDifference(model.failure?.title, "Couldn't start a new branch")
     #expect(model.failure?.details.contains("fatal: something went wrong") == true)
     #expect(model.isContinueShown)
+  }
+
+  @Test func continueWaitsForAWorkingChat() async throws {
+    scriptMerged(local: "b\n", remote: "")
+    let model = makeModel()
+    await load(model)
+    #expect(model.isContinueEnabled)
+
+    try await #require(model.chat.selectedTab).enqueueUserMessage("hi")
+    #expect(!model.isContinueEnabled)
+    let readCalls = repo.calls.count
+    await model.continueTapped()
+
+    expectNoDifference(Array(repo.calls.dropFirst(readCalls)), [])
+  }
+
+  @Test func continueDisabledWhileAnOperationRuns() async {
+    scriptMerged(local: "b\n", remote: "")
+    repo.set(PRFixture.switchCommand("b-2"))
+    repo.hold(PRFixture.fetchCommand)
+    let model = makeModel()
+    await load(model)
+
+    let first = Task { await model.continueTapped() }
+    await Task.megaYield()
+
+    #expect(!model.isContinueEnabled)
+    repo.release()
+    await first.value
+    #expect(model.isContinueEnabled)
+  }
+
+  @Test(arguments: [
+    (PRFixture.branchCommand, "other\n", "The checked-out branch changed from b to other."),
+    (PRFixture.headCommand, "\(PRFixture.otherHead)\n", "HEAD moved since the PR merged."),
+    (PRFixture.statusCommand, " M a.swift\n", "The branch has uncommitted changes."),
+  ])
+  func continueRechecksTheBranchBeforeSwitching(_ command: [String], _ stdout: String, _ reason: String) async {
+    scriptMerged(local: "b\n", remote: "")
+    repo.set(PRFixture.switchCommand("b-2"))
+    let model = makeModel()
+    await load(model)
+    repo.set(command, stdout: stdout)
+    let before = model.pollKey
+
+    await model.continueTapped()
+
+    expectNoDifference(repo.calls(PRFixture.switchCommand("b-2")), [])
+    expectNoDifference(
+      model.failure, PRBarFailure(title: "Couldn't start a new branch", details: "Folder: /w\n\(reason)"))
+    expectNoDifference(model.pollKey.refreshCount, before.refreshCount + 1)
   }
 
   @Test func branchWithAwkwardCharacters() async {

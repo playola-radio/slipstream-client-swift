@@ -2749,9 +2749,29 @@ extension ChatPageTests {
 
     expectNoDifference(
       agent.writes(0),
-      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.userMessage("Commit and push all changes"))])
+      [
+        json(ClaudeInvocation.userMessage("hi")),
+        json(ClaudeInvocation.userMessage("Commit and push all changes", uuid: UUID(2))),
+      ])
     #expect(tab.isWorking)
     #expect(tab.draft == "half typed")
+  }
+
+  @Test func reloadWhenIdleWaitsForMessageEnqueuedMidTurn() async throws {
+    let tab = try idleTab(draft: "hi")
+    await tab.send()
+    try await tab.enqueueUserMessage("Commit and push all changes")
+    tab.streamLinked()
+
+    await line(Line.result())
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 0)
+
+    await line(Line.echo(UUID(2).uuidString.lowercased(), "Commit and push all changes"))
+    #expect(tab.isWorking)
+    await line(Line.result(durationMs: 3_000))
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 1)
   }
 
   @Test func enqueueWriteFailureRemovesRowAndThrows() async throws {

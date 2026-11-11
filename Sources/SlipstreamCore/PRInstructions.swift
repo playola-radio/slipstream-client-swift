@@ -68,15 +68,26 @@ public enum PRInstructions {
     "Rebase your branch onto the remote branch (\(target)) and resolve conflicts. Stage the resolved files and run `git rebase --continue`, then push --force-with-lease."
   }
 
-  /// Increments an existing `-N` suffix, otherwise appends `-2`; skips names in `taken`.
+  /// Increments an existing `-N` suffix, otherwise appends `-2`; skips names in `taken`. A suffix
+  /// that can't be incremented counts as part of the name.
   public static func nextBranchName(after branch: String, taken: Set<String>) -> String {
-    var base = branch
-    var number = 2
-    if let match = branch.wholeMatch(of: /(.+)-(\d+)/), let existing = Int(match.2) {
-      base = String(match.1)
-      number = existing + 1
+    if let match = branch.wholeMatch(of: /(.+)-(\d+)/), let existing = Int(match.2),
+      case (let next, false) = existing.addingReportingOverflow(1),
+      let name = firstFree(base: String(match.1), from: next, taken: taken)
+    {
+      return name
     }
-    while taken.contains("\(base)-\(number)") { number += 1 }
+    // `taken` is finite, so counting up from 2 always finds a free name.
+    return firstFree(base: branch, from: 2, taken: taken)!
+  }
+
+  private static func firstFree(base: String, from start: Int, taken: Set<String>) -> String? {
+    var number = start
+    while taken.contains("\(base)-\(number)") {
+      let (next, overflow) = number.addingReportingOverflow(1)
+      if overflow { return nil }
+      number = next
+    }
     return "\(base)-\(number)"
   }
 
