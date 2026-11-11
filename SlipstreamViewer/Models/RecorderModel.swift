@@ -350,6 +350,7 @@ final class RecorderModel: ViewModel {
       do {
         if try await isGone(pid) { return isCurrent(mine) }
       } catch {
+        if isOutcomeUnknown(error) { continue }
         publishProbeFailure(bundled, error, mine)
         return false
       }
@@ -369,6 +370,14 @@ final class RecorderModel: ViewModel {
       do {
         probe = try await self.probe()
       } catch {
+        if isOutcomeUnknown(error) {
+          do {
+            try await clock.sleep(for: Self.pollInterval)
+          } catch {
+            return
+          }
+          continue
+        }
         publishProbeFailure(bundled, error, mine)
         return
       }
@@ -420,6 +429,7 @@ final class RecorderModel: ViewModel {
       do {
         running = try await service.daemonBuild(store)
       } catch {
+        if isOutcomeUnknown(error) { continue }
         publishProbeFailure(bundled, error, mine)
         return
       }
@@ -501,6 +511,11 @@ final class RecorderModel: ViewModel {
 
   private func publishProbeFailure(_ bundled: RuntimeIdentity, _ error: any Error, _ mine: Int) {
     publish(.wontStart(bundled, .probe, Evidence(source: Self.probeSource, text: "\(error)")), mine)
+  }
+
+  private func isOutcomeUnknown(_ error: any Error) -> Bool {
+    guard let error = error as? QuestionError else { return false }
+    return error == .outcomeUnknown
   }
 
   private func runningLine(_ running: DaemonBuild, _ probe: Probe) -> String {

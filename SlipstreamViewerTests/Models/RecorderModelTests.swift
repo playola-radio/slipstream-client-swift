@@ -250,6 +250,39 @@ struct RecorderModelTests {
     #expect(!fake.events.value.contains(Self.installCommand))
   }
 
+  @Test func outcomeUnknownWhileStoppingKeepsWaitingForTheRecorderToExit() async {
+    runOwnedOldBuild()
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    fake.statusErrors.setValue([.outcomeUnknown])
+    await clock.advance(by: .milliseconds(250))
+    expectNoDifference(model.state, .restarting(from: "0.3.1", to: Self.bundled))
+
+    oldDaemonExits()
+    await clock.advance(by: .milliseconds(250))
+    await clock.advance(by: .milliseconds(250))
+    await launch.value
+
+    expectNoDifference(model.state, .running)
+  }
+
+  @Test func outcomeUnknownBeforeInstallWaitsWithoutInstalling() async {
+    fake.statusErrors.setValue([.outcomeUnknown])
+    let model = makeModel()
+    let launch = Task { await model.appLaunched() }
+    await Task.megaYield()
+
+    expectNoDifference(fake.events.value, ["prepare", "activate"])
+    await clock.advance(by: .milliseconds(250))
+    expectNoDifference(fake.events.value, ["prepare", "activate", Self.installCommand])
+
+    await clock.advance(by: .milliseconds(250))
+    await launch.value
+    expectNoDifference(model.state, .running)
+  }
+
   @Test func probeFailureWhileStartingIsWontStart() async {
     fake.startsOnInstall.setValue(nil)
     let model = makeModel()
@@ -580,6 +613,7 @@ final class RecorderFake: Sendable {
   let shimResults = LockIsolated<[String: (Int32, String)]>([:])
   let startsOnInstall = LockIsolated<DaemonBuild?>(RecorderModelTests.bundledBuild)
   let statusError = LockIsolated<RecorderServiceError?>(nil)
+  let statusErrors = LockIsolated<[QuestionError]>([])
   let installTakes = LockIsolated<Duration?>(nil)
   let startsWhileEnvironmentLoads = LockIsolated<DaemonBuild?>(nil)
 
@@ -611,6 +645,7 @@ final class RecorderFake: Sendable {
       terminate: { pid in self.record("terminate \(pid)") },
       ownerLockPID: { _ in self.lockPID.value },
       daemonBuild: { _ in
+        if let error = self.statusErrors.withValue({ $0.isEmpty ? nil : $0.removeFirst() }) { throw error }
         if let error = self.statusError.value { throw error }
         return self.running.value
       },
