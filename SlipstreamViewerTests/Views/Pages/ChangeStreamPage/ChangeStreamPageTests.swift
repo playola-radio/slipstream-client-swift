@@ -741,16 +741,75 @@ struct ChangeStreamPageTests {
     await appeared.value
     let calls = daemon.sessionsCallCount
     let poll = Task { await model.sessionPollTask() }
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
 
-    await clock.advance(by: .seconds(6))
+    await model.reloadShortcutPressed()
+    await model.reloadShortcutPressed()
+    expectNoDifference(daemon.sessionsCallCount, calls + 1)
+    open.yield()
     await Task.megaYield()
     open.yield()
     await Task.megaYield()
 
-    #expect(daemon.sessionsCallCount - calls <= 2)
+    expectNoDifference(daemon.sessionsCallCount, calls + 2)
     poll.cancel()
     open.finish()
     await poll.value
+  }
+
+  @Test func backgroundingMidPollKeepsTheRefresh() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    daemon.setCaptures([Fixture.capture()])
+    let model = makeModel(daemon: daemon)
+    defer { model.viewDisappeared() }
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    open.yield()
+    await appeared.value
+    let calls = daemon.sessionsCallCount
+    let poll = Task { await model.sessionPollTask() }
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    model.chat.appActivityChanged(isActive: false)
+    poll.cancel()
+    await model.appBecameActive()
+    open.yield()
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+
+    expectNoDifference(daemon.sessionsCallCount, calls + 2)
+    expectNoDifference(model.captureAvailability, .available(checkedAt: Fixture.checkedAt))
+    open.finish()
+    await poll.value
+  }
+
+  @Test func namingWriteAfterTheWindowClosesDoesNotRefresh() async {
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    nameFake.hold()
+    let clear = Task { await model.useAgentNameMenuTapped(model.sessions[0]) }
+    await Task.megaYield()
+
+    model.viewDisappeared()
+    let calls = fake.sessionsCallCount
+    nameFake.release()
+    await clear.value
+
+    expectNoDifference(fake.sessionsCallCount, calls)
   }
 
   // MARK: - Cursor

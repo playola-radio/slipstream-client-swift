@@ -45,7 +45,10 @@ final class ChangeStreamPageModel: ViewModel {
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
     recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
-    naming.onWriteFinished = { [weak self] in await self?.reloadSessions() }
+    naming.onWriteFinished = { [weak self] in
+      guard let self, isShown else { return }
+      await reloadSessions()
+    }
     naming.onClearFailed = { [weak self] detail in
       self?.workspaceFailed(title: "Couldn't switch back to the agent's name", text: detail, detail: detail)
     }
@@ -696,7 +699,8 @@ final class ChangeStreamPageModel: ViewModel {
     while isSessionPollRunning {
       do { try await clock.sleep(for: .seconds(2)) } catch { return }
       guard isSessionPollRunning else { return }
-      await reloadSessions()
+      // Unstructured, so backgrounding cancels the poll but never the fetch it started.
+      await Task { await reloadSessions() }.value
     }
   }
 

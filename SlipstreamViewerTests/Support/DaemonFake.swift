@@ -152,6 +152,7 @@ final class DaemonFake: Sendable {
         }
         if let sessionsGate {
           for await _ in sessionsGate { break }
+          try Task.checkCancellation()
         }
         if let error = state.withLock({ $0.sessionsError }) { throw error }
         return snapshot
