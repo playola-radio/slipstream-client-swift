@@ -1637,6 +1637,7 @@ struct ChatPageTests {
       Options:
       - one
 
+        more about one
       - two
       after
       """
@@ -1646,10 +1647,32 @@ struct ChatPageTests {
       [
         .prose(try inline("Options:")),
         .list([
-          .init(marker: "•", depth: 0, text: try inline("one")),
+          .init(marker: "•", depth: 0, text: try inline("one\n\nmore about one")),
           .init(marker: "•", depth: 0, text: try inline("two\nafter")),
         ]),
       ])
+  }
+
+  @Test func orderedItemsCountUpFromTheFirstNumberAtEachLevel() throws {
+    let text = """
+      3. a
+      3. b
+         1. x
+         1. y
+      - c
+      1. d
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text).first,
+      .list([
+        .init(marker: "3.", depth: 0, text: try inline("a")),
+        .init(marker: "4.", depth: 0, text: try inline("b")),
+        .init(marker: "1.", depth: 1, text: try inline("x")),
+        .init(marker: "2.", depth: 1, text: try inline("y")),
+        .init(marker: "•", depth: 0, text: try inline("c")),
+        .init(marker: "1.", depth: 0, text: try inline("d")),
+      ]))
   }
 
   @Test func nearMissesStayProse() throws {

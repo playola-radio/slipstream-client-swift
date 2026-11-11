@@ -223,7 +223,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     var blocks: [MarkdownBlock] = []
     var paragraph: [Substring] = []
     var quote: [Substring] = []
-    var items: [(marker: String, indent: Int, lines: [Substring])] = []
+    var items: [(number: Int?, indent: Int, lines: [Substring])] = []
     var afterBlank = false
     func closeParagraphAndQuote() {
       if !paragraph.isEmpty { blocks.append(.prose(inlineMarkdown(paragraph.joined(separator: "\n")))) }
@@ -234,15 +234,18 @@ final class ChatTabModel: ViewModel, Identifiable {
     func closeAll() {
       closeParagraphAndQuote()
       guard !items.isEmpty else { return }
-      var openIndents: [Int] = []
+      // Ordered items count up from the first sibling's number, whatever the source says.
+      var open: [(indent: Int, number: Int?)] = []
       var listItems: [MarkdownListItem] = []
       for item in items {
-        while let last = openIndents.last, last >= item.indent { openIndents.removeLast() }
+        var sibling: (indent: Int, number: Int?)?
+        while let last = open.last, last.indent >= item.indent { sibling = open.removeLast() }
+        let number = item.number.map { start in sibling?.number.map { $0 + 1 } ?? start }
         listItems.append(
           MarkdownListItem(
-            marker: item.marker, depth: openIndents.count,
+            marker: number.map { "\($0)." } ?? "•", depth: open.count,
             text: inlineMarkdown(item.lines.joined(separator: "\n"))))
-        openIndents.append(item.indent)
+        open.append((item.indent, number))
       }
       blocks.append(.list(listItems))
       items = []
@@ -258,16 +261,16 @@ final class ChatTabModel: ViewModel, Identifiable {
       } else if case let (level, title)? = heading(trimmed) {
         closeAll()
         blocks.append(.heading(level: level, text: inlineMarkdown(String(title))))
-      } else if case let (marker, rest)? = listItem(trimmed) {
+      } else if case let (number, rest)? = listItem(trimmed) {
         closeParagraphAndQuote()
-        items.append((marker, line.count - trimmed.count, [rest]))
+        items.append((number, line.count - trimmed.count, [rest]))
       } else if trimmed.first == ">" {
         if !quote.isEmpty { quote.append(trimmed.dropFirst().drop { $0 == " " }) } else {
           closeAll()
           quote = [trimmed.dropFirst().drop { $0 == " " }]
         }
       } else if !items.isEmpty, !afterBlank || trimmed.count < line.count {
-        items[items.count - 1].lines.append(trimmed)
+        items[items.count - 1].lines.append(contentsOf: afterBlank ? ["", trimmed] : [trimmed])
       } else {
         if !items.isEmpty || !quote.isEmpty { closeAll() }
         paragraph.append(line)
@@ -291,16 +294,17 @@ final class ChatTabModel: ViewModel, Identifiable {
     return (level, rest.drop { $0 == " " })
   }
 
-  private static func listItem(_ line: Substring) -> (String, Substring)? {
+  /// A bullet item has no number.
+  private static func listItem(_ line: Substring) -> (Int?, Substring)? {
     if let bullet = line.first, "-*+".contains(bullet), line.dropFirst().first == " " {
-      return ("•", line.dropFirst(2))
+      return (nil, line.dropFirst(2))
     }
     let digits = line.prefix { ("0"..."9").contains($0) }
     let rest = line.dropFirst(digits.count)
     guard (1...9).contains(digits.count), let delimiter = rest.first, ".)".contains(delimiter),
       rest.dropFirst().first == " "
     else { return nil }
-    return ("\(digits).", rest.dropFirst(2))
+    return (Int(digits), rest.dropFirst(2))
   }
 
   func rowMarkdown(for item: TranscriptItem) -> AttributedString {
