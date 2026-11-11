@@ -5,7 +5,7 @@ import Dependencies
 import DependenciesTestSupport
 import Foundation
 import IdentifiedCollections
-import Sharing
+@_spi(Internals) import Sharing
 import SlipstreamCore
 import SwiftUI
 import Testing
@@ -24,6 +24,7 @@ struct ChangeStreamPageTests {
   let recordingFake = RecordingFake()
   let nameFake = WorkspaceNameFake()
   let copied = LockIsolated<[String]>([])
+  let files = LockIsolated<[URL: Data]>([:])
 
   init() {
     fake = DaemonFake()
@@ -32,7 +33,7 @@ struct ChangeStreamPageTests {
   }
 
   func makeModel(
-    daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
+    daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil, files: LockIsolated<[URL: Data]>? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
     chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil,
     terminals: TerminalPageModel? = nil, recorder: RecorderModel? = nil
@@ -41,6 +42,7 @@ struct ChangeStreamPageTests {
     return withDependencies {
       $0.workspace = workspace
       $0.defaultInMemoryStorage = storage ?? self.storage
+      $0.defaultFileStorage = .inMemory(fileSystem: files ?? self.files)
       $0.daemon = (daemon ?? fake).client
       $0.continuousClock = clock
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
@@ -5666,5 +5668,192 @@ extension ChangeStreamPageTests {
 
     expectNoDifference(model.recorderMessage, nil)
     expectNoDifference(model.sessions.ids, [Fixture.session])
+  }
+}
+
+extension ChangeStreamPageTests {
+  // MARK: - Opened folders
+
+  nonisolated static let plainFolder = "/work/plain"
+
+  /// A workspace the app made, plus a plain checkout the daemon also captures.
+  func listManagedAndPlain(_ plain: CaptureState = .recording, reason: String? = nil) {
+    listCaptures(
+      Fixture.capture(session: "managed", root: Self.workspaceRoot, binding: nil),
+      Fixture.capture(plain, reason: reason, session: "plain", root: Self.plainFolder, binding: nil))
+  }
+
+  func modelRecordingThePlainFolder() async -> ChangeStreamPageModel {
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: Self.plainFolder)))
+    await model.viewAppeared()
+    await model.recordFolderTapped()
+    return model
+  }
+
+  func selectManaged(_ model: ChangeStreamPageModel) async {
+    model.sessionSelected("managed")
+    await Task.megaYield()
+  }
+
+  var storedOpenedFolders: Set<OpenedFolder> {
+    get {
+      withDependencies { $0.defaultFileStorage = .inMemory(fileSystem: files) } operation: {
+        @Shared(.openedFolders) var opened
+        return opened
+      }
+    }
+    nonmutating set {
+      withDependencies { $0.defaultFileStorage = .inMemory(fileSystem: files) } operation: {
+        @Shared(.openedFolders) var opened
+        $opened.withLock { $0 = newValue }
+      }
+    }
+  }
+
+  @Test func aRecordedFolderStaysListedAfterAnotherRowIsSelected() async {
+    listManagedAndPlain()
+    let model = await modelRecordingThePlainFolder()
+    defer { model.viewDisappeared() }
+    expectNoDifference(model.selectedSession?.id, "plain")
+
+    await selectManaged(model)
+
+    expectNoDifference(sidebarRowIDs(model), ["managed", "plain"])
+  }
+
+  @Test func aRecordedFolderIsListedAfterRelaunch() async {
+    listManagedAndPlain()
+    await modelRecordingThePlainFolder().viewDisappeared()
+
+    let model = makeModel(files: LockIsolated(files.value), workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(model.selectedSession?.id, nil)
+    expectNoDifference(sidebarRowIDs(model), ["managed", "plain"])
+  }
+
+  @Test func aRecordedFolderStaysListedThroughPauseAndRecord() async throws {
+    listManagedAndPlain()
+    let model = await modelRecordingThePlainFolder()
+    defer { model.viewDisappeared() }
+    await selectManaged(model)
+
+    listManagedAndPlain(.stopped, reason: "detached")
+    await model.rowActionTapped(try #require(model.sessions[id: "plain"]))
+    expectNoDifference(sidebarRowIDs(model), ["managed", "plain"])
+    #expect(model.isPaused(try #require(model.sessions[id: "plain"])))
+
+    listManagedAndPlain()
+    await model.rowActionTapped(try #require(model.sessions[id: "plain"]))
+    expectNoDifference(sidebarRowIDs(model), ["managed", "plain"])
+    expectNoDifference(
+      recordingFake.calls, [.record(Self.plainFolder), .pause(Self.plainFolder), .record(Self.plainFolder)])
+  }
+
+  @Test func selectingAConductorCaptureWithoutRecordingItDoesNotListIt() async {
+    listCaptures(
+      Fixture.capture(session: "managed", root: Self.workspaceRoot, binding: nil),
+      Fixture.capture(session: "conductor", root: "/work/conductor/workspaces/r/brisbane", binding: nil))
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    model.sessionSelected("conductor")
+    await Task.megaYield()
+    await selectManaged(model)
+
+    expectNoDifference(sidebarRowIDs(model), ["managed"])
+    expectNoDifference(storedOpenedFolders, [])
+  }
+
+  @Test func aFolderOpenedForAnotherStoreIsNotListed() async {
+    listManagedAndPlain()
+    storedOpenedFolders = [OpenedFolder(storeID: "store-b", folder: Self.plainFolder)]
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(sidebarRowIDs(model), ["managed"])
+  }
+
+  @Test func archivingAWorkspaceForgetsThatItWasOpened() async throws {
+    listWorkspace()
+    storedOpenedFolders = [
+      OpenedFolder(storeID: "store-a", folder: Self.workspaceRoot),
+      OpenedFolder(storeID: "store-a", folder: Self.plainFolder),
+    ]
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    model.archiveTapped(try #require(model.selectedSession))
+    await model.archiveConfirmed()
+
+    expectNoDifference(storedOpenedFolders, [OpenedFolder(storeID: "store-a", folder: Self.plainFolder)])
+  }
+
+  @Test func removeFromSidebarIsOfferedOnlyForRecordedFoldersOutsideTheWorkspacesFolder() async throws {
+    listManagedAndPlain()
+    let model = await modelRecordingThePlainFolder()
+    defer { model.viewDisappeared() }
+
+    #expect(model.isRemoveFromSidebarAvailable(try #require(model.sessions[id: "plain"])))
+    #expect(!model.isRemoveFromSidebarAvailable(try #require(model.sessions[id: "managed"])))
+  }
+
+  @Test func removeFromSidebarPausesTheFolderAndHidesIt() async throws {
+    listManagedAndPlain()
+    let model = await modelRecordingThePlainFolder()
+    defer { model.viewDisappeared() }
+    await selectManaged(model)
+
+    listManagedAndPlain(.stopped, reason: "detached")
+    await model.removeFromSidebarTapped(try #require(model.sessions[id: "plain"]))
+
+    expectNoDifference(recordingFake.calls, [.record(Self.plainFolder), .pause(Self.plainFolder)])
+    expectNoDifference(sidebarRowIDs(model), ["managed"])
+    expectNoDifference(storedOpenedFolders, [])
+  }
+
+  @Test func removeFromSidebarDoesNotPauseAPausedFolder() async throws {
+    listManagedAndPlain(.stopped, reason: "detached")
+    storedOpenedFolders = [OpenedFolder(storeID: "store-a", folder: Self.plainFolder)]
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    await model.removeFromSidebarTapped(try #require(model.sessions[id: "plain"]))
+
+    expectNoDifference(recordingFake.calls, [])
+    expectNoDifference(sidebarRowIDs(model), ["managed"])
+  }
+
+  @Test func removingTheSelectedFolderDeselectsIt() async throws {
+    listManagedAndPlain()
+    let model = await modelRecordingThePlainFolder()
+    defer { model.viewDisappeared() }
+
+    listManagedAndPlain(.stopped, reason: "detached")
+    await model.removeFromSidebarTapped(try #require(model.selectedSession))
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession, nil)
+    expectNoDifference(model.chat.folder, nil)
+    expectNoDifference(sidebarRowIDs(model), ["managed"])
+  }
+
+  @Test func aFolderStaysInTheSidebarWhenItsPauseFails() async throws {
+    listManagedAndPlain()
+    let model = await modelRecordingThePlainFolder()
+    defer { model.viewDisappeared() }
+    await selectManaged(model)
+    recordingFake.setFailures(.rejected(code: "BUSY", message: "busy"))
+
+    let row = try #require(model.sessions[id: "plain"])
+    await model.removeFromSidebarTapped(row)
+
+    expectNoDifference(sidebarRowIDs(model), ["managed", "plain"])
+    expectNoDifference(model.rowMessage(row), RecordingMessage(text: "Couldn't pause: busy", isFull: false))
   }
 }

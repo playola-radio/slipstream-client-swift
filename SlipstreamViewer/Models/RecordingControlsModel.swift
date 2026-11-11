@@ -51,16 +51,20 @@ final class RecordingControlsModel: ViewModel {
 
   // MARK: - User Actions
 
-  func pauseTapped(folder: String) async {
-    guard let key = begin(.pausing, folder: folder) else { return }
+  /// Returns whether the pause was confirmed.
+  @discardableResult
+  func pauseTapped(folder: String) async -> Bool {
+    guard let key = begin(.pausing, folder: folder) else { return false }
     defer { operations[key] = nil }
     do {
       try await recording.pause(folder)
     } catch {
       messages[key] = Self.pauseMessage(error)
-      guard Self.refreshesAfterPause(error) else { return }
+      if Self.refreshesAfterPause(error) { await onChanged(nil) }
+      return false
     }
     await onChanged(nil)
+    return true
   }
 
   func recordTapped(folder: String) async {
