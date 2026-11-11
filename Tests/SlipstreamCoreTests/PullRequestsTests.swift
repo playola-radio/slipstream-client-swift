@@ -60,10 +60,10 @@ struct PullRequestsTests {
   }
 
   @Test func decodesRepository() throws {
-    let json = #"{"defaultBranchRef":{"name":"develop"},"isFork":false,"viewerDefaultMergeMethod":"MERGE"}"#
+    let json = #"{"defaultBranchRef":{"name":"develop"},"isFork":false,"viewerDefaultMergeMethod":"MERGE","nameWithOwner":"o/r"}"#
     expectNoDifference(
       try JSONDecoder().decode(GitHubRepository.self, from: Data(json.utf8)),
-      GitHubRepository(isFork: false, defaultBranch: "develop", mergeMethod: "MERGE")
+      GitHubRepository(isFork: false, defaultBranch: "develop", mergeMethod: "MERGE", nameWithOwner: "o/r")
     )
   }
 }

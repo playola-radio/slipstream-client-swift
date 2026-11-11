@@ -20,7 +20,9 @@ enum PRFixture {
   static let branchCommand = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
   static let headCommand = ["git", "rev-parse", "HEAD"]
   static let originCommand = ["git", "remote", "get-url", "origin"]
-  static let repositoryCommand = ["gh", "repo", "view", "--json", "isFork,defaultBranchRef,viewerDefaultMergeMethod"]
+  static func repositoryCommand(_ origin: String = "git@github.com:o/r.git") -> [String] {
+    ["gh", "repo", "view", origin, "--json", "isFork,defaultBranchRef,viewerDefaultMergeMethod,nameWithOwner"]
+  }
   static let statusCommand = ["git", "status", "--porcelain=v1"]
   static let upstreamCommand = ["git", "rev-parse", "--abbrev-ref", "@{upstream}"]
   static let unpushedCommand = ["git", "rev-list", "--count", "@{upstream}..HEAD"]
@@ -29,8 +31,8 @@ enum PRFixture {
   static let remoteBranchesCommand = ["git", "ls-remote", "--heads", "origin"]
   static let actionsRuns = "https://github.com/playola-radio/slipstream-client-swift/actions/runs"
 
-  static func pullRequestsCommand(_ branch: String = "b") -> [String] {
-    ["gh", "pr", "list", "--head", branch, "--state", "all", "--limit", "20", "--json", prFields]
+  static func pullRequestsCommand(_ branch: String = "b", repository: String = "o/r") -> [String] {
+    ["gh", "pr", "list", "--repo", repository, "--head", branch, "--state", "all", "--limit", "20", "--json", prFields]
   }
 
   static func aheadCommand(_ target: String = "develop") -> [String] {
@@ -50,11 +52,11 @@ enum PRFixture {
   }
 
   static func switchCommand(_ name: String) -> [String] {
-    ["git", "switch", "--no-track", "-c", name, "origin/develop"]
+    ["git", "switch", "--no-track", "-c", name, "FETCH_HEAD"]
   }
 
   static func repositoryJSON(isFork: Bool = false, mergeMethod: String = "MERGE") -> String {
-    #"{"defaultBranchRef":{"name":"develop"},"isFork":\#(isFork),"viewerDefaultMergeMethod":"\#(mergeMethod)"}"#
+    #"{"defaultBranchRef":{"name":"develop"},"isFork":\#(isFork),"viewerDefaultMergeMethod":"\#(mergeMethod)","nameWithOwner":"o/r"}"#
   }
 
   static func checkRun(_ name: String, conclusion: String = "SUCCESS", link: String? = nil) -> String {
@@ -88,7 +90,7 @@ enum PRFixture {
     repo.set(branchCommand, stdout: "\(branch)\n")
     repo.set(headCommand, stdout: "\(head)\n")
     repo.set(originCommand, stdout: "git@github.com:o/r.git\n")
-    repo.set(repositoryCommand, stdout: repositoryJSON())
+    repo.set(repositoryCommand(), stdout: repositoryJSON())
     repo.set(statusCommand)
     repo.set(pullRequestsCommand(branch), stdout: "[]")
     repo.set(aheadCommand(), stdout: "3\n")
@@ -136,7 +138,7 @@ struct ReadCase: Sendable, CustomTestStringConvertible {
       expected: .notApplicable),
     ReadCase(
       testDescription: "fork origin",
-      script: { $0.set(PRFixture.repositoryCommand, stdout: PRFixture.repositoryJSON(isFork: true)) },
+      script: { $0.set(PRFixture.repositoryCommand(), stdout: PRFixture.repositoryJSON(isFork: true)) },
       expected: .notApplicable),
     ReadCase(
       testDescription: "no pull request", script: { _ in }, expected: .snapshot(PRFixture.snapshot())),
@@ -179,7 +181,7 @@ struct ReadCase: Sendable, CustomTestStringConvertible {
       expected: .failure(details: [
         """
         Folder: /w
-        Command: gh pr list --head b --state all --limit 20 --json \(PRFixture.prFields)
+        Command: gh pr list --repo o/r --head b --state all --limit 20 --json \(PRFixture.prFields)
         Ended: exit status 1
 
         stdout:
@@ -192,7 +194,7 @@ struct ReadCase: Sendable, CustomTestStringConvertible {
       ])),
     ReadCase(
       testDescription: "gh times out",
-      script: { $0.set(PRFixture.repositoryCommand, ending: .timedOut(.seconds(20))) },
+      script: { $0.set(PRFixture.repositoryCommand(), ending: .timedOut(.seconds(20))) },
       expected: .failure(details: ["Ended: timed out after 20 s"])),
   ]
 }
@@ -241,7 +243,7 @@ struct DisplayCase: Sendable, CustomTestStringConvertible {
       expected: Display(statusIconName: "LoaderCircle", statusLabel: "Checking for a pull request…")),
     DisplayCase(
       testDescription: "couldn't check",
-      script: { $0.set(PRFixture.repositoryCommand, stderr: "gh: command not found\n", ending: .exit(127)) },
+      script: { $0.set(PRFixture.repositoryCommand(), stderr: "gh: command not found\n", ending: .exit(127)) },
       expected: Display(
         statusIconName: "CircleAlert", statusLabel: "Couldn't check the pull request", tone: .danger,
         isDetailsShown: true)),
@@ -476,7 +478,7 @@ struct PRStatusBarTests {
         .init(arguments: PRFixture.branchCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.headCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.originCommand, folder: "/w", timeout: .seconds(10)),
-        .init(arguments: PRFixture.repositoryCommand, folder: "/w", timeout: .seconds(20)),
+        .init(arguments: PRFixture.repositoryCommand(), folder: "/w", timeout: .seconds(20)),
         .init(arguments: PRFixture.statusCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.pullRequestsCommand(), folder: "/w", timeout: .seconds(20)),
         .init(arguments: PRFixture.aheadCommand(), folder: "/w", timeout: .seconds(10)),
@@ -674,14 +676,14 @@ struct PRStatusBarTests {
 
   @Test func failureReplacedBySuccess() async {
     PRFixture.scriptRepository(repo)
-    repo.set(PRFixture.repositoryCommand, stderr: "error connecting to api.github.com\n", ending: .exit(1))
+    repo.set(PRFixture.repositoryCommand(), stderr: "error connecting to api.github.com\n", ending: .exit(1))
     let model = makeModel()
 
     let poll = Task { await model.pollTask() }
     await Task.megaYield()
     expectNoDifference(model.checkFailure?.title, "Couldn't check the pull request")
 
-    repo.set(PRFixture.repositoryCommand, stdout: PRFixture.repositoryJSON())
+    repo.set(PRFixture.repositoryCommand(), stdout: PRFixture.repositoryJSON())
     await clock.advance(by: .seconds(30))
     await Task.megaYield()
     expectNoDifference(model.checkFailure, nil)
@@ -977,7 +979,7 @@ struct PRStatusBarTests {
   @Test(arguments: [("MERGE", "--merge"), ("SQUASH", "--squash"), ("REBASE", "--rebase")])
   func mergeRunsGitHubWithTheShownHead(_ method: String, _ flag: String) async {
     PRFixture.scriptRepository(repo)
-    repo.set(PRFixture.repositoryCommand, stdout: PRFixture.repositoryJSON(mergeMethod: method))
+    repo.set(PRFixture.repositoryCommand(), stdout: PRFixture.repositoryJSON(mergeMethod: method))
     PRFixture.setPullRequest(repo)
     let command = PRFixture.mergeCommand(flag)
     repo.set(command)

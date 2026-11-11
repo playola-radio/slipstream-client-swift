@@ -115,15 +115,17 @@ public struct GitHubRepository: Decodable, Equatable, Sendable {
   public var isFork: Bool
   public var defaultBranch: String
   public var mergeMethod: String
+  public var nameWithOwner: String
 
-  public init(isFork: Bool, defaultBranch: String, mergeMethod: String) {
+  public init(isFork: Bool, defaultBranch: String, mergeMethod: String, nameWithOwner: String) {
     self.isFork = isFork
     self.defaultBranch = defaultBranch
     self.mergeMethod = mergeMethod
+    self.nameWithOwner = nameWithOwner
   }
 
   private enum CodingKeys: String, CodingKey {
-    case isFork, defaultBranchRef, viewerDefaultMergeMethod
+    case isFork, defaultBranchRef, viewerDefaultMergeMethod, nameWithOwner
   }
 
   private struct BranchRef: Decodable {
@@ -135,6 +137,7 @@ public struct GitHubRepository: Decodable, Equatable, Sendable {
     isFork = try container.decode(Bool.self, forKey: .isFork)
     defaultBranch = try container.decode(BranchRef.self, forKey: .defaultBranchRef).name
     mergeMethod = try container.decode(String.self, forKey: .viewerDefaultMergeMethod)
+    nameWithOwner = try container.decode(String.self, forKey: .nameWithOwner)
   }
 }
 

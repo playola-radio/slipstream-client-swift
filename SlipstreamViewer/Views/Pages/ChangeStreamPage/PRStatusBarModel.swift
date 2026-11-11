@@ -265,7 +265,7 @@ final class PRStatusBarModel: ViewModel {
         throw PRBarFailure(title: title, details: "Folder: \(folder)\n\(change)")
       }
       _ = try await output(
-        ["git", "switch", "--no-track", "-c", name, "origin/\(target)"], in: folder, timeout: Self.gitTimeout,
+        ["git", "switch", "--no-track", "-c", name, "FETCH_HEAD"], in: folder, timeout: Self.gitTimeout,
         title: title)
     } catch {
       failedAction = FailedAction(folder: folder, failure: error)
@@ -491,11 +491,11 @@ final class PRStatusBarModel: ViewModel {
     let head = try await output(["git", "rev-parse", "HEAD"], in: folder, timeout: Self.gitTimeout, title: title)
     let origin = await run(["git", "remote", "get-url", "origin"], in: folder, timeout: Self.gitTimeout)
     if origin.ending == .exit(2) { return nil }
-    _ = try Self.output(of: origin, title: title)
+    let originURL = try Self.output(of: origin, title: title)
 
     let repository = try await decoded(
       GitHubRepository.self,
-      ["gh", "repo", "view", "--json", "isFork,defaultBranchRef,viewerDefaultMergeMethod"],
+      ["gh", "repo", "view", originURL, "--json", "isFork,defaultBranchRef,viewerDefaultMergeMethod,nameWithOwner"],
       in: folder, title: title)
     guard !repository.isFork else { return nil }
 
@@ -503,7 +503,7 @@ final class PRStatusBarModel: ViewModel {
     let pullRequests = try await decoded(
       [GitHubPullRequest].self,
       [
-        "gh", "pr", "list", "--head", branch, "--state", "all", "--limit", "20", "--json",
+        "gh", "pr", "list", "--repo", repository.nameWithOwner, "--head", branch, "--state", "all", "--limit", "20", "--json",
         "number,url,state,isDraft,headRefOid,isCrossRepository,baseRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup",
       ],
       in: folder, title: title)
