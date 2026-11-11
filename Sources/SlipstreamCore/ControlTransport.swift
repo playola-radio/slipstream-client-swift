@@ -38,6 +38,12 @@ public struct ControlTransport: Sendable {
     try await send(ControlLine.encode(PauseRequest(target: folder))) { try ControlReply.check($0) }
   }
 
+  public func renameSession(sessionID: String, name: String?) async throws {
+    try await send(ControlLine.encode(RenameSessionRequest(sessionID: sessionID, name: name))) {
+      try ControlReply.check($0)
+    }
+  }
+
   private func send<Reply: Sendable>(
     _ line: Data, decode: @escaping @Sendable (Data) throws -> Reply
   ) async throws -> Reply {
@@ -143,6 +149,24 @@ private struct PauseRequest: Encodable {
   let v = 1
   let verb = "detach"
   let target: String
+}
+
+private struct RenameSessionRequest: Encodable {
+  let sessionID: String
+  let name: String?
+
+  func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(1, forKey: .v)
+    try container.encode("rename_session", forKey: .verb)
+    try container.encode(sessionID, forKey: .sessionID)
+    try container.encode(name, forKey: .name)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case v, verb, name
+    case sessionID = "session_id"
+  }
 }
 
 struct ControlResponseBuffer {
