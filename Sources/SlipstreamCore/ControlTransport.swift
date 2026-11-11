@@ -44,6 +44,10 @@ public struct ControlTransport: Sendable {
     }
   }
 
+  public func status() async throws -> DaemonBuild {
+    try await send(ControlLine.encode(StatusRequest())) { try DaemonBuild.decode($0) }
+  }
+
   private func send<Reply: Sendable>(
     _ line: Data, decode: @escaping @Sendable (Data) throws -> Reply
   ) async throws -> Reply {
@@ -136,6 +140,33 @@ public struct ControlTransport: Sendable {
       if result > 0 { return }
     }
   }
+}
+
+public struct DaemonBuild: Equatable, Sendable {
+  public let version: String
+  public let build: String?
+
+  public init(version: String, build: String?) {
+    self.version = version
+    self.build = build
+  }
+
+  static func decode(_ data: Data) throws -> Self {
+    try ControlReply.check(data)
+    guard let fields = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw QuestionError.outcomeUnknown
+    }
+    // Daemons before 0.3.0 report neither field but still answer, so they still count as running.
+    return DaemonBuild(
+      version: fields["daemon_version"] as? String ?? "unknown",
+      build: fields["daemon_build"] as? String
+    )
+  }
+}
+
+private struct StatusRequest: Encodable {
+  let v = 1
+  let verb = "status"
 }
 
 private struct RecordRequest: Encodable {
