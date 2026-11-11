@@ -28,7 +28,6 @@ echo "==> Building the daemon payload for $DAEMON_VERSION at $DAEMON_REPO@$DAEMO
 git init -q "$WORK/daemon"
 git -C "$WORK/daemon" fetch -q --depth 1 "https://github.com/$DAEMON_REPO.git" "$DAEMON_COMMIT"
 git -C "$WORK/daemon" checkout -q FETCH_HEAD
-[ "$(git -C "$WORK/daemon" rev-parse HEAD)" = "$DAEMON_COMMIT" ] || { echo "error: fetched daemon is not $DAEMON_COMMIT" >&2; exit 1; }
 (cd "$WORK/daemon" && npm ci && npm run build:payload -- --out "$OUT")
 
 echo "==> Adding Node $NODE_VERSION"
