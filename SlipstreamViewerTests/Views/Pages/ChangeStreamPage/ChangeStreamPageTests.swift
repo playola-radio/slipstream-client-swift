@@ -5268,7 +5268,9 @@ extension ChangeStreamPageTests {
     .updateDidntFinish(
       running: RecorderModelTests.oldBuild, bundled: RecorderModelTests.bundled, .mismatch("watcher.node hash"),
       recorderEvidence),
-    .anotherRecorder(pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil), recorderEvidence),
+    .anotherRecorder(
+      pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil), bundled: RecorderModelTests.bundled,
+      recorderEvidence),
     .wontStart(RecorderModelTests.bundled, .exited(code: "1"), recorderEvidence),
     .migrationIncomplete(
       RecorderModelTests.bundled, MigrationFailure(links: ["slipstream"], adoptFailed: true), recorderEvidence),
@@ -5341,6 +5343,23 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.recorderMessage?.footer, "Recorder pid 30117 is npm 0.3.0, not started by this app")
     expectNoDifference(model.recorderMessage?.evidence?.source, "status · owner.lock · launchctl")
     expectNoDifference(model.recorderMessage?.actions, [.replaceIt])
+  }
+
+  @Test func newerRecorderSaysToUpdateSlipstream() async {
+    let model = await closedStreamModel(
+      .anotherRecorder(
+        pid: 8594, running: DaemonBuild(version: "0.3.3", build: nil), bundled: RecorderModelTests.bundled,
+        Self.recorderEvidence))
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(
+        icon: .warning, tone: .warning,
+        headline: "A recorder newer than this app's 0.3.2 (pid 8594, npm 0.3.3) is using store-a. "
+          + "It's still recording; update Slipstream so the app can switch to its own recorder.",
+        footer: "Recorder pid 8594 is npm 0.3.3, newer than this app's 0.3.2", evidence: Self.recorderEvidence,
+        actions: []))
   }
 
   @Test func wontStartOffersTheLog() async {

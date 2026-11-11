@@ -24,11 +24,15 @@ the app and the recorder together. `build-app.sh` runs `build-runtime.sh`, which
 `sign-app.sh` signs `bin/node` with `node.entitlements` (JIT only) and every other Mach-O in
 the payload (native addons such as `watcher.node`) with no entitlements, before the app.
 
-To ship a new daemon, set `DAEMON_COMMIT` to its merge commit on the daemon's `develop`
-(never a branch tip). To move Node, set `NODE_VERSION` and copy the
-`node-v<version>-darwin-arm64.tar.xz` line's hash from
-`https://nodejs.org/dist/v<version>/SHASUMS256.txt` into `NODE_SHA256`. App and daemon
-versions are independent.
+To ship a new daemon, set `DAEMON_COMMIT` to the commit its npm release was cut from (the
+daemon's `vX.Y.Z` tag; never a branch tip). The release lane runs `daemon_freshness.rb`
+after building and refuses to ship a bundled daemon older than the newest
+`@playola-radio/slipstream` on npm: the app never takes over a newer recorder, so an npm
+install ahead of the bundle would leave the app without its `slipstream` command.
+
+To move Node, set `NODE_VERSION` and copy the `node-v<version>-darwin-arm64.tar.xz` line's
+hash from `https://nodejs.org/dist/v<version>/SHASUMS256.txt` into `NODE_SHA256`. App and
+daemon versions are independent.
 
 ## Download links
 
