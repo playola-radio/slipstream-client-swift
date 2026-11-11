@@ -10,6 +10,16 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.1] - 2026-11-11
+
+- Workspaces in the sidebar now show a short name for what they're about. The agent names each
+  one, and you can rename it from the right-click menu. Needs an up-to-date Slipstream daemon.
+
+### Ops
+
+- Before merging, allow `develop` in the `release` GitHub environment's deployment
+  branch policy (Settings > Environments > release), otherwise the release job is refused.
+
 ## [0.4.0] - 2026-11-10
 
 - The app is now called Slipstream instead of SlipstreamViewer in the menu bar, the
