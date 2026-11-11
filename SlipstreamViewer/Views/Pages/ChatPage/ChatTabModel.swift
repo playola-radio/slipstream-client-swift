@@ -191,12 +191,13 @@ final class ChatTabModel: ViewModel, Identifiable {
     var blocks: [MarkdownBlock] = []
     var lines: [Substring] = []
     var isCode = false
+    var open: [(indent: Int, number: Int?)] = []
     func flush() {
       defer { lines = [] }
       if isCode {
         blocks.append(.code(lines.joined(separator: "\n")))
       } else {
-        blocks.append(contentsOf: proseBlocks(lines))
+        blocks.append(contentsOf: proseBlocks(lines, open: &open))
       }
     }
     // A fence closes only on a bare run of at least as many backticks as opened it.
@@ -206,6 +207,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       let ticks = trimmed.prefix { $0 == "`" }.count
       if !isCode, ticks >= 3, !trimmed.dropFirst(ticks).contains("`") {
         flush()
+        let indent = line.prefix { $0 == " " || $0 == "\t" }.count
+        while let last = open.last, last.indent >= indent { open.removeLast() }
         isCode = true
         fence = ticks
       } else if isCode, ticks >= fence, ticks == trimmed.count {
@@ -219,11 +222,13 @@ final class ChatTabModel: ViewModel, Identifiable {
     return blocks
   }
 
-  private static func proseBlocks(_ lines: [Substring]) -> [MarkdownBlock] {
+  private static func proseBlocks(
+    _ lines: [Substring], open: inout [(indent: Int, number: Int?)]
+  ) -> [MarkdownBlock] {
     var blocks: [MarkdownBlock] = []
     var paragraph: [Substring] = []
     var quote: [Substring] = []
-    var items: [(number: Int?, indent: Int, lines: [Substring])] = []
+    var items: [(number: Int?, indent: Int, lines: [Substring], continuation: Bool)] = []
     var afterBlank = false
     func closeParagraphAndQuote() {
       if !paragraph.isEmpty { blocks.append(.prose(inlineMarkdown(paragraph.joined(separator: "\n")))) }
@@ -231,19 +236,21 @@ final class ChatTabModel: ViewModel, Identifiable {
       paragraph = []
       quote = []
     }
-    func closeAll() {
+    func closeAll(keepList: Bool = false) {
+      defer { if !keepList { open = [] } }
       closeParagraphAndQuote()
       guard !items.isEmpty else { return }
       // Ordered items count up from the first sibling's number, whatever the source says.
-      var open: [(indent: Int, number: Int?)] = []
       var listItems: [MarkdownListItem] = []
       for item in items {
         var sibling: (indent: Int, number: Int?)?
         while let last = open.last, last.indent >= item.indent { sibling = open.removeLast() }
-        let number = item.number.map { start in sibling?.number.map { $0 + 1 } ?? start }
+        let number = item.continuation
+          ? sibling?.number
+          : item.number.map { start in sibling?.number.map { $0 + 1 } ?? start }
         listItems.append(
           MarkdownListItem(
-            marker: number.map { "\($0)." } ?? "•", depth: open.count,
+            marker: item.continuation ? "" : number.map { "\($0)." } ?? "•", depth: open.count,
             text: inlineMarkdown(item.lines.joined(separator: "\n"))))
         open.append((item.indent, number))
       }
@@ -252,9 +259,15 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     for line in lines {
       let trimmed = line.drop { $0 == " " || $0 == "\t" }
+      let indent = line.count - trimmed.count
       defer { afterBlank = trimmed.isEmpty }
       if trimmed.isEmpty {
         closeParagraphAndQuote()
+      } else if items.isEmpty, open.isEmpty,
+        indent >= 4 || line.prefix(indent).contains("\t")
+      {
+        if !quote.isEmpty { closeAll() }
+        paragraph.append(line)
       } else if isRule(trimmed) {
         closeAll()
         blocks.append(.rule)
@@ -263,20 +276,27 @@ final class ChatTabModel: ViewModel, Identifiable {
         blocks.append(.heading(level: level, text: inlineMarkdown(String(title))))
       } else if case let (number, rest)? = listItem(trimmed) {
         closeParagraphAndQuote()
-        items.append((number, line.count - trimmed.count, [rest]))
+        items.append((number, indent, [rest], false))
       } else if trimmed.first == ">" {
         if !quote.isEmpty { quote.append(trimmed.dropFirst().drop { $0 == " " }) } else {
           closeAll()
           quote = [trimmed.dropFirst().drop { $0 == " " }]
         }
-      } else if !items.isEmpty, !afterBlank || trimmed.count < line.count {
-        items[items.count - 1].lines.append(contentsOf: afterBlank ? ["", trimmed] : [trimmed])
+      } else if let owner = afterBlank
+        ? items.lastIndex(where: { $0.indent < indent }) : items.indices.last
+      {
+        if owner == items.count - 1 {
+          items[owner].lines.append(contentsOf: afterBlank ? ["", trimmed] : [trimmed])
+        } else {
+          items.append((items[owner].number, items[owner].indent, [trimmed], true))
+        }
       } else {
         if !items.isEmpty || !quote.isEmpty { closeAll() }
+        open = []
         paragraph.append(line)
       }
     }
-    closeAll()
+    closeAll(keepList: true)
     return blocks
   }
 

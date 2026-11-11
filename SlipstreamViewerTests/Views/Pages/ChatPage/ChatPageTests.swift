@@ -1675,6 +1675,47 @@ struct ChatPageTests {
       ]))
   }
 
+  @Test func orderedListNumberingSurvivesIndentedFences() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. first\n   ```\n   code\n   ```\n1. second"),
+      [
+        .list([.init(marker: "1.", depth: 0, text: try inline("first"))]),
+        .code("   code"),
+        .list([.init(marker: "2.", depth: 0, text: try inline("second"))]),
+      ])
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. first\n```\ncode\n```\n1. separate"),
+      [
+        .list([.init(marker: "1.", depth: 0, text: try inline("first"))]),
+        .code("code"),
+        .list([.init(marker: "1.", depth: 0, text: try inline("separate"))]),
+      ])
+  }
+
+  @Test func indentedBlockMarkersStayLiteralOutsideLists() throws {
+    let text = "    # comment\n    ---\n\t> quote\n\t# comment\n\t---"
+
+    expectNoDifference(ChatTabModel.markdownBlocks(text), [.prose(try inline(text))])
+  }
+
+  @Test func parentContinuationStaysAfterItsNestedChild() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. parent\n   - child\n\n   parent again\n1. next"),
+      [.list([
+        .init(marker: "1.", depth: 0, text: try inline("parent")),
+        .init(marker: "•", depth: 1, text: try inline("child")),
+        .init(marker: "", depth: 0, text: try inline("parent again")),
+        .init(marker: "2.", depth: 0, text: try inline("next")),
+      ])])
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("- parent\n  - child\n\n  parent again"),
+      [.list([
+        .init(marker: "•", depth: 0, text: try inline("parent")),
+        .init(marker: "•", depth: 1, text: try inline("child")),
+        .init(marker: "", depth: 0, text: try inline("parent again")),
+      ])])
+  }
+
   @Test func nearMissesStayProse() throws {
     let text = "#hashtag\n-dash\n1.5 apples\n* * *"
 
