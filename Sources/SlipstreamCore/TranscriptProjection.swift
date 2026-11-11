@@ -56,7 +56,8 @@ public struct TranscriptProjection: Equatable, Sendable {
         turnStartIndex = projection.items.endIndex
       }
       if case .queuedMessage(let uuid, let text) = line {
-        projection.items.append(TranscriptItem(id: "\(uuid)#0", kind: .userMessage(text)))
+        projection.items.append(
+          TranscriptItem(id: "\(uuid)#0", kind: .userMessage(SlipstreamInstruction.stripped(text))))
       }
       projection.apply(line)
       switch line {
@@ -118,7 +119,7 @@ public struct TranscriptProjection: Equatable, Sendable {
       for (index, block) in blocks.enumerated() {
         switch block {
         case .text(let text) where isPrompt && !Self.isInterruptMarker(text):
-          add(TranscriptItem(id: "\(uuid)#\(index)", kind: .userMessage(text)))
+          add(TranscriptItem(id: "\(uuid)#\(index)", kind: .userMessage(SlipstreamInstruction.stripped(text))))
         case .toolResult(let toolUseID, let text, let isError):
           finishTool(toolUseID, text: text, isError: isError)
         default:

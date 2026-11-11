@@ -49,6 +49,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored var onReadinessChanged: () -> Void = {}
   /// Called once per relay, when the agent reads it or its process ends first.
   @ObservationIgnored var onRelayDelivery: (RelayDelivery) -> Void = { _ in }
+  /// Whether the folder's stream is linked to this chat, as the last capture read saw it.
+  @ObservationIgnored var isStreamLinked: () -> Bool = { false }
 
   private var activeTurn: ActiveTurn?
   private var toggledItemIDs: Set<String> = []
@@ -65,6 +67,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var echoes: Set<String> = []
   /// Sends written behind an unread relay of the current launch and not yet read.
   @ObservationIgnored private var queuedSends = 0
+  /// Guidance for the current launch, put in front of the next message written to it.
+  @ObservationIgnored private var instructions: [SlipstreamInstruction] = []
   @ObservationIgnored private var followers: [Int: Task<Void, Never>] = [:]
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
   @ObservationIgnored private var starting: [Task<Bool, Never>] = []
@@ -244,9 +248,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     let isQueued = hasUnreadInput
     projection.userSent(text, id: itemID)
     if isQueued { queuedSends += 1 }
+    let sentInstructions = takeInstructions()
     do {
-      try await handle.write(ClaudeInvocation.userMessage(text))
+      try await handle.write(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: sentInstructions)))
     } catch {
+      if launch == handleGeneration { instructions = sentInstructions }
       if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
       projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
@@ -280,9 +286,13 @@ final class ChatTabModel: ViewModel, Identifiable {
     let itemID = message.relayID.uuidString
     projection.userSent(message.text, id: itemID, relay: RelayMark(label: message.label, delivery: .waiting))
     unreadRelays[launch, default: []].append(message.relayID)
+    let sentInstructions = takeInstructions()
     do {
-      try await handle.write(ClaudeInvocation.userMessage(message.text, uuid: message.relayID))
+      try await handle.write(
+        ClaudeInvocation.userMessage(
+          SlipstreamInstruction.prefixed(message.text, with: sentInstructions), uuid: message.relayID))
     } catch {
+      if launch == handleGeneration { instructions = sentInstructions }
       // Already echoed or reported as unread, so it is no longer this call's to fail.
       guard unreadRelays[launch]?.contains(message.relayID) == true else { return }
       unreadRelays[launch]?.removeAll { $0 == message.relayID }
@@ -444,6 +454,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
+      instructions = Self.instructions(session: session, lookup: lookup, isLinked: isStreamLinked())
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
       followers[generation] = Task { [weak self] in
         for await event in handle.events {
@@ -514,6 +525,22 @@ final class ChatTabModel: ViewModel, Identifiable {
         return
       }
     }
+  }
+
+  private func takeInstructions() -> [SlipstreamInstruction] {
+    defer { instructions = [] }
+    return instructions
+  }
+
+  /// A new chat is told it isn't linked yet; a linked one learns its tools once.
+  private static func instructions(
+    session: ClaudeSessionStart, lookup: TranscriptLookup, isLinked: Bool
+  ) -> [SlipstreamInstruction] {
+    let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
+    var instructions: [SlipstreamInstruction] = []
+    if case .new = session { instructions.append(.start) }
+    if isLinked, !SlipstreamInstruction.linked.wasSent(in: lines) { instructions.append(.linked) }
+    return instructions
   }
 
   private func readTranscript() async throws(Failure) -> (AgentEnvironment, TranscriptLookup) {

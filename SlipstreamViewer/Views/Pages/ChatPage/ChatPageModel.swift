@@ -382,6 +382,11 @@ final class ChatPageModel: ViewModel {
     records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
   }
 
+  private func isLinked(_ id: UUID) -> Bool {
+    guard let folder = records[id: id]?.folder else { return false }
+    return bindings?[folder]?.isLinked(toChat: id) == true
+  }
+
   /// Unknown, `unavailable` and unrecognised bindings are never linked over.
   private func isUnlinked(_ folder: String) -> Bool {
     guard let bindings else { return false }
@@ -465,6 +470,7 @@ final class ChatPageModel: ViewModel {
     tab.onTurnEnded = { [weak self] in self?.turnEnded(id) }
     tab.onReadinessChanged = { [weak self] in self?.onReadinessChanged() }
     tab.onRelayDelivery = { [weak self] delivery in self?.onRelayDelivery(id, delivery) }
+    tab.isStreamLinked = { [weak self] in self?.isLinked(id) ?? false }
     tabs.append(tab)
   }
 
