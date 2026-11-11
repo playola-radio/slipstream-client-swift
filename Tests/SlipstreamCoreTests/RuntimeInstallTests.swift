@@ -24,7 +24,11 @@ struct RuntimeInstallTests {
   @Test func prepareRejectsChangedByte() throws {
     let sandbox = try Sandbox()
     let install = sandbox.install { staging in
-      try! Data("console.log('tampered')\n".utf8).write(to: staging.appendingPathComponent("app/dist/cli.js"))
+      do {
+        try Data("console.log('tampered')\n".utf8).write(to: staging.appendingPathComponent("app/dist/cli.js"))
+      } catch {
+        Issue.record(error)
+      }
     }
 
     expectNoDifference(
@@ -39,7 +43,11 @@ struct RuntimeInstallTests {
   @Test func prepareRejectsExtraFile() throws {
     let sandbox = try Sandbox()
     let install = sandbox.install { staging in
-      try! Data("extra".utf8).write(to: staging.appendingPathComponent("app/extra.txt"))
+      do {
+        try Data("extra".utf8).write(to: staging.appendingPathComponent("app/extra.txt"))
+      } catch {
+        Issue.record(error)
+      }
     }
 
     expectNoDifference(prepareError(install), .differs(path: "app/extra.txt", expected: "absent", actual: "present"))
@@ -143,6 +151,24 @@ struct RuntimeInstallTests {
     expectNoDifference(try currentTarget(sandbox.root), "0.3.2-abcdef01")
   }
 
+  @Test func activateRejectsCurrentThatIsNotASymlink() throws {
+    let sandbox = try Sandbox()
+    let install = sandbox.install()
+    let prepared = try install.prepare()
+    let current = sandbox.root.appendingPathComponent("current")
+    try Data("not a symlink\n".utf8).write(to: current)
+
+    #expect(throws: RuntimeInstallError.io(
+      step: "read current",
+      path: current.path,
+      errno: EINVAL,
+      message: String(cString: strerror(EINVAL))
+    )) {
+      try install.activate(prepared)
+    }
+    expectNoDifference(try String(contentsOf: current, encoding: .utf8), "not a symlink\n")
+  }
+
   @Test func shimFailureLeavesCurrent() throws {
     let sandbox = try Sandbox(version: "0.3.1")
     let install = sandbox.install()
@@ -177,9 +203,12 @@ struct RuntimeInstallTests {
     _ = try install.activate(try install.prepare())
 
     let bin = sandbox.root.appendingPathComponent("bin")
-    expectNoDifference(try String(contentsOf: bin.appendingPathComponent("slipstream"), encoding: .utf8), shim("cli.js"))
     expectNoDifference(
-      try String(contentsOf: bin.appendingPathComponent("slipstream-mcp"), encoding: .utf8), shim("mcp-forwarder.js"))
+      try String(contentsOf: bin.appendingPathComponent("slipstream"), encoding: .utf8),
+      shim("cli.js", root: sandbox.root))
+    expectNoDifference(
+      try String(contentsOf: bin.appendingPathComponent("slipstream-mcp"), encoding: .utf8),
+      shim("mcp-forwarder.js", root: sandbox.root))
     expectNoDifference(try mode(bin.appendingPathComponent("slipstream")), 0o100755)
     expectNoDifference(try mode(bin.appendingPathComponent("slipstream-mcp")), 0o100755)
   }
@@ -269,10 +298,10 @@ private func prepareError(_ install: RuntimeInstall) -> RuntimeInstallError? {
   }
 }
 
-private func shim(_ script: String) -> String {
+private func shim(_ script: String, root: URL) -> String {
   """
   #!/bin/sh
-  root="$HOME/Library/Application Support/com.playola.SlipstreamViewer/runtime"
+  root='\(root.path)'
   dir="$(cd "$root/current" 2>/dev/null && pwd -P)" || { echo "slipstream: no runtime at $root/current; open Slipstream once." >&2; exit 127; }
   SLIPSTREAM_APP_RUNTIME="$root" exec "$dir/bin/node" "$dir/app/dist/\(script)" "$@"
 

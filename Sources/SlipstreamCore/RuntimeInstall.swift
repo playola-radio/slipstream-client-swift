@@ -53,6 +53,7 @@ public struct RuntimeInstall: Sendable {
   public let commandsDirectory: URL
   let afterCopy: @Sendable (URL) -> Void
 
+  /// Creates an installer for the bundled payload and the runtime and command locations it owns.
   public init(
     root: URL,
     bundled: URL,
@@ -62,6 +63,7 @@ public struct RuntimeInstall: Sendable {
     self.init(root: root, bundled: bundled, commandsDirectory: commandsDirectory, afterCopy: { _ in })
   }
 
+  /// Creates an installer with a post-copy hook used to exercise verification failures in tests.
   init(root: URL, bundled: URL, commandsDirectory: URL, afterCopy: @escaping @Sendable (URL) -> Void) {
     self.root = root
     self.bundled = bundled
@@ -69,10 +71,12 @@ public struct RuntimeInstall: Sendable {
     self.afterCopy = afterCopy
   }
 
+  /// Reads the daemon version and build identifier from the embedded runtime payload.
   public func bundledIdentity() throws(RuntimeInstallError) -> RuntimeIdentity {
     try Self.identity(of: bundled.path)
   }
 
+  /// Verifies and installs the embedded runtime into its immutable versioned directory.
   public func prepare() throws(RuntimeInstallError) -> PreparedRuntime {
     try withLock { () throws(RuntimeInstallError) -> PreparedRuntime in
       let identity = try bundledIdentity()
@@ -102,6 +106,7 @@ public struct RuntimeInstall: Sendable {
     }
   }
 
+  /// Points `current` and the stable shims at a prepared runtime unless a newer version is active.
   public func activate(_ runtime: PreparedRuntime) throws(RuntimeInstallError) -> Activation {
     try withLock { () throws(RuntimeInstallError) -> Activation in
       if let active = try currentIdentity(), Self.isVersion(active.version, newerThan: runtime.identity.version) {
@@ -153,10 +158,16 @@ public struct RuntimeInstall: Sendable {
 
   static let shimScripts = ["slipstream": "cli.js", "slipstream-mcp": "mcp-forwarder.js"]
 
-  static func shim(execing script: String) -> String {
+  /// Produces a shell-safe single-quoted string literal for a POSIX shell assignment.
+  static func shellQuoted(_ value: String) -> String {
+    "'\(value.replacingOccurrences(of: "'", with: "'\\\\''"))'"
+  }
+
+  /// Produces a stable command shim that resolves the active runtime at execution time.
+  static func shim(execing script: String, root: String) -> String {
     """
     #!/bin/sh
-    root="$HOME/Library/Application Support/com.playola.SlipstreamViewer/runtime"
+    root=\(shellQuoted(root))
     dir="$(cd "$root/current" 2>/dev/null && pwd -P)" || { echo "slipstream: no runtime at $root/current; open Slipstream once." >&2; exit 127; }
     SLIPSTREAM_APP_RUNTIME="$root" exec "$dir/bin/node" "$dir/app/dist/\(script)" "$@"
 
@@ -179,7 +190,18 @@ public struct RuntimeInstall: Sendable {
   /// The identity `current` points at, or nil when it points at nothing. A runtime that is there but
   /// unreadable throws, so it is never replaced by one that might be older.
   private func currentIdentity() throws(RuntimeInstallError) -> RuntimeIdentity? {
-    guard let target = Self.symlinkDestination(root.appendingPathComponent("current").path) else { return nil }
+    let currentPath = root.appendingPathComponent("current").path
+    var buffer = [CChar](repeating: 0, count: Int(PATH_MAX) + 1)
+    let length = readlink(currentPath, &buffer, Int(PATH_MAX))
+    if length < 0 {
+      if errno == ENOENT { return nil }
+      throw .posix(step: "read current", path: currentPath)
+    }
+    guard let target = String(
+      bytes: buffer[0..<Int(length)].map { UInt8(bitPattern: $0) }, encoding: .utf8
+    ) else {
+      throw .io(step: "read current", path: currentPath, errno: 0, message: "current link target is not UTF-8")
+    }
     let directory = root.appendingPathComponent(target).path
     var info = stat()
     guard lstat(directory, &info) == 0 else {
@@ -196,7 +218,7 @@ public struct RuntimeInstall: Sendable {
       let path = "\(bin)/\(name)"
       let temporary = "\(bin)/.\(name).tmp-\(UUID().uuidString)"
       do throws(RuntimeInstallError) {
-        try Self.writeFile(Data(Self.shim(execing: script).utf8), to: temporary, mode: 0o755)
+        try Self.writeFile(Data(Self.shim(execing: script, root: root.path).utf8), to: temporary, mode: 0o755)
         guard rename(temporary, path) == 0 else { throw .posix(step: "replace shim", path: path) }
       } catch {
         unlink(temporary)
@@ -205,6 +227,7 @@ public struct RuntimeInstall: Sendable {
     }
   }
 
+  /// Reads the runtime identity files without trusting a directory name or manifest.
   private static func identity(of runtime: String) throws(RuntimeInstallError) -> RuntimeIdentity {
     struct Package: Decodable { let version: String }
     let packagePath = "\(runtime)/app/package.json"
@@ -218,8 +241,8 @@ public struct RuntimeInstall: Sendable {
     return RuntimeIdentity(version: package.version, build: build)
   }
 
-  /// Semver precedence: numeric major.minor.patch, then a release outranks its prereleases, which
-  /// compare identifier by identifier.
+  /// Returns whether `lhs` has higher SemVer precedence than `rhs`, comparing numeric
+  /// major/minor/patch values and then prerelease identifiers.
   static func isVersion(_ lhs: String, newerThan rhs: String) -> Bool {
     func parts(_ version: String) -> (core: [Int], prerelease: String?) {
       let withoutBuild = version.split(separator: "+", maxSplits: 1).first.map(String.init) ?? version
@@ -268,6 +291,7 @@ public struct RuntimeInstall: Sendable {
     }
   }
 
+  /// Copies one regular file with no symlink traversal and flushes it before returning.
   private static func copyFile(from source: String, to destination: String) throws(RuntimeInstallError) {
     let input = open(source, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
     guard input >= 0 else { throw .posix(step: "copy", path: source) }
@@ -290,13 +314,14 @@ public struct RuntimeInstall: Sendable {
     guard fsync(output) == 0 else { throw .posix(step: "copy", path: destination) }
   }
 
+  /// Removes Finder's quarantine extended attribute while preserving all other metadata choices.
   private static func stripQuarantine(_ path: String) throws(RuntimeInstallError) {
     guard removexattr(path, "com.apple.quarantine", XATTR_NOFOLLOW) == 0 || errno == ENOATTR else {
       throw .posix(step: "strip quarantine", path: path)
     }
   }
 
-  /// Checks that the copy has exactly the bundle's relative paths, permission bits and bytes.
+  /// Checks two directory trees for exactly matching paths, modes, and regular-file contents.
   private static func compareTree(_ expected: String, _ actual: String) throws(RuntimeInstallError) {
     let bundle = try modes(under: expected)
     let copy = try modes(under: actual)
@@ -314,7 +339,7 @@ public struct RuntimeInstall: Sendable {
     }
   }
 
-  /// Every entry under `base`, keyed by relative path, with its `lstat` mode (type and permission bits).
+  /// Recursively records every entry beneath `base`, keyed by its relative path and `lstat` mode.
   private static func modes(under base: String, prefix: String = "") throws(RuntimeInstallError) -> [String: mode_t] {
     var result: [String: mode_t] = [:]
     for name in try children(of: prefix.isEmpty ? base : "\(base)/\(prefix)") {
@@ -328,6 +353,7 @@ public struct RuntimeInstall: Sendable {
     return result
   }
 
+  /// Returns the lowercase SHA-256 digest for a regular file opened without following symlinks.
   private static func sha256(of path: String) throws(RuntimeInstallError) -> String {
     let descriptor = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
     guard descriptor >= 0 else { throw .posix(step: "compare", path: path) }
@@ -343,6 +369,7 @@ public struct RuntimeInstall: Sendable {
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
   }
 
+  /// Lists direct children in deterministic order and reports directory iteration failures.
   private static func children(of directory: String) throws(RuntimeInstallError) -> [String] {
     guard let stream = opendir(directory) else { throw .posix(step: "list", path: directory) }
     defer { closedir(stream) }
@@ -358,6 +385,7 @@ public struct RuntimeInstall: Sendable {
     return names.sorted()
   }
 
+  /// Reads a file through a close-on-exec descriptor and surfaces POSIX failures with context.
   private static func readFile(_ path: String) throws(RuntimeInstallError) -> Data {
     let descriptor = open(path, O_RDONLY | O_CLOEXEC)
     guard descriptor >= 0 else { throw .posix(step: "read", path: path) }
@@ -372,6 +400,7 @@ public struct RuntimeInstall: Sendable {
     }
   }
 
+  /// Creates and writes a new file with its requested permission bits.
   private static func writeFile(_ data: Data, to path: String, mode: mode_t) throws(RuntimeInstallError) {
     let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, mode)
     guard descriptor >= 0 else { throw .posix(step: "write", path: path) }
@@ -381,6 +410,7 @@ public struct RuntimeInstall: Sendable {
     guard fchmod(descriptor, mode) == 0 else { throw .posix(step: "write", path: path) }
   }
 
+  /// Recursively creates a directory path, accepting directories created by a concurrent caller.
   private static func makeDirectories(_ path: String) throws(RuntimeInstallError) {
     if mkdir(path, 0o755) == 0 || errno == EEXIST { return }
     guard errno == ENOENT else { throw .posix(step: "create directory", path: path) }
@@ -399,11 +429,13 @@ public struct RuntimeInstall: Sendable {
     }
   }
 
+  /// Returns an entry's `lstat` mode without following symlinks.
   private static func mode(of path: String) -> mode_t? {
     var info = stat()
     return lstat(path, &info) == 0 ? info.st_mode : nil
   }
 
+  /// Returns a link destination for non-safety-critical callers that can treat failures as absent.
   private static func symlinkDestination(_ path: String) -> String? {
     try? FileManager.default.destinationOfSymbolicLink(atPath: path)
   }
