@@ -32,6 +32,15 @@ struct WorkspaceSidebarTests {
     #expect(groups.first?.repository == nil)
   }
 
+  @Test func aNamedFolderGroupKeepsTheFolderName() {
+    var session = Self.session("/a/b/c")
+    session.naming = SessionNaming(agentName: "Agent's name", userName: "My name")
+
+    let groups = SidebarGroup.groups([session], roots: Self.roots)
+
+    expectNoDifference(Self.names(groups), [["c", "My name"]])
+  }
+
   @Test func onlyExactlyRepoSlashNameGroups() {
     let groups = SidebarGroup.groups(
       [

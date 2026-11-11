@@ -29,7 +29,8 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   var rows: [SessionOption]
 
   var id: String { repository ?? rows[0].id }
-  var name: String { repository ?? Self.rowName(rows[0]) }
+  /// The group names a folder, so it never takes a workspace's name.
+  var name: String { repository ?? Self.folderName(rows[0]) }
   var newWorkspaceFolder: String? { rows.first?.root }
 
   static func groups(_ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?) -> [SidebarGroup] {
@@ -46,8 +47,11 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   }
 
   static func rowName(_ session: SessionOption) -> String {
-    session.naming?.userName ?? session.naming?.agentName
-      ?? session.root.map { URL(filePath: $0).lastPathComponent } ?? session.label
+    session.naming?.userName ?? session.naming?.agentName ?? folderName(session)
+  }
+
+  private static func folderName(_ session: SessionOption) -> String {
+    session.root.map { URL(filePath: $0).lastPathComponent } ?? session.label
   }
 }
 
