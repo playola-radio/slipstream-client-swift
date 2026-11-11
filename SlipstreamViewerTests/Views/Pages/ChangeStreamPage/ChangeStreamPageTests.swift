@@ -22,6 +22,8 @@ struct ChangeStreamPageTests {
   let agent = AgentFake()
   let terminal = TerminalFake()
   let recordingFake = RecordingFake()
+  let nameFake = WorkspaceNameFake()
+  let copied = LockIsolated<[String]>([])
 
   init() {
     fake = DaemonFake()
@@ -46,6 +48,8 @@ struct ChangeStreamPageTests {
       $0.date = DateGenerator(now ?? { Fixture.checkedAt })
       $0.terminalRuntime = terminal.runtimeClient
       $0.recording = recordingFake.client
+      $0.workspaceName = nameFake.client
+      $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
       $0.openIn.installedApps = { [] }
     } operation: {
       let chat = chat ?? makeChat()
@@ -563,6 +567,75 @@ struct ChangeStreamPageTests {
         SessionOption(id: "older-daemon", label: "older-daemon"),
       ].map(model.isUseAgentNameEnabled),
       [true, false, false])
+  }
+
+  @Test func pollDoesNotChangeDraft() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.renameMenuTapped(model.sessions[0])
+    model.naming.draftChanged("My draft")
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Newer agent name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let poll = Task { await model.sessionPollTask() }
+
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    expectNoDifference(model.rowName(model.sessions[0]), "Newer agent name")
+    expectNoDifference(model.naming.dialog?.draft, "My draft")
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func useAgentNameFailureRaisesAlert() async {
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    nameFake.setFailures(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+
+    await model.useAgentNameMenuTapped(model.sessions[0])
+
+    #expect(model.isWorkspaceFailurePresented)
+    expectNoDifference(
+      [model.workspaceFailureTitle, model.workspaceFailureText, model.workspaceFailureDetail],
+      [
+        "Couldn't switch back to the agent's name", "STORAGE_UNAVAILABLE: store lock lost",
+        "STORAGE_UNAVAILABLE: store lock lost",
+      ])
+    model.copyWorkspaceFailureTapped()
+    expectNoDifference(copied.value, ["STORAGE_UNAVAILABLE: store lock lost"])
+  }
+
+  @Test func namingMenuActionsAreDisabledWhileAMutationRuns() async {
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    nameFake.hold()
+
+    let clear = Task { await model.useAgentNameMenuTapped(model.sessions[0]) }
+    await Task.megaYield()
+
+    expectNoDifference(
+      [model.isRenameEnabled(model.sessions[0]), model.isUseAgentNameEnabled(model.sessions[0])], [false, false])
+    nameFake.release()
+    await clear.value
   }
 
   // MARK: - Session poll

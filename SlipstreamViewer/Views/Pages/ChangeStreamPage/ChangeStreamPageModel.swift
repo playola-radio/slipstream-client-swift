@@ -17,6 +17,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
   @ObservationIgnored @Dependency(\.workspace) var workspace
   @ObservationIgnored @Dependency(\.terminalRuntime) var terminalRuntime
+  @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
 
   // MARK: - Shared State
 
@@ -44,6 +45,10 @@ final class ChangeStreamPageModel: ViewModel {
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
     recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
+    naming.onWriteFinished = { [weak self] in await self?.reloadSessions() }
+    naming.onClearFailed = { [weak self] detail in
+      self?.workspaceFailed(title: "Couldn't switch back to the agent's name", text: detail, detail: detail)
+    }
   }
 
   // MARK: - Properties
@@ -55,6 +60,7 @@ final class ChangeStreamPageModel: ViewModel {
   let terminals: TerminalPageModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
+  let naming = WorkspaceNamingModel()
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -74,6 +80,8 @@ final class ChangeStreamPageModel: ViewModel {
   var isWorkspaceFailurePresented = false
   private(set) var workspaceFailureTitle = ""
   private(set) var workspaceFailureText = ""
+  /// The raw error behind the alert, copied by "Copy error"; nil hides that button.
+  private(set) var workspaceFailureDetail: String?
   private var queuedQuestion: QueuedQuestion?
   private(set) var feedViewport = CGRect.zero
   private(set) var isSourceBlockVisible = false
@@ -160,6 +168,7 @@ final class ChangeStreamPageModel: ViewModel {
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
+  let workspaceFailureCopyText = "Copy error"
 
   var sidebarToggleHelpText: String { isSidebarHidden ? "Show Sidebar" : "Hide Sidebar" }
   var rightPaneToggleHelpText: String { isRightPaneHidden ? "Show Right Panel" : "Hide Right Panel" }
@@ -353,8 +362,12 @@ final class ChangeStreamPageModel: ViewModel {
     return nil
   }
 
+  func isRenameEnabled(_ session: SessionOption) -> Bool {
+    renameDisabledReason(session) == nil && !naming.isMutationInFlight
+  }
+
   func isUseAgentNameEnabled(_ session: SessionOption) -> Bool {
-    session.naming?.userName != nil
+    session.naming?.userName != nil && !naming.isMutationInFlight
   }
 
   func isSelected(_ session: SessionOption) -> Bool {
@@ -734,6 +747,21 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  func renameMenuTapped(_ session: SessionOption) {
+    guard isRenameEnabled(session) else { return }
+    naming.renameTapped(sessionID: session.id, currentName: rowName(session))
+  }
+
+  func useAgentNameMenuTapped(_ session: SessionOption) async {
+    guard isUseAgentNameEnabled(session) else { return }
+    await naming.useAgentNameTapped(sessionID: session.id)
+  }
+
+  func copyWorkspaceFailureTapped() {
+    guard let workspaceFailureDetail else { return }
+    pasteboard.copy(workspaceFailureDetail)
+  }
+
   func archiveTapped(_ session: SessionOption) {
     archiveTarget = session
     isArchiveConfirmationPresented = true
@@ -1039,9 +1067,10 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
-  private func workspaceFailed(title: String, text: String) {
+  private func workspaceFailed(title: String, text: String, detail: String? = nil) {
     workspaceFailureTitle = title
     workspaceFailureText = text
+    workspaceFailureDetail = detail
     isWorkspaceFailurePresented = true
   }
 
