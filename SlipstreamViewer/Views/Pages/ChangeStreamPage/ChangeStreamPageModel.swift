@@ -75,7 +75,12 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
   private(set) var isWorkspaceBusy = false
-  private(set) var workspaceRoots: WorkspaceRoots? { didSet { sidebarInputsChanged() } }
+  private(set) var workspaceRoots: WorkspaceRoots? {
+    didSet {
+      sidebarInputsChanged()
+      chatWorkspaceMayHaveChanged()
+    }
+  }
   private(set) var archiveTarget: SessionOption?
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
   private(set) var sidebarGroups: [SidebarGroup] = []

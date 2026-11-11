@@ -4395,6 +4395,27 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.selectedSession, selected)
   }
 
+  @Test func rootsArrivalUpdatesTheChatEmptyText() async {
+    listTwoWorkspaces()
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let workspace = workspaceClient()
+    let model = makeModel(workspace: WorkspaceClient(
+      roots: {
+        for await _ in gate { break }
+        return await workspace.roots()
+      },
+      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(model.chat.noWorkspaceText, "No capture sessions yet")
+
+    release.yield()
+    await Task.megaYield()
+
+    expectNoDifference(model.chat.noWorkspaceText, "Choose a capture session to watch its changes")
+  }
+
   @Test func breadcrumbNamesRepoAndWorkspace() async {
     let project = await connectedModel()
     expectNoDifference(project.breadcrumbRepositoryText, nil)
