@@ -4,7 +4,7 @@ import Synchronization
 
 @testable import SlipstreamViewer
 
-/// Records every rename and answers with queued failures, succeeding once the queue is empty.
+/// Records every rename. The next call throws the set failure, then calls succeed.
 /// After `hold()`, the next call waits until `release()`.
 final class WorkspaceNameFake: Sendable {
   struct Call: Equatable {
@@ -14,7 +14,7 @@ final class WorkspaceNameFake: Sendable {
 
   private struct State {
     var calls: [Call] = []
-    var failures: [QuestionError] = []
+    var failure: QuestionError?
     var next: (stream: AsyncStream<Void>, continuation: AsyncStream<Void>.Continuation)?
     var held: AsyncStream<Void>.Continuation?
   }
@@ -23,7 +23,7 @@ final class WorkspaceNameFake: Sendable {
 
   var calls: [Call] { state.withLock { $0.calls } }
 
-  func setFailures(_ failures: QuestionError...) { state.withLock { $0.failures = failures } }
+  func setFailure(_ failure: QuestionError) { state.withLock { $0.failure = failure } }
 
   func hold() {
     let next = AsyncStream<Void>.makeStream()
@@ -45,9 +45,9 @@ final class WorkspaceNameFake: Sendable {
   private func perform(_ call: Call) async throws {
     let (failure, held) = state.withLock { state in
       state.calls.append(call)
-      defer { state.next = nil }
+      defer { (state.next, state.failure) = (nil, nil) }
       if let next = state.next { state.held = next.continuation }
-      return (state.failures.isEmpty ? nil : state.failures.removeFirst(), state.next?.stream)
+      return (state.failure, state.next?.stream)
     }
     if let held {
       for await _ in held {}

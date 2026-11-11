@@ -131,7 +131,7 @@ struct WorkspaceNamingModelTests {
   @Test func outcomeUnknownShowsSaveFailedAndRefreshes() async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
-    nameFake.setFailures(.outcomeUnknown)
+    nameFake.setFailure(.outcomeUnknown)
 
     await model.renameConfirmed()
 
@@ -170,7 +170,7 @@ struct WorkspaceNamingModelTests {
   func saveFailedShowsHeadlineAndRawError(error: QuestionError, expected: [String]) async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
-    nameFake.setFailures(error)
+    nameFake.setFailure(error)
 
     await model.renameConfirmed()
 
@@ -180,7 +180,7 @@ struct WorkspaceNamingModelTests {
   @Test func editingAfterAFailedSaveClearsTheFailure() async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
-    nameFake.setFailures(.unavailable)
+    nameFake.setFailure(.unavailable)
     await model.renameConfirmed()
 
     model.draftChanged("Sidebar polling")
@@ -193,7 +193,7 @@ struct WorkspaceNamingModelTests {
   @Test func copyErrorCopiesDetail() async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
-    nameFake.setFailures(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
     await model.renameConfirmed()
 
     model.copyErrorTapped()
@@ -204,7 +204,7 @@ struct WorkspaceNamingModelTests {
   @Test func sessionNotFoundShowsGone() async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
-    nameFake.setFailures(.rejected(code: "SESSION_NOT_FOUND", message: "session was deleted"))
+    nameFake.setFailure(.rejected(code: "SESSION_NOT_FOUND", message: "session was deleted"))
 
     await model.renameConfirmed()
 
@@ -251,7 +251,7 @@ struct WorkspaceNamingModelTests {
   @Test func invalidNameShowsDaemonMessage() async {
     let model = makeModel()
     model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
-    nameFake.setFailures(.rejected(code: "INVALID_NAME", message: "name is not well-formed UTF-16"))
+    nameFake.setFailure(.rejected(code: "INVALID_NAME", message: "name is not well-formed UTF-16"))
 
     await model.renameConfirmed()
 

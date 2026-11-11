@@ -613,7 +613,7 @@ struct ChangeStreamPageTests {
       starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
     let model = makeModel()
     await model.viewAppeared()
-    nameFake.setFailures(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
 
     await model.useAgentNameMenuTapped(model.sessions[0])
 
