@@ -69,6 +69,9 @@ struct WorkspaceNamingModelTests {
     expectNoDifference(
       [model.isRenameEnabled ? "enabled" : "disabled", model.validationMessage],
       ["disabled", "That name is too long. Shorten it to save."])
+    expectNoDifference(
+      [model.errorText, model.isFieldInvalid ? "invalid" : "valid"],
+      ["That name is too long. Shorten it to save.", "invalid"])
   }
 
   @Test(arguments: ["Two\nlines", "Two\u{2028}lines", "\tTabbed"])
@@ -101,8 +104,11 @@ struct WorkspaceNamingModelTests {
     await Task.megaYield()
 
     expectNoDifference(
-      [model.isSaving, model.isMutationInFlight, model.isRenameEnabled], [true, true, false])
+      [model.isSaving, model.isMutationInFlight, model.isRenameEnabled, model.isFieldDisabled, model.isPrimaryDimmed],
+      [true, true, false, true, false])
+    expectNoDifference(model.primaryButtonTitle, "Saving…")
     model.cancelTapped()
+    model.isDialogPresented = false
     model.draftChanged("Something else")
     expectNoDifference(
       model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "Sidebar polling backoff", phase: .saving))
@@ -135,6 +141,7 @@ struct WorkspaceNamingModelTests {
         headline: "Couldn't confirm the name was saved. Slipstream didn't reply.",
         detail: "OUTCOME_UNKNOWN: the rename was sent but no valid reply came back"))
     expectNoDifference(model.primaryButtonTitle, "Try again")
+    expectNoDifference(model.errorText, "Couldn't confirm the name was saved. Slipstream didn't reply.")
     expectNoDifference(refreshes.value, 1)
     expectNoDifference(nameFake.calls.count, 1)
     #expect(model.isRenameEnabled)
@@ -191,9 +198,40 @@ struct WorkspaceNamingModelTests {
     expectNoDifference(model.dialog?.phase, .gone)
     expectNoDifference(
       [model.failureHeadline, model.failureDetail], ["This workspace was deleted, so it can't be renamed.", nil])
-    expectNoDifference([model.isCloseOnly, model.isRenameEnabled], [true, false])
+    expectNoDifference(
+      [model.isCloseOnly, model.isRenameEnabled, model.isFieldDisabled, model.isHelperShown], [true, false, true, false])
     expectNoDifference(refreshes.value, 1)
     model.closeTapped()
+    expectNoDifference(model.dialog, nil)
+  }
+
+  @Test func editingThroughTheFieldUpdatesDraft() {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
+
+    model.draft = "Sidebar polling"
+
+    expectNoDifference(model.dialog?.draft, "Sidebar polling")
+    expectNoDifference([model.isHelperShown, model.isPrimaryDimmed, model.isFieldInvalid], [true, false, false])
+  }
+
+  @Test func emptyDraftDimsRename() {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
+
+    model.draft = ""
+
+    expectNoDifference([model.isPrimaryDimmed, model.isFieldInvalid], [true, false])
+    expectNoDifference(model.errorText, nil)
+  }
+
+  @Test func dismissingTheSheetCancels() {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
+    #expect(model.isDialogPresented)
+
+    model.isDialogPresented = false
+
     expectNoDifference(model.dialog, nil)
   }
 

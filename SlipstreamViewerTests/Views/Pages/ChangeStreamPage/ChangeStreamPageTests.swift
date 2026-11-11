@@ -557,6 +557,17 @@ struct ChangeStreamPageTests {
       ])
   }
 
+  @Test func renameHelpTextIsTheDisabledReason() {
+    let model = makeModel()
+
+    expectNoDifference(
+      [
+        SessionOption(id: "named", label: "named", naming: SessionNaming()),
+        SessionOption(id: "capture-only", label: "w", hasHistory: false),
+      ].map(model.renameHelpText),
+      ["", "Can be named once work starts here."])
+  }
+
   @Test func useAgentNameEnabledOnlyWithUserName() {
     let model = makeModel()
 
@@ -606,7 +617,7 @@ struct ChangeStreamPageTests {
 
     await model.useAgentNameMenuTapped(model.sessions[0])
 
-    #expect(model.isWorkspaceFailurePresented)
+    expectNoDifference([model.isWorkspaceFailurePresented, model.isWorkspaceFailureCopyShown], [true, true])
     expectNoDifference(
       [model.workspaceFailureTitle, model.workspaceFailureText, model.workspaceFailureDetail],
       [
@@ -4316,6 +4327,7 @@ extension ChangeStreamPageTests {
     #expect(model.isWorkspaceFailurePresented)
     #expect(model.workspaceFailureTitle == "Couldn't archive the workspace")
     #expect(model.workspaceFailureText == "slipstream: the workspace has uncommitted or untracked changes.")
+    #expect(!model.isWorkspaceFailureCopyShown)
   }
 
   @Test func refusedArchiveRestoresEachDraft() async throws {

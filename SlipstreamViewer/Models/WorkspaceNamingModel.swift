@@ -74,9 +74,15 @@ final class WorkspaceNamingModel: ViewModel {
   }
 
   var primaryButtonTitle: String {
-    if case .saveFailed = dialog?.phase { return "Try again" }
-    return "Rename"
+    switch dialog?.phase {
+    case .saving: "Saving…"
+    case .saveFailed: "Try again"
+    default: "Rename"
+    }
   }
+
+  /// The single line under the field: what's wrong with the draft, else why the last save failed.
+  var errorText: String? { validationMessage ?? failureHeadline }
 
   // MARK: - View Helpers
 
@@ -93,6 +99,25 @@ final class WorkspaceNamingModel: ViewModel {
   var isMutationInFlight: Bool { activeMutation != nil }
 
   var isCloseOnly: Bool { dialog?.phase == .gone }
+
+  var isFieldInvalid: Bool { validationMessage != nil }
+
+  var isFieldDisabled: Bool { isSaving || isCloseOnly }
+
+  var isHelperShown: Bool { !isCloseOnly }
+
+  /// Saving keeps the primary button lit behind its spinner.
+  var isPrimaryDimmed: Bool { !isRenameEnabled && !isSaving }
+
+  var draft: String {
+    get { dialog?.draft ?? "" }
+    set { draftChanged(newValue) }
+  }
+
+  var isDialogPresented: Bool {
+    get { dialog != nil }
+    set { if !newValue { cancelTapped() } }
+  }
 
   // MARK: - User Actions
 

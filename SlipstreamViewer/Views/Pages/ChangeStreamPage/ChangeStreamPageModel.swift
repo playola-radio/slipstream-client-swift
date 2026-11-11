@@ -164,6 +164,9 @@ final class ChangeStreamPageModel: ViewModel {
 
   let newWorkspaceHelpText = "New workspace"
   let archiveWorkspaceHelpText = "Archive workspace"
+  let renameMenuText = "Rename…"
+  let useAgentNameMenuText = "Use agent's name"
+  let archiveMenuText = "Archive"
   let archiveConfirmationTitle = "Archive this workspace?"
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
@@ -312,6 +315,8 @@ final class ChangeStreamPageModel: ViewModel {
 
   var isSessionPollRunning: Bool { isShown && chat.isAppActive }
 
+  var isWorkspaceFailureCopyShown: Bool { workspaceFailureDetail != nil }
+
   var isSidebarShown: Bool { !isSidebarHidden }
   var isRightPaneShown: Bool { !isRightPaneHidden }
 
@@ -360,6 +365,10 @@ final class ChangeStreamPageModel: ViewModel {
     if !session.hasHistory { return "Can be named once work starts here." }
     if session.naming == nil { return "This version of the Slipstream daemon can't rename workspaces." }
     return nil
+  }
+
+  func renameHelpText(_ session: SessionOption) -> String {
+    renameDisabledReason(session) ?? ""
   }
 
   func isRenameEnabled(_ session: SessionOption) -> Bool {

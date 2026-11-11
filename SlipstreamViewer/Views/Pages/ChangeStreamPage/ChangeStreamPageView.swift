@@ -62,9 +62,15 @@ struct ChangeStreamPageView: View {
       Text(model.openIn.failureText)
     }
     .alert(model.workspaceFailureTitle, isPresented: $model.isWorkspaceFailurePresented) {
+      if model.isWorkspaceFailureCopyShown {
+        Button(model.workspaceFailureCopyText) { model.copyWorkspaceFailureTapped() }
+      }
       Button(model.workspaceFailureDismissText, role: .cancel) {}
     } message: {
       Text(model.workspaceFailureText)
+    }
+    .sheet(isPresented: Bindable(model.naming).isDialogPresented) {
+      RenameWorkspaceSheetView(model: model.naming)
     }
     .preferredColorScheme(.dark)
     .toolbar { toolbar }
