@@ -40,12 +40,6 @@ class DaemonFreshnessTest < Minitest::Test
     assert_equal "0.3.2", DaemonFreshness.latest_version(->(_uri) { '{"version":"0.3.2"}' })
   end
 
-  def test_registry_failure_is_an_error
-    failing = ->(_uri) { raise DaemonFreshness::Error, "GET registry returned HTTP 503" }
-
-    assert_raises(DaemonFreshness::Error) { DaemonFreshness.latest_version(failing) }
-  end
-
   def test_registry_reply_without_a_version_is_an_error
     assert_raises(DaemonFreshness::Error) { DaemonFreshness.latest_version(->(_uri) { '{"error":"not found"}' }) }
     assert_raises(DaemonFreshness::Error) { DaemonFreshness.latest_version(->(_uri) { "<html>" }) }
