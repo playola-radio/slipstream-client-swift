@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.5] - 2026-11-11
+
+- Chat replies now show headings, numbered and bulleted lists, quotes, dividers and
+  bold text, instead of the raw markdown symbols.
+
 ## [0.4.4] - 2026-11-11
 
 - The workspace sidebar keeps a steady order: repositories A to Z, and workspaces by
