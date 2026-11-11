@@ -469,7 +469,7 @@ struct ChangeStreamPageTests {
   }
 
   @Test func missingDaemonIsExplained() async {
-    fake.setDiscoverError(DescriptorError.noDaemonRunning(store: "/tmp/store"))
+    fake.setDiscoverError(DescriptorError.noRuntimeDirectory(path: "/tmp/store/runtime", errno: ENOENT, message: "No such file or directory"))
     let model = makeModel()
     await model.viewAppeared()
     #expect(model.emptyStateText == "The Slipstream daemon isn't running")
@@ -3947,7 +3947,7 @@ extension ChangeStreamPageTests {
   }
 
   @Test func newWorkspaceIsReachableWithNoSessionsAndNoDaemon() async {
-    fake.setDiscoverError(DescriptorError.noDaemonRunning(store: "/tmp/store"))
+    fake.setDiscoverError(DescriptorError.noRuntimeDirectory(path: "/tmp/store/runtime", errno: ENOENT, message: "No such file or directory"))
     let model = makeModel()
 
     await model.viewAppeared()
