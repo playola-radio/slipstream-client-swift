@@ -1597,6 +1597,153 @@ struct ChatPageTests {
       ])
   }
 
+  @Test func headingsListsQuotesAndRulesBecomeBlocks() throws {
+    let text = """
+      ## What I tried
+      I built a **harness**.
+
+      1. History only: resizing.
+      2. Live turn: replaying
+         the running turn.
+         - nested `detail`
+      - Random input
+
+      > Worth checking.
+      > Twice.
+
+      ---
+      Done.
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .heading(level: 2, text: try inline("What I tried")),
+        .prose(try inline("I built a **harness**.")),
+        .list([
+          .init(marker: "1.", depth: 0, text: try inline("History only: resizing.")),
+          .init(marker: "2.", depth: 0, text: try inline("Live turn: replaying\nthe running turn.")),
+          .init(marker: "•", depth: 1, text: try inline("nested `detail`")),
+          .init(marker: "•", depth: 0, text: try inline("Random input")),
+        ]),
+        .quote(try inline("Worth checking.\nTwice.")),
+        .rule,
+        .prose(try inline("Done.")),
+      ])
+  }
+
+  @Test func listInterruptsParagraphAndSurvivesBlankLines() throws {
+    let text = """
+      Options:
+      - one
+
+        more about one
+      - two
+      after
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .prose(try inline("Options:")),
+        .list([
+          .init(marker: "•", depth: 0, text: try inline("one\n\nmore about one")),
+          .init(marker: "•", depth: 0, text: try inline("two\nafter")),
+        ]),
+      ])
+  }
+
+  @Test func orderedItemsCountUpFromTheFirstNumberAtEachLevel() throws {
+    let text = """
+      3. a
+      3. b
+         1. x
+         1. y
+      - c
+      1. d
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text).first,
+      .list([
+        .init(marker: "3.", depth: 0, text: try inline("a")),
+        .init(marker: "4.", depth: 0, text: try inline("b")),
+        .init(marker: "1.", depth: 1, text: try inline("x")),
+        .init(marker: "2.", depth: 1, text: try inline("y")),
+        .init(marker: "•", depth: 0, text: try inline("c")),
+        .init(marker: "1.", depth: 0, text: try inline("d")),
+      ]))
+  }
+
+  @Test func orderedListNumberingSurvivesIndentedFences() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. first\n   ```\n   code\n   ```\n1. second"),
+      [
+        .list([.init(marker: "1.", depth: 0, text: try inline("first"))]),
+        .code("   code"),
+        .list([.init(marker: "2.", depth: 0, text: try inline("second"))]),
+      ])
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. first\n```\ncode\n```\n1. separate"),
+      [
+        .list([.init(marker: "1.", depth: 0, text: try inline("first"))]),
+        .code("code"),
+        .list([.init(marker: "1.", depth: 0, text: try inline("separate"))]),
+      ])
+  }
+
+  @Test func indentedBlockMarkersStayLiteralOutsideLists() throws {
+    let text = "    # comment\n    ---\n\t> quote\n\t# comment\n\t---"
+
+    expectNoDifference(ChatTabModel.markdownBlocks(text), [.prose(try inline(text))])
+  }
+
+  @Test func parentContinuationStaysAfterItsNestedChild() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. parent\n   - child\n\n   parent again\n1. next"),
+      [.list([
+        .init(marker: "1.", depth: 0, text: try inline("parent")),
+        .init(marker: "•", depth: 1, text: try inline("child")),
+        .init(marker: "", depth: 0, text: try inline("parent again")),
+        .init(marker: "2.", depth: 0, text: try inline("next")),
+      ])])
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("- parent\n  - child\n\n  parent again"),
+      [.list([
+        .init(marker: "•", depth: 0, text: try inline("parent")),
+        .init(marker: "•", depth: 1, text: try inline("child")),
+        .init(marker: "", depth: 0, text: try inline("parent again")),
+      ])])
+  }
+
+  @Test func nearMissesStayProse() throws {
+    let text = "#hashtag\n-dash\n1.5 apples\n* * *"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.prose(try inline("#hashtag\n-dash\n1.5 apples")), .rule])
+  }
+
+  @Test func markdownInsideCodeFenceStaysCode() {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```\n# not a heading\n- not a list\n```"),
+      [.code("# not a heading\n- not a list")])
+  }
+
+  @Test func boldRunsTakeTheBoldWeightOfTheirFont() throws {
+    let base = DesignTokens.Chat.Paragraph.font
+
+    let styled = DesignTokens.Chat.Paragraph.styled(try inline("a **b**"), base: base, scale: 1)
+
+    expectNoDifference(styled.runs.map(\.font), [nil, base.bold.font(scale: 1)])
+  }
+
+  private func inline(_ markdown: String) throws -> AttributedString {
+    try AttributedString(
+      markdown: markdown,
+      options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+  }
+
   @Test func rowMarkdownParsesInlineCode() throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)
