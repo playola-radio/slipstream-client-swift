@@ -565,6 +565,110 @@ struct ChangeStreamPageTests {
       [true, false, false])
   }
 
+  // MARK: - Session poll
+
+  @Test func pollRefreshesEveryTwoSeconds() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let calls = fake.sessionsCallCount
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let poll = Task { await model.sessionPollTask() }
+
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    expectNoDifference(fake.sessionsCallCount, calls + 1)
+    expectNoDifference(model.rowName(model.sessions[0]), "Agent's name")
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func noPollWhileInactive() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let poll = Task { await model.sessionPollTask() }
+    await Task.megaYield()
+    model.chat.appActivityChanged(isActive: false)
+    let calls = fake.sessionsCallCount
+
+    await clock.advance(by: .seconds(10))
+    await Task.megaYield()
+
+    expectNoDifference(fake.sessionsCallCount, calls)
+    #expect(!model.isSessionPollRunning)
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func reactivationRefreshesImmediately() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.chat.appActivityChanged(isActive: false)
+    let calls = fake.sessionsCallCount
+
+    await model.appBecameActive()
+
+    expectNoDifference(fake.sessionsCallCount, calls + 1)
+    #expect(model.isSessionPollRunning)
+  }
+
+  @Test func pollFetchesStartRecordsOnce() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let poll = Task { await model.sessionPollTask() }
+
+    for _ in 1...3 {
+      await clock.advance(by: .seconds(2))
+      await Task.megaYield()
+    }
+
+    expectNoDifference(fake.sessionStartCallCount, 2)
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func pollTicksCoalesce() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    daemon.setCaptures([Fixture.capture()])
+    let model = makeModel(daemon: daemon)
+    defer { model.viewDisappeared() }
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    open.yield()
+    await appeared.value
+    let calls = daemon.sessionsCallCount
+    let poll = Task { await model.sessionPollTask() }
+
+    await clock.advance(by: .seconds(6))
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+
+    #expect(daemon.sessionsCallCount - calls <= 2)
+    poll.cancel()
+    open.finish()
+    await poll.value
+  }
+
   // MARK: - Cursor
 
   @Test func eventsBuildSectionsAndAdvanceTheCursor() async {
@@ -4203,11 +4307,24 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     expectNoDifference(
       terminal.launches.last?.arguments, ["workspace", "create", Self.workspaceRoot, "--store", "store-a"])
-    listTwoWorkspaces()
+    let created = "1b2c3d4e-2222-4c55-9a7e-2f4b8c9d0e1b"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: created, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        created: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(session: Fixture.otherSession, root: Self.workspaceRoot),
+      Fixture.capture(session: created, root: Self.secondWorkspaceRoot),
+    ])
     setupPrintsPath(Self.secondWorkspaceRoot)
     await creating.value
 
-    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.selectedSession?.id == created)
     #expect(model.chat.folder == Self.secondWorkspaceRoot)
     #expect(!model.isWorkspaceBusy)
   }

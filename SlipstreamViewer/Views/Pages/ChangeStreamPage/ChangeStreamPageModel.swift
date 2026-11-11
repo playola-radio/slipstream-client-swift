@@ -133,7 +133,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var workspaceRootsTask: Task<Void, Never>?
   @ObservationIgnored private var workspaceRootsGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
-  @ObservationIgnored private var isShown = false
+  private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
   @ObservationIgnored private var awaitsFreshSnapshot = false
   @ObservationIgnored private var pendingReadiness: (state: AgentConnection, seq: Seq)?
@@ -300,6 +300,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   // MARK: - View Helpers
+
+  var isSessionPollRunning: Bool { isShown && chat.isAppActive }
 
   var isSidebarShown: Bool { !isSidebarHidden }
   var isRightPaneShown: Bool { !isRightPaneHidden }
@@ -666,6 +668,14 @@ final class ChangeStreamPageModel: ViewModel {
     chat.appActivityChanged(isActive: true)
     openIn.viewAppeared()
     await reloadSessions()
+  }
+
+  func sessionPollTask() async {
+    while isSessionPollRunning {
+      do { try await clock.sleep(for: .seconds(2)) } catch { return }
+      guard isSessionPollRunning else { return }
+      await reloadSessions()
+    }
   }
 
   func reloadShortcutPressed() async {
@@ -1145,7 +1155,7 @@ final class ChangeStreamPageModel: ViewModel {
         _ = select(sessions[0].id)
       }
       await withTaskGroup(of: (String, SessionStarted?).self) { group in
-        for summary in summaries {
+        for summary in summaries where sessions[id: summary.id]?.root == nil {
           group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
         }
         for await (id, start) in group {

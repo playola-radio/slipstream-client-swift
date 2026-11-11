@@ -76,6 +76,7 @@ struct ChangeStreamPageView: View {
     .task { model.openIn.viewAppeared() }
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
     .task { await model.chat.clockTask() }
+    .task(id: model.isSessionPollRunning) { if model.isSessionPollRunning { await model.sessionPollTask() } }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       Task { await model.appBecameActive() }
     }

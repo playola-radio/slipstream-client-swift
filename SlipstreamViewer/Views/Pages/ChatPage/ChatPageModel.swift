@@ -32,7 +32,7 @@ final class ChatPageModel: ViewModel {
   private var selectedTabIDs: [String: UUID] = [:]
   private(set) var isQuitting = false
   private(set) var isComparisonShown = false
-  private var isAppActive = true
+  private(set) var isAppActive = true
   private var hoveredTabID: UUID?
   /// Each folder's binding from the last capture read; `nil` until a read succeeds.
   private var bindings: [String: CaptureBinding]?
