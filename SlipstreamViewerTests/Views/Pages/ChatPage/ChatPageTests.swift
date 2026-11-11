@@ -75,6 +75,11 @@ struct ChatPageTests {
     await Task.megaYield()
   }
 
+  /// A new chat's first message carries the start instruction.
+  func firstMessage(_ text: String, uuid: UUID? = nil) -> JSONValue {
+    json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: [.start]), uuid: uuid))
+  }
+
   // MARK: - Tabs and workspaces
 
   @Test func firstVisitToFolderCreatesNewChat() {
@@ -244,7 +249,7 @@ struct ChatPageTests {
 
     let tab = try #require(model.selectedTab)
     expectNoDifference(tab.projection.items, [TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("Hello"))])
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Hello"))])
+    expectNoDifference(agent.writes(0), [firstMessage("Hello")])
     #expect(tab.draft == "")
     #expect(tab.isWorking)
     #expect(model.records[id: Self.saved]?.isWaiting == false)
@@ -339,7 +344,7 @@ struct ChatPageTests {
     await send(model, "Hello\n")
 
     #expect(model.selectedTab?.draft == "")
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Hello"))])
+    expectNoDifference(agent.writes(0), [firstMessage("Hello")])
   }
 
   @Test func multilineDraftWaitsForSendAndWritesOnce() async throws {
@@ -356,7 +361,7 @@ struct ChatPageTests {
     expectNoDifference(
       tab.projection.items,
       [TranscriptItem(id: UUID(1).uuidString, kind: .userMessage("First line\nSecond line"))])
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("First line\nSecond line"))])
+    expectNoDifference(agent.writes(0), [firstMessage("First line\nSecond line")])
     #expect(tab.draft == "")
   }
 
@@ -394,7 +399,7 @@ struct ChatPageTests {
     await send(model, "two")
 
     #expect(agent.launches.count == 1)
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("one")), json(ClaudeInvocation.userMessage("two"))])
+    expectNoDifference(agent.writes(0), [firstMessage("one"), json(ClaudeInvocation.userMessage("two"))])
   }
 
   // MARK: - Turns
@@ -503,7 +508,7 @@ struct ChatPageTests {
     expectNoDifference(
       agent.writes(0),
       [
-        json(ClaudeInvocation.userMessage("hi")),
+        firstMessage("hi"),
         json(ClaudeInvocation.reply(requestID: "req-1", subtype: "can_use_tool", input: .object(["command": .string("ls")]))),
       ])
   }
@@ -641,7 +646,7 @@ struct ChatPageTests {
     await Task.megaYield()
     expectNoDifference(
       agent.writes(0),
-      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.interrupt(requestID: UUID(2).uuidString))])
+      [firstMessage("hi"), json(ClaudeInvocation.interrupt(requestID: UUID(2).uuidString))])
     #expect(model.selectedTab?.isWorking == true)
 
     await line(Line.result(durationMs: 12_000))
@@ -1603,6 +1608,153 @@ struct ChatPageTests {
       ])
   }
 
+  @Test func headingsListsQuotesAndRulesBecomeBlocks() throws {
+    let text = """
+      ## What I tried
+      I built a **harness**.
+
+      1. History only: resizing.
+      2. Live turn: replaying
+         the running turn.
+         - nested `detail`
+      - Random input
+
+      > Worth checking.
+      > Twice.
+
+      ---
+      Done.
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .heading(level: 2, text: try inline("What I tried")),
+        .prose(try inline("I built a **harness**.")),
+        .list([
+          .init(marker: "1.", depth: 0, text: try inline("History only: resizing.")),
+          .init(marker: "2.", depth: 0, text: try inline("Live turn: replaying\nthe running turn.")),
+          .init(marker: "•", depth: 1, text: try inline("nested `detail`")),
+          .init(marker: "•", depth: 0, text: try inline("Random input")),
+        ]),
+        .quote(try inline("Worth checking.\nTwice.")),
+        .rule,
+        .prose(try inline("Done.")),
+      ])
+  }
+
+  @Test func listInterruptsParagraphAndSurvivesBlankLines() throws {
+    let text = """
+      Options:
+      - one
+
+        more about one
+      - two
+      after
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .prose(try inline("Options:")),
+        .list([
+          .init(marker: "•", depth: 0, text: try inline("one\n\nmore about one")),
+          .init(marker: "•", depth: 0, text: try inline("two\nafter")),
+        ]),
+      ])
+  }
+
+  @Test func orderedItemsCountUpFromTheFirstNumberAtEachLevel() throws {
+    let text = """
+      3. a
+      3. b
+         1. x
+         1. y
+      - c
+      1. d
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text).first,
+      .list([
+        .init(marker: "3.", depth: 0, text: try inline("a")),
+        .init(marker: "4.", depth: 0, text: try inline("b")),
+        .init(marker: "1.", depth: 1, text: try inline("x")),
+        .init(marker: "2.", depth: 1, text: try inline("y")),
+        .init(marker: "•", depth: 0, text: try inline("c")),
+        .init(marker: "1.", depth: 0, text: try inline("d")),
+      ]))
+  }
+
+  @Test func orderedListNumberingSurvivesIndentedFences() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. first\n   ```\n   code\n   ```\n1. second"),
+      [
+        .list([.init(marker: "1.", depth: 0, text: try inline("first"))]),
+        .code("   code"),
+        .list([.init(marker: "2.", depth: 0, text: try inline("second"))]),
+      ])
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. first\n```\ncode\n```\n1. separate"),
+      [
+        .list([.init(marker: "1.", depth: 0, text: try inline("first"))]),
+        .code("code"),
+        .list([.init(marker: "1.", depth: 0, text: try inline("separate"))]),
+      ])
+  }
+
+  @Test func indentedBlockMarkersStayLiteralOutsideLists() throws {
+    let text = "    # comment\n    ---\n\t> quote\n\t# comment\n\t---"
+
+    expectNoDifference(ChatTabModel.markdownBlocks(text), [.prose(try inline(text))])
+  }
+
+  @Test func parentContinuationStaysAfterItsNestedChild() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. parent\n   - child\n\n   parent again\n1. next"),
+      [.list([
+        .init(marker: "1.", depth: 0, text: try inline("parent")),
+        .init(marker: "•", depth: 1, text: try inline("child")),
+        .init(marker: "", depth: 0, text: try inline("parent again")),
+        .init(marker: "2.", depth: 0, text: try inline("next")),
+      ])])
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("- parent\n  - child\n\n  parent again"),
+      [.list([
+        .init(marker: "•", depth: 0, text: try inline("parent")),
+        .init(marker: "•", depth: 1, text: try inline("child")),
+        .init(marker: "", depth: 0, text: try inline("parent again")),
+      ])])
+  }
+
+  @Test func nearMissesStayProse() throws {
+    let text = "#hashtag\n-dash\n1.5 apples\n* * *"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.prose(try inline("#hashtag\n-dash\n1.5 apples")), .rule])
+  }
+
+  @Test func markdownInsideCodeFenceStaysCode() {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```\n# not a heading\n- not a list\n```"),
+      [.code("# not a heading\n- not a list")])
+  }
+
+  @Test func boldRunsTakeTheBoldWeightOfTheirFont() throws {
+    let base = DesignTokens.Chat.Paragraph.font
+
+    let styled = DesignTokens.Chat.Paragraph.styled(try inline("a **b**"), base: base, scale: 1)
+
+    expectNoDifference(styled.runs.map(\.font), [nil, base.bold.font(scale: 1)])
+  }
+
+  private func inline(_ markdown: String) throws -> AttributedString {
+    try AttributedString(
+      markdown: markdown,
+      options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+  }
+
   @Test func rowMarkdownParsesInlineCode() throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -1635,7 +1787,7 @@ struct ChatPageTests {
     for id in withMessage { agent.setTranscript(id, .found([.title("Old")])) }
     let model = makeModel(records: records)
     model.workspaceChanged(folder: "/w", emptyText: nil)
-    model.capturesArrived(captures)
+    model.capturesArrived(captures.currentByFolder())
     await Task.megaYield()
     return model
   }
@@ -1643,7 +1795,7 @@ struct ChatPageTests {
   func refresh(_ model: ChatPageModel, to next: [CaptureSummary], count: LockIsolated<Int>? = nil) {
     model.onLinkChanged = { [weak model] in
       count?.withValue { $0 += 1 }
-      model?.capturesArrived(next)
+      model?.capturesArrived(next.currentByFolder())
     }
   }
 
@@ -1750,7 +1902,7 @@ struct ChatPageTests {
   @Test func windowOpenLinksWhenTheCapturesArriveBeforeTheFolder() async {
     agent.setTranscript(Self.saved, .found([.title("Old")]))
     let model = makeModel(records: [record()])
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     model.workspaceChanged(folder: "/w", emptyText: nil)
     await Task.megaYield()
 
@@ -1812,7 +1964,7 @@ struct ChatPageTests {
   @Test func recordedLinksTheFirstTabWithAMessage() async {
     let model = await openWindow(
       records: [record(), record(UUID(50))], withMessage: [UUID(50)], captures: Self.paused)
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
 
     model.recorded(folder: "/w")
     await Task.megaYield()
@@ -1835,7 +1987,7 @@ struct ChatPageTests {
     model.recorded(folder: "/w")
     await Task.megaYield()
 
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
@@ -1848,7 +2000,7 @@ struct ChatPageTests {
     await Task.megaYield()
     #expect(link.calls.isEmpty)
 
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
@@ -1857,9 +2009,9 @@ struct ChatPageTests {
   @Test func ordinaryRefreshNeverStartsAutoLink() async {
     let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
 
-    model.capturesArrived(captures(binding(.unlinked)))
+    model.capturesArrived(captures(binding(.unlinked)).currentByFolder())
     await Task.megaYield()
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await Task.megaYield()
 
     #expect(link.calls.isEmpty)
@@ -1873,7 +2025,7 @@ struct ChatPageTests {
     #expect(link.calls.count == 1)
     #expect(model.linkIcon(for: try tab(model, UUID(0))) == nil)
 
-    model.capturesArrived(captures(nil))
+    model.capturesArrived(captures(nil).currentByFolder())
     await clock.advance(by: .seconds(60))
     #expect(link.calls.count == 1)
 
@@ -1981,7 +2133,7 @@ struct ChatPageTests {
     model.capturesArrived(nil)
 
     await model.closeTabTapped(Self.saved)
-    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g2")])
@@ -2022,7 +2174,7 @@ struct ChatPageTests {
     await Task.megaYield()
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(50), replacing: "g1")])
 
-    model.capturesArrived(captures(binding(.setupPending, chat: UUID(50), generation: "g2")))
+    model.capturesArrived(captures(binding(.setupPending, chat: UUID(50), generation: "g2")).currentByFolder())
     await Task.megaYield()
 
     expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
@@ -2099,7 +2251,7 @@ struct ChatPageTests {
     link.setOutcomes(.refused(.slotsFull))
     await model.connectTapped(Self.saved)
 
-    model.capturesArrived(captures(binding(.connected, generation: "g2")))
+    model.capturesArrived(captures(binding(.connected, generation: "g2")).currentByFolder())
 
     #expect(model.linkIcon(for: try tab(model, Self.saved)) == .connected)
   }
@@ -2115,10 +2267,10 @@ struct ChatPageTests {
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == .failed)
     #expect(model.askRoute(forFolder: "/w") == .app)
-    model.capturesArrived(captures(binding(.setupPending, generation: "g2")))
+    model.capturesArrived(captures(binding(.setupPending, generation: "g2")).currentByFolder())
     #expect(model.linkIcon(for: tab) == .failed)
 
-    model.capturesArrived(captures(binding(.connected, generation: "g2")))
+    model.capturesArrived(captures(binding(.connected, generation: "g2")).currentByFolder())
     #expect(model.linkIcon(for: tab) == .connected)
   }
 
@@ -2232,6 +2384,143 @@ struct ChatPageTests {
     expectNoDifference(agent.launches, [launch(session: .new(UUID(0))), launch(session: .resume(UUID(0)))])
   }
 
+  // MARK: - Slipstream instructions
+
+  @Test func linkingTellsTheChatItsToolsOnTheNextMessageOnly() async {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    refresh(model, to: captures(binding(.connected, chat: UUID(0))))
+    await send(model, "hi")
+    agent.setTranscript(UUID(0), .found([.title("Saying hi")]))
+    await line(Line.result())
+    await Task.megaYield()
+
+    await send(model, "again")
+    await line(Line.result())
+    await send(model, "more")
+
+    expectNoDifference(
+      agent.writes(1),
+      [
+        json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked]))),
+        json(ClaudeInvocation.userMessage("more")),
+      ])
+  }
+
+  @Test func reopenedLinkedChatLearnsItsToolsOnItsFirstMessage() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    await send(model, "hi")
+
+    expectNoDifference(
+      agent.writes(0), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("hi", with: [.linked])))])
+  }
+
+  @Test func reopenedLinkedChatThatKnowsItsToolsIsNotToldAgain() async {
+    let told = SlipstreamInstruction.prefixed("hi", with: [.linked])
+    agent.setTranscript(Self.saved, .found([.user(uuid: "u1", timestamp: nil, isPrompt: true, blocks: [.text(told)])]))
+    let model = await openWindow(records: [record()], withMessage: [], captures: captures(binding(.connected)))
+
+    await send(model, "again")
+
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("again"))])
+  }
+
+  @Test func linkSeenAfterLaunchRestartsTheChatToTellItItsTools() async {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    await send(model, "hi")
+    await line(Line.result())
+
+    model.capturesArrived(captures(binding(.connected)).currentByFolder())
+    await Task.megaYield()
+    #expect(agent.shutdowns(0) == 1)
+    await send(model, "again")
+
+    expectNoDifference(
+      agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
+  }
+
+  @Test func linkSeenDuringLaunchRestartsTheChatToTellItItsTools() async {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    agent.hold(.launches)
+    let sending = Task { await send(model, "hi") }
+    await Task.megaYield()
+
+    model.capturesArrived(captures(binding(.connected)).currentByFolder())
+    agent.release(.launches)
+    await sending.value
+    await line(Line.result())
+    await Task.megaYield()
+
+    #expect(agent.shutdowns(0) == 1)
+    await send(model, "again")
+
+    expectNoDifference(
+      agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
+  }
+
+  @Test func laterReadsLeaveAChatThatKnewItsLinkRunning() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+    await send(model, "hi")
+    await line(Line.result())
+
+    model.capturesArrived(captures(binding(.connected)).currentByFolder())
+    await Task.megaYield()
+
+    #expect(agent.shutdowns(0) == 0)
+  }
+
+  @Test func slashCommandLeadsItsMessageAndTheInstructionWaits() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "/review")
+    await line(Line.result())
+
+    await send(model, "hi")
+
+    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("/review")), firstMessage("hi")])
+  }
+
+  @Test func linkingTellsTheChatItsToolsBeforeTheCapturesShowTheLink() async {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    agent.setTranscript(UUID(0), .found([.title("Saying hi")]))
+    await line(Line.result())
+    await Task.megaYield()
+
+    await send(model, "again")
+
+    expectNoDifference(
+      agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
+  }
+
+  @Test func failedSlashCommandKeepsTheInstructionForTheNextMessage() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    agent.setWriteError(WriteFailed())
+    await send(model, "/review")
+    agent.setWriteError(nil)
+
+    await send(model, "hello")
+
+    #expect(agent.launches.count == 1)
+    expectNoDifference(agent.writes(0), [firstMessage("hello")])
+  }
+
+  @Test func failedWriteKeepsTheInstructionForTheRetry() async {
+    agent.setWriteError(WriteFailed())
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await send(model, "Hello")
+    agent.setWriteError(nil)
+
+    await model.sendTapped()
+
+    #expect(agent.launches.count == 1)
+    expectNoDifference(agent.writes(0), [firstMessage("Hello")])
+  }
+
   // MARK: - Relays
 
   nonisolated static let relayID = UUID(uuidString: "C9D8E7F6-A5B4-4C3D-8E2F-1A0B9C8D7E6F")!
@@ -2281,7 +2570,7 @@ struct ChatPageTests {
 
     #expect(tab.isWorking)
     #expect(tab.draft == "half typed")
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
+    expectNoDifference(agent.writes(0), [firstMessage("Rename it", uuid: Self.relayID)])
     #expect(model.records[id: Self.saved]?.isWaiting == false)
   }
 
@@ -2310,7 +2599,7 @@ struct ChatPageTests {
 
     expectNoDifference(
       agent.writes(0),
-      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
+      [firstMessage("hi"), json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
     #expect(tab.isWorking)
   }
 
@@ -2473,7 +2762,7 @@ struct ChatPageTests {
 
     await send(model, "two")
 
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("hi"))])
+    expectNoDifference(agent.writes(0), [firstMessage("hi")])
     #expect(tab.draft == "two")
   }
 
@@ -2521,7 +2810,7 @@ struct ChatPageTests {
     await send(model, "two")
     expectNoDifference(
       agent.writes(0),
-      [json(ClaudeInvocation.userMessage("hi")), json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
+      [firstMessage("hi"), json(ClaudeInvocation.userMessage("Rename it", uuid: Self.relayID))])
     await line(Line.assistantText("a1", "Renamed."))
     await line(Line.result(durationMs: 3_000))
 
@@ -2732,7 +3021,7 @@ extension ChatPageTests {
     try await tab.enqueueUserMessage("Commit and push all changes")
 
     #expect(agent.launches.count == 1)
-    expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("Commit and push all changes"))])
+    expectNoDifference(agent.writes(0), [firstMessage("Commit and push all changes")])
     expectNoDifference(
       tab.projection.items.map(\.kind), [.userMessage("Commit and push all changes")])
     #expect(tab.isWorking)
@@ -2750,7 +3039,7 @@ extension ChatPageTests {
     expectNoDifference(
       agent.writes(0),
       [
-        json(ClaudeInvocation.userMessage("hi")),
+        firstMessage("hi"),
         json(ClaudeInvocation.userMessage("Commit and push all changes", uuid: UUID(2))),
       ])
     #expect(tab.isWorking)

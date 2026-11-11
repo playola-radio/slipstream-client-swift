@@ -382,4 +382,15 @@ struct TranscriptProjectionTests {
         .userMessage("Rename it", relay: RelayMark(label: "From Ask", delivery: .notDelivered)),
       ])
   }
+
+  @Test func historyHidesTheSlipstreamInstruction() {
+    let projection = TranscriptProjection.history([
+      .user(
+        uuid: "u1", timestamp: nil, isPrompt: true,
+        blocks: [.text(SlipstreamInstruction.prefixed("Fix the bug", with: [.start]))]),
+      .queuedMessage(uuid: "q1", text: SlipstreamInstruction.prefixed("Also this", with: [.linked])),
+    ])
+
+    expectNoDifference(kinds(projection), [.userMessage("Fix the bug"), .userMessage("Also this")])
+  }
 }

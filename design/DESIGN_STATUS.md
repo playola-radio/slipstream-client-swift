@@ -51,3 +51,12 @@ Zone 16 (title `uSI5e`, "16 · Bundled recorder"). Spec: `features/bundled-daemo
 | Change stream · starting, update didn't finish, another recorder, won't start | `K7uP6`, `PsvtW`, `o3IPH`, `HZDOk` | Approved 2026-11-10 | `exports/change-stream--*.png`; full message in the feed |
 | Change stream · stream open: restarting, update didn't finish, another recorder, won't start | `aZBNS`, `sLAQ5`, `RbXdB`, `pIu3P` | Approved 2026-11-10 | Docked above the footer |
 | Change stream · migration incomplete | `Y1Pnk` | Approved 2026-11-10 | Always docked |
+
+## Commit chapters
+
+Zone `dcPGn` ("Zone · Commit chapters"). Spec: `features/commit-chapters/spec.md`.
+
+| Frame | Node ID | Status | Notes |
+|---|---|---|---|
+| Chapter heading / open chapter heading / stream marker (components) | `gPla3`, `VSPW0`, `HG5yk` | Component | Used by every frame below |
+| Change stream · chapters, just committed, no commits yet, branch moves, chapters unavailable | `A3nxO`, `EiNBf`, `NhNk1`, `ybVL3`, `epuHV` | Approved 2026-11-11 | `exports/change-stream--*.png`; `ybVL3` is rev 2 |

@@ -51,14 +51,15 @@ extension WorkspaceClient: DependencyKey {
       },
       archive: { workspace, store in
         let environment: [String: String]
+        let shim: String
         do {
           environment = try await AgentEnvironmentClient.loginEnvironment()
+          shim = try RuntimeInstallClient.installedShim()
         } catch {
           return error.localizedDescription
         }
         return await runShim(
-          RuntimeInstallClient.shim.path, ["workspace", "archive", workspace.path, "--store", store],
-          environment: environment)
+          shim, ["workspace", "archive", workspace.path, "--store", store], environment: environment)
       }
     )
   }

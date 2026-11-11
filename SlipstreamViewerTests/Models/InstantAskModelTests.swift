@@ -64,7 +64,7 @@ struct InstantAskModelTests {
         CaptureSummary(
           sessionID: Self.capture, root: "/w", state: .recording,
           binding: CaptureBinding(generation: "g1", state: .connected, harnessSessionID: Self.linked.uuidString.lowercased()))
-      ])
+      ].currentByFolder())
       return (InstantAskModel(chat: chat), chat)
     }
   }
@@ -333,7 +333,7 @@ struct InstantAskModelTests {
     await asking(model, question())
     fork.reply(.failure(.unavailable("Claude Code stopped unexpectedly.")))
     await Task.megaYield()
-    chat.capturesArrived([CaptureSummary(sessionID: Self.capture, root: "/w", state: .recording)])
+    chat.capturesArrived([CaptureSummary(sessionID: Self.capture, root: "/w", state: .recording)].currentByFolder())
 
     let retried = model.tryAgainTapped(requestID: Self.firstRequest)
 
@@ -504,11 +504,13 @@ struct InstantAskModelTests {
         relay: ExchangeRelay(relayID: Self.firstRelay, chatSessionID: chat.uuidString.lowercased())))
   }
 
-  func relayWrite(_ words: String = "Rename it", earlier: [AskPrompt.Exchange] = [], relayID: UUID = firstRelayID)
-    throws -> JSONValue
-  {
+  /// The chats are new, so a first write carries the start instruction, and the linked one's its tools too.
+  func relayWrite(
+    _ words: String = "Rename it", earlier: [AskPrompt.Exchange] = [], relayID: UUID = firstRelayID,
+    instructions: [SlipstreamInstruction] = [.start, .linked]
+  ) throws -> JSONValue {
     let text = try #require(AskPrompt.relayMessage(source: Self.source, earlier: earlier, words: words))
-    return json(ClaudeInvocation.userMessage(text, uuid: relayID))
+    return json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: instructions), uuid: relayID))
   }
 
   /// Asks a change request of a daemon that has relays, and lets it record and write.
@@ -641,7 +643,7 @@ struct InstantAskModelTests {
 
     await askingChangeRequest(model, question(words, replyTo: "q-1", threadChat: Self.threadChat, earlier: earlier))
 
-    expectNoDifference(agent.writes(0), [try relayWrite(words, earlier: earlier)])
+    expectNoDifference(agent.writes(0), [try relayWrite(words, earlier: earlier, instructions: [.start])])
     let text = try #require(AskPrompt.relayMessage(source: Self.source, earlier: earlier, words: words))
     #expect(text.hasSuffix("\n\n" + words))
     #expect(!text.contains("On it."))

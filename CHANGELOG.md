@@ -10,6 +10,25 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.5] - 2026-11-11
+
+- Chat replies now show headings, numbered and bulleted lists, quotes, dividers and
+  bold text, instead of the raw markdown symbols.
+
+## [0.4.4] - 2026-11-11
+
+- The workspace sidebar keeps a steady order: repositories A to Z, and workspaces by
+  folder name (`workspace-2` before `workspace-10`). Creating, archiving, pausing or
+  renaming a workspace no longer shuffles the others, and a new workspace appears in
+  its repository instead of briefly showing up under a long ID.
+
+## [0.4.3] - 2026-11-11
+
+- Slipstream now bundles recorder 0.3.2, so it can take over again from a recorder
+  installed with npm. When a newer recorder is running, the recorder message says to
+  update Slipstream instead of showing "Couldn't find …/runtime/bin/slipstream" when
+  you link a chat, archive a workspace or run setup.
+
 ## [0.4.2] - 2026-11-11
 
 - Slipstream now includes its own recorder, so one app update moves both and there is no

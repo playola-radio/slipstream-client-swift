@@ -379,7 +379,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .anotherRecorder(
-        pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil),
+        pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil), bundled: Self.bundled,
         Evidence(
           source: "status · owner.lock · launchctl",
           text: """
@@ -402,7 +402,7 @@ struct RecorderModelTests {
 
     await model.appLaunched()
 
-    guard case .anotherRecorder(pid: 48213, _, _) = model.state else {
+    guard case .anotherRecorder(pid: 48213, _, _, _) = model.state else {
       Issue.record("Expected another recorder, got \(model.state)")
       return
     }
@@ -419,10 +419,12 @@ struct RecorderModelTests {
 
     await model.appLaunched()
 
-    guard case .anotherRecorder(pid: 48213, _, _) = model.state else {
+    guard case let .anotherRecorder(pid: 48213, running, bundled, _) = model.state else {
       Issue.record("Expected another recorder, got \(model.state)")
       return
     }
+    expectNoDifference(running.version, "0.4.0")
+    expectNoDifference(bundled, Self.bundled)
     #expect(!model.replaceIsAvailable)
     expectNoDifference(fake.events.value, ["prepare"])
   }
@@ -437,7 +439,7 @@ struct RecorderModelTests {
 
     await model.appLaunched()
 
-    guard case let .anotherRecorder(pid: 48213, _, evidence) = model.state else {
+    guard case let .anotherRecorder(pid: 48213, _, _, evidence) = model.state else {
       Issue.record("Expected another recorder, got \(model.state)")
       return
     }
@@ -523,7 +525,7 @@ struct RecorderModelTests {
 
     await model.replaceItTapped()
 
-    guard case .anotherRecorder(pid: 30200, _, _) = model.state else {
+    guard case .anotherRecorder(pid: 30200, _, _, _) = model.state else {
       Issue.record("Expected another recorder 30200, got \(model.state)")
       return
     }

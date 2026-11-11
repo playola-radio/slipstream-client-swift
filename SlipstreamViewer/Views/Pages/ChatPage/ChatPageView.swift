@@ -406,7 +406,8 @@ private struct ToolCallView: View {
           } else if let kind = tab.toolKind(for: item) {
             IconView(icon: DesignTokens.Chat.ToolCall.icon(kind))
           }
-          Text(DesignTokens.Chat.Paragraph.styled(tab.rowMarkdown(for: item), scale: fontScale))
+          Text(DesignTokens.Chat.Paragraph.styled(
+            tab.rowMarkdown(for: item), base: DesignTokens.Chat.ToolCall.verbFont, scale: fontScale))
             .font(DesignTokens.Chat.ToolCall.verbFont)
             .foregroundStyle(DesignTokens.Chat.ToolCall.verbColor)
             .lineLimit(1)

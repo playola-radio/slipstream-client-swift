@@ -19,6 +19,22 @@ extension RuntimeInstallClient {
   #else
     static let shim = runtimeRoot.appending(path: "bin/slipstream")
   #endif
+
+  /// `shim`'s path, or why it isn't there: the app writes it when it switches the recorder to
+  /// its own runtime, which it skips while another recorder runs.
+  static func installedShim(at shim: URL = shim) throws(ShimMissingError) -> String {
+    guard FileManager.default.isExecutableFile(atPath: shim.path) else { throw ShimMissingError(path: shim.path) }
+    return shim.path
+  }
+}
+
+struct ShimMissingError: LocalizedError, Equatable {
+  var path: String
+
+  var errorDescription: String? {
+    "Slipstream hasn't installed its slipstream command (\(path) is missing). It installs it when it "
+      + "switches the recorder to its own; the recorder message says why it hasn't."
+  }
 }
 
 extension RuntimeInstallClient: DependencyKey {

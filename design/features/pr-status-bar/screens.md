@@ -1,7 +1,7 @@
 # PR status bar — Screens
 
-Pen file: `design/slipstream.pen`. The frames are in zone "Zone · PR status bar" (`o1YFJQ`): screen A
-(`g4p4Cf`) holds the header states, screen B (`N9K28`) the chat messages. Measurements and colours
+Pen file: `design/slipstream.pen`. The frames are in zone "Zone · PR status bar" (`Mhzm1`): screen A
+(`t68du`) holds the header states, screen B (`V3XP4`) the chat messages. Measurements and colours
 are in [`exports/pr-status-bar.json`](exports/pr-status-bar.json); the HTML exports are next to it.
 
 ## Navigation map
