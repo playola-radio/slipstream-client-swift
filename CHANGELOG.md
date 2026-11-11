@@ -10,6 +10,13 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.4] - 2026-11-11
+
+- The workspace sidebar keeps a steady order: repositories A to Z, and workspaces by
+  folder name (`workspace-2` before `workspace-10`). Creating, archiving, pausing or
+  renaming a workspace no longer shuffles the others, and a new workspace appears in
+  its repository instead of briefly showing up under a long ID.
+
 ## [0.4.3] - 2026-11-11
 
 - Slipstream now bundles recorder 0.3.2, so it can take over again from a recorder

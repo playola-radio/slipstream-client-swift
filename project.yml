@@ -83,8 +83,8 @@ targets:
         ENABLE_HARDENED_RUNTIME: NO
         # The single version source; `fastlane mac bump` edits these. The build is the
         # integer Sparkle compares, so it only ever goes up.
-        MARKETING_VERSION: "0.4.3"
-        CURRENT_PROJECT_VERSION: "7"
+        MARKETING_VERSION: "0.4.4"
+        CURRENT_PROJECT_VERSION: "8"
   SlipstreamViewerTests:
     type: bundle.unit-test
     platform: macOS
