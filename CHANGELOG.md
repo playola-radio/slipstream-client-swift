@@ -10,6 +10,15 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.6] - 2026-11-11
+
+- The sidebar lists only workspaces created in Slipstream. Chats Slipstream records in
+  other folders, such as Conductor workspaces, no longer fill it up.
+- Chats now name their workspace and start a task on their own once they are linked to the
+  stream, so workspaces no longer stay "workspace-n" until you rename them. The name appears
+  after your second message in a new chat. Slipstream's guidance to the chat is hidden from
+  the conversation.
+
 ## [0.4.5] - 2026-11-11
 
 - Chat replies now show headings, numbered and bulleted lists, quotes, dividers and
