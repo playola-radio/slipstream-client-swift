@@ -5,7 +5,7 @@ import Testing
 @testable import SlipstreamViewer
 
 /// Answers `git`/`gh` calls from a script keyed by argument list, and records every call. A
-/// held argument list makes its next call wait until `release()`; its answer is taken when the
+/// held argument list makes its next call wait until `release(_:)`; its answer is taken when the
 /// call is made, so changing the script meanwhile doesn't change what the held call returns.
 final class RepoCommandFake: Sendable {
   struct Call: Equatable, Sendable {
@@ -16,7 +16,12 @@ final class RepoCommandFake: Sendable {
 
   let script = LockIsolated<[[String]: CommandResult]>([:])
   private let recorded = LockIsolated<[Call]>([])
-  private let held = LockIsolated<(arguments: [String]?, waiting: [CheckedContinuation<Void, Never>])>((nil, []))
+  private struct Held {
+    var armed: Set<[String]> = []
+    var waiting: [(arguments: [String], continuation: CheckedContinuation<Void, Never>)] = []
+  }
+
+  private let held = LockIsolated(Held())
 
   var calls: [Call] { recorded.value }
 
@@ -29,14 +34,21 @@ final class RepoCommandFake: Sendable {
     }
   }
 
-  func hold(_ arguments: [String]) { held.withValue { $0.arguments = arguments } }
+  func hold(_ arguments: [String]) { held.withValue { _ = $0.armed.insert(arguments) } }
 
-  func release() {
-    let waiting = held.withValue { held in
-      defer { held = (nil, []) }
-      return held.waiting
+  /// Releases the held calls with these arguments, or every held call.
+  func release(_ arguments: [String]? = nil) {
+    let released = held.withValue { held in
+      let isReleased = { (call: (arguments: [String], continuation: CheckedContinuation<Void, Never>)) in
+        arguments == nil || call.arguments == arguments
+      }
+      defer {
+        held.waiting.removeAll(where: isReleased)
+        if let arguments { held.armed.remove(arguments) } else { held.armed = [] }
+      }
+      return held.waiting.filter(isReleased)
     }
-    for continuation in waiting { continuation.resume() }
+    for call in released { call.continuation.resume() }
   }
 
   var client: RepoCommandClient {
@@ -51,9 +63,8 @@ final class RepoCommandFake: Sendable {
       result.folder = folder
       await withCheckedContinuation { continuation in
         let isHeld = self.held.withValue { held in
-          guard held.arguments == arguments else { return false }
-          held.arguments = nil
-          held.waiting.append(continuation)
+          guard held.armed.remove(arguments) != nil else { return false }
+          held.waiting.append((arguments, continuation))
           return true
         }
         if !isHeld { continuation.resume() }

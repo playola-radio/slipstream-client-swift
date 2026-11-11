@@ -58,7 +58,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   private var activeTurn: ActiveTurn?
   private var toggledItemIDs: Set<String> = []
-  private var isClosed = false
+  private(set) var isClosed = false
   private var now = Date.distantPast
   private var needsHistory: Bool
   /// The process predates this chat's link, so it is dropped when the running turn ends.

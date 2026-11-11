@@ -10,8 +10,12 @@ struct PRBarFailure: Error, Equatable, Sendable {
     self.details = details
   }
 
-  /// The folder, command line, how it ended and both outputs in full. Never the environment.
   init(title: String, result: CommandResult, note: String? = nil) {
+    self.init(title: title, details: Self.details(of: result, note: note))
+  }
+
+  /// The folder, command line, how it ended and both outputs in full. Never the environment.
+  static func details(of result: CommandResult, note: String? = nil) -> String {
     let lines = [
       "Folder: \(result.folder.path)",
       "Command: \(result.commandLine)",
@@ -24,7 +28,7 @@ struct PRBarFailure: Error, Equatable, Sendable {
       "stderr:",
       result.stderr.isEmpty ? "(empty)" : result.stderr,
     ]
-    self.init(title: title, details: lines.compactMap(\.self).joined(separator: "\n"))
+    return lines.compactMap(\.self).joined(separator: "\n")
   }
 
   private static func text(for ending: CommandResult.Ending) -> String {

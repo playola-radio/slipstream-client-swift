@@ -1,6 +1,53 @@
 import Dependencies
 import Foundation
 import SlipstreamCore
+import SwiftUI
+
+enum PRStatusTone: Equatable, Sendable {
+  case neutral, muted, success, warning, danger, merged
+}
+
+enum PRBarButton: Equatable, Sendable {
+  case createPR, commitAndPush, resolveConflicts, fixErrors, merge
+
+  var title: String {
+    switch self {
+    case .createPR: "Create PR"
+    case .commitAndPush: "Commit and push"
+    case .resolveConflicts: "Resolve conflicts"
+    case .fixErrors: "Fix errors"
+    case .merge: "Merge"
+    }
+  }
+
+  var iconName: String {
+    switch self {
+    case .createPR: "GitPullRequestCreate"
+    case .commitAndPush: "GitCommitHorizontal"
+    case .resolveConflicts: "GitCompareArrows"
+    case .fixErrors: "Wrench"
+    case .merge: "GitMerge"
+    }
+  }
+
+  var shortcut: KeyboardShortcut? {
+    switch self {
+    case .createPR: KeyboardShortcut("p", modifiers: [.command, .shift])
+    case .fixErrors: KeyboardShortcut("x", modifiers: [.command, .shift])
+    case .merge: KeyboardShortcut("m", modifiers: [.command, .shift])
+    case .commitAndPush, .resolveConflicts: nil
+    }
+  }
+
+  var shortcutText: String? {
+    switch self {
+    case .createPR: "⌘⇧P"
+    case .fixErrors: "⌘⇧X"
+    case .merge: "⌘⇧M"
+    case .commitAndPush, .resolveConflicts: nil
+    }
+  }
+}
 
 @MainActor
 @Observable
@@ -8,7 +55,9 @@ final class PRStatusBarModel: ViewModel {
   // MARK: - Dependencies
 
   @ObservationIgnored @Dependency(\.repoCommand) var repoCommand
+  @ObservationIgnored @Dependency(\.attachments) var attachments
   @ObservationIgnored @Dependency(\.continuousClock) var clock
+  @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
 
   // MARK: - Initialization
 
@@ -41,10 +90,20 @@ final class PRStatusBarModel: ViewModel {
     case merging, continuing, sending
   }
 
+  private struct FailedAction {
+    var folder: String
+    var failure: PRBarFailure
+  }
+
   let chat: ChatPageModel
   private(set) var checked: Checked?
   private(set) var operation: Operation?
+  private(set) var isDetailsPresented = false
+  private var failedAction: FailedAction?
   private var refreshCount = 0
+  /// Set by the owner: whether the selected workspace can be archived.
+  @ObservationIgnored var isArchivable: @MainActor () -> Bool = { false }
+  @ObservationIgnored var onArchive: @MainActor () -> Void = {}
 
   var pollKey: PollKey {
     PollKey(
@@ -71,15 +130,73 @@ final class PRStatusBarModel: ViewModel {
 
   var isCheckingShown: Bool { chat.folder != nil && currentResult == nil }
 
+  /// Stays until Details is dismissed, the action is retried or the workspace changes.
+  var actionFailure: PRBarFailure? {
+    guard let failedAction, failedAction.folder == chat.folder else { return nil }
+    return failedAction.failure
+  }
+
+  var failure: PRBarFailure? { actionFailure ?? checkFailure }
+
   // MARK: - Display Text
 
   static let checkFailedTitle = "Couldn't check the pull request"
+  static let mergeFailedTitle = "Merge failed"
+  static let continueFailedTitle = "Couldn't start a new branch"
+  static let continueText = "Continue"
+  static let archiveText = "Archive"
+  static let detailsText = "Details"
+  static let copyText = "Copy"
+
+  var prNumberText: String? { snapshot?.pullRequest.map { "#\($0.number)" } }
+
+  var pullRequestURL: URL? { snapshot?.pullRequest?.url }
+
+  var statusLabel: String { appearance.label }
+
+  var statusDetail: String? { appearance.detail }
+
+  // MARK: - View Helpers
+
+  var isRowContentShown: Bool {
+    if failure != nil || isCheckingShown { return true }
+    guard let status else { return false }
+    return status != .nothingToSubmit
+  }
+
+  var statusIconName: String? { appearance.iconName }
+
+  var tone: PRStatusTone { appearance.tone }
+
+  var primaryButton: PRBarButton? {
+    switch status {
+    case .noPRUncommitted?, .noPRCommitted?, .closed?: .createPR
+    case .commitAndPush?: .commitAndPush
+    case .conflicts?: .resolveConflicts
+    case .checksFailed?: .fixErrors
+    case .ready?: .merge
+    case nil, .nothingToSubmit?, .checksRunning?, .draft?, .waiting?, .merged?: nil
+    }
+  }
+
+  /// Agent buttons also wait while any chat tab in the workspace is working.
+  var isPrimaryButtonEnabled: Bool {
+    guard operation == nil, let folder = chat.folder else { return false }
+    return primaryButton == .merge || !chat.hasWorkingTab(in: folder)
+  }
+
+  var isContinueShown: Bool { status == .merged }
+
+  var isArchiveShown: Bool { isContinueShown && isArchivable() }
+
+  var isDetailsShown: Bool { failure != nil }
 
   // MARK: - User Actions
 
   /// Run by the view as `.task(id: pollKey)`: any key change cancels it and starts a new one.
   func pollTask() async {
     guard let folder = chat.folder, chat.isAppActive, operation == nil else { return }
+    if failedAction?.folder != folder { failedAction = nil }
     while true {
       let result = await readSnapshot(folder: folder)
       guard !Task.isCancelled else { return }
@@ -92,7 +209,232 @@ final class PRStatusBarModel: ViewModel {
     refreshCount += 1
   }
 
+  func primaryButtonTapped() async {
+    guard let button = primaryButton, isPrimaryButtonEnabled, let folder = chat.folder, let snapshot else { return }
+    failedAction = nil
+    switch button {
+    case .createPR:
+      await send(button, in: folder) { [self] title throws(PRBarFailure) in
+        try await createPRMessage(snapshot, in: folder, title: title)
+      }
+    case .commitAndPush:
+      await send(button, in: folder) { _ in PRInstructions.commitAndPushMessage }
+    case .resolveConflicts:
+      await send(button, in: folder) { _ in PRInstructions.resolveConflictsMessage(target: Self.target(of: snapshot)) }
+    case .fixErrors:
+      await send(button, in: folder) { [self] title throws(PRBarFailure) in
+        try await fixErrorsMessage(snapshot, in: folder, title: title)
+      }
+    case .merge:
+      await merge(snapshot, in: folder)
+    }
+  }
+
+  /// Starts the next branch from the latest target (spec "Actions → Continue").
+  func continueTapped() async {
+    guard isContinueShown, operation == nil, let folder = chat.folder, let snapshot else { return }
+    failedAction = nil
+    operation = .continuing
+    defer { operation = nil }
+    let title = Self.continueFailedTitle
+    let target = Self.target(of: snapshot)
+    do throws(PRBarFailure) {
+      _ = try await output(["git", "fetch", "origin", target], in: folder, timeout: Self.longTimeout, title: title)
+      let local = try await output(
+        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"], in: folder, timeout: Self.gitTimeout,
+        title: title)
+      let remote = try await output(
+        ["git", "ls-remote", "--heads", "origin"], in: folder, timeout: Self.gitTimeout, title: title)
+      let taken = local.split(separator: "\n").map(String.init) + Self.remoteBranches(remote)
+      let name = PRInstructions.nextBranchName(after: snapshot.branch, taken: Set(taken))
+      _ = try await output(
+        ["git", "switch", "-c", name, "origin/\(target)"], in: folder, timeout: Self.gitTimeout, title: title)
+    } catch {
+      failedAction = FailedAction(folder: folder, failure: error)
+    }
+  }
+
+  func archiveTapped() {
+    onArchive()
+  }
+
+  func detailsTapped() {
+    isDetailsPresented = true
+  }
+
+  func detailsDismissed() {
+    isDetailsPresented = false
+    failedAction = nil
+  }
+
+  func copyTapped() {
+    guard let failure else { return }
+    pasteboard.copy("\(failure.title)\n\n\(failure.details)")
+  }
+
   // MARK: - Private Helpers
+
+  private var appearance: (label: String, detail: String?, iconName: String?, tone: PRStatusTone) {
+    if let failure { return (failure.title, nil, "CircleAlert", .danger) }
+    if operation == .merging { return ("Merging…", nil, "LoaderCircle", .muted) }
+    if isCheckingShown { return ("Checking for a pull request…", nil, "LoaderCircle", .muted) }
+    switch status {
+    case nil, .nothingToSubmit?:
+      return ("", nil, nil, .muted)
+    case .noPRUncommitted?, .commitAndPush?:
+      return ("Uncommitted changes", nil, nil, .neutral)
+    case .noPRCommitted(let ahead, let target)?:
+      let commits = ahead == 1 ? "1 commit" : "\(ahead) commits"
+      return ("Ready for a pull request", "· \(commits) ahead of \(target)", nil, .neutral)
+    case .conflicts(let target)?:
+      return ("Merge conflicts", "with \(target)", "TriangleAlert", .warning)
+    case .checksFailed(let failed, let total)?:
+      return ("Checks failed", "· \(failed) of \(total) failed", "CircleX", .danger)
+    case .checksRunning(let done, let total)?:
+      return ("Checks running", "· \(done) of \(total) done", "LoaderCircle", .muted)
+    case .draft?:
+      return ("Draft", "· all checks passed", "GitPullRequestDraft", .muted)
+    case .ready?:
+      return ("Ready to merge", nil, "CircleCheck", .success)
+    case .waiting(let reason)?:
+      return ("Waiting on GitHub", "· \(Self.text(for: reason))", "Hourglass", .muted)
+    case .merged?:
+      return ("Merged", nil, "GitMerge", .merged)
+    case .closed?:
+      return ("Closed", nil, "GitPullRequestClosed", .muted)
+    }
+  }
+
+  private static func text(for reason: WaitingReason) -> String {
+    switch reason {
+    case .gitHubChecking: "GitHub is still checking"
+    case .changesRequested: "changes requested"
+    case .reviewRequired: "review required"
+    case .behind(let target): "behind \(target)"
+    case .blocked: "blocked by branch rules"
+    case .outOfSync: "branch is out of sync with the PR"
+    case .notMergeable: "not mergeable yet"
+    }
+  }
+
+  private static func target(of snapshot: RepoSnapshot) -> String {
+    snapshot.pullRequest?.baseRefName ?? snapshot.defaultBranch
+  }
+
+  /// Spec "Actions → Agent buttons": the tab is captured at click, and nothing is sent when composing fails.
+  private func send(
+    _ button: PRBarButton, in folder: String,
+    message: (_ failureTitle: String) async throws(PRBarFailure) -> String
+  ) async {
+    operation = .sending
+    defer { operation = nil }
+    if chat.selectedTab == nil { await chat.newTabTapped() }
+    guard let tab = chat.selectedTab else { return }
+    let title = "Couldn't send \(button.title)"
+    do throws(PRBarFailure) {
+      let text = try await message(title)
+      do {
+        try await tab.enqueueUserMessage(text)
+      } catch {
+        let reason = tab.isClosed ? "The chat tab was closed, so nothing was sent." : "Couldn't send the message: \(error)"
+        throw PRBarFailure(title: title, details: "Folder: \(folder)\n\(reason)")
+      }
+    } catch {
+      failedAction = FailedAction(folder: folder, failure: error)
+    }
+  }
+
+  private func createPRMessage(_ snapshot: RepoSnapshot, in folder: String, title: String)
+    async throws(PRBarFailure) -> String
+  {
+    let branch = try await output(
+      ["git", "rev-parse", "--abbrev-ref", "HEAD"], in: folder, timeout: Self.gitTimeout, title: title)
+    let uncommitted = try await uncommittedCount(in: folder, title: title)
+    let upstream = try await upstream(in: folder, title: title)
+    let instructions = PRInstructions.createPR(
+      uncommitted: uncommitted, branch: branch, target: Self.target(of: snapshot), upstream: upstream)
+    return try attach(
+      PRInstructions.createPRMessage, name: "PR instructions.md", contents: instructions, in: folder, title: title)
+  }
+
+  private func upstream(in folder: String, title: String) async throws(PRBarFailure) -> PRInstructions.Upstream {
+    let result = await run(["git", "rev-parse", "--abbrev-ref", "@{upstream}"], in: folder, timeout: Self.gitTimeout)
+    if result.ending == .exit(128) { return .none }
+    let name = try Self.output(of: result, title: title)
+    let command = ["git", "rev-list", "--count", "@{upstream}..HEAD"]
+    let unpushed = try Self.count(
+      try await output(command, in: folder, timeout: Self.gitTimeout, title: title), of: command, folder: folder,
+      title: title)
+    return unpushed == 0 ? .inSync(name) : .unpushed(unpushed)
+  }
+
+  /// A log that can't be fetched is replaced by the command and its output; the message is still sent.
+  private func fixErrorsMessage(_ snapshot: RepoSnapshot, in folder: String, title: String)
+    async throws(PRBarFailure) -> String
+  {
+    guard let pullRequest = snapshot.pullRequest else {
+      throw PRBarFailure(title: title, details: "Folder: \(folder)\nThere is no pull request.")
+    }
+    var runs: [ActionsRun] = []
+    for check in pullRequest.statusCheckRollup where check.outcome == .failed {
+      if let actionsRun = check.link.flatMap(ActionsRun.init(link:)), !runs.contains(actionsRun) {
+        runs.append(actionsRun)
+      }
+    }
+    var logs: [ActionsRun: String] = [:]
+    for actionsRun in runs {
+      let result = await run(
+        ["gh", "run", "view", actionsRun.id, "--repo", actionsRun.repository, "--log-failed"], in: folder,
+        timeout: Self.longTimeout)
+      logs[actionsRun] = result.succeeded ? result.stdout : PRBarFailure.details(of: result)
+    }
+    let instructions = PRInstructions.fixErrors(pullRequest: pullRequest, branch: snapshot.branch, logs: logs)
+    return try attach(
+      PRInstructions.fixErrorsMessage, name: "Fix errors instructions.md", contents: instructions, in: folder,
+      title: title)
+  }
+
+  private func attach(_ message: String, name: String, contents: String, in folder: String, title: String)
+    throws(PRBarFailure) -> String
+  {
+    do {
+      let file = try attachments.write(name, contents)
+      return "\(message) \(AttachmentMarker.format(name: name, path: file.path))"
+    } catch {
+      throw PRBarFailure(title: title, details: "Folder: \(folder)\nCouldn't write \(name): \(error)")
+    }
+  }
+
+  private func merge(_ snapshot: RepoSnapshot, in folder: String) async {
+    guard let pullRequest = snapshot.pullRequest else { return }
+    operation = .merging
+    defer { operation = nil }
+    let result = await run(
+      [
+        "gh", "pr", "merge", pullRequest.url.absoluteString, Self.mergeFlag(snapshot.mergeMethod),
+        "--match-head-commit", pullRequest.headRefOid,
+      ], in: folder, timeout: Self.longTimeout)
+    if !result.succeeded {
+      failedAction = FailedAction(folder: folder, failure: PRBarFailure(title: Self.mergeFailedTitle, result: result))
+    }
+  }
+
+  private static func mergeFlag(_ method: String) -> String {
+    switch method {
+    case "SQUASH": "--squash"
+    case "REBASE": "--rebase"
+    default: "--merge"
+    }
+  }
+
+  /// Branch names from `git ls-remote --heads` lines (`<oid>\trefs/heads/<name>`).
+  private static func remoteBranches(_ output: String) -> [String] {
+    output.split(separator: "\n").compactMap { line in
+      line.split(separator: "\t", maxSplits: 1).last.flatMap { ref in
+        ref.hasPrefix("refs/heads/") ? String(ref.dropFirst("refs/heads/".count)) : nil
+      }
+    }
+  }
 
   private var currentResult: Result<RepoSnapshot?, PRBarFailure>? {
     guard let checked, checked.folder == chat.folder else { return nil }
