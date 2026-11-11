@@ -29,4 +29,28 @@ struct UpdaterModelTests {
     expectNoDifference(checked.value, true)
   }
 
+  @Test func quitWithPendingUpdateRelaunches() {
+    let installed = LockIsolated(false)
+    let model = withDependencies {
+      $0.updater.installPendingUpdateAndRelaunch = {
+        installed.setValue(true)
+        return true
+      }
+    } operation: {
+      UpdaterModel()
+    }
+
+    expectNoDifference(model.quitRequested(), .updateRelaunches)
+    expectNoDifference(installed.value, true)
+  }
+
+  @Test func quitWithoutPendingUpdateQuits() {
+    let model = withDependencies {
+      $0.updater.installPendingUpdateAndRelaunch = { false }
+    } operation: {
+      UpdaterModel()
+    }
+
+    expectNoDifference(model.quitRequested(), .quit)
+  }
 }
