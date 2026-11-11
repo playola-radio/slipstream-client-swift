@@ -35,7 +35,7 @@ struct ChangeStreamPageTests {
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
     chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil,
-    terminals: TerminalPageModel? = nil
+    terminals: TerminalPageModel? = nil, recorder: RecorderModel? = nil
   ) -> ChangeStreamPageModel {
     let terminals = terminals ?? makeTerminals()
     return withDependencies {
@@ -55,7 +55,7 @@ struct ChangeStreamPageTests {
       let chat = chat ?? makeChat()
       return ChangeStreamPageModel(
         chat: chat, instantAsk: instantAsk ?? InstantAskModel(chat: chat), terminals: terminals,
-        isFunctionDemoVisible: isFunctionDemoVisible)
+        recorder: recorder ?? RecorderModel(state: .running), isFunctionDemoVisible: isFunctionDemoVisible)
     }
   }
 
@@ -472,7 +472,7 @@ struct ChangeStreamPageTests {
     fake.setDiscoverError(DescriptorError.noRuntimeDirectory(path: "/tmp/store/runtime", errno: ENOENT, message: "No such file or directory"))
     let model = makeModel()
     await model.viewAppeared()
-    #expect(model.emptyStateText == "The Slipstream daemon isn't running")
+    #expect(model.emptyStateText == "The app found no recorder address to connect to.")
   }
 
   @Test func refreshPicksUpNewSessions() async {
@@ -3097,7 +3097,7 @@ extension ChangeStreamPageTests {
     fake.setCaptures(.failure(.status(500, durableSeq: nil)))
     let model = await liveModel()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+    expectNoDifference(model.captureText, "Capture state unknown — the capture list didn't load")
     expectNoDifference(fake.follows.map(\.sessionID), [Fixture.session])
   }
 
@@ -3109,7 +3109,7 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.sessions.ids, [Fixture.session])
     expectNoDifference(model.selectedSession?.id, Fixture.session)
     expectNoDifference(model.sessionsError, nil)
-    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+    expectNoDifference(model.captureText, "Capture state unknown — the capture list didn't load")
     #expect(model.captureCheckedText == nil)
   }
 
@@ -3131,7 +3131,7 @@ extension ChangeStreamPageTests {
 
     expectNoDifference(model.sessions.ids, ["a", "b"])
     expectNoDifference(model.selectedSession, nil)
-    expectNoDifference(model.emptyStateText, "Couldn't reach Slipstream. Press ⌘R to check again.")
+    expectNoDifference(model.emptyStateText, "The capture list didn't load. Press ⌘R to check again.")
   }
 
   @Test func aFailedReloadOfAnEmptyListSaysSo() async {
@@ -3140,9 +3140,14 @@ extension ChangeStreamPageTests {
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
-    fake.setSessionsError(URLError(.cannotConnectToHost))
+    fake.setSessionsError(DaemonHTTPError.status(503, durableSeq: nil, body: "store is migrating"))
     await model.reloadShortcutPressed()
-    expectNoDifference(model.sessionsError, "Couldn't reach the Slipstream daemon")
+    expectNoDifference(
+      model.sessionsError,
+      RecorderMessage(
+        icon: .failure, tone: .error, headline: "The recorder answered the session list with HTTP 503.",
+        footer: "The recorder answered the session list with HTTP 503.",
+        evidence: Evidence(source: "GET /v1/sessions → 503", text: "store is migrating"), actions: [.tryAgain]))
   }
 
   @Test func aPausedRowOffersNoActionWhileItsStateIsUnknown() async throws {
@@ -3252,7 +3257,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     open.yield()
     await refresh.value
-    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+    expectNoDifference(model.captureText, "Capture state unknown — the capture list didn't load")
   }
 
   @Test func aCaptureStateThatArrivesWhileTheFeedDropsIsStillShown() async {
@@ -3519,7 +3524,7 @@ extension ChangeStreamPageTests {
     open.yield()
     await Task.megaYield()
     expectNoDifference(model.selectedSession?.agentConnection, .disconnected(reason: nil))
-    expectNoDifference(model.captureText, "Capture state unknown — couldn't reach Slipstream")
+    expectNoDifference(model.captureText, "Capture state unknown — the capture list didn't load")
   }
 
   @Test func aConnectionEventUpdatesTheWatchedSessionAndItsComposerWithoutAddingARow() async {
@@ -5248,5 +5253,206 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     #expect(model.instantAsk.pending.isEmpty)
     expectNoDifference(fork.stopCount, 1)
+  }
+}
+
+@MainActor
+extension ChangeStreamPageTests {
+  nonisolated static let recorderEvidence = Evidence(
+    source: "daemon.log since the app started the recorder · last exit code = 1",
+    text: "Error: Cannot find module 'watcher.node'")
+
+  nonisolated static let recorderStates: [RecorderState] = [
+    .starting(RecorderModelTests.bundled),
+    .restarting(from: "0.3.1", to: RecorderModelTests.bundled),
+    .updateDidntFinish(
+      running: RecorderModelTests.oldBuild, bundled: RecorderModelTests.bundled, .mismatch("watcher.node hash"),
+      recorderEvidence),
+    .anotherRecorder(pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil), recorderEvidence),
+    .wontStart(RecorderModelTests.bundled, .exited(code: "1"), recorderEvidence),
+    .migrationIncomplete(
+      RecorderModelTests.bundled, MigrationFailure(links: ["slipstream"], adoptFailed: true), recorderEvidence),
+  ]
+
+  func closedStreamModel(_ state: RecorderState) async -> ChangeStreamPageModel {
+    fake.setCaptures([])
+    fake.setSessions([])
+    let model = makeModel(recorder: RecorderModel(state: state))
+    await model.viewAppeared()
+    return model
+  }
+
+  @Test func startingShowsTheBundledBuild() async {
+    let model = await closedStreamModel(.starting(RecorderModelTests.bundled))
+    defer { model.viewDisappeared() }
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(
+        icon: .starting, tone: .neutral, headline: "Starting the recorder 0.3.2 (build 7f3c9a1e)…",
+        footer: "Starting the recorder 0.3.2 (build 7f3c9a1e)…", evidence: nil, actions: []))
+  }
+
+  @Test func restartingShowsBothBuilds() async {
+    let model = await closedStreamModel(.restarting(from: "0.3.1", to: RecorderModelTests.bundled))
+    defer { model.viewDisappeared() }
+    let text = "Restarting the recorder 0.3.1 → 0.3.2 (build 7f3c9a1e)… changes resume when it's back"
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(icon: .restarting, tone: .neutral, headline: text, footer: text, evidence: nil, actions: []))
+  }
+
+  @Test func updateDidntFinishNamesWhatDidntMatch() async {
+    let model = await closedStreamModel(Self.recorderStates[2])
+    defer { model.viewDisappeared() }
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(
+        icon: .warning, tone: .warning,
+        headline:
+          "The copy of recorder 0.3.2 didn't match the one signed into the app, so the app kept recorder 0.3.1 running.",
+        footer: "Recorder 0.3.1 still running · copy of 0.3.2 didn't match the app (watcher.node hash)",
+        evidence: Self.recorderEvidence, actions: [.tryAgain]))
+  }
+
+  @Test func anotherRecorderOffersReplaceIt() async {
+    let recorderFake = RecorderFake()
+    recorderFake.running.setValue(DaemonBuild(version: "0.3.0", build: nil))
+    recorderFake.lockPID.setValue(30117)
+    recorderFake.descriptions.setValue([30117: "node /npm/slipstream/dist/cli.js start"])
+    let recorder = withDependencies {
+      $0.daemon = fake.client
+      $0.continuousClock = clock
+      $0.recorderService = recorderFake.service
+      $0.runtimeInstall = recorderFake.runtimeInstall
+    } operation: {
+      RecorderModel()
+    }
+    await recorder.appLaunched()
+    fake.setCaptures([])
+    fake.setSessions([])
+    let model = makeModel(recorder: recorder)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(
+      model.recorderMessage?.headline,
+      "A recorder this app didn't start (pid 30117, npm 0.3.0) is using store-a. "
+        + "It's still recording; the app won't stop it unless you replace it.")
+    expectNoDifference(model.recorderMessage?.footer, "Recorder pid 30117 is npm 0.3.0, not started by this app")
+    expectNoDifference(model.recorderMessage?.evidence?.source, "status · owner.lock · launchctl")
+    expectNoDifference(model.recorderMessage?.actions, [.replaceIt])
+  }
+
+  @Test func wontStartOffersTheLog() async {
+    let model = await closedStreamModel(Self.recorderStates[4])
+    defer { model.viewDisappeared() }
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(
+        icon: .failure, tone: .error, headline: "Recorder 0.3.2 exited with code 1 before it was ready.",
+        footer: "Recorder 0.3.2 exited with code 1 before it was ready.", evidence: Self.recorderEvidence,
+        actions: [.tryAgain, .openLogFile]))
+  }
+
+  @Test func migrationIncompleteNamesWhatStillPointsAtNpm() async {
+    let model = await closedStreamModel(Self.recorderStates[5])
+    defer { model.viewDisappeared() }
+    let text =
+      "Recorder 0.3.2 is running, but 2 setup changes didn't finish: "
+      + "the slipstream command link and the agent hooks still point at the old npm install."
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(
+        icon: .warning, tone: .warning, headline: text, footer: text, evidence: Self.recorderEvidence,
+        actions: [.tryAgain]))
+  }
+
+  @Test(arguments: recorderStates, [false, true])
+  func recorderMessageDocksOverAnOpenStream(state: RecorderState, isStreamOpen: Bool) async {
+    if !isStreamOpen {
+      fake.setCaptures([])
+      fake.setSessions([])
+    }
+    let model = makeModel(recorder: RecorderModel(state: state))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let isMigration = if case .migrationIncomplete = state { true } else { false }
+    expectNoDifference(model.selectedSession != nil, isStreamOpen)
+    expectNoDifference(model.recorderMessageIsDocked, isStreamOpen || isMigration)
+  }
+
+  @Test func connectionErrorShowsDetail() async {
+    fake.setDiscoverError(
+      DescriptorError.noUsableDescriptor(
+        directory: "/tmp/store/runtime",
+        rejected: [
+          DescriptorRejection(file: "a.json", reason: "mode 0644 (group/other bits set)"),
+          DescriptorRejection(file: "b.json", reason: #"missing "token" string"#),
+        ]))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(
+      model.recorderMessage,
+      RecorderMessage(
+        icon: .failure, tone: .error, headline: "The app found no recorder address to connect to.",
+        footer: "The app found no recorder address to connect to.",
+        evidence: Evidence(
+          source: "discovery",
+          text: """
+            no usable descriptor in /tmp/store/runtime:
+              a.json: mode 0644 (group/other bits set)
+              b.json: missing "token" string
+            """),
+        actions: [.tryAgain]))
+  }
+
+  @Test func noGenericDaemonText() async {
+    fake.setDiscoverError(
+      DescriptorError.noRuntimeDirectory(
+        path: "/tmp/store/runtime", errno: ENOENT, message: "No such file or directory"))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let shown = [
+      model.emptyStateText, model.footerText, model.captureText, model.recorderMessage?.headline,
+      model.recorderMessage?.footer, model.recorderMessage?.evidence?.text,
+    ].compactMap { $0 }
+    let generic = shown.filter { text in
+      ["daemon isn't running", "Couldn't reach", "couldn't reach", "npm i -g"].contains { text.contains($0) }
+    }
+    expectNoDifference(generic, [])
+  }
+
+  @Test func copyCopiesTheEvidenceSourceAndText() async {
+    fake.setDiscoverError(
+      DescriptorError.noRuntimeDirectory(
+        path: "/tmp/store/runtime", errno: ENOENT, message: "No such file or directory"))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    model.recorderCopyTapped()
+
+    expectNoDifference(
+      copied.value, ["discovery\n\ncan't read /tmp/store/runtime: No such file or directory (errno 2)"])
+  }
+
+  @Test func tryAgainAfterAConnectionErrorReloads() async {
+    fake.setDiscoverError(
+      DescriptorError.noRuntimeDirectory(
+        path: "/tmp/store/runtime", errno: ENOENT, message: "No such file or directory"))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    fake.setDiscoverError(nil)
+
+    await model.recorderActionTapped(.tryAgain)
+
+    expectNoDifference(model.recorderMessage, nil)
+    expectNoDifference(model.sessions.ids, [Fixture.session])
   }
 }

@@ -28,7 +28,7 @@ struct CaptureStatus: Equatable, Sendable {
     switch availability {
     case .loading: return "Checking capture state…"
     case .unavailableFromReader: return "Capture state unavailable from this reader"
-    case .failed: return "Capture state unknown — couldn't reach Slipstream"
+    case .failed: return "Capture state unknown — the capture list didn't load"
     case .available: break
     }
     guard let capture else { return "Not captured — Slipstream has no capture for this workspace" }

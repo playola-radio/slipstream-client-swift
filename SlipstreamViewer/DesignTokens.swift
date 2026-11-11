@@ -897,6 +897,68 @@ enum DesignTokens {
     static let gap: CGFloat = 8
   }
 
+  enum RecorderMessage {
+    static let width: CGFloat = 600
+    static let gap: CGFloat = 12
+    static let headlineGap: CGFloat = 8
+    static let headlineFont: FontToken = variableFont(family: geistFamily, size: 14, weight: 600)
+    static let headlineColor = Color(hex: 0xE6EDF3)
+    static let headlineLineSpacing: CGFloat = 14 * (1.4 - 1)
+    static let dockFill = Color(hex: 0x191F27)
+    static let dockGap: CGFloat = 10
+    static let dockFont: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let dockEvidenceMaxHeight: CGFloat = 320
+    static let linkColor = Color(hex: 0x82AAC5)
+    static let blockFill = Color(hex: 0x0F1318)
+    static let blockStroke = Color(hex: 0x2A3640)
+    static let blockRadius: CGFloat = 6
+    static let sourceFont: FontToken = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+    static let sourceColor = Color(hex: 0x7D98AD)
+    static let sourceVerticalPadding: CGFloat = 7
+    static let sourceHorizontalPadding: CGFloat = 10
+    static let copyGap: CGFloat = 5
+    static let copyFont: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let copyIcon = Icons.Icon(assetName: "Copy", size: 12, color: linkColor)
+    static let bodyFont: FontToken = variableFont(family: geistMonoFamily, size: 10.5, weight: 400)
+    static let bodyColor = Color(hex: 0xC9D6E0)
+    static let bodyLineSpacing: CGFloat = 10.5 * (1.55 - 1)
+    static let bodyPadding: CGFloat = 10
+    static let buttonGap: CGFloat = 8
+    static let buttonFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 500)
+    static let buttonText = Color(hex: 0xE6EDF3)
+    static let primaryButtonFill = Color(hex: 0x2F3A45)
+    static let secondaryButtonStroke = Color(hex: 0x3E5260)
+    static let buttonRadius: CGFloat = 6
+    static let buttonVerticalPadding: CGFloat = 6
+    static let buttonHorizontalPadding: CGFloat = 12
+
+    static func color(_ tone: SlipstreamViewer.RecorderMessage.Tone) -> Color {
+      switch tone {
+      case .neutral: Color(hex: 0x8B9AA6)
+      case .warning: Color(hex: 0xFF9F0A)
+      case .error: Color(hex: 0xFF6B6B)
+      }
+    }
+
+    static func headlineIcon(_ message: SlipstreamViewer.RecorderMessage) -> Icons.Icon {
+      let color = message.tone == .warning ? Color(hex: 0xF0A070) : color(message.tone)
+      return Icons.Icon(assetName: assetName(message.icon), size: 16, color: color)
+    }
+
+    static func footerIcon(_ message: SlipstreamViewer.RecorderMessage) -> Icons.Icon {
+      Icons.Icon(assetName: assetName(message.icon), size: 13, color: color(message.tone))
+    }
+
+    private static func assetName(_ icon: SlipstreamViewer.RecorderMessage.Icon) -> String {
+      switch icon {
+      case .starting: "LoaderCircle"
+      case .restarting: "RefreshCw"
+      case .warning: "CircleAlert"
+      case .failure: "OctagonX"
+      }
+    }
+  }
+
   enum CaptureStrip {
     static let fill = Color(hex: 0x1B222A)
     static let stroke = Color(hex: 0x314351)

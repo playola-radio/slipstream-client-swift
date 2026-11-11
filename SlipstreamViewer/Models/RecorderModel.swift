@@ -33,11 +33,32 @@ enum RecorderState: Equatable {
   case starting(RuntimeIdentity)
   case running
   case restarting(from: String, to: RuntimeIdentity)
-  case updateDidntFinish(running: DaemonBuild, bundled: RuntimeIdentity, Evidence)
-  case anotherRecorder(pid: Int32, Evidence)
-  case wontStart(RuntimeIdentity?, Evidence)
-  case migrationIncomplete(Evidence)
+  case updateDidntFinish(running: DaemonBuild, bundled: RuntimeIdentity, UpdateFailure, Evidence)
+  case anotherRecorder(pid: Int32, running: DaemonBuild, Evidence)
+  case wontStart(RuntimeIdentity?, StartFailure, Evidence)
+  case migrationIncomplete(RuntimeIdentity, MigrationFailure, Evidence)
   case external
+}
+
+enum UpdateFailure: Equatable {
+  case mismatch(String)
+  case copy
+  case switchCurrent
+}
+
+enum StartFailure: Equatable {
+  case unreadableBundle
+  case copy
+  case probe
+  case switchCurrent
+  case stop(pid: Int32)
+  case serviceInstall(exitCode: Int32?)
+  case exited(code: String)
+}
+
+struct MigrationFailure: Equatable {
+  var links: [String]
+  var adoptFailed: Bool
 }
 
 @MainActor
@@ -47,7 +68,6 @@ final class RecorderModel: ViewModel {
 
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.daemon) var daemon
-  @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
   @ObservationIgnored @Dependency(\.recorderService) var service
   @ObservationIgnored @Dependency(\.runtimeInstall) var runtimeInstall
 
@@ -55,20 +75,23 @@ final class RecorderModel: ViewModel {
 
   #if DEBUG
     init(
+      state: RecorderState = .running,
       usesExternalDaemon: Bool = ProcessInfo.processInfo.environment["SLIPSTREAM_EXTERNAL_DAEMON"] == "1"
     ) {
+      self.state = state
       self.usesExternalDaemon = usesExternalDaemon
       super.init()
     }
   #else
-    override init() {
+    init(state: RecorderState = .running) {
+      self.state = state
       super.init()
     }
   #endif
 
   // MARK: - Properties
 
-  private(set) var state = RecorderState.running
+  private(set) var state: RecorderState
   private var replaceTarget: ReplaceTarget?
   @ObservationIgnored private var work: Task<Void, Never>?
   @ObservationIgnored private var generation = 0
@@ -87,8 +110,8 @@ final class RecorderModel: ViewModel {
   }
 
   func tryAgainTapped() async {
-    if case .migrationIncomplete = state {
-      await own { await self.migrate($0) }
+    if case let .migrationIncomplete(bundled, _, _) = state {
+      await own { await self.migrate(bundled, $0) }
     } else {
       await own { await self.launch($0) }
     }
@@ -101,11 +124,6 @@ final class RecorderModel: ViewModel {
 
   func openLogTapped() {
     service.openLog()
-  }
-
-  func copyTapped() {
-    guard let evidence else { return }
-    pasteboard.copy(evidence.source + "\n\n" + evidence.text)
   }
 
   // MARK: - Private Helpers
@@ -125,16 +143,6 @@ final class RecorderModel: ViewModel {
   }
 
   private var store: URL { URL(fileURLWithPath: daemon.storeID) }
-
-  private var evidence: Evidence? {
-    switch state {
-    case let .updateDidntFinish(_, _, evidence), let .anotherRecorder(_, evidence), let .wontStart(_, evidence),
-      let .migrationIncomplete(evidence):
-      evidence
-    case .starting, .running, .restarting, .external:
-      nil
-    }
-  }
 
   private func own(_ operation: @escaping @MainActor (Int) async -> Void) async {
     work?.cancel()
@@ -166,7 +174,9 @@ final class RecorderModel: ViewModel {
     do {
       bundled = try runtimeInstall.bundledIdentity()
     } catch {
-      publish(.wontStart(nil, Evidence(source: "Slipstream.app's bundled recorder", text: "\(error)")), mine)
+      publish(
+        .wontStart(nil, .unreadableBundle, Evidence(source: "Slipstream.app's bundled recorder", text: "\(error)")),
+        mine)
       return
     }
     publish(.starting(bundled), mine)
@@ -178,9 +188,12 @@ final class RecorderModel: ViewModel {
       let source = "prepare runtime/ from Slipstream.app"
       if let probe, let running = probe.running {
         let text = "\(error)\nruntime/current unchanged\n\(runningLine(running, probe))"
-        publish(.updateDidntFinish(running: running, bundled: bundled, Evidence(source: source, text: text)), mine)
+        publish(
+          .updateDidntFinish(
+            running: running, bundled: bundled, Self.updateFailure(error), Evidence(source: source, text: text)),
+          mine)
       } else {
-        publish(.wontStart(bundled, Evidence(source: source, text: "\(error)")), mine)
+        publish(.wontStart(bundled, .copy, Evidence(source: source, text: "\(error)")), mine)
       }
       return
     }
@@ -193,7 +206,7 @@ final class RecorderModel: ViewModel {
     do {
       probe = try await self.probe()
     } catch {
-      publish(.wontStart(bundled, Evidence(source: Self.probeSource, text: "\(error)")), mine)
+      publish(.wontStart(bundled, .probe, Evidence(source: Self.probeSource, text: "\(error)")), mine)
       return
     }
     guard isCurrent(mine) else { return }
@@ -226,7 +239,7 @@ final class RecorderModel: ViewModel {
     do {
       _ = try await runtimeInstall.activate(prepared)
     } catch {
-      publish(.wontStart(bundled, Evidence(source: Self.activateSource, text: "\(error)")), mine)
+      publish(.wontStart(bundled, .switchCurrent, Evidence(source: Self.activateSource, text: "\(error)")), mine)
       return
     }
     guard isCurrent(mine) else { return }
@@ -245,7 +258,7 @@ final class RecorderModel: ViewModel {
       return isCurrent(mine) ? activation : nil
     } catch {
       let evidence = Evidence(source: Self.activateSource, text: "\(error)\n\(runningLine(running, probe))")
-      publish(.updateDidntFinish(running: running, bundled: bundled, evidence), mine)
+      publish(.updateDidntFinish(running: running, bundled: bundled, .switchCurrent, evidence), mine)
       return nil
     }
   }
@@ -270,7 +283,8 @@ final class RecorderModel: ViewModel {
         "runtime/current → \(current.version) (build \(Self.short(current.build)), app build \(current.appBuild)), "
           + "newer than this app's \(bundled.version) (app build \(bundled.appBuild))")
     }
-    publish(.anotherRecorder(pid: pid, Evidence(source: Self.probeSource, text: lines.joined(separator: "\n"))), mine)
+    let evidence = Evidence(source: Self.probeSource, text: lines.joined(separator: "\n"))
+    publish(.anotherRecorder(pid: pid, running: running, evidence), mine)
     if current == nil, pid > 0, let description, !running.isNewer(than: bundled) {
       replaceTarget = ReplaceTarget(
         pid: pid, description: description, running: running, bundled: bundled, prepared: prepared)
@@ -303,7 +317,7 @@ final class RecorderModel: ViewModel {
     do {
       try service.terminate(pid)
     } catch {
-      publish(.wontStart(bundled, Evidence(source: "kill -TERM \(pid)", text: "\(error)")), mine)
+      publish(.wontStart(bundled, .stop(pid: pid), Evidence(source: "kill -TERM \(pid)", text: "\(error)")), mine)
       return
     }
     guard await waitUntilGone(pid, mine) else { return }
@@ -338,13 +352,14 @@ final class RecorderModel: ViewModel {
     do {
       run = try await service.runShim(["service", "install", "--store", daemon.storeID])
     } catch {
-      publish(.wontStart(bundled, Evidence(source: "slipstream service install", text: "\(error)")), mine)
+      let evidence = Evidence(source: "slipstream service install", text: "\(error)")
+      publish(.wontStart(bundled, .serviceInstall(exitCode: nil), evidence), mine)
       return
     }
     guard isCurrent(mine) else { return }
     guard run.exitCode == 0 else {
       let evidence = Evidence(source: "slipstream service install · exit \(run.exitCode)", text: Self.transcript(run))
-      publish(.wontStart(bundled, evidence), mine)
+      publish(.wontStart(bundled, .serviceInstall(exitCode: run.exitCode), evidence), mine)
       return
     }
     if case .restarting = state {} else {
@@ -370,7 +385,7 @@ final class RecorderModel: ViewModel {
           return
         }
         publish(.running, mine)
-        if migrate { await self.migrate(mine) }
+        if migrate { await self.migrate(bundled, mine) }
         return
       }
       guard isCurrent(mine) else { return }
@@ -385,13 +400,13 @@ final class RecorderModel: ViewModel {
         let evidence = Evidence(
           source: "daemon.log since the app started the recorder · last exit code = \(lastExit)",
           text: "last exit code = \(lastExit)\n\n\(log)")
-        publish(.wontStart(bundled, evidence), mine)
+        publish(.wontStart(bundled, .exited(code: lastExit), evidence), mine)
         return
       }
     }
   }
 
-  private func migrate(_ mine: Int) async {
+  private func migrate(_ bundled: RuntimeIdentity, _ mine: Int) async {
     var sources: [String] = []
     var sections: [String] = []
     let problems = await runtimeInstall.linkCommands()
@@ -400,9 +415,11 @@ final class RecorderModel: ViewModel {
       sources.append("~/.local/bin links")
       sections.append(problems.map { "link  \($0.path)\n      \($0.message)" }.joined(separator: "\n"))
     }
+    var adoptFailed = true
     do {
       let run = try await service.runShim(["adopt-app", "--store", daemon.storeID])
-      if run.exitCode != 0 {
+      adoptFailed = run.exitCode != 0
+      if adoptFailed {
         sources.append("slipstream adopt-app · exit \(run.exitCode)")
         sections.append(Self.transcript(run))
       }
@@ -416,7 +433,9 @@ final class RecorderModel: ViewModel {
     } else {
       let evidence = Evidence(
         source: sources.joined(separator: " · "), text: sections.joined(separator: "\n\n"))
-      publish(.migrationIncomplete(evidence), mine)
+      let failure = MigrationFailure(
+        links: problems.map { URL(fileURLWithPath: $0.path).lastPathComponent }, adoptFailed: adoptFailed)
+      publish(.migrationIncomplete(bundled, failure, evidence), mine)
     }
   }
 
@@ -431,6 +450,12 @@ final class RecorderModel: ViewModel {
     let pid = (probe.job?.pid ?? probe.lockPID).map { "  pid \($0)" } ?? ""
     let build = running.build.map(Self.short) ?? "—"
     return "running\(pid)  daemon_version=\(running.version)  daemon_build=\(build)  (\(Self.label))"
+  }
+
+  private static func updateFailure(_ error: any Error) -> UpdateFailure {
+    guard case let .differs(path, expected, _) = error as? RuntimeInstallError else { return .copy }
+    let file = URL(fileURLWithPath: path).lastPathComponent
+    return .mismatch(expected.hasPrefix("sha256:") ? "\(file) hash" : file)
   }
 
   private static func jobLine(_ job: LaunchdJob?) -> String {

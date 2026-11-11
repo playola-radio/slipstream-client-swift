@@ -27,7 +27,6 @@ struct RecorderModelTests {
   func makeModel() -> RecorderModel {
     withDependencies {
       $0.continuousClock = clock
-      $0.pasteboard.copy = { [fake] text in fake.copied.withValue { $0.append(text) } }
       $0.recorderService = fake.service
       $0.runtimeInstall = fake.runtimeInstall
     } operation: {
@@ -64,7 +63,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .updateDidntFinish(
-        running: Self.oldBuild, bundled: Self.bundled,
+        running: Self.oldBuild, bundled: Self.bundled, .mismatch("watcher.node hash"),
         Evidence(
           source: "prepare runtime/ from Slipstream.app",
           text: """
@@ -102,7 +101,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .wontStart(
-        Self.bundled,
+        Self.bundled, .serviceInstall(exitCode: 1),
         Evidence(
           source: "slipstream service install · exit 1",
           text: """
@@ -186,7 +185,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .updateDidntFinish(
-        running: Self.oldBuild, bundled: Self.bundled,
+        running: Self.oldBuild, bundled: Self.bundled, .switchCurrent,
         Evidence(
           source: "point runtime/current at the new copy",
           text: """
@@ -205,7 +204,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .anotherRecorder(
-        pid: 30117,
+        pid: 30117, running: DaemonBuild(version: "0.3.0", build: nil),
         Evidence(
           source: "status · owner.lock · launchctl",
           text: """
@@ -228,7 +227,7 @@ struct RecorderModelTests {
 
     await model.appLaunched()
 
-    guard case .anotherRecorder(pid: 48213, _) = model.state else {
+    guard case .anotherRecorder(pid: 48213, _, _) = model.state else {
       Issue.record("Expected another recorder, got \(model.state)")
       return
     }
@@ -246,7 +245,7 @@ struct RecorderModelTests {
 
     await model.appLaunched()
 
-    guard case let .anotherRecorder(pid: 48213, evidence) = model.state else {
+    guard case let .anotherRecorder(pid: 48213, _, evidence) = model.state else {
       Issue.record("Expected another recorder, got \(model.state)")
       return
     }
@@ -269,7 +268,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .wontStart(
-        Self.bundled,
+        Self.bundled, .exited(code: "1"),
         Evidence(
           source: "daemon.log since the app started the recorder · last exit code = 1",
           text: "last exit code = 1\n\nlog after 4096")))
@@ -290,6 +289,7 @@ struct RecorderModelTests {
     expectNoDifference(
       model.state,
       .migrationIncomplete(
+        Self.bundled, MigrationFailure(links: ["slipstream"], adoptFailed: true),
         Evidence(
           source: "~/.local/bin links · slipstream adopt-app · exit 1",
           text: """
@@ -331,7 +331,7 @@ struct RecorderModelTests {
 
     await model.replaceItTapped()
 
-    guard case .anotherRecorder(pid: 30200, _) = model.state else {
+    guard case .anotherRecorder(pid: 30200, _, _) = model.state else {
       Issue.record("Expected another recorder 30200, got \(model.state)")
       return
     }
@@ -383,27 +383,6 @@ struct RecorderModelTests {
     #expect(!evidence.text.contains(secret) && !evidence.source.contains(secret))
   }
 
-  @Test func copyCopiesSourceAndText() async {
-    runUnmanagedDaemon()
-    let model = makeModel()
-    await model.appLaunched()
-
-    model.copyTapped()
-
-    expectNoDifference(
-      fake.copied.value,
-      [
-        """
-        status · owner.lock · launchctl
-
-        status       daemon_version=0.3.0  daemon_build=—
-        owner.lock   pid 30117
-        launchd      radio.playola.slipstream — not loaded
-        pid 30117    Mon Oct 27 09:14:52 2026     node /npm/slipstream/dist/cli.js start
-        """
-      ])
-  }
-
   #if DEBUG
     @Test func externalModeTouchesNothing() async {
       let model = RecorderModel(usesExternalDaemon: true)
@@ -436,7 +415,6 @@ final class RecorderFake: Sendable {
   let logSize = LockIsolated<UInt64>(0)
   let shimResults = LockIsolated<[String: (Int32, String)]>([:])
   let startsOnInstall = LockIsolated<DaemonBuild?>(RecorderModelTests.bundledBuild)
-  let copied = LockIsolated<[String]>([])
 
   var runtimeInstall: RuntimeInstallClient {
     RuntimeInstallClient(

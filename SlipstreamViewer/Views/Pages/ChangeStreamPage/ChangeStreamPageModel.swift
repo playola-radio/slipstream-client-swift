@@ -32,12 +32,13 @@ final class ChangeStreamPageModel: ViewModel {
   // MARK: - Initialization
 
   init(
-    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel,
+    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel, recorder: RecorderModel,
     isFunctionDemoVisible: Bool = false
   ) {
     self.chat = chat
     self.instantAsk = instantAsk
     self.terminals = terminals
+    self.recorder = recorder
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
@@ -61,6 +62,7 @@ final class ChangeStreamPageModel: ViewModel {
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
+  let recorder: RecorderModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
   let naming = WorkspaceNamingModel()
@@ -95,7 +97,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   var sessions: IdentifiedArrayOf<SessionOption> = [] { didSet { chatWorkspaceMayHaveChanged() } }
   var hasLoadedSessions = false { didSet { chatWorkspaceMayHaveChanged() } }
-  var sessionsError: String? { didSet { chatWorkspaceMayHaveChanged() } }
+  var sessionsError: RecorderMessage? { didSet { chatWorkspaceMayHaveChanged() } }
   var selectedSession: SessionOption? {
     didSet {
       openIn.folder = selectedFolder
@@ -280,7 +282,19 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  var recorderMessage: RecorderMessage? {
+    switch recorder.state {
+    case .running, .external:
+      sessionsError
+    default:
+      RecorderMessage(state: recorder.state, store: daemon.storeID, replaceIsAvailable: recorder.replaceIsAvailable)
+    }
+  }
+
+  var recorderFooterText: String? { recorderMessage?.footer }
+
   var footerText: String {
+    if let recorderFooterText { return recorderFooterText }
     let captureText: String
     if connection == .live {
       captureText = switch follow {
@@ -296,10 +310,10 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var emptyStateText: String? {
-    if let sessionsError, selectedSession == nil { return sessionsError }
+    if let recorderMessage, selectedSession == nil { return recorderMessage.headline }
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
-      if captureAvailability == .failed { return "Couldn't reach Slipstream. Press ⌘R to check again." }
+      if captureAvailability == .failed { return "The capture list didn't load. Press ⌘R to check again." }
       return pickerSessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
@@ -449,7 +463,19 @@ final class ChangeStreamPageModel: ViewModel {
   var footerMessage: RecordingMessage? { recording.footerMessage }
 
   var isCaptureStripShown: Bool { selectedSession != nil }
-  var isFooterShown: Bool { selectedSession?.hasHistory ?? true }
+  var isFooterShown: Bool { !isRecorderDockShown && (selectedSession?.hasHistory ?? true) }
+
+  var recorderMessageIsDocked: Bool {
+    if case .migrationIncomplete = recorder.state { return true }
+    return selectedSession != nil
+  }
+
+  var isRecorderMessageFull: Bool { recorderMessage != nil && !recorderMessageIsDocked }
+  var isRecorderDockShown: Bool { recorderMessage != nil && recorderMessageIsDocked }
+
+  var footerIcon: DesignTokens.Icons.Icon {
+    recorderMessage.map { DesignTokens.RecorderMessage.footerIcon($0) } ?? DesignTokens.Icons.activity
+  }
   var captureDotColor: Color { DesignTokens.CaptureStrip.dot(selectedCaptureStatus?.captureDot ?? .unknown) }
   var chatDotColor: Color { DesignTokens.CaptureStrip.dot(selectedCaptureStatus?.chatDot ?? .unknown) }
 
@@ -647,6 +673,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var footerColor: Color {
+    if let recorderMessage { return DesignTokens.RecorderMessage.color(recorderMessage.tone) }
     guard connection == .live else { return statusColor }
     return follow == .following ? DesignTokens.Colors.liveStatus : DesignTokens.Colors.jumpToLatest
   }
@@ -706,6 +733,27 @@ final class ChangeStreamPageModel: ViewModel {
 
   func reloadShortcutPressed() async {
     await reloadSessions()
+  }
+
+  func recorderActionTapped(_ action: RecorderMessage.Action) async {
+    switch action {
+    case .tryAgain:
+      switch recorder.state {
+      case .running, .external: break
+      default: await recorder.tryAgainTapped()
+      }
+      await reloadSessions()
+    case .replaceIt:
+      await recorder.replaceItTapped()
+      await reloadSessions()
+    case .openLogFile:
+      recorder.openLogTapped()
+    }
+  }
+
+  func recorderCopyTapped() {
+    guard let evidence = recorderMessage?.evidence else { return }
+    pasteboard.copy(evidence.source + "\n\n" + evidence.text)
   }
 
   func sessionSelected(_ id: String) {
@@ -1231,10 +1279,26 @@ final class ChangeStreamPageModel: ViewModel {
       sessions = []
       captureRefreshFailed()
       hasLoadedSessions = true
-      sessionsError = error is DescriptorError
-        ? "The Slipstream daemon isn't running"
-        : "Couldn't reach the Slipstream daemon"
+      sessionsError = Self.connectionFailure(error)
     }
+  }
+
+  private static func connectionFailure(_ error: any Error) -> RecorderMessage {
+    let headline: String
+    let evidence: Evidence
+    switch error {
+    case let error as DescriptorError:
+      headline = "The app found no recorder address to connect to."
+      evidence = Evidence(source: "discovery", text: error.description)
+    case let DaemonHTTPError.status(code, _, body):
+      headline = "The recorder answered the session list with HTTP \(code)."
+      evidence = Evidence(source: "GET /v1/sessions → \(code)", text: body.isEmpty ? "(empty body)" : body)
+    default:
+      headline = "The app couldn't get the session list from the recorder."
+      evidence = Evidence(source: "GET /v1/sessions", text: "\(error)")
+    }
+    return RecorderMessage(
+      icon: .failure, tone: .error, headline: headline, footer: headline, evidence: evidence, actions: [.tryAgain])
   }
 
   /// An archived workspace's folder is gone, so it is never picked for the user.
