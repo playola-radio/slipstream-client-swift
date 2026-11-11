@@ -37,5 +37,7 @@ mkdir -p "$OUT/bin"
 install -m 755 "$WORK/$NODE_DIST/bin/node" "$OUT/bin/node"
 
 [ "$("$OUT/bin/node" --version)" = "v$NODE_VERSION" ] || { echo "error: $OUT/bin/node is not v$NODE_VERSION" >&2; exit 1; }
-[ -f "$OUT/app/dist/cli.js" ] || { echo "error: payload has no $OUT/app/dist/cli.js" >&2; exit 1; }
+for file in app/package.json app/dist/build-id app/dist/cli.js app/dist/mcp-forwarder.js; do
+  [ -s "$OUT/$file" ] || { echo "error: payload has no $OUT/$file" >&2; exit 1; }
+done
 echo "==> Runtime: $OUT"

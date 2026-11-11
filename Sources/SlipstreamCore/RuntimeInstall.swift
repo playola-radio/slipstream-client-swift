@@ -74,8 +74,12 @@ public struct RuntimeInstall: Sendable {
   }
 
   public func prepare() throws(RuntimeInstallError) -> PreparedRuntime {
-    let identity = try bundledIdentity()
-    return try withLock { () throws(RuntimeInstallError) -> PreparedRuntime in
+    try withLock { () throws(RuntimeInstallError) -> PreparedRuntime in
+      let identity = try bundledIdentity()
+      // Under the lock, any staging dir left here belongs to a run that died before cleaning up.
+      for name in try Self.children(of: root.path) where name.hasPrefix(".staging-") {
+        Self.removeTree("\(root.path)/\(name)")
+      }
       let directory = root.appendingPathComponent(identity.directoryName, isDirectory: true)
       let prepared = PreparedRuntime(identity: identity, directory: directory)
       // The versioned directory only ever appears through the rename below, after the comparison.
@@ -100,9 +104,11 @@ public struct RuntimeInstall: Sendable {
 
   public func activate(_ runtime: PreparedRuntime) throws(RuntimeInstallError) -> Activation {
     try withLock { () throws(RuntimeInstallError) -> Activation in
-      if let active = currentIdentity(), Self.isVersion(active.version, newerThan: runtime.identity.version) {
+      if let active = try currentIdentity(), Self.isVersion(active.version, newerThan: runtime.identity.version) {
         return .newerActive(active)
       }
+      // The shims only go through `current`, so writing them first leaves `current` alone if they fail.
+      try writeShims()
       let current = root.appendingPathComponent("current").path
       let temporary = root.appendingPathComponent("current.tmp-\(UUID().uuidString)").path
       guard symlink(runtime.directory.lastPathComponent, temporary) == 0 else {
@@ -113,7 +119,6 @@ public struct RuntimeInstall: Sendable {
         unlink(temporary)
         throw error
       }
-      try writeShims()
       return .activated
     }
   }
@@ -171,10 +176,13 @@ public struct RuntimeInstall: Sendable {
     return try body()
   }
 
-  /// The identity `current` points at, or nil when there is no readable runtime there to protect.
-  private func currentIdentity() -> RuntimeIdentity? {
+  /// The identity `current` points at, or nil when it points at nothing. A runtime that is there but
+  /// unreadable throws, so it is never replaced by one that might be older.
+  private func currentIdentity() throws(RuntimeInstallError) -> RuntimeIdentity? {
     guard let target = Self.symlinkDestination(root.appendingPathComponent("current").path) else { return nil }
-    return try? Self.identity(of: root.appendingPathComponent(target).path)
+    let directory = root.appendingPathComponent(target).path
+    guard Self.mode(of: directory) != nil else { return nil }
+    return try Self.identity(of: directory)
   }
 
   private func writeShims() throws(RuntimeInstallError) {
@@ -196,7 +204,8 @@ public struct RuntimeInstall: Sendable {
   private static func identity(of runtime: String) throws(RuntimeInstallError) -> RuntimeIdentity {
     struct Package: Decodable { let version: String }
     let packagePath = "\(runtime)/app/package.json"
-    guard let package = try? JSONDecoder().decode(Package.self, from: try readFile(packagePath)) else {
+    let packageData = try readFile(packagePath)
+    guard let package = try? JSONDecoder().decode(Package.self, from: packageData) else {
       throw .io(step: "read daemon version", path: packagePath, errno: 0, message: "no \"version\" string in package.json")
     }
     let buildPath = "\(runtime)/app/dist/build-id"
@@ -205,7 +214,8 @@ public struct RuntimeInstall: Sendable {
     return RuntimeIdentity(version: package.version, build: build)
   }
 
-  /// Semver precedence: numeric major.minor.patch, then a release outranks its prereleases.
+  /// Semver precedence: numeric major.minor.patch, then a release outranks its prereleases, which
+  /// compare identifier by identifier.
   static func isVersion(_ lhs: String, newerThan rhs: String) -> Bool {
     func parts(_ version: String) -> (core: [Int], prerelease: String?) {
       let withoutBuild = version.split(separator: "+", maxSplits: 1).first.map(String.init) ?? version
@@ -219,7 +229,17 @@ public struct RuntimeInstall: Sendable {
     case (nil, nil): return false
     case (nil, _): return true
     case (_, nil): return false
-    case let (left?, right?): return left.compare(right, options: .numeric) == .orderedDescending
+    case let (left?, right?):
+      let (leftIdentifiers, rightIdentifiers) = (left.split(separator: "."), right.split(separator: "."))
+      for (leftIdentifier, rightIdentifier) in zip(leftIdentifiers, rightIdentifiers) where leftIdentifier != rightIdentifier {
+        switch (Int(leftIdentifier), Int(rightIdentifier)) {
+        case let (leftNumber?, rightNumber?): return leftNumber > rightNumber
+        case (_?, nil): return false
+        case (nil, _?): return true
+        case (nil, nil): return leftIdentifier > rightIdentifier
+        }
+      }
+      return leftIdentifiers.count > rightIdentifiers.count
     }
   }
 
@@ -254,7 +274,7 @@ public struct RuntimeInstall: Sendable {
     var buffer = [UInt8](repeating: 0, count: 1 << 16)
     while true {
       let count = read(input, &buffer, buffer.count)
-      if count == 0 { return }
+      if count == 0 { break }
       guard count > 0 else { throw .posix(step: "copy", path: source) }
       var written = 0
       while written < count {
@@ -263,6 +283,7 @@ public struct RuntimeInstall: Sendable {
         written += result
       }
     }
+    guard fsync(output) == 0 else { throw .posix(step: "copy", path: destination) }
   }
 
   private static func stripQuarantine(_ path: String) throws(RuntimeInstallError) {

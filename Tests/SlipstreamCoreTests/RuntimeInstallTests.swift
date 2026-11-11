@@ -82,6 +82,17 @@ struct RuntimeInstallTests {
     expectNoDifference(try names(in: sandbox.root), [".lock", "0.3.1-abcdef01", "bin", "current"])
   }
 
+  @Test func prepareRemovesStaleStaging() throws {
+    let sandbox = try Sandbox()
+    let stale = sandbox.root.appendingPathComponent(".staging-left-by-a-crash/app")
+    try FileManager.default.createDirectory(at: stale, withIntermediateDirectories: true)
+    try Data("partial".utf8).write(to: stale.appendingPathComponent("cli.js"))
+
+    _ = try sandbox.install().prepare()
+
+    expectNoDifference(try names(in: sandbox.root), [".lock", "0.3.2-abcdef01"])
+  }
+
   @Test func prepareReusesExistingDir() throws {
     let sandbox = try Sandbox()
     let copies = Counter()
@@ -117,6 +128,46 @@ struct RuntimeInstallTests {
 
     expectNoDifference(activation, .newerActive(RuntimeIdentity(version: "0.3.2", build: "abcdef0123456789")))
     expectNoDifference(try currentTarget(sandbox.root), "0.3.2-abcdef01")
+  }
+
+  @Test func activateKeepsUnreadableCurrent() throws {
+    let sandbox = try Sandbox(version: "0.3.2")
+    let install = sandbox.install()
+    _ = try install.activate(try install.prepare())
+    let package = sandbox.root.appendingPathComponent("0.3.2-abcdef01/app/package.json")
+    try Data("{}".utf8).write(to: package)
+    try sandbox.writeIdentity(version: "0.3.1")
+    let older = try install.prepare()
+
+    #expect(throws: RuntimeInstallError.self) { try install.activate(older) }
+    expectNoDifference(try currentTarget(sandbox.root), "0.3.2-abcdef01")
+  }
+
+  @Test func shimFailureLeavesCurrent() throws {
+    let sandbox = try Sandbox(version: "0.3.1")
+    let install = sandbox.install()
+    _ = try install.activate(try install.prepare())
+    try sandbox.writeIdentity(version: "0.3.2")
+    let newer = try install.prepare()
+    let bin = sandbox.root.appendingPathComponent("bin")
+    chmod(bin.path, 0o500)
+    defer { chmod(bin.path, 0o755) }
+
+    #expect(throws: RuntimeInstallError.self) { try install.activate(newer) }
+    expectNoDifference(try currentTarget(sandbox.root), "0.3.1-abcdef01")
+  }
+
+  @Test(arguments: [
+    ("0.3.10", "0.3.9"),
+    ("1.0.0", "1.0.0-rc.1"),
+    ("1.0.0-alpha.10", "1.0.0-alpha.2"),
+    ("1.0.0-alpha2", "1.0.0-alpha10"),
+    ("1.0.0-alpha.1", "1.0.0-alpha"),
+    ("1.0.0-alpha", "1.0.0-1"),
+  ])
+  func versionPrecedenceFollowsSemver(newer: String, older: String) {
+    #expect(RuntimeInstall.isVersion(newer, newerThan: older))
+    #expect(!RuntimeInstall.isVersion(older, newerThan: newer))
   }
 
   @Test func activateWritesShims() throws {
