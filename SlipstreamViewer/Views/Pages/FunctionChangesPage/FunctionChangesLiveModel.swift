@@ -178,7 +178,7 @@ final class FunctionChangesLiveModel: ViewModel {
     do {
       return try await daemon.interfaces(
         descriptor, sessionID, before, after, nil, afterPath, true)
-    } catch DaemonHTTPError.status(401, _) {
+    } catch DaemonHTTPError.status(401, _, _) {
       try Task.checkCancellation()
       let refreshed = try await daemon.discover()
       return try await daemon.interfaces(
@@ -202,7 +202,7 @@ final class FunctionChangesLiveModel: ViewModel {
   }
 
   private func isRetryable(_ error: any Error) -> Bool {
-    if case DaemonHTTPError.status(let code, _) = error,
+    if case DaemonHTTPError.status(let code, _, _) = error,
       code == 400 || code == 404 || code == 409 || code == 410
     {
       return false
@@ -215,7 +215,7 @@ final class FunctionChangesLiveModel: ViewModel {
   }
 
   private func errorText(_ error: any Error) -> String {
-    if case DaemonHTTPError.status(let code, let durableSeq) = error {
+    if case DaemonHTTPError.status(let code, let durableSeq, _) = error {
       switch code {
       case 400: return "Comparison request rejected (400). \(incompleteText)"
       case 401: return "Daemon authentication failed. Retry after reconnecting."

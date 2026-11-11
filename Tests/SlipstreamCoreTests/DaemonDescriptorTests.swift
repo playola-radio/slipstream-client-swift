@@ -162,9 +162,76 @@ struct DaemonDescriptorTests {
     try expectNoDaemonRunning(store: store)
   }
 
-  @Test func missingRuntimeDirThrows() throws {
+  @Test func missingRuntimeDirReportsErrno() throws {
     let store = try makeStore()
-    try expectNoDaemonRunning(store: store)
+    let runtime = store.appendingPathComponent("runtime").path
+
+    #expect(throws: DescriptorError.noRuntimeDirectory(path: runtime, errno: ENOENT, message: "No such file or directory")) {
+      try DescriptorDiscovery.discover(store: store)
+    }
+  }
+
+  @Test func rejectedDescriptorsListEachReason() throws {
+    let store = try makeStore()
+    let runtime = try makeRuntimeDir(in: store)
+    try writeCandidate(
+      #"{"url":"http://127.0.0.1:1234","token":"t"}"#, to: runtime.appendingPathComponent("a.json"), mode: 0o644)
+    try writeCandidate(
+      #"{"url":"http://10.0.0.2:4100","token":"t"}"#, to: runtime.appendingPathComponent("b.json"))
+
+    #expect(
+      throws: DescriptorError.noUsableDescriptor(
+        directory: runtime.path,
+        rejected: [
+          DescriptorRejection(file: "a.json", reason: "mode 0644 (group/other bits set)"),
+          DescriptorRejection(file: "b.json", reason: "url is not loopback: http://10.0.0.2:4100"),
+        ])
+    ) {
+      try DescriptorDiscovery.discover(store: store)
+    }
+    #expect(
+      throws: DescriptorError.noUsableDescriptor(
+        directory: runtime.path,
+        rejected: [
+          DescriptorRejection(file: "a.json", reason: "mode 0644 (group/other bits set)"),
+          DescriptorRejection(file: "b.json", reason: "owner uid \(getuid()), expected \(getuid() + 1)"),
+        ])
+    ) {
+      try DescriptorDiscovery.discover(store: store, currentUID: getuid() + 1)
+    }
+  }
+
+  @Test func rejectionNeverContainsToken() throws {
+    let store = try makeStore()
+    let runtime = try makeRuntimeDir(in: store)
+    let token = "tok-5f1c2e9a7b3d4c6e8f0a1b2c3d4e5f60"
+    let candidates = [
+      #"{"url":"http://10.0.0.2:4100/\#(token)","token":"\#(token)"}"#,
+      #"{"url":"http://\#(token):4100","token":"\#(token)"}"#,
+      #"{"url":"http://\#(token):\#(token)@127.0.0.1:4100","token":"\#(token)"}"#,
+      #"{"url":"http://127.0.0.1:4100/\#(token)","token":"\#(token)"}"#,
+      #"{"url":"http://127.0.0.1:4100?t=\#(token)","token":"\#(token)"}"#,
+      #"{"url":"http://127.0.0.1:4100#\#(token)","token":"\#(token)"}"#,
+      #"{"url":"\#(token)","token":"\#(token)"}"#,
+      #"{"url":"http://127.0.0.1:4100","token":"\#(token)""#,
+      #"{"url":["\#(token)"],"token":"\#(token)"}"#,
+    ]
+    for (index, json) in candidates.enumerated() {
+      try writeCandidate(json, to: runtime.appendingPathComponent("\(index).json"))
+    }
+
+    do {
+      _ = try DescriptorDiscovery.discover(store: store)
+      Issue.record("expected discover to throw")
+    } catch {
+      guard case .noUsableDescriptor(_, let rejected) = error else {
+        Issue.record("unexpected \(error)")
+        return
+      }
+      expectNoDifference(rejected.count, candidates.count)
+      #expect(!String(describing: error).contains(token))
+      #expect(!String(customDumping: error).contains(token))
+    }
   }
 
   @Test func storeURLDefaultsToHomeDotSlipstream() {
@@ -233,8 +300,13 @@ private func setModificationDate(_ date: Date, at url: URL) throws {
 private func expectNoDaemonRunning(store: URL, currentUID: uid_t = getuid()) throws {
   do {
     _ = try DescriptorDiscovery.discover(store: store, currentUID: currentUID)
-    Issue.record("expected discover to throw noDaemonRunning")
+    Issue.record("expected discover to throw noUsableDescriptor")
   } catch {
-    expectNoDifference(error, .noDaemonRunning(store: store.path))
+    guard case .noUsableDescriptor(let directory, let rejected) = error else {
+      Issue.record("unexpected \(error)")
+      return
+    }
+    expectNoDifference(directory, store.appendingPathComponent("runtime").path)
+    #expect(!rejected.isEmpty)
   }
 }

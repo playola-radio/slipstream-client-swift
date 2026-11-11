@@ -26,7 +26,7 @@ enum CardContentLoader {
         return try await fetch(row, sessionID: sessionID, daemon: daemon)
       } catch {
         if Task.isCancelled { return nil }
-        if case DaemonHTTPError.status(404, _) = error { return .note("Content no longer available") }
+        if case DaemonHTTPError.status(404, _, _) = error { return .note("Content no longer available") }
       }
     }
     return .note(failedNote)

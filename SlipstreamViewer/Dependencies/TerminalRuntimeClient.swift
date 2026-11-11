@@ -10,7 +10,7 @@ struct TerminalSize: Equatable, Sendable {
 struct TerminalEnvironment: Equatable, Sendable {
   var variables: [String: String]
   var shell: String
-  var slipstream: String?
+  var slipstream: String
 }
 
 struct TerminalLaunch: Equatable, Sendable {
@@ -47,7 +47,7 @@ struct TerminalRuntimeClient: Sendable {
 
 extension TerminalRuntimeClient {
   static func terminalEnvironment(
-    login: [String: String], passwordDatabaseShell: String?
+    login: [String: String], passwordDatabaseShell: String?, slipstream: String
   ) throws -> TerminalEnvironment {
     guard let path = login["PATH"], !path.isEmpty else {
       throw TerminalLaunchError(text: "Couldn't read PATH from your login shell")
@@ -61,7 +61,7 @@ extension TerminalRuntimeClient {
     return TerminalEnvironment(
       variables: variables,
       shell: AgentEnvironmentClient.loginShell(environment: login, passwordDatabaseShell: passwordDatabaseShell),
-      slipstream: WorkspaceClient.slipstreamExecutable(in: variables)
+      slipstream: slipstream
     )
   }
 }
@@ -77,7 +77,8 @@ extension TerminalRuntimeClient: DependencyKey {
           throw TerminalLaunchError(text: error.message)
         }
         return try terminalEnvironment(
-          login: login, passwordDatabaseShell: AgentEnvironmentClient.passwordDatabaseShell())
+          login: login, passwordDatabaseShell: AgentEnvironmentClient.passwordDatabaseShell(),
+          slipstream: RuntimeInstallClient.shim.path)
       },
       folderExists: { path in
         var isDirectory: ObjCBool = false

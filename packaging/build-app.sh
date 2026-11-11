@@ -18,16 +18,26 @@ xcodebuild \
   -derivedDataPath "$REPO_ROOT/packaging/build/app" \
   -destination 'generic/platform=macOS' \
   -skipPackagePluginValidation \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=NO \
   CODE_SIGNING_ALLOWED=NO \
   build
 
 BUILT="$REPO_ROOT/packaging/build/app/Build/Products/Release/Slipstream.app"
 [ -d "$BUILT" ] || { echo "error: build produced no .app at $BUILT" >&2; exit 1; }
+# The bundled node runtime is arm64 only, so the app must be too.
+ARCHS_BUILT=$(lipo -archs "$BUILT/Contents/MacOS/Slipstream")
+[ "$ARCHS_BUILT" = arm64 ] || { echo "error: Slipstream.app is $ARCHS_BUILT, expected arm64 only" >&2; exit 1; }
 
 DEST_APP="$DIST/Slipstream.app"
 mkdir -p "$DIST"
 rm -rf "$DEST_APP"
 # ditto preserves the framework symlinks Sparkle relies on; cp would not.
 /usr/bin/ditto "$BUILT" "$DEST_APP"
-"$REPO_ROOT/packaging/build-runtime.sh" "$DEST_APP/Contents/Resources/SlipstreamRuntime"
+RUNTIME="$DEST_APP/Contents/Resources/SlipstreamRuntime"
+"$REPO_ROOT/packaging/build-runtime.sh" "$RUNTIME"
+# The app build breaks ties between two apps bundling the same daemon version (RuntimeInstall.activate).
+APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DEST_APP/Contents/Info.plist")"
+[[ "$APP_BUILD" =~ ^[0-9]+$ ]] || { echo "error: CFBundleVersion is not an integer: $APP_BUILD" >&2; exit 1; }
+printf '%s\n' "$APP_BUILD" > "$RUNTIME/app-build"
 echo "==> Assembled: $DEST_APP"

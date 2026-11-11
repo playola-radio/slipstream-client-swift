@@ -26,7 +26,7 @@ extension WorkspaceClient {
     let tail = output.split(whereSeparator: \.isNewline)
       .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
       .suffix(failureLineLimit)
-    return tail.isEmpty ? "slipstream exited with status \(status)." : tail.joined(separator: "\n")
+    return (tail + ["slipstream exited with status \(status)."]).joined(separator: "\n")
   }
 }
 
@@ -49,7 +49,17 @@ extension WorkspaceClient: DependencyKey {
         panel.prompt = prompt
         return panel.runModal() == .OK ? panel.url : nil
       },
-      archive: { workspace, store in await runSlipstream(["workspace", "archive", workspace.path, "--store", store]) }
+      archive: { workspace, store in
+        let environment: [String: String]
+        do {
+          environment = try await AgentEnvironmentClient.loginEnvironment()
+        } catch {
+          return error.localizedDescription
+        }
+        return await runShim(
+          RuntimeInstallClient.shim.path, ["workspace", "archive", workspace.path, "--store", store],
+          environment: environment)
+      }
     )
   }
 
@@ -67,44 +77,31 @@ extension WorkspaceClient: DependencyKey {
 
   private static let outputLimit = 65_536
 
-  private static func runSlipstream(_ arguments: [String]) async -> String? {
-    let variables: [String: String]
+  static func runShim(_ shim: String, _ arguments: [String], environment: [String: String]) async -> String? {
     do {
-      variables = try await AgentEnvironmentClient.loginEnvironment()
-    } catch {
-      return error.localizedDescription
-    }
-    guard let slipstream = slipstreamExecutable(in: variables) else { return slipstreamNotFoundText }
-    do {
-      let (output, status) = try await runInBackground(slipstream, arguments, environment: variables)
+      let (output, status) = try await runInBackground(shim, arguments, environment: environment)
       return failureText(output: output, status: status)
     } catch {
-      return "Couldn't run slipstream: \(error.localizedDescription)"
+      return "Couldn't run \(shim): \(error.localizedDescription)"
     }
-  }
-
-  static let slipstreamNotFoundText = "Couldn't find slipstream. Install it with `npm i -g @playola-radio/slipstream`."
-
-  static func slipstreamExecutable(in variables: [String: String]) -> String? {
-    (variables["PATH"] ?? "").split(separator: ":").map { "\($0)/slipstream" }
-      .first(where: FileManager.default.isExecutableFile(atPath:))
   }
 
   static func runInBackground(
-    _ executable: String, _ arguments: [String], environment: [String: String]
+    _ executable: String, _ arguments: [String], environment: [String: String], keepsAllOutput: Bool = false
   ) async throws -> (output: String, status: Int32) {
     try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global().async {
-        continuation.resume(with: Result { try run(executable, arguments, environment: environment) })
+        continuation.resume(
+          with: Result { try run(executable, arguments, environment: environment, keepsAllOutput: keepsAllOutput) })
       }
     }
   }
 
   /// Runs a command to completion with stdout and stderr merged, keeping the last
-  /// `outputLimit` bytes. Stops reading once it has exited and its output is drained, so a
+  /// `outputLimit` bytes unless `keepsAllOutput`. Stops reading once it has exited and its output is drained, so a
   /// background job started by a setup script can't hold the pipe open.
   static func run(
-    _ executable: String, _ arguments: [String], environment: [String: String]
+    _ executable: String, _ arguments: [String], environment: [String: String], keepsAllOutput: Bool = false
   ) throws -> (output: String, status: Int32) {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: executable)
@@ -130,7 +127,7 @@ extension WorkspaceClient: DependencyKey {
         if count < 0 && errno == EINTR { continue }
         if count <= 0 { break }
         output.append(contentsOf: buffer[..<count])
-        if output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
+        if !keepsAllOutput, output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
         if hasExited {
           outputAfterExit += count
           if outputAfterExit >= outputLimit { break }

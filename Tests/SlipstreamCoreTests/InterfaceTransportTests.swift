@@ -36,7 +36,7 @@ struct InterfaceTransportTests {
           url: url, statusCode: code,
           httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "text/plain"]))
       #expect(throws: DaemonHTTPError.status(code, durableSeq: nil)) {
-        try DaemonTransport.check(response)
+        try DaemonTransport.check(response, body: Data())
       }
     }
     let conflict = try #require(
@@ -44,7 +44,23 @@ struct InterfaceTransportTests {
         url: url, statusCode: 409, httpVersion: "HTTP/1.1",
         headerFields: ["Content-Type": "text/plain", "slipstream-durable-seq": "9007199254740993"]))
     #expect(throws: DaemonHTTPError.status(409, durableSeq: Seq("9007199254740993"))) {
-      try DaemonTransport.check(conflict)
+      try DaemonTransport.check(conflict, body: Data())
+    }
+  }
+
+  @Test func statusErrorKeepsBody() throws {
+    let response = try #require(
+      HTTPURLResponse(url: descriptor.baseURL, statusCode: 500, httpVersion: "HTTP/1.1", headerFields: nil))
+    let body = Data("TypeError: x is undefined\n    at handler (server.js:12:3)\n".utf8) + Data([0xFF])
+
+    #expect(
+      throws: DaemonHTTPError.status(
+        500, durableSeq: nil, body: "TypeError: x is undefined\n    at handler (server.js:12:3)\n\u{FFFD}")
+    ) {
+      try DaemonTransport.check(response, body: body)
+    }
+    #expect(throws: DaemonHTTPError.status(500, durableSeq: nil, body: String(repeating: "a", count: 65_536))) {
+      try DaemonTransport.check(response, body: Data(repeating: UInt8(ascii: "a"), count: 70_000))
     }
   }
 }

@@ -406,18 +406,6 @@ extension TerminalPageTests {
     _ = await setup.value
   }
 
-  @Test func slipstreamMissingWritesInstallHint() async {
-    fake.setSlipstreamMissing()
-    let model = makeModel()
-
-    let path = await model.newWorkspaceStarted(repository: repository, store: "store-1", managedRoot: managedRoot)
-
-    #expect(path == nil)
-    #expect(fake.log(UUID(0)).contains(WorkspaceClient.slipstreamNotFoundText))
-    expectNoDifference(fake.saved?.tabs[id: UUID(0)]?.kind, .setup(.failed(exitStatus: nil)))
-    expectNoDifference(fake.launches, [])
-  }
-
   @Test func environmentFailureWritesItsText() async {
     fake.setEnvironmentError(TerminalLaunchError(text: "Couldn't read PATH from your login shell"))
     let model = makeModel()
@@ -660,7 +648,7 @@ extension TerminalPageTests {
   }
 
   @Test func quitWhileUnstartableSetupFlushesStaysInterrupted() async {
-    fake.setSlipstreamMissing()
+    fake.setLaunchError(TerminalLaunchError(text: "Couldn't start the setup shell"))
     let model = makeModel()
     await model.workspaceChanged(folder: a)
     fake.hold(.flush)

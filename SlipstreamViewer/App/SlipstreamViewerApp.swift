@@ -8,6 +8,7 @@ struct SlipstreamViewerApp: App {
   @State private var instantAsk: InstantAskModel
   @State private var terminals = TerminalPageModel()
   @State private var updater = UpdaterModel()
+  @State private var recorder = RecorderModel()
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   init() {
@@ -27,6 +28,7 @@ struct SlipstreamViewerApp: App {
               chat: chat,
               instantAsk: instantAsk,
               terminals: terminals,
+              recorder: recorder,
               functionChangesDemo: FunctionChangesFixtureModel(
                 root: ProcessInfo.processInfo.environment["SLIPSTREAM_INTERFACE_FIXTURE_ROOT"].map {
                   URL(fileURLWithPath: $0)
@@ -34,7 +36,7 @@ struct SlipstreamViewerApp: App {
                 initialCase: String(fixtureArgument.dropFirst("--function-changes-fixture=".count))
               ))
           } else {
-            ChangeStreamPageView(chat: chat, instantAsk: instantAsk, terminals: terminals)
+            ChangeStreamPageView(chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder)
           }
         }
       }
@@ -43,8 +45,14 @@ struct SlipstreamViewerApp: App {
         updater.appLaunched()
         await terminals.launched()
       }
+      .task {
+        guard !isTesting else { return }
+        await recorder.appLaunched()
+      }
       .modifier(QuitFlowHandoff(
-        chat: chat, instantAsk: instantAsk, terminals: terminals, appDelegate: appDelegate, windowID: Self.windowID))
+        chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder, updater: updater,
+        appDelegate: appDelegate,
+        windowID: Self.windowID))
       .background {
         Button("Make Text Bigger") { fontSize.biggerTapped() }
           .keyboardShortcut("=")
@@ -64,12 +72,14 @@ struct SlipstreamViewerApp: App {
   private static let windowID = "main"
 }
 
-/// Gives the quit flow the chat, instant answers and terminals, and a way back to the window when closing it
+/// Gives the quit flow the chat, instant answers, terminals, recorder and updater, and a way back to the window when closing it
 /// is cancelled.
 private struct QuitFlowHandoff: ViewModifier {
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
+  let recorder: RecorderModel
+  let updater: UpdaterModel
   let appDelegate: AppDelegate
   let windowID: String
   @Environment(\.openWindow) private var openWindow
@@ -79,6 +89,8 @@ private struct QuitFlowHandoff: ViewModifier {
       appDelegate.chat = chat
       appDelegate.instantAsk = instantAsk
       appDelegate.terminals = terminals
+      appDelegate.recorder = recorder
+      appDelegate.updater = updater
       appDelegate.reopenWindow = { openWindow(id: windowID) }
     }
   }

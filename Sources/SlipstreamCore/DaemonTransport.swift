@@ -66,7 +66,7 @@ public enum StreamItem: Equatable, Sendable {
 }
 
 public enum DaemonHTTPError: Error, Equatable, Sendable {
-  case status(Int, durableSeq: Seq?)
+  case status(Int, durableSeq: Seq?, body: String = "")
   case invalidResponse
 }
 
@@ -99,7 +99,7 @@ public final class DaemonTransport: Sendable {
 
   static func captureList(_ data: Data, response: URLResponse) throws -> CaptureList? {
     if (response as? HTTPURLResponse)?.statusCode == 404 { return nil }
-    try check(response)
+    try check(response, body: data)
     return try JSONDecoder().decode(CaptureList.self, from: data)
   }
 
@@ -107,7 +107,7 @@ public final class DaemonTransport: Sendable {
     let request = makeRequest(descriptor, path: "/v1/sessions/\(sessionID)/events", query: [URLQueryItem(name: "after", value: "0")])
     let (bytes, response) = try await session.bytes(for: request)
     defer { bytes.task.cancel() }
-    try Self.check(response)
+    try await Self.check(response, bytes: bytes)
     var line: [UInt8] = []
     for try await byte in bytes {
       if byte == UInt8(ascii: "\n") { break }
@@ -134,7 +134,7 @@ public final class DaemonTransport: Sendable {
       let task = Task {
         do {
           let (bytes, response) = try await session.bytes(for: followRequest)
-          try Self.check(response)
+          try await Self.check(response, bytes: bytes)
           var parser = SSEParser()
           var chunk: [UInt8] = []
           for try await byte in bytes {
@@ -172,7 +172,7 @@ public final class DaemonTransport: Sendable {
       descriptor, sessionID: sessionID, before: before, after: after,
       pathPrefix: pathPrefix, afterPath: afterPath, includeIdentical: includeIdentical)
     let (data, response) = try await session.data(for: request)
-    try Self.check(response)
+    try Self.check(response, body: data)
     try Task.checkCancellation()
     return try InterfaceComparison.decode(data)
   }
@@ -222,7 +222,7 @@ public final class DaemonTransport: Sendable {
 
   private func get(_ descriptor: DaemonDescriptor, path: String) async throws -> (Data, HTTPURLResponse) {
     let (data, response) = try await session.data(for: makeRequest(descriptor, path: path, query: []))
-    return (data, try Self.check(response))
+    return (data, try Self.check(response, body: data))
   }
 
   private func makeRequest(_ descriptor: DaemonDescriptor, path: String, query: [URLQueryItem]) -> URLRequest {
@@ -235,14 +235,28 @@ public final class DaemonTransport: Sendable {
     return request
   }
 
+  static let errorBodyLimit = 65_536
+
   @discardableResult
-  static func check(_ response: URLResponse) throws -> HTTPURLResponse {
+  static func check(_ response: URLResponse, body: Data) throws -> HTTPURLResponse {
     guard let http = response as? HTTPURLResponse else { throw DaemonHTTPError.invalidResponse }
     guard http.statusCode == 200 else {
       let durable = http.value(forHTTPHeaderField: "slipstream-durable-seq").flatMap(Seq.init)
-      throw DaemonHTTPError.status(http.statusCode, durableSeq: durable)
+      let text = String(decoding: body.prefix(errorBodyLimit), as: UTF8.self)
+      throw DaemonHTTPError.status(http.statusCode, durableSeq: durable, body: text)
     }
     return http
+  }
+
+  private static func check(_ response: URLResponse, bytes: URLSession.AsyncBytes) async throws {
+    var body = Data()
+    if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+      for try await byte in bytes {
+        body.append(byte)
+        if body.count == errorBodyLimit { break }
+      }
+    }
+    try check(response, body: body)
   }
 }
 

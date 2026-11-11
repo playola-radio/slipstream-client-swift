@@ -20,7 +20,7 @@ struct WorkspaceClientTests {
 
     expectNoDifference(
       WorkspaceClient.failureText(output: output, status: 1),
-      "slipstream: the workspace has uncommitted or untracked changes."
+      "slipstream: the workspace has uncommitted or untracked changes.\nslipstream exited with status 1."
     )
   }
 
@@ -33,8 +33,46 @@ struct WorkspaceClientTests {
 
     expectNoDifference(
       WorkspaceClient.failureText(output: output, status: 1),
-      (9...20).map { "line \($0)" }.joined(separator: "\n")
+      ((9...20).map { "line \($0)" } + ["slipstream exited with status 1."]).joined(separator: "\n")
     )
+  }
+
+  @Test func archiveRunsShim() async throws {
+    let shim = try makeShim(#"echo "ran $0 $*"; exit 3"#)
+    defer { try? FileManager.default.removeItem(at: shim.deletingLastPathComponent()) }
+
+    let failure = await WorkspaceClient.runShim(
+      shim.path, ["workspace", "archive", "/w/one", "--store", "/s"], environment: [:])
+
+    expectNoDifference(
+      failure, "ran \(shim.path) workspace archive /w/one --store /s\nslipstream exited with status 3.")
+  }
+
+  @Test func missingShimReportsShimError() async throws {
+    let shim = try makeShim(
+      #"echo "slipstream: no runtime at /rt/current; open Slipstream once." >&2; exit 127"#)
+    defer { try? FileManager.default.removeItem(at: shim.deletingLastPathComponent()) }
+
+    let failure = await WorkspaceClient.runShim(shim.path, ["workspace", "archive", "/w/one"], environment: [:])
+
+    expectNoDifference(
+      failure,
+      "slipstream: no runtime at /rt/current; open Slipstream once.\nslipstream exited with status 127.")
+  }
+
+  @Test func absentShimNamesItsPath() async {
+    let failure = await WorkspaceClient.runShim("/nonexistent-runtime/bin/slipstream", [], environment: [:])
+
+    #expect(failure?.hasPrefix("Couldn't run /nonexistent-runtime/bin/slipstream: ") == true)
+  }
+
+  private func makeShim(_ body: String) throws -> URL {
+    let folder = FileManager.default.temporaryDirectory.appending(path: "shim-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let shim = folder.appending(path: "slipstream")
+    FileManager.default.createFile(
+      atPath: shim.path, contents: Data("#!/bin/sh\n\(body)\n".utf8), attributes: [.posixPermissions: 0o755])
+    return shim
   }
 
   @Test func commandReturnsWhenItsBackgroundSetupKeepsTheOutputPipeOpen() throws {
