@@ -83,6 +83,9 @@ jobs:
       - run: sudo xcode-select -s /Applications/Xcode_26.5.app
       - run: brew install xcodegen
       - run: xcodebuild -downloadComponent MetalToolchain
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24" # builds the daemon payload (packaging/build-runtime.sh)
       - uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
         with:
           ruby-version: "3.3"

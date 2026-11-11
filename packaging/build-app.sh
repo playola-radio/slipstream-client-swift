@@ -29,4 +29,5 @@ mkdir -p "$DIST"
 rm -rf "$DEST_APP"
 # ditto preserves the framework symlinks Sparkle relies on; cp would not.
 /usr/bin/ditto "$BUILT" "$DEST_APP"
+"$REPO_ROOT/packaging/build-runtime.sh" "$DEST_APP/Contents/Resources/SlipstreamRuntime"
 echo "==> Assembled: $DEST_APP"

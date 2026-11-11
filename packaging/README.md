@@ -10,6 +10,26 @@ bundled Python engine.
 Merges to `develop` release from GitHub Actions (`.github/workflows/release.yml`). The
 same fastlane lane can still run locally.
 
+## Bundled runtime
+
+The app embeds the Slipstream daemon and an arm64 Node at
+`Contents/Resources/SlipstreamRuntime/` (`bin/node`, `app/`), so one Sparkle update moves
+the app and the recorder together. `build-app.sh` runs `build-runtime.sh`, which:
+
+- fetches the daemon at `DAEMON_COMMIT` from `runtime.env` and runs
+  `npm ci && npm run build:payload` there (so the build needs Node 24 and npm on PATH);
+- downloads Node `NODE_VERSION`, refuses it unless its sha256 is `NODE_SHA256`, and copies
+  only `bin/node`.
+
+`sign-app.sh` signs `bin/node` with `node.entitlements` (JIT only) and every other Mach-O in
+the payload (native addons such as `watcher.node`) with no entitlements, before the app.
+
+To ship a new daemon, set `DAEMON_COMMIT` to its merge commit on the daemon's `develop`
+(never a branch tip). To move Node, set `NODE_VERSION` and copy the
+`node-v<version>-darwin-arm64.tar.xz` line's hash from
+`https://nodejs.org/dist/v<version>/SHASUMS256.txt` into `NODE_SHA256`. App and daemon
+versions are independent.
+
 ## Download links
 
 - Website / first install:

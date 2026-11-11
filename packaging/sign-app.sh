@@ -3,14 +3,16 @@
 #
 #   packaging/sign-app.sh packaging/dist/Slipstream.app
 #
-# Signs Sparkle's nested helpers, then embedded frameworks, then the app. `--deep`
-# is used only to verify, never to sign: it applies one identity/entitlement set
-# indiscriminately and skips already-signed code.
+# Signs Sparkle's nested helpers, then embedded frameworks, then the bundled
+# runtime's Mach-O files, then the app. `--deep` is used only to verify, never to
+# sign: it applies one identity/entitlement set indiscriminately and skips
+# already-signed code.
 #
 # Override the identity with SIGN_IDENTITY=... (defaults to Playola Developer ID).
 set -euo pipefail
 
 APP="${1:?usage: sign-app.sh /path/to/Slipstream.app}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Playola Radio, Incorporated (FSRSPV9N9Q)}"
 TEAM_ID="FSRSPV9N9Q"
 
@@ -42,6 +44,18 @@ echo "==> Signing embedded frameworks/dylibs"
 while IFS= read -r fw; do
   [ -n "$fw" ] && sign "$fw"
 done < <(find "$APP/Contents/Frameworks" \( -name "*.framework" -o -name "*.dylib" \) | sort -r)
+
+# Node gets the JIT entitlement; native addons (*.node) and any other Mach-O in the
+# daemon payload get none.
+RUNTIME="$APP/Contents/Resources/SlipstreamRuntime"
+[ -x "$RUNTIME/bin/node" ] || { echo "error: bundled runtime missing from $APP" >&2; exit 1; }
+echo "==> Signing the bundled runtime"
+sign "$RUNTIME/bin/node" --entitlements "$HERE/node.entitlements"
+while IFS= read -r macho; do
+  [ -f "$macho" ] || continue
+  sign "$macho"
+done < <(find "$RUNTIME/app" -type f -print0 | xargs -0 file 2>/dev/null \
+           | grep 'Mach-O' | cut -d: -f1 | sort -u)
 
 echo "==> Signing the app (outermost)"
 sign "$APP"
