@@ -126,13 +126,9 @@ final class TerminalTabModel: ViewModel, Identifiable {
     do {
       let environment = try await runtime.environment()
       guard !isStopped else { return nil }
-      guard let slipstream = environment.slipstream else {
-        await setupCouldNotStart(WorkspaceClient.slipstreamNotFoundText)
-        return nil
-      }
       let handle = try runtime.launch(
         TerminalLaunch(
-          executable: slipstream, arguments: ["workspace", "create", repository.path, "--store", store],
+          executable: environment.slipstream, arguments: ["workspace", "create", repository.path, "--store", store],
           environment: environment.variables, directory: repository.path, size: surface.size))
       self.handle = handle
       let clock: any Clock<Duration> = clock

@@ -19,11 +19,8 @@ extension ChatLinkClient: DependencyKey {
       environment: { try await agentEnvironment.resolve() },
       captures: { try await daemon.listCaptures(daemon.discover())?.captures ?? [] },
       run: { arguments, environment in
-        guard let slipstream = WorkspaceClient.slipstreamExecutable(in: environment) else {
-          throw SlipstreamNotFound()
-        }
         let (output, status) = try await WorkspaceClient.runInBackground(
-          slipstream, arguments, environment: environment)
+          RuntimeInstallClient.shim.path, arguments, environment: environment)
         return (status, output)
       }
     )
@@ -46,10 +43,6 @@ extension DependencyValues {
     get { self[ChatLinkClient.self] }
     set { self[ChatLinkClient.self] = newValue }
   }
-}
-
-private struct SlipstreamNotFound: LocalizedError {
-  var errorDescription: String? { WorkspaceClient.slipstreamNotFoundText }
 }
 
 actor ChatLinkOperations {

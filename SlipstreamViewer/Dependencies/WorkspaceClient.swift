@@ -26,7 +26,7 @@ extension WorkspaceClient {
     let tail = output.split(whereSeparator: \.isNewline)
       .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
       .suffix(failureLineLimit)
-    return tail.isEmpty ? "slipstream exited with status \(status)." : tail.joined(separator: "\n")
+    return (tail + ["slipstream exited with status \(status)."]).joined(separator: "\n")
   }
 }
 
@@ -49,7 +49,17 @@ extension WorkspaceClient: DependencyKey {
         panel.prompt = prompt
         return panel.runModal() == .OK ? panel.url : nil
       },
-      archive: { workspace, store in await runSlipstream(["workspace", "archive", workspace.path, "--store", store]) }
+      archive: { workspace, store in
+        let environment: [String: String]
+        do {
+          environment = try await AgentEnvironmentClient.loginEnvironment()
+        } catch {
+          return error.localizedDescription
+        }
+        return await runShim(
+          RuntimeInstallClient.shim.path, ["workspace", "archive", workspace.path, "--store", store],
+          environment: environment)
+      }
     )
   }
 
@@ -67,27 +77,13 @@ extension WorkspaceClient: DependencyKey {
 
   private static let outputLimit = 65_536
 
-  private static func runSlipstream(_ arguments: [String]) async -> String? {
-    let variables: [String: String]
+  static func runShim(_ shim: String, _ arguments: [String], environment: [String: String]) async -> String? {
     do {
-      variables = try await AgentEnvironmentClient.loginEnvironment()
-    } catch {
-      return error.localizedDescription
-    }
-    guard let slipstream = slipstreamExecutable(in: variables) else { return slipstreamNotFoundText }
-    do {
-      let (output, status) = try await runInBackground(slipstream, arguments, environment: variables)
+      let (output, status) = try await runInBackground(shim, arguments, environment: environment)
       return failureText(output: output, status: status)
     } catch {
-      return "Couldn't run slipstream: \(error.localizedDescription)"
+      return "Couldn't run \(shim): \(error.localizedDescription)"
     }
-  }
-
-  static let slipstreamNotFoundText = "Couldn't find slipstream. Install it with `npm i -g @playola-radio/slipstream`."
-
-  static func slipstreamExecutable(in variables: [String: String]) -> String? {
-    (variables["PATH"] ?? "").split(separator: ":").map { "\($0)/slipstream" }
-      .first(where: FileManager.default.isExecutableFile(atPath:))
   }
 
   static func runInBackground(
