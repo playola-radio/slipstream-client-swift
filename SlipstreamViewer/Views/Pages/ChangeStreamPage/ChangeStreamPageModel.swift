@@ -46,7 +46,7 @@ final class ChangeStreamPageModel: ViewModel {
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak self] in self?.folderRecorded($0) }
-    recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
+    recording.onRecordOutcomeUnknown = { [weak self] in self?.recordOutcomeUnknown($0) }
     naming.onWriteFinished = { [weak self] in
       guard let self, isShown else { return }
       await reloadSessions()
@@ -155,7 +155,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var isReloadQueued = false
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
-  @ObservationIgnored private var archivedSessionIDs: Set<String> = []
+  /// Archived or removed from the sidebar here, so never selected automatically.
+  @ObservationIgnored private var dismissedSessionIDs: Set<String> = []
   @ObservationIgnored private var workspaceRootsTask: Task<Void, Never>?
   @ObservationIgnored private var workspaceRootsGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
@@ -433,7 +434,8 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// Archive deletes the folder, so it is offered only for workspaces the app made.
   func isRemoveFromSidebarAvailable(_ session: SessionOption) -> Bool {
-    isOpened(session) && !isArchivable(session)
+    guard workspaceRoots != nil, let folder = session.root, recording.operation(for: folder) == nil else { return false }
+    return isOpened(session) && !isArchivable(session)
   }
 
   func isArchiveIconShown(for session: SessionOption) -> Bool {
@@ -838,10 +840,11 @@ final class ChangeStreamPageModel: ViewModel {
   /// Pauses first, so a folder off the sidebar never holds a recording slot. The folder stays on disk.
   func removeFromSidebarTapped(_ session: SessionOption) async {
     guard isRemoveFromSidebarAvailable(session), let folder = session.root else { return }
-    if let capture = session.capture, !isPaused(session), !captureStatus(of: session).isInactive {
-      guard await recording.pauseTapped(folder: capture.root) else { return }
+    if mayRecord(session) {
+      guard await recording.pauseTapped(folder: session.capture?.root ?? folder) else { return }
     }
     $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
+    dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id))
     if selectedFolder == folder {
       chat.workspaceChanged(folder: nil, emptyText: nil)
       await terminals.workspaceChanged(folder: nil)
@@ -883,7 +886,7 @@ final class ChangeStreamPageModel: ViewModel {
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
     $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
-    archivedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
+    dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
     if selectedFolder == folder { deselect() }
     await loadSessions()
   }
@@ -1263,7 +1266,7 @@ final class ChangeStreamPageModel: ViewModel {
           route: askRoute(composer.sessionID))
       }
       if selectedSession == nil, sessions.count == 1,
-        !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
+        !Self.isArchived(sessions[0]), !dismissedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
       if selectedSession == nil, let folder = chat.folder,
@@ -1613,8 +1616,25 @@ final class ChangeStreamPageModel: ViewModel {
     session.root.map { openedFolders.contains(OpenedFolder(storeID: daemon.storeID, folder: $0)) } ?? false
   }
 
+  /// Unknown state might be recording; so might a capture stopped for maintenance, which resumes on its own.
+  private func mayRecord(_ session: SessionOption) -> Bool {
+    guard case .available = captureAvailability else { return true }
+    guard let capture = session.capture else { return false }
+    return capture.state != .stopped || capture.reason == "maintenance"
+  }
+
   private func folderRecorded(_ folder: String) {
     chat.recorded(folder: folder)
+    folderOpened(folder)
+  }
+
+  /// The Record may have landed, and the user asked for the folder either way.
+  private func recordOutcomeUnknown(_ folder: String) {
+    chat.recordOutcomeUnknown(folder: folder)
+    folderOpened(folder)
+  }
+
+  private func folderOpened(_ folder: String) {
     $openedFolders.withLock { _ = $0.insert(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
     sidebarInputsChanged()
   }

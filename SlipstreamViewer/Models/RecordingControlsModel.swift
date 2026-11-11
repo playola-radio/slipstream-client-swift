@@ -51,7 +51,7 @@ final class RecordingControlsModel: ViewModel {
 
   // MARK: - User Actions
 
-  /// Returns whether the pause was confirmed.
+  /// Returns whether the folder is confirmed not recording: paused, or with no recording to pause.
   @discardableResult
   func pauseTapped(folder: String) async -> Bool {
     guard let key = begin(.pausing, folder: folder) else { return false }
@@ -61,6 +61,7 @@ final class RecordingControlsModel: ViewModel {
     } catch {
       messages[key] = Self.pauseMessage(error)
       if Self.refreshesAfterPause(error) { await onChanged(nil) }
+      if case .rejected(code: "TARGET_NOT_FOUND", _) = error as? QuestionError { return true }
       return false
     }
     await onChanged(nil)
