@@ -1913,6 +1913,21 @@ struct ChatPageTests {
     #expect(link.calls.count == 4)
   }
 
+  @Test func retriesMoveToAnotherWorkingTabWhenTheFirstOneStops() async throws {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    await line(Line.result(), to: 0)
+    await model.newTabTapped()
+    let second = try #require(model.selectedTab).id
+    await send(model, "hi")
+    #expect(link.calls.count == 2)
+
+    await clock.advance(by: .seconds(2))
+
+    expectNoDifference(link.calls.last, .link(folder: "/w", tabID: second, replacing: nil))
+  }
+
   @Test func stopBeforeAnyMessageIsWrittenLeavesNothingToConnect() async throws {
     agent.hold(.environment)
     let model = await openWindow(records: [], withMessage: [], captures: captures(nil))

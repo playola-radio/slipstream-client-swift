@@ -402,13 +402,15 @@ final class ChatPageModel: ViewModel {
     await linkFinished(await chatLink.link(folder, tab.id, nil), for: tab.id, in: folder)
   }
 
-  /// A first message's transcript takes a moment to be written, so attach retries while the turn
-  /// runs. Its end tries once more.
-  private func linkWhileWorking(_ id: UUID, in folder: String) async {
+  /// A first message's transcript takes a moment to be written, so attach retries while a chat in
+  /// the folder works. A turn's end tries once more.
+  private func linkWhileWorking(in folder: String) async {
     for _ in 0..<Self.sendLinkAttempts {
-      guard tabs[id: id]?.isWorking == true, isUnlinked(folder), !pausedFolders.contains(folder) else { return }
-      let outcome = await chatLink.link(folder, id, nil)
-      await linkFinished(outcome, for: id, in: folder)
+      guard let tab = tabs(in: folder).first(where: { $0.isWorking && $0.hasSentMessage }), isUnlinked(folder),
+        !pausedFolders.contains(folder)
+      else { return }
+      let outcome = await chatLink.link(folder, tab.id, nil)
+      await linkFinished(outcome, for: tab.id, in: folder)
       guard outcome == .retryLater, (try? await clock.sleep(for: Self.sendLinkRetryDelay)) != nil else { return }
     }
   }
@@ -487,7 +489,7 @@ final class ChatPageModel: ViewModel {
     guard let folder = records[id: id]?.folder, isUnlinked(folder), !sendLinkingFolders.contains(folder) else { return }
     sendLinkingFolders.insert(folder)
     Task { [weak self] in
-      await self?.linkWhileWorking(id, in: folder)
+      await self?.linkWhileWorking(in: folder)
       self?.sendLinkingFolders.remove(folder)
     }
   }
