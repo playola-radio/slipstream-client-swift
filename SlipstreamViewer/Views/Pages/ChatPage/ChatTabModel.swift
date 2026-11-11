@@ -49,6 +49,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored var onReadinessChanged: () -> Void = {}
   /// Called once per relay, when the agent reads it or its process ends first.
   @ObservationIgnored var onRelayDelivery: (RelayDelivery) -> Void = { _ in }
+  /// Whether the folder's stream is linked to this chat, as the last capture read saw it.
+  @ObservationIgnored var isStreamLinked: () -> Bool = { false }
 
   private var activeTurn: ActiveTurn?
   private var toggledItemIDs: Set<String> = []
@@ -57,6 +59,10 @@ final class ChatTabModel: ViewModel, Identifiable {
   private var needsHistory: Bool
   /// The process predates this chat's link, so it is dropped when the running turn ends.
   @ObservationIgnored private var reloadWhenIdle = false
+  /// Whether the current process launched after its link was seen.
+  @ObservationIgnored private var launchedLinked = false
+  /// A link made since the last launch, which the last capture read may not show yet.
+  @ObservationIgnored private var linkedSinceLaunch = false
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var handleGeneration = 0
   /// Relays written to each launch that it hasn't echoed yet, in the order they were sent.
@@ -65,6 +71,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var echoes: Set<String> = []
   /// Sends written behind an unread relay of the current launch and not yet read.
   @ObservationIgnored private var queuedSends = 0
+  /// Guidance for the current launch, put in front of the next message written to it.
+  @ObservationIgnored private var instructions: [SlipstreamInstruction] = []
   @ObservationIgnored private var followers: [Int: Task<Void, Never>] = [:]
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
   @ObservationIgnored private var starting: [Task<Bool, Never>] = []
@@ -360,9 +368,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     let isQueued = hasUnreadInput
     projection.userSent(text, id: itemID)
     if isQueued { queuedSends += 1 }
+    let sentInstructions = takeInstructions(for: text)
     do {
-      try await handle.write(ClaudeInvocation.userMessage(text))
+      try await handle.write(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: sentInstructions)))
     } catch {
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
       if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
       projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
@@ -396,9 +406,13 @@ final class ChatTabModel: ViewModel, Identifiable {
     let itemID = message.relayID.uuidString
     projection.userSent(message.text, id: itemID, relay: RelayMark(label: message.label, delivery: .waiting))
     unreadRelays[launch, default: []].append(message.relayID)
+    let sentInstructions = takeInstructions(for: message.text)
     do {
-      try await handle.write(ClaudeInvocation.userMessage(message.text, uuid: message.relayID))
+      try await handle.write(
+        ClaudeInvocation.userMessage(
+          SlipstreamInstruction.prefixed(message.text, with: sentInstructions), uuid: message.relayID))
     } catch {
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
       // Already echoed or reported as unread, so it is no longer this call's to fail.
       guard unreadRelays[launch]?.contains(message.relayID) == true else { return }
       unreadRelays[launch]?.removeAll { $0 == message.relayID }
@@ -474,12 +488,20 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// A running Claude doesn't load the hook and answer tool a link installs, so a process that
   /// predates the link is dropped once idle. The next send resumes in a fresh one.
   func streamLinked() {
+    linkedSinceLaunch = true
     guard handle != nil || !starting.isEmpty else { return }
     if isWorking || hasUnreadInput {
       reloadWhenIdle = true
     } else {
       retireProcess()
     }
+  }
+
+  /// A capture read shows this chat linked, perhaps from outside the app or after a read that
+  /// lagged the link; a process launched before it knew is handled as if just linked.
+  func linkSeen() {
+    guard !launchedLinked, handle != nil || !starting.isEmpty else { return }
+    streamLinked()
   }
 
   /// Shuts down for good: a send still waiting on an earlier shutdown launches nothing.
@@ -546,6 +568,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         environment: environment.variables,
         directory: record.folder
       )
+      let wasLinkedAtLaunch = linkedSinceLaunch || isStreamLinked()
       let handle: AgentProcessHandle
       do {
         handle = try await agentProcess.launch(launch)
@@ -560,6 +583,10 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
+      launchedLinked = wasLinkedAtLaunch
+      let linkedDuringLaunch = linkedSinceLaunch || isStreamLinked()
+      linkedSinceLaunch = false
+      instructions = Self.instructions(session: session, lookup: lookup, isLinked: launchedLinked)
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
       followers[generation] = Task { [weak self] in
         for await event in handle.events {
@@ -567,6 +594,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         }
         self?.followers[generation] = nil
       }
+      if linkedDuringLaunch, !launchedLinked { streamLinked() }
       return true
     } catch {
       if generation == self.generation { errorText = error.message }
@@ -630,6 +658,24 @@ final class ChatTabModel: ViewModel, Identifiable {
         return
       }
     }
+  }
+
+  /// A slash command only runs when it leads the message, so the guidance waits for the next one.
+  private func takeInstructions(for text: String) -> [SlipstreamInstruction] {
+    guard !text.hasPrefix("/") else { return [] }
+    defer { instructions = [] }
+    return instructions
+  }
+
+  /// A new chat is told it isn't linked yet; a linked one learns its tools once.
+  private static func instructions(
+    session: ClaudeSessionStart, lookup: TranscriptLookup, isLinked: Bool
+  ) -> [SlipstreamInstruction] {
+    let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
+    var instructions: [SlipstreamInstruction] = []
+    if case .new = session { instructions.append(.start) }
+    if isLinked, !SlipstreamInstruction.linked.wasSent(in: lines) { instructions.append(.linked) }
+    return instructions
   }
 
   private func readTranscript() async throws(Failure) -> (AgentEnvironment, TranscriptLookup) {
