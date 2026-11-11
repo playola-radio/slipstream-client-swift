@@ -53,9 +53,18 @@ final class RecorderModel: ViewModel {
 
   // MARK: - Initialization
 
-  override init() {
-    super.init()
-  }
+  #if DEBUG
+    init(
+      usesExternalDaemon: Bool = ProcessInfo.processInfo.environment["SLIPSTREAM_EXTERNAL_DAEMON"] == "1"
+    ) {
+      self.usesExternalDaemon = usesExternalDaemon
+      super.init()
+    }
+  #else
+    override init() {
+      super.init()
+    }
+  #endif
 
   // MARK: - Properties
 
@@ -63,6 +72,9 @@ final class RecorderModel: ViewModel {
   private var replaceTarget: ReplaceTarget?
   @ObservationIgnored private var work: Task<Void, Never>?
   @ObservationIgnored private var generation = 0
+  #if DEBUG
+    private let usesExternalDaemon: Bool
+  #endif
 
   // MARK: - View Helpers
 
@@ -144,6 +156,12 @@ final class RecorderModel: ViewModel {
   }
 
   private func launch(_ mine: Int) async {
+    #if DEBUG
+      if usesExternalDaemon {
+        publish(.external, mine)
+        return
+      }
+    #endif
     let bundled: RuntimeIdentity
     do {
       bundled = try runtimeInstall.bundledIdentity()

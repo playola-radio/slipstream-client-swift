@@ -404,6 +404,16 @@ struct RecorderModelTests {
       ])
   }
 
+  #if DEBUG
+    @Test func externalModeTouchesNothing() async {
+      let model = RecorderModel(usesExternalDaemon: true)
+
+      await model.appLaunched()
+
+      expectNoDifference(model.state, .external)
+    }
+  #endif
+
   @Test func openLogOpensTheDaemonLog() async {
     let model = makeModel()
 

@@ -113,6 +113,10 @@ schemes:
         SlipstreamViewerTests: [test]
     run:
       config: Debug
+      environmentVariables:
+        - variable: SLIPSTREAM_EXTERNAL_DAEMON
+          value: "1"
+          isEnabled: false
     test:
       config: Debug
       targets:
