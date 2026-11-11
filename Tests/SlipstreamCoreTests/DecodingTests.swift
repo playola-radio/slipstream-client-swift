@@ -216,6 +216,38 @@ struct AgentConnectionDecodingTests {
   }
 }
 
+struct SessionNamingDecodingTests {
+  private func summary(_ naming: String?) throws -> SessionSummary {
+    let field = naming.map { #","naming":\#($0)"# } ?? ""
+    let json = #"{"id":"s1","durable_seq":"12","removed":false\#(field)}"#
+    return try JSONDecoder().decode(SessionSummary.self, from: Data(json.utf8))
+  }
+
+  @Test func absentNamingIsNil() throws {
+    expectNoDifference(try summary(nil).naming, nil)
+  }
+
+  @Test func bothNullDecodes() throws {
+    expectNoDifference(try summary(#"{"agent_name":null,"user_name":null}"#).naming, SessionNaming())
+  }
+
+  @Test func bothSetDecodes() throws {
+    expectNoDifference(
+      try summary(#"{"agent_name":"Workspace rename menu","user_name":"Sidebar polish"}"#).naming,
+      SessionNaming(agentName: "Workspace rename menu", userName: "Sidebar polish")
+    )
+  }
+
+  @Test func malformedNamingIsNilAndListDecodes() throws {
+    let json = #"""
+      [{"id":"s1","durable_seq":"12","removed":false,"naming":"Fix login"},
+       {"id":"s2","durable_seq":"3","removed":false,"naming":{"agent_name":"Fix login","user_name":null}}]
+      """#
+    let list = try JSONDecoder().decode([SessionSummary].self, from: Data(json.utf8))
+    expectNoDifference(list.map(\.naming), [nil, SessionNaming(agentName: "Fix login")])
+  }
+}
+
 struct ClipsDecodingTests {
   @Test func readyWithMultipleClips() throws {
     expectNoDifference(
