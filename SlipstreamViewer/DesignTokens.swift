@@ -160,6 +160,10 @@ enum DesignTokens {
     let weight: CGFloat
     let codeLigatures: Bool
 
+    var bold: FontToken {
+      FontToken(family: family, size: size, weight: 600, codeLigatures: codeLigatures)
+    }
+
     func font(scale: CGFloat) -> Font {
       nsFont(scale: scale).map(Font.init) ?? .system(size: size * scale)
     }
@@ -1044,15 +1048,60 @@ enum DesignTokens {
       static let inlineCodeFont: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
       static let inlineCodeColor = secondary
 
-      /// Inline `code` runs take the code font and colour; the rest keeps the view's font.
-      static func styled(_ text: AttributedString, scale: CGFloat) -> AttributedString {
+      /// Inline `code` runs take the code font and colour and bold runs the bold weight of `base`;
+      /// the rest keeps the view's font. A variable font ignores the bold intent on its own.
+      static func styled(_ text: AttributedString, base: FontToken, scale: CGFloat) -> AttributedString {
         var text = text
-        for run in text.runs where run.inlinePresentationIntent?.contains(.code) == true {
-          text[run.range].font = inlineCodeFont.font(scale: scale)
-          text[run.range].foregroundColor = inlineCodeColor
+        for run in text.runs {
+          guard let intent = run.inlinePresentationIntent else { continue }
+          if intent.contains(.code) {
+            text[run.range].font = inlineCodeFont.font(scale: scale)
+            text[run.range].foregroundColor = inlineCodeColor
+          } else if intent.contains(.stronglyEmphasized) {
+            text[run.range].font = base.bold.font(scale: scale)
+          }
         }
         return text
       }
+    }
+
+    /// Not drawn in the mockups; sized against the 14pt paragraph.
+    enum Heading {
+      static let color = primary
+
+      static func font(level: Int) -> FontToken {
+        let size: CGFloat = switch level {
+        case 1: 20
+        case 2: 17
+        case 3: 15
+        default: 14
+        }
+        return variableFont(family: geistFamily, size: size, weight: 600)
+      }
+    }
+
+    /// Not drawn in the mockups.
+    enum List {
+      static let itemGap: CGFloat = 6
+      static let markerGap: CGFloat = 8
+      static let markerMinWidth: CGFloat = 14
+      static let markerColor = secondary
+
+      static func indent(depth: Int) -> CGFloat { CGFloat(depth) * 20 }
+    }
+
+    /// Not drawn in the mockups.
+    enum Quote {
+      static let color = secondary
+      static let barColor = stroke
+      static let barWidth: CGFloat = 3
+      static let leadingPadding: CGFloat = 14
+    }
+
+    /// Not drawn in the mockups.
+    enum Rule {
+      static let color = stroke
+      static let height: CGFloat = 1
     }
 
     /// Not drawn in the mockups; sized to sit with the tool targets.

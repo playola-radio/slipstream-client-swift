@@ -1597,6 +1597,89 @@ struct ChatPageTests {
       ])
   }
 
+  @Test func headingsListsQuotesAndRulesBecomeBlocks() throws {
+    let text = """
+      ## What I tried
+      I built a **harness**.
+
+      1. History only: resizing.
+      2. Live turn: replaying
+         the running turn.
+         - nested `detail`
+      - Random input
+
+      > Worth checking.
+      > Twice.
+
+      ---
+      Done.
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .heading(level: 2, text: try inline("What I tried")),
+        .prose(try inline("I built a **harness**.")),
+        .list([
+          .init(marker: "1.", depth: 0, text: try inline("History only: resizing.")),
+          .init(marker: "2.", depth: 0, text: try inline("Live turn: replaying\nthe running turn.")),
+          .init(marker: "•", depth: 1, text: try inline("nested `detail`")),
+          .init(marker: "•", depth: 0, text: try inline("Random input")),
+        ]),
+        .quote(try inline("Worth checking.\nTwice.")),
+        .rule,
+        .prose(try inline("Done.")),
+      ])
+  }
+
+  @Test func listInterruptsParagraphAndSurvivesBlankLines() throws {
+    let text = """
+      Options:
+      - one
+
+      - two
+      after
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .prose(try inline("Options:")),
+        .list([
+          .init(marker: "•", depth: 0, text: try inline("one")),
+          .init(marker: "•", depth: 0, text: try inline("two\nafter")),
+        ]),
+      ])
+  }
+
+  @Test func nearMissesStayProse() throws {
+    let text = "#hashtag\n-dash\n1.5 apples\n* * *"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.prose(try inline("#hashtag\n-dash\n1.5 apples")), .rule])
+  }
+
+  @Test func markdownInsideCodeFenceStaysCode() {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```\n# not a heading\n- not a list\n```"),
+      [.code("# not a heading\n- not a list")])
+  }
+
+  @Test func boldRunsTakeTheBoldWeightOfTheirFont() throws {
+    let base = DesignTokens.Chat.Paragraph.font
+
+    let styled = DesignTokens.Chat.Paragraph.styled(try inline("a **b**"), base: base, scale: 1)
+
+    expectNoDifference(styled.runs.map(\.font), [nil, base.bold.font(scale: 1)])
+  }
+
+  private func inline(_ markdown: String) throws -> AttributedString {
+    try AttributedString(
+      markdown: markdown,
+      options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+  }
+
   @Test func rowMarkdownParsesInlineCode() throws {
     let model = makeModel()
     model.workspaceChanged(folder: "/w", emptyText: nil)

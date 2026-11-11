@@ -172,24 +172,32 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   enum MarkdownBlock: Equatable {
     case prose(AttributedString)
+    case heading(level: Int, text: AttributedString)
+    case list([MarkdownListItem])
+    case quote(AttributedString)
+    case rule
     case code(String)
   }
 
-  /// Fenced code blocks come out whole; the prose between them gets inline markdown only.
+  struct MarkdownListItem: Equatable {
+    let marker: String
+    let depth: Int
+    let text: AttributedString
+  }
+
+  /// Fenced code blocks come out whole; the prose between them is split into headings, lists,
+  /// quotes, rules and paragraphs, each with inline markdown.
   static func markdownBlocks(_ text: String) -> [MarkdownBlock] {
     var blocks: [MarkdownBlock] = []
     var lines: [Substring] = []
     var isCode = false
     func flush() {
       defer { lines = [] }
-      let joined = lines.joined(separator: "\n")
       if isCode {
-        blocks.append(.code(joined))
-        return
+        blocks.append(.code(lines.joined(separator: "\n")))
+      } else {
+        blocks.append(contentsOf: proseBlocks(lines))
       }
-      let prose = joined.trimmingCharacters(in: .newlines)
-      guard !prose.isEmpty else { return }
-      blocks.append(.prose(inlineMarkdown(prose)))
     }
     // A fence closes only on a bare run of at least as many backticks as opened it.
     var fence = 0
@@ -209,6 +217,90 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     if isCode || !lines.isEmpty { flush() }
     return blocks
+  }
+
+  private static func proseBlocks(_ lines: [Substring]) -> [MarkdownBlock] {
+    var blocks: [MarkdownBlock] = []
+    var paragraph: [Substring] = []
+    var quote: [Substring] = []
+    var items: [(marker: String, indent: Int, lines: [Substring])] = []
+    var afterBlank = false
+    func closeParagraphAndQuote() {
+      if !paragraph.isEmpty { blocks.append(.prose(inlineMarkdown(paragraph.joined(separator: "\n")))) }
+      if !quote.isEmpty { blocks.append(.quote(inlineMarkdown(quote.joined(separator: "\n")))) }
+      paragraph = []
+      quote = []
+    }
+    func closeAll() {
+      closeParagraphAndQuote()
+      guard !items.isEmpty else { return }
+      var openIndents: [Int] = []
+      var listItems: [MarkdownListItem] = []
+      for item in items {
+        while let last = openIndents.last, last >= item.indent { openIndents.removeLast() }
+        listItems.append(
+          MarkdownListItem(
+            marker: item.marker, depth: openIndents.count,
+            text: inlineMarkdown(item.lines.joined(separator: "\n"))))
+        openIndents.append(item.indent)
+      }
+      blocks.append(.list(listItems))
+      items = []
+    }
+    for line in lines {
+      let trimmed = line.drop { $0 == " " || $0 == "\t" }
+      defer { afterBlank = trimmed.isEmpty }
+      if trimmed.isEmpty {
+        closeParagraphAndQuote()
+      } else if isRule(trimmed) {
+        closeAll()
+        blocks.append(.rule)
+      } else if case let (level, title)? = heading(trimmed) {
+        closeAll()
+        blocks.append(.heading(level: level, text: inlineMarkdown(String(title))))
+      } else if case let (marker, rest)? = listItem(trimmed) {
+        closeParagraphAndQuote()
+        items.append((marker, line.count - trimmed.count, [rest]))
+      } else if trimmed.first == ">" {
+        if !quote.isEmpty { quote.append(trimmed.dropFirst().drop { $0 == " " }) } else {
+          closeAll()
+          quote = [trimmed.dropFirst().drop { $0 == " " }]
+        }
+      } else if !items.isEmpty, !afterBlank || trimmed.count < line.count {
+        items[items.count - 1].lines.append(trimmed)
+      } else {
+        if !items.isEmpty || !quote.isEmpty { closeAll() }
+        paragraph.append(line)
+      }
+    }
+    closeAll()
+    return blocks
+  }
+
+  /// Three or more of the same `-`, `*` or `_`, optionally spaced.
+  private static func isRule(_ line: Substring) -> Bool {
+    let marks = line.filter { $0 != " " && $0 != "\t" }
+    guard let mark = marks.first, "-*_".contains(mark) else { return false }
+    return marks.count >= 3 && marks.allSatisfy { $0 == mark }
+  }
+
+  private static func heading(_ line: Substring) -> (Int, Substring)? {
+    let level = line.prefix { $0 == "#" }.count
+    let rest = line.dropFirst(level)
+    guard (1...6).contains(level), rest.isEmpty || rest.first == " " else { return nil }
+    return (level, rest.drop { $0 == " " })
+  }
+
+  private static func listItem(_ line: Substring) -> (String, Substring)? {
+    if let bullet = line.first, "-*+".contains(bullet), line.dropFirst().first == " " {
+      return ("•", line.dropFirst(2))
+    }
+    let digits = line.prefix { ("0"..."9").contains($0) }
+    let rest = line.dropFirst(digits.count)
+    guard (1...9).contains(digits.count), let delimiter = rest.first, ".)".contains(delimiter),
+      rest.dropFirst().first == " "
+    else { return nil }
+    return ("\(digits).", rest.dropFirst(2))
   }
 
   func rowMarkdown(for item: TranscriptItem) -> AttributedString {
