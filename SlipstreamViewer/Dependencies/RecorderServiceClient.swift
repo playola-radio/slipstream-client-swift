@@ -18,7 +18,8 @@ struct RecorderServiceClient: Sendable {
   var processDescription: @Sendable (Int32) async -> String?
   var logSize: @Sendable () -> UInt64
   var logSince: @Sendable (UInt64) throws -> String
-  var runShim: @Sendable ([String]) async throws -> ShimRun
+  var shimEnvironment: @Sendable () async -> [String: String]
+  var runShim: @Sendable ([String], [String: String]) async throws -> ShimRun
   var openLog: @Sendable () -> Void
 }
 
@@ -87,9 +88,10 @@ extension RecorderServiceClient: DependencyKey {
         try handle.seek(toOffset: offset <= end ? offset : 0)
         return String(decoding: try handle.readToEnd() ?? Data(), as: UTF8.self)
       },
-      runShim: { arguments in
-        let environment = (try? await AgentEnvironmentClient.loginEnvironment()) ?? ProcessInfo.processInfo.environment
-        try Task.checkCancellation()
+      shimEnvironment: {
+        (try? await AgentEnvironmentClient.loginEnvironment()) ?? ProcessInfo.processInfo.environment
+      },
+      runShim: { arguments, environment in
         let shim = RuntimeInstallClient.shim.path
         let (output, status) = try await WorkspaceClient.runInBackground(
           shim, arguments, environment: environment, keepsAllOutput: true)
@@ -108,6 +110,7 @@ extension RecorderServiceClient: DependencyKey {
       processDescription: unimplemented("RecorderServiceClient.processDescription", placeholder: nil),
       logSize: unimplemented("RecorderServiceClient.logSize", placeholder: 0),
       logSince: unimplemented("RecorderServiceClient.logSince", placeholder: ""),
+      shimEnvironment: unimplemented("RecorderServiceClient.shimEnvironment", placeholder: [:]),
       runShim: unimplemented("RecorderServiceClient.runShim"),
       openLog: unimplemented("RecorderServiceClient.openLog")
     )

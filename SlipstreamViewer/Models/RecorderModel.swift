@@ -23,7 +23,7 @@ struct Evidence: Equatable, Sendable {
     (try! NSRegularExpression(pattern: #"("token"\s*:\s*)"(?:[^"\\]|\\.)*""#), #"$1"<redacted>""#),
     (
       try! NSRegularExpression(
-        pattern: #"(token\\?["']?\s*[:=]?\s*\\?["']?|Bearer\s+)[A-Za-z0-9_\-]{32,}"#, options: .caseInsensitive),
+        pattern: #"(token\\*["']?\s*[:=]?\s*\\*["']?|Bearer\s+)[A-Za-z0-9_\-]{32,}"#, options: .caseInsensitive),
       "$1<redacted>"
     ),
   ]
@@ -362,6 +362,7 @@ final class RecorderModel: ViewModel {
   }
 
   private func install(_ bundled: RuntimeIdentity, _ prepared: PreparedRuntime, _ mine: Int) async {
+    let environment = await service.shimEnvironment()
     while true {
       let probe: Probe
       do {
@@ -386,7 +387,7 @@ final class RecorderModel: ViewModel {
     let logOffset = service.logSize()
     let run: ShimRun
     do {
-      run = try await service.runShim(["service", "install", "--store", daemon.storeID])
+      run = try await service.runShim(["service", "install", "--store", daemon.storeID], environment)
     } catch {
       let evidence = Evidence(source: "slipstream service install", text: "\(error)")
       publish(.wontStart(bundled, .serviceInstall(exitCode: nil), evidence), mine)
@@ -464,9 +465,11 @@ final class RecorderModel: ViewModel {
       sources.append("~/.local/bin links")
       sections.append(problems.map { "link  \($0.path)\n      \($0.message)" }.joined(separator: "\n"))
     }
+    let environment = await service.shimEnvironment()
+    guard isCurrent(mine) else { return }
     var adoptFailed = true
     do {
-      let run = try await service.runShim(["adopt-app", "--store", daemon.storeID])
+      let run = try await service.runShim(["adopt-app", "--store", daemon.storeID], environment)
       adoptFailed = run.exitCode != 0
       if adoptFailed {
         sources.append("slipstream adopt-app · exit \(run.exitCode)")

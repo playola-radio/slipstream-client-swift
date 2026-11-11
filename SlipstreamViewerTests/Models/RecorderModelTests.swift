@@ -198,6 +198,16 @@ struct RecorderModelTests {
     expectNoDifference(model.state, .running)
   }
 
+  @Test func daemonThatStartsWhileTheShellLoadsIsNotInstalledOver() async {
+    fake.startsWhileEnvironmentLoads.setValue(Self.bundledBuild)
+    let model = makeModel()
+
+    await model.appLaunched()
+
+    expectNoDifference(model.state, .running)
+    expectNoDifference(fake.events.value, ["prepare", "activate", "activate"])
+  }
+
   @Test func probeFailureWhileStoppingIsWontStart() async {
     runOwnedOldBuild()
     let model = makeModel()
@@ -493,6 +503,7 @@ struct RecorderModelTests {
         SLIPSTREAM_TOKEN=\(secret)
         token: '\(secret)'
         {"error":"descriptor: {\\"token\\":\\"\(secret)\\"}"}
+        "{\\\\\\"token\\\\\\":\\\\\\"\(secret)\\\\\\"}"
         """)
 
     expectNoDifference(
@@ -504,6 +515,7 @@ struct RecorderModelTests {
           SLIPSTREAM_TOKEN=<redacted>
           token: '<redacted>'
           {"error":"descriptor: {\\"token\\":\\"<redacted>\\"}"}
+          "{\\\\\\"token\\\\\\":\\\\\\"<redacted>\\\\\\"}"
           """))
     #expect(!evidence.text.contains(secret) && !evidence.source.contains(secret))
   }
@@ -543,6 +555,7 @@ final class RecorderFake: Sendable {
   let startsOnInstall = LockIsolated<DaemonBuild?>(RecorderModelTests.bundledBuild)
   let statusError = LockIsolated<RecorderServiceError?>(nil)
   let installTakes = LockIsolated<Duration?>(nil)
+  let startsWhileEnvironmentLoads = LockIsolated<DaemonBuild?>(nil)
 
   init(clock: TestClock<Duration>) {
     self.clock = clock
@@ -578,7 +591,15 @@ final class RecorderFake: Sendable {
       processDescription: { pid in self.descriptions.value[pid] },
       logSize: { self.logSize.value },
       logSince: { offset in "log after \(offset)" },
-      runShim: { arguments in
+      shimEnvironment: {
+        if let build = self.startsWhileEnvironmentLoads.value {
+          self.running.setValue(build)
+          self.lockPID.setValue(501)
+          self.job.setValue(LaunchdJob(pid: 501, lastExit: nil))
+        }
+        return [:]
+      },
+      runShim: { arguments, _ in
         self.record(arguments.joined(separator: " "))
         let (exitCode, output) = self.shimResults.value[arguments[0]] ?? (0, "")
         if arguments[0] == "service", let duration = self.installTakes.value {
