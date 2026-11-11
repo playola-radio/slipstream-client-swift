@@ -15,7 +15,7 @@ struct RuntimeInstallTests {
     expectNoDifference(
       prepared,
       PreparedRuntime(
-        identity: RuntimeIdentity(version: "0.3.2", build: "abcdef0123456789"),
+        identity: RuntimeIdentity(version: "0.3.2", build: "abcdef0123456789", appBuild: 5),
         directory: sandbox.root.appendingPathComponent("0.3.2-abcdef01", isDirectory: true)))
     expectNoDifference(try snapshot(prepared.directory), try snapshot(sandbox.bundled))
     expectNoDifference(try names(in: sandbox.root), [".lock", "0.3.2-abcdef01"])
@@ -134,8 +134,65 @@ struct RuntimeInstallTests {
 
     let activation = try install.activate(try install.prepare())
 
-    expectNoDifference(activation, .newerActive(RuntimeIdentity(version: "0.3.2", build: "abcdef0123456789")))
+    expectNoDifference(activation, .newerActive(RuntimeIdentity(version: "0.3.2", build: "abcdef0123456789", appBuild: 5)))
     expectNoDifference(try currentTarget(sandbox.root), "0.3.2-abcdef01")
+  }
+
+  @Test func activateBreaksVersionTieByAppBuild() throws {
+    let sandbox = try Sandbox(version: "0.3.1")
+    let install = sandbox.install()
+    _ = try install.activate(try install.prepare())
+    try sandbox.writeIdentity(version: "0.3.1", build: "fedcba9876543210", appBuild: "4")
+
+    let activation = try install.activate(try install.prepare())
+
+    expectNoDifference(activation, .newerActive(RuntimeIdentity(version: "0.3.1", build: "abcdef0123456789", appBuild: 5)))
+    expectNoDifference(try currentTarget(sandbox.root), "0.3.1-abcdef01")
+  }
+
+  @Test func activateSameVersionHigherAppBuildFlips() throws {
+    let sandbox = try Sandbox(version: "0.3.1")
+    let install = sandbox.install()
+    _ = try install.activate(try install.prepare())
+    try sandbox.writeIdentity(version: "0.3.1", build: "fedcba9876543210", appBuild: "6")
+
+    let activation = try install.activate(try install.prepare())
+
+    expectNoDifference(activation, .activated)
+    expectNoDifference(try currentTarget(sandbox.root), "0.3.1-fedcba98")
+  }
+
+  @Test func currentWithoutAppBuildCountsAsZero() throws {
+    let sandbox = try Sandbox(version: "0.3.1")
+    let install = sandbox.install()
+    _ = try install.activate(try install.prepare())
+    try FileManager.default.removeItem(at: sandbox.root.appendingPathComponent("0.3.1-abcdef01/app-build"))
+    try sandbox.writeIdentity(version: "0.3.1", build: "fedcba9876543210", appBuild: "1")
+
+    let activation = try install.activate(try install.prepare())
+
+    expectNoDifference(activation, .activated)
+    expectNoDifference(try currentTarget(sandbox.root), "0.3.1-fedcba98")
+  }
+
+  @Test(arguments: [nil, "five"])
+  func bundledIdentityRequiresAppBuild(appBuild: String?) throws {
+    let sandbox = try Sandbox()
+    let path = sandbox.bundled.appendingPathComponent("app-build")
+    if let appBuild {
+      try Data("\(appBuild)\n".utf8).write(to: path)
+    } else {
+      try FileManager.default.removeItem(at: path)
+    }
+
+    #expect(throws: RuntimeInstallError.io(
+      step: "read app build",
+      path: path.path,
+      errno: 0,
+      message: appBuild == nil ? "app-build is missing" : "app-build is not an integer: \"five\""
+    )) {
+      try sandbox.install().bundledIdentity()
+    }
   }
 
   @Test func activateKeepsUnreadableCurrent() throws {
@@ -270,9 +327,10 @@ private struct Sandbox {
     RuntimeInstall(root: root, bundled: bundled, commandsDirectory: commands, afterCopy: afterCopy)
   }
 
-  func writeIdentity(version: String) throws {
+  func writeIdentity(version: String, build: String = "abcdef0123456789", appBuild: String = "5") throws {
     try write(#"{"name":"slipstream","version":"\#(version)"}"#, to: "app/package.json")
-    try write("abcdef0123456789\n", to: "app/dist/build-id")
+    try write("\(build)\n", to: "app/dist/build-id")
+    try write("\(appBuild)\n", to: "app-build")
   }
 
   private func write(_ text: String, to relativePath: String, mode: Int = 0o644) throws {

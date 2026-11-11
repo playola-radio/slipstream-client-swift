@@ -5,13 +5,21 @@ import Foundation
 public struct RuntimeIdentity: Equatable, Sendable {
   public let version: String
   public let build: String
+  public let appBuild: Int
 
-  public init(version: String, build: String) {
+  public init(version: String, build: String, appBuild: Int) {
     self.version = version
     self.build = build
+    self.appBuild = appBuild
   }
 
   var directoryName: String { "\(version)-\(build.prefix(8))" }
+
+  func isNewer(than other: RuntimeIdentity) -> Bool {
+    if RuntimeInstall.isVersion(version, newerThan: other.version) { return true }
+    if RuntimeInstall.isVersion(other.version, newerThan: version) { return false }
+    return appBuild > other.appBuild
+  }
 }
 
 public struct PreparedRuntime: Equatable, Sendable {
@@ -73,7 +81,7 @@ public struct RuntimeInstall: Sendable {
 
   /// Reads the daemon version and build identifier from the embedded runtime payload.
   public func bundledIdentity() throws(RuntimeInstallError) -> RuntimeIdentity {
-    try Self.identity(of: bundled.path)
+    try Self.identity(of: bundled.path, appBuildIfMissing: nil)
   }
 
   /// Verifies and installs the embedded runtime into its immutable versioned directory.
@@ -109,7 +117,7 @@ public struct RuntimeInstall: Sendable {
   /// Points `current` and the stable shims at a prepared runtime unless a newer version is active.
   public func activate(_ runtime: PreparedRuntime) throws(RuntimeInstallError) -> Activation {
     try withLock { () throws(RuntimeInstallError) -> Activation in
-      if let active = try currentIdentity(), Self.isVersion(active.version, newerThan: runtime.identity.version) {
+      if let active = try currentIdentity(), active.isNewer(than: runtime.identity) {
         return .newerActive(active)
       }
       // The shims only go through `current`, so writing them first leaves `current` alone if they fail.
@@ -208,7 +216,8 @@ public struct RuntimeInstall: Sendable {
       if errno == ENOENT { return nil }
       throw .posix(step: "read current runtime", path: directory)
     }
-    return try Self.identity(of: directory)
+    // Runtimes installed before app builds were recorded have no app-build file.
+    return try Self.identity(of: directory, appBuildIfMissing: 0)
   }
 
   private func writeShims() throws(RuntimeInstallError) {
@@ -228,7 +237,9 @@ public struct RuntimeInstall: Sendable {
   }
 
   /// Reads the runtime identity files without trusting a directory name or manifest.
-  private static func identity(of runtime: String) throws(RuntimeInstallError) -> RuntimeIdentity {
+  private static func identity(
+    of runtime: String, appBuildIfMissing: Int?
+  ) throws(RuntimeInstallError) -> RuntimeIdentity {
     struct Package: Decodable { let version: String }
     let packagePath = "\(runtime)/app/package.json"
     let packageData = try readFile(packagePath)
@@ -238,7 +249,21 @@ public struct RuntimeInstall: Sendable {
     let buildPath = "\(runtime)/app/dist/build-id"
     let build = String(decoding: try readFile(buildPath), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
     guard !build.isEmpty else { throw .io(step: "read daemon build", path: buildPath, errno: 0, message: "build-id is empty") }
-    return RuntimeIdentity(version: package.version, build: build)
+    return RuntimeIdentity(
+      version: package.version, build: build, appBuild: try appBuild(of: runtime, ifMissing: appBuildIfMissing))
+  }
+
+  private static func appBuild(of runtime: String, ifMissing: Int?) throws(RuntimeInstallError) -> Int {
+    let path = "\(runtime)/app-build"
+    if mode(of: path) == nil {
+      guard let ifMissing else { throw .io(step: "read app build", path: path, errno: 0, message: "app-build is missing") }
+      return ifMissing
+    }
+    let text = String(decoding: try readFile(path), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let appBuild = Int(text) else {
+      throw .io(step: "read app build", path: path, errno: 0, message: "app-build is not an integer: \"\(text)\"")
+    }
+    return appBuild
   }
 
   /// Returns whether `lhs` has higher SemVer precedence than `rhs`, comparing numeric

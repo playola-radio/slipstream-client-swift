@@ -29,5 +29,10 @@ mkdir -p "$DIST"
 rm -rf "$DEST_APP"
 # ditto preserves the framework symlinks Sparkle relies on; cp would not.
 /usr/bin/ditto "$BUILT" "$DEST_APP"
-"$REPO_ROOT/packaging/build-runtime.sh" "$DEST_APP/Contents/Resources/SlipstreamRuntime"
+RUNTIME="$DEST_APP/Contents/Resources/SlipstreamRuntime"
+"$REPO_ROOT/packaging/build-runtime.sh" "$RUNTIME"
+# The app build breaks ties between two apps bundling the same daemon version (RuntimeInstall.activate).
+APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DEST_APP/Contents/Info.plist")"
+[[ "$APP_BUILD" =~ ^[0-9]+$ ]] || { echo "error: CFBundleVersion is not an integer: $APP_BUILD" >&2; exit 1; }
+printf '%s\n' "$APP_BUILD" > "$RUNTIME/app-build"
 echo "==> Assembled: $DEST_APP"
