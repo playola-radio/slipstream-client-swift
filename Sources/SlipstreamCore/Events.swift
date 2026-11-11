@@ -205,6 +205,9 @@ extension SlipstreamEvent {
     "slipstream.change.attribution.v1",
     "slipstream.enrichment.configured.v1",
     "slipstream.enrichment.coverage.v1",
+    "slipstream.capture.ready.v1",
+    "slipstream.capture.stopped.v1",
+    "slipstream.agent.binding.v1",
   ]
 
   public static func decode(_ data: Data) throws(EventDecodingError) -> SlipstreamEvent {

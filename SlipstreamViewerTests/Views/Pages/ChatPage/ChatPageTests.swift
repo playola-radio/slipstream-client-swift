@@ -1668,13 +1668,13 @@ struct ChatPageTests {
 
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == .waiting)
-    #expect(model.linkHoverTitle(for: tab) == "Connected to Stream")
+    #expect(model.linkHoverTitle(for: tab) == "Linked to Stream")
     #expect(
       model.linkHoverText(for: tab)
         == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
     #expect(
       model.linkHelpText(for: tab)
-        == "Connected to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+        == "Linked to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
     #expect(model.askRoute(forFolder: "/w") == .app)
   }
 
@@ -1700,15 +1700,11 @@ struct ChatPageTests {
     #expect(link.calls.isEmpty)
   }
 
-  @Test func firstTabWaitsWhenNothingLinkedAndNoMessage() async throws {
+  @Test func nothingLinkedShowsNoIcon() async throws {
     let model = await openWindow(records: [record(), record(UUID(50))], withMessage: [], captures: captures(nil))
 
-    let first = try tab(model, Self.saved)
-    #expect(model.linkIcon(for: first) == .waiting)
-    #expect(model.linkHoverTitle(for: first) == "Connected to Stream")
-    #expect(
-      model.linkHoverText(for: first)
-        == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.linkHelpText(for: try tab(model, Self.saved)) == nil)
     #expect(model.linkIcon(for: try tab(model, UUID(50))) == nil)
     #expect(link.calls.isEmpty)
   }
@@ -1765,16 +1761,6 @@ struct ChatPageTests {
     _ = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.unlinked)))
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
-  }
-
-  @Test func turnEndingWhileNothingLinkedLinks() async {
-    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
-    #expect(link.calls.isEmpty)
-
-    await send(model, "hi")
-    await line(Line.result())
-
-    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(0), replacing: nil)])
   }
 
   @Test func turnEndingWhileLinkedDoesNothing() async {
@@ -1859,21 +1845,83 @@ struct ChatPageTests {
     #expect(link.calls.isEmpty)
   }
 
-  @Test func retryLaterWaitsForNextTurnEnd() async throws {
-    link.setOutcomes(.retryLater)
+  @Test func firstSendLinksWhileTheTurnRuns() async throws {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    refresh(model, to: captures(binding(.setupPending, chat: UUID(0))))
+
+    await send(model, "hi")
+
+    let tab = try tab(model, UUID(0))
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(0), replacing: nil)])
+    #expect(tab.isWorking)
+    #expect(model.linkIcon(for: tab) == .waiting)
+    #expect(model.askRoute(forFolder: "/w") == .app)
+  }
+
+  @Test func firstSendRetriesUntilTheTranscriptIsWritten() async {
+    link.setOutcomes(.retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+
+    await send(model, "hi")
+    #expect(link.calls.count == 1)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 2)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 3)
+    await clock.advance(by: .seconds(60))
+    #expect(link.calls.count == 3)
+  }
+
+  @Test func sendRetriesGiveUpAfterThirtySeconds() async {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater,
+      .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+
+    await send(model, "hi")
+    await clock.advance(by: .seconds(120))
+
+    #expect(link.calls.count == 15)
+  }
+
+  @Test func sendRetriesStopWhenTheTurnEndsAndItsEndTriesOnce() async {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater)
     let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
     await send(model, "hi")
-    await line(Line.result())
-    #expect(link.calls.count == 1)
-    #expect(model.linkIcon(for: try tab(model, UUID(0))) == nil)
-
-    model.capturesArrived(captures(nil))
-    await clock.advance(by: .seconds(60))
     #expect(link.calls.count == 1)
 
-    await send(model, "again")
     await line(Line.result())
     #expect(link.calls.count == 2)
+    await clock.advance(by: .seconds(60))
+    #expect(link.calls.count == 2)
+
+    await send(model, "again")
+    #expect(link.calls.count == 3)
+  }
+
+  @Test func sendWhileLinkedDoesNotLink() async {
+    let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
+
+    await send(model, "hi")
+
+    #expect(link.calls.isEmpty)
+  }
+
+  @Test func stopBeforeAnyMessageIsWrittenLeavesNothingToConnect() async throws {
+    agent.hold(.environment)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    await model.stopTapped()
+    agent.release(.environment)
+    await sending.value
+    await Task.megaYield()
+
+    #expect(tab.hasSentMessage == false)
+    #expect(model.isConnectEnabled(tab) == false)
+    #expect(link.calls.isEmpty)
   }
 
   @Test func connectPassesSeenGeneration() async {

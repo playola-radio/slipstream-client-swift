@@ -94,6 +94,16 @@ struct EventDecodingTests {
     expectNoDifference(try SlipstreamEvent.decode(fixture("file-baselined")).payload, .recordedWithoutRow)
   }
 
+  @Test(arguments: [
+    "slipstream.capture.ready.v1",
+    "slipstream.capture.stopped.v1",
+    "slipstream.agent.binding.v1",
+  ])
+  func captureLifecycleIsRecordedWithoutRow(type: String) throws {
+    let json = #"{"id":"9","seq":"9","type":"\#(type)","data":{"session_id":"s1"}}"#
+    expectNoDifference(try SlipstreamEvent.decode(Data(json.utf8)).payload, .recordedWithoutRow)
+  }
+
   @Test func unknownTypeIsUnsupported() throws {
     expectNoDifference(
       try SlipstreamEvent.decode(fixture("unknown-type")).payload,

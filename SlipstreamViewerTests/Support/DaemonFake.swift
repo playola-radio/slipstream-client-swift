@@ -390,6 +390,18 @@ enum Fixture {
     frame(value, type: "slipstream.question.dispatch_attempted.v1", data: ["question_id": id, "queued_seq": String(queuedSeq)])
   }
 
+  static func agentBinding(_ value: Int, generation: String) -> StreamItem {
+    frame(value, type: "slipstream.agent.binding.v1", data: [
+      "session_id": session, "binding_generation": generation,
+      "target": ["harness": "claude-code", "harness_session_id": "h-2", "worktree": "/tmp/project"],
+      "verified_transcript_path": "/tmp/h-2.jsonl",
+    ])
+  }
+
+  static func captureStopped(_ value: Int, reason: String) -> StreamItem {
+    frame(value, type: "slipstream.capture.stopped.v1", data: ["session_id": session, "reason": reason])
+  }
+
   static func agentUnlinked(_ value: Int) -> StreamItem {
     frame(value, type: "slipstream.agent.unlinked.v1", data: ["session_id": session, "binding_generation": "7", "reason": "unlinked"])
   }
