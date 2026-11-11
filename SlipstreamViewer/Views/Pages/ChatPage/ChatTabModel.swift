@@ -384,7 +384,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// A capture read shows this chat linked, perhaps from outside the app or after a read that
   /// lagged the link; a process launched before it knew is handled as if just linked.
   func linkSeen() {
-    guard handle != nil, !launchedLinked else { return }
+    guard !launchedLinked, handle != nil || !starting.isEmpty else { return }
     streamLinked()
   }
 
@@ -452,6 +452,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         environment: environment.variables,
         directory: record.folder
       )
+      let wasLinkedAtLaunch = linkedSinceLaunch || isStreamLinked()
       let handle: AgentProcessHandle
       do {
         handle = try await agentProcess.launch(launch)
@@ -466,7 +467,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
-      launchedLinked = linkedSinceLaunch || isStreamLinked()
+      launchedLinked = wasLinkedAtLaunch
+      let linkedDuringLaunch = linkedSinceLaunch || isStreamLinked()
       linkedSinceLaunch = false
       instructions = Self.instructions(session: session, lookup: lookup, isLinked: launchedLinked)
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
@@ -476,6 +478,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         }
         self?.followers[generation] = nil
       }
+      if linkedDuringLaunch, !launchedLinked { streamLinked() }
       return true
     } catch {
       if generation == self.generation { errorText = error.message }

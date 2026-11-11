@@ -2287,6 +2287,26 @@ struct ChatPageTests {
       agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
   }
 
+  @Test func linkSeenDuringLaunchRestartsTheChatToTellItItsTools() async {
+    let model = await openWindow(
+      records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected, chat: Self.outside)))
+    agent.hold(.launches)
+    let sending = Task { await send(model, "hi") }
+    await Task.megaYield()
+
+    model.capturesArrived(captures(binding(.connected)).currentByFolder())
+    agent.release(.launches)
+    await sending.value
+    await line(Line.result())
+    await Task.megaYield()
+
+    #expect(agent.shutdowns(0) == 1)
+    await send(model, "again")
+
+    expectNoDifference(
+      agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
+  }
+
   @Test func laterReadsLeaveAChatThatKnewItsLinkRunning() async {
     let model = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.connected)))
     await send(model, "hi")
