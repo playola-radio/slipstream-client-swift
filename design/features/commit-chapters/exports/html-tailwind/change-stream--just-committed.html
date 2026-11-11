@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      tailwind = { config: { corePlugins: { preflight: false } } };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist%3Awght%40100..900&family=Geist+Mono%3Awght%40100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, ::before, ::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body style="background-color: #15191F">
+    <div
+      data-pencil-name="change-stream--just-committed"
+      class="box-border w-[1200px] h-[1000px] shrink-0 flex flex-col gap-0 justify-start items-start bg-[#15191F] [outline:1px_solid_#34414E] [outline-offset:-0.5px] rounded-[10px] overflow-hidden"
+    >
+      <div
+        data-pencil-name="Toolbar"
+        class="[box-sizing:content-box] w-[1200px] h-[51.5px] shrink-0 flex flex-row gap-[14px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_0px]"
+      >
+        <div
+          data-pencil-name="Traffic lights"
+          class="box-border w-fit shrink-0 h-fit flex flex-row gap-[8px] justify-start items-center"
+        >
+          <div
+            data-pencil-name="Light"
+            class="box-border w-[12px] shrink-0 h-[12px] bg-[#FF5F57] rounded-[50%]"
+          ></div>
+          <div
+            data-pencil-name="Light"
+            class="box-border w-[12px] shrink-0 h-[12px] bg-[#FEBC2E] rounded-[50%]"
+          ></div>
+          <div
+            data-pencil-name="Light"
+            class="box-border w-[12px] shrink-0 h-[12px] bg-[#28C840] rounded-[50%]"
+          ></div>
+        </div>
+        <div
+          data-pencil-name="Workspace picker"
+          class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] p-[6px_10px] justify-start items-center bg-[#2C3641] rounded-[6px]"
+        >
+          <div
+            data-pencil-name="Workspace name"
+            class="text-[13px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+          >
+            nairobi
+          </div>
+          <svg
+            data-pencil-name="Chevron"
+            viewBox="0 0 14 14"
+            preserveAspectRatio="xMidYMid meet"
+            data-icon-name="chevron-down"
+            data-icon-set="lucide"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[14px] shrink-0 h-[14px] overflow-visible"
+          >
+            <path
+              d="M3.346 4.689q-.253 .086-.379 .308-.041 .086-.041 .253 0 .167 .048 .26 .051 .089 1.862 1.904 1.815 1.811 1.904 1.862 .093 .048 .26 .048 .168 0 .256-.048 .093-.051 1.904-1.862 1.815-1.815 1.863-1.904 .051-.093 .051-.26 0-.167-.041-.253-.099-.167-.28-.267-.058-.027-.099-.041-.041-.013-.154-.013-.113 0-.154 .013-.041 .014-.113 .041-.099 .059-1.664 1.627l-1.569 1.566-2.827-2.813q-.311-.294-.42-.38-.086-.054-.198-.054h-.028q-.14 0-.181 .013z"
+              fill="#8b9aa6"
+            />
+          </svg>
+        </div>
+        <div
+          data-pencil-name="Toolbar spacer"
+          class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+        ></div>
+        <div
+          data-pencil-name="Refresh"
+          class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] p-[6px_8px] justify-start items-center"
+        >
+          <svg
+            data-pencil-name="Refresh icon"
+            viewBox="0 0 14 14"
+            preserveAspectRatio="xMidYMid meet"
+            data-icon-name="refresh-cw"
+            data-icon-set="lucide"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[14px] shrink-0 h-[14px] overflow-visible"
+          >
+            <path
+              d="M6.566 1.189q-1.121 .086-2.129 .575-.951 .461-1.665 1.22-.714 .755-1.135 1.719-.222 .547-.348 1.135-.127 .588-.113 1.107 0 .195 .034 .281 .038 .082 .133 .181 .099 .095 .181 .133 .086 .034 .226 .034 .14 0 .222-.034 .086-.038 .192-.133 .106-.099 .14-.24 .034-.14 .034-.393 .014-.307 .096-.717 .085-.414 .225-.752 .421-1.091 1.316-1.853 .896-.765 2.044-1.015 .308-.072 .728-.092 .421-.021 .755 .02 1.768 .181 3.111 1.484l.222 .225h-.742q-.741 0-.854 .028-.25 .027-.383 .232-.133 .202-.099 .434 .034 .229 .246 .369l.014 .014q.082 .058 .153 .072 .113 .013 .435 .027l2.799-.014 .099-.041q.181-.085 .28-.28l.041-.072v-3.261l-.041-.085q-.099-.167-.28-.267-.058-.027-.099-.041-.041-.013-.154-.013-.113 0-.154 .013-.041 .014-.099 .041-.181 .1-.28 .267l-.041 .085v1.679l-.28-.263q-.363-.366-.722-.623-.355-.259-.789-.485-1.108-.588-2.383-.701-.153-.013-.475-.013-.321 0-.461 .013zM12.096 6.439q-.113 .041-.219 .127-.102 .085-.146 .181-.041 .058-.041 .154l-.055 .547q-.045 .659-.308 1.288-.478 1.19-1.48 1.962-.998 .769-2.245 .937-.742 .082-1.504-.058-.763-.14-1.436-.489-.728-.393-1.388-1.036l-.109-.126h.755q.503 0 .67-.014 .226-.014 .308-.041 .085-.031 .171-.126 .222-.226 .167-.52-.054-.294-.348-.434l-.086-.027h-3.206l-.085 .041q-.195 .085-.294 .28l-.041 .072v3.261l.041 .085q.044 .068 .126 .154 .086 .082 .161 .126 .079 .041 .246 .041 .167 0 .243-.041 .078-.044 .16-.126 .086-.086 .13-.154l.041-.085v-1.679l.253 .25q.25 .239 .434 .393 1.371 1.148 3.206 1.401 .209 .028 .636 .034 .427 .007 .649-.006 1.388-.127 2.578-.855 1.148-.728 1.876-1.876 .728-1.176 .855-2.578 .027-.222 .013-.447 0-.195-.037-.277-.035-.086-.117-.185-.167-.154-.393-.167-.14 0-.181 .013z"
+              fill="#8b9aa6"
+            />
+          </svg>
+          <div
+            data-pencil-name="Refresh label"
+            class="text-[12px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Refresh
+          </div>
+        </div>
+        <div
+          data-pencil-name="Compare functions"
+          class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] p-[6px_8px] justify-start items-center"
+        >
+          <svg
+            data-pencil-name="Compare functions icon"
+            viewBox="0 0 14 14"
+            preserveAspectRatio="xMidYMid meet"
+            data-icon-name="git-compare"
+            data-icon-set="lucide"
+            xmlns="http://www.w3.org/2000/svg"
+            class="box-border w-[14px] shrink-0 h-[14px] overflow-visible"
+          >
+            <path
+              d="M3.138 1.203q-.899 .154-1.443 .827-.184 .222-.29 .448-.103 .226-.188 .52-.028 .109-.034 .194-.007 .082-.007 .308 0 .28 .027 .434 .027 .154 .113 .379 .181 .489 .557 .862 .379 .369 .885 .536l.168 .059 .013 3.653q0 .264 .028 .349 .294 .967 1.261 1.261 .085 .028 .253 .028l.95 .013h.967q.154 0 .223-.027 .212-.086 .324-.294 .041-.099 .041-.253 0-.099-.006-.14-.007-.041-.035-.113-.044-.082-.136-.164-.089-.085-.175-.12-.082-.037-.222-.037h-.827q-.923 0-1.022-.028-.294-.058-.434-.335l-.041-.099-.014-3.694 .168-.059q.506-.167 .882-.536 .379-.373 .56-.862 .086-.225 .113-.379 .027-.154 .027-.434 0-.28-.027-.434-.027-.154-.113-.379-.208-.558-.666-.951-.455-.393-1.043-.519-.14-.028-.427-.034-.287-.007-.41 .02zM3.794 2.365q.28 .072 .523 .318 .246 .243 .318 .523 .027 .127 .027 .294 0 .167-.027 .28-.072 .294-.304 .533-.229 .236-.537 .322-.113 .027-.294 .027-.181 0-.294-.027-.308-.086-.54-.322-.229-.239-.301-.533-.027-.113-.027-.28 0-.167 .027-.294 .058-.226 .226-.434 .167-.209 .407-.321 .348-.181 .796-.086zM7.379 2.953q-.099 .045-.191 .13-.089 .082-.133 .174-.041 .089-.048 .236-.007 .147 .034 .239 .044 .089 .127 .175 .085 .082 .167 .126l.099 .041 2.03 .014 .1 .041q.208 .099 .307 .308l.041 .099 .014 3.694-.168 .059q-.506 .167-.885 .54-.376 .369-.557 .858-.085 .225-.113 .379-.027 .154-.027 .434 0 .28 .027 .434 .028 .154 .113 .379 .167 .476 .53 .841 .365 .363 .841 .53 .225 .086 .379 .113 .154 .027 .434 .027 .28 0 .434-.027 .154-.027 .38-.113 .475-.167 .837-.53 .366-.365 .533-.841 .086-.225 .113-.379 .027-.154 .027-.434 0-.28-.027-.434-.027-.154-.113-.379-.181-.489-.56-.858-.376-.373-.882-.54l-.168-.059-.013-3.653q0-.264-.028-.349-.253-.813-.967-1.148-.154-.069-.294-.113-.099-.028-.26-.034-.16-.007-.957-.007h-.953q-.168 0-.223 .027zM10.794 9.365q.28 .072 .523 .318 .246 .243 .318 .523 .027 .127 .027 .294 0 .167-.027 .28-.072 .294-.304 .533-.229 .236-.537 .322-.113 .027-.294 .027-.181 0-.294-.027-.308-.086-.54-.322-.229-.239-.301-.533-.027-.113-.027-.28 0-.167 .027-.294 .058-.226 .226-.434 .167-.209 .407-.321 .348-.181 .796-.086z"
+              fill="#8b9aa6"
+            />
+          </svg>
+          <div
+            data-pencil-name="Compare functions label"
+            class="text-[12px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Compare functions
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="Body"
+        class="box-border w-full [flex:1_1_0] flex flex-row gap-0 justify-start items-start"
+      >
+        <div
+          data-pencil-name="Feed"
+          class="[box-sizing:content-box] w-[679.5px] shrink-0 h-[948px] flex flex-col gap-0 justify-start items-start bg-[#191F27] [border-width:0px_1px_0px_0px] [border-style:solid] [border-color:#405562] [margin:0px_-0.5px_0px_0px] overflow-hidden"
+        >
+          <div
+            data-pencil-name="Feed header"
+            class="box-border w-full h-[52px] shrink-0 flex flex-row gap-[10px] p-[0px_20px] justify-start items-center"
+          >
+            <svg
+              data-pencil-name="Activity icon"
+              viewBox="0 0 15 15"
+              preserveAspectRatio="xMidYMid meet"
+              data-icon-name="list-tree"
+              data-icon-set="lucide"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[15px] shrink-0 h-[15px] overflow-visible"
+            >
+              <path
+                d="M1.769 2.52q-.103 .014-.187 .054-.081 .037-.165 .136-.08 .095-.128 .187l-.029 .102v7.965l.058 .165q.169 .557 .601 .923 .436 .366 1.007 .428 .165 .03 1.117 .03 .952 0 1.073-.03 .179-.029 .315-.164 .238-.242 .179-.557-.058-.315-.373-.465-.062-.029-.213-.029l-2.054-.03-.106-.044q-.301-.135-.344-.465-.015-.091-.022-1.395-.008-1.307 .007-1.307l.15 .047q.092 .03 .264 .037 .172 .007 1.025 .007h1.036q.165 0 .239-.029 .227-.092 .347-.315 .044-.106 .044-.271 0-.106-.007-.15-.007-.044-.037-.121-.047-.088-.146-.176-.095-.091-.187-.128-.088-.04-.238-.04h-.871q-1.004 0-1.11-.03-.315-.062-.465-.358l-.044-.107-.029-3.178q0-.286-.03-.334-.091-.194-.278-.296-.187-.106-.399-.062zM4.904 2.505q-.253 .044-.411 .264-.157 .216-.098 .472 .014 .102 .051 .179 .04 .074 .121 .151 .084 .073 .172 .12l.106 .044h8.445l.106-.044q.286-.135 .344-.45 .059-.315-.165-.542-.15-.15-.358-.179-.107-.03-4.157-.03-4.05 0-4.156 .015zM7.907 6.914q-.107 .048-.206 .139-.095 .088-.135 .172-.037 .081-.044 .125-.007 .044-.007 .15 0 .165 .044 .271 .12 .223 .348 .315l.102 .029h5.296l.091-.044q.073-.047 .161-.135 .092-.092 .136-.172 .047-.085 .047-.264 0-.179-.044-.271-.106-.179-.3-.286l-.091-.058h-4.981q-.359 .014-.417 .029zM7.98 11.265q-.15 .044-.279 .164-.128 .121-.172 .271-.058 .209 .03 .422 .091 .208 .285 .315 .077 .043 .213 .043 .194 .015 .761 .03l4.443-.015 .12-.044q.224-.121 .312-.344 .091-.227 .007-.45-.081-.228-.304-.348l-.106-.044-2.626-.015q-2.607 0-2.684 .015z"
+                fill="#96b7ca"
+              />
+            </svg>
+            <div
+              data-pencil-name="Feed title"
+              class="text-[16px]/[normal] box-border text-[#D9E7EF] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Change stream
+            </div>
+            <div
+              data-pencil-name="Feed order"
+              class="text-[10px]/[normal] box-border text-[#7D98AD] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Full functions
+            </div>
+            <div
+              data-pencil-name="Feed header gap"
+              class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+            ></div>
+            <div
+              data-pencil-name="Hide activity feed"
+              class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] p-[6px_8px] justify-start items-center [outline:1px_solid_#3E5260] [outline-offset:-0.5px] rounded-[4px]"
+            >
+              <svg
+                data-pencil-name="Hide feed icon"
+                viewBox="0 0 14 14"
+                preserveAspectRatio="xMidYMid meet"
+                data-icon-name="panel-left-close"
+                data-icon-set="lucide"
+                xmlns="http://www.w3.org/2000/svg"
+                class="box-border w-[14px] shrink-0 h-[14px] overflow-visible"
+              >
+                <path
+                  d="M2.605 1.203q-.506 .086-.879 .438-.369 .348-.509 .864-.028 .086-.028 .715l-.013 3.78 .013 3.78q0 .629 .028 .715 .14 .488 .468 .82 .332 .328 .82 .468 .086 .028 .715 .028l3.78 .013 3.78-.013q.629 0 .715-.028 .488-.14 .817-.468 .331-.332 .471-.82 .028-.086 .028-.715l.013-3.78-.013-3.78q0-.629-.028-.715-.126-.488-.458-.817-.328-.331-.803-.471l-.14-.041h-4.327q-4.338 0-4.45 .027zM4.676 7v4.676h-.882q-.882 0-.981-.028-.294-.058-.434-.335l-.041-.099v-8.428l.041-.099q.072-.141 .188-.23 .12-.092 .26-.119 .085 0 .967-.014h.882zM11.314 2.379q.208 .099 .307 .308l.041 .099v8.428l-.041 .099q-.14 .277-.434 .335-.099 .028-2.731 .028h-2.632v-9.352l5.39 .014zM9.112 4.703q-.054 .027-.222 .192-.167 .16-.827 .803l-.096 .099q-.533 .53-.673 .683-.195 .212-.239 .298-.041 .082-.041 .195v.054q0 .113 .041 .199 .044 .082 .239 .294 .14 .153 .66 .669l.109 .113q.673 .674 .834 .821 .161 .147 .232 .174 .154 .055 .322 .02 .167-.034 .28-.147 .181-.181 .181-.42 0-.14-.037-.215-.035-.079-.202-.26-.109-.127-.561-.574l-.697-.701 .697-.701q.452-.447 .561-.574 .167-.181 .202-.256 .037-.079 .037-.219 0-.126-.041-.239-.099-.195-.294-.294-.085-.041-.225-.041-.141 0-.24 .027z"
+                  fill="#9ebacb"
+                />
+              </svg>
+              <div
+                data-pencil-name="Hide feed label"
+                class="text-[10px]/[normal] box-border text-[#9EBACB] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Hide feed
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Capture status"
+            class="[box-sizing:content-box] w-[680px] h-[57px] shrink-0 flex flex-col gap-[6px] p-[10px_20px] justify-start items-start bg-[#1B222A] [border-width:1px_0px_1px_0px] [border-style:solid] [border-color:#314351] [margin:-0.5px_0px_-0.5px_0px]"
+          >
+            <div
+              data-pencil-name="Capture row"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <div
+                data-pencil-name="Capture dot"
+                class="box-border w-[7px] shrink-0 h-[7px] bg-[#83BDA4] rounded-[50%]"
+              ></div>
+              <div
+                data-pencil-name="Capture label"
+                class="text-[10px]/[normal] box-border w-[54px] shrink-0 text-[#7D98AD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                CAPTURE
+              </div>
+              <div
+                data-pencil-name="Capture text"
+                class="text-[12px]/[normal] box-border text-[#DBE9F3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Recording
+              </div>
+              <div
+                data-pencil-name="Capture gap"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Checked text"
+                class="text-[10px]/[normal] box-border text-[#68879E] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Checked 16:42:07
+              </div>
+            </div>
+            <div
+              data-pencil-name="Chat row"
+              class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+            >
+              <div
+                data-pencil-name="Chat dot"
+                class="box-border w-[7px] shrink-0 h-[7px] bg-[#A4D5F1] rounded-[50%]"
+              ></div>
+              <div
+                data-pencil-name="Chat label"
+                class="text-[10px]/[normal] box-border w-[54px] shrink-0 text-[#7D98AD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+              >
+                CHAT
+              </div>
+              <div
+                data-pencil-name="Chat text"
+                class="text-[12px]/[normal] box-border text-[#DBE9F3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+              >
+                Linked — changes are possibly the agent's
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Stream content"
+            class="box-border w-full [flex:1_1_0] flex flex-col gap-[24px] p-[0px_0px_16px_0px] justify-start items-start overflow-hidden"
+          >
+            <div
+              data-pencil-name="CC · Chapter heading"
+              class="[box-sizing:content-box] w-[680px] h-[51.5px] shrink-0 flex flex-col gap-0 p-[12px_20px] justify-start items-start bg-[#24313B] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#526B7B] [margin:0px_0px_-0.5px_0px]"
+            >
+              <div
+                data-pencil-name="Chapter row"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+              >
+                <div
+                  data-pencil-name="Chapter badge"
+                  class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[6px_8px] justify-start items-start bg-[#344B57] rounded-[3px]"
+                >
+                  <div
+                    data-pencil-name="Chapter number"
+                    class="text-[12px]/[normal] box-border text-[#B2DEC9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    03
+                  </div>
+                </div>
+                <div
+                  data-pencil-name="Chapter title"
+                  class="text-[15px]/[normal] box-border [flex:1_1_0] text-[#E0EBF1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  Add retry to the upload client
+                </div>
+                <div
+                  data-pencil-name="Chapter detail"
+                  class="text-[11px]/[normal] box-border text-[#68879E] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  a1b2c3d · 16:42
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="src/auth/access.ts change event"
+              class="box-border w-full h-fit shrink-0 flex flex-col gap-0 p-[0px_20px] justify-start items-start"
+            >
+              <div
+                data-pencil-name="src/auth/access.ts file clip card"
+                class="box-border w-full h-fit shrink-0 flex flex-col gap-0 justify-start items-start bg-[#1C2630] [outline:1px_solid_#3F5363] [outline-offset:-0.5px] rounded-[8px] overflow-hidden"
+              >
+                <div
+                  data-pencil-name="src/auth/access.ts event heading"
+                  class="[box-sizing:content-box] w-[640px] h-[37.5px] shrink-0 flex flex-row gap-[7px] p-[12px_14px] justify-start items-center bg-[#283642] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#405564] [margin:0px_0px_-0.5px_0px]"
+                >
+                  <svg
+                    data-pencil-name="src/auth/access.ts icon"
+                    viewBox="0 0 12 12"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="file-text"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[12px] shrink-0 h-[12px] overflow-visible"
+                  >
+                    <path
+                      d="M2.856 .516q-.503 .035-.876 .383-.372 .349-.457 .853-.023 .143-.023 4.248 0 4.105 .023 4.248 .085 .457 .402 .794 .319 .334 .776 .431 .094 .011 .574 .023h2.725 2.725q.48-.012 .574-.023 .457-.097 .773-.431 .32-.337 .405-.794 .023-.143 .023-3.258 0-3.114-.023-3.258-.074-.445-.349-.791-.097-.12-1.069-1.092-.768-.756-.95-.917-.178-.164-.357-.249-.264-.132-.577-.167-.12-.024-2.136-.024-2.016 0-2.183 .024zM6.504 2.593v1.09l.035 .12q.073 .193 .211 .348 .138 .156 .305 .241 .12 .061 .193 .073 .108 .023 .349 .035h1.895v5.244q0 .372-.032 .445-.029 .071-.103 .15-.07 .076-.14 .114l-.085 .035h-6.264l-.085-.035q-.07-.038-.143-.114-.071-.079-.103-.15-.029-.073-.029-.6v-3.589-3.589q0-.527 .023-.586 .05-.108 .144-.199 .096-.091 .205-.114 .073-.012 1.837-.012h1.775zM8.399 2.604l.888 .888h-1.787v-.888q0-.887 0-.899zM3.841 4.031q-.158 .05-.249 .182-.088 .132-.088 .287 0 .205 .155 .36 .073 .071 .132 .097 .062 .023 .217 .035 .108 0 .492 0 .384 0 .492 0 .155-.012 .214-.035 .062-.026 .135-.097 .155-.155 .155-.36 0-.205-.143-.349-.062-.058-.144-.108l-.073-.035h-.624q-.624 0-.671 .023zM3.876 6.012q-.12 .035-.229 .143-.143 .132-.149 .32-.006 .184 .108 .331 .115 .143 .305 .178 .085 .024 2.089 .024 2.004 0 2.089-.024 .202-.035 .316-.202 .115-.17 .079-.375-.011-.082-.044-.14-.029-.062-.096-.121-.065-.061-.135-.099l-.085-.035-2.089-.012q-2.1 0-2.159 .012zM3.923 8.004q-.252 .047-.366 .275-.112 .229-.006 .457 .038 .059 .102 .12 .068 .059 .138 .097l.085 .035h4.248l.085-.035q.07-.038 .135-.097 .067-.061 .096-.12 .033-.061 .044-.155 .036-.17-.044-.313-.076-.144-.243-.229l-.085-.035h-2.065q-2.051 0-2.124 0z"
+                      fill="#789fb9"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="src/auth/access.ts path"
+                    class="text-[11px]/[normal] box-border text-[#8DA9BD] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    src/auth/access.ts
+                  </div>
+                  <div
+                    data-pencil-name="Event header space"
+                    class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+                  ></div>
+                  <div
+                    data-pencil-name="Event time"
+                    class="text-[10px]/[normal] box-border text-[#68879E] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    16:41:12
+                  </div>
+                </div>
+                <div
+                  data-pencil-name="src/auth/access.ts code snippet"
+                  class="box-border w-full h-fit shrink-0 flex flex-col gap-0 p-[14px_10px_16px_10px] justify-start items-start bg-[#1C2630]"
+                >
+                  <div
+                    data-pencil-name="Snippet line 12"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      12
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      export function canAccess(user: User) {
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 13"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      13
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      return user.isActive === ActivityState.Active;
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 14"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      14
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      }
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 15"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      15
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    ></div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 16"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      16
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      export function isSuspended(user: User) {
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 17"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      17
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      return user.isActive === ActivityState.Suspended;
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 18"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      18
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="CC · Chapter heading"
+              class="[box-sizing:content-box] w-[680px] h-[51.5px] shrink-0 flex flex-col gap-0 p-[12px_20px] justify-start items-start bg-[#24313B] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#526B7B] [margin:0px_0px_-0.5px_0px]"
+            >
+              <div
+                data-pencil-name="Chapter row"
+                class="box-border w-full h-fit shrink-0 flex flex-row gap-[12px] justify-start items-center"
+              >
+                <div
+                  data-pencil-name="Chapter badge"
+                  class="box-border w-fit shrink-0 h-fit flex flex-row gap-0 p-[6px_8px] justify-start items-start bg-[#344B57] rounded-[3px]"
+                >
+                  <div
+                    data-pencil-name="Chapter number"
+                    class="text-[12px]/[normal] box-border text-[#B2DEC9] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    04
+                  </div>
+                </div>
+                <div
+                  data-pencil-name="Chapter title"
+                  class="text-[15px]/[normal] box-border [flex:1_1_0] text-[#E0EBF1] font-[Geist,system-ui,sans-serif] font-normal text-left"
+                >
+                  Give up after three upload retries
+                </div>
+                <div
+                  data-pencil-name="Chapter detail"
+                  class="text-[11px]/[normal] box-border text-[#68879E] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  c4d5e6f · 16:46
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="src/types/user.ts change event"
+              class="box-border w-full h-fit shrink-0 flex flex-col gap-0 p-[0px_20px] justify-start items-start"
+            >
+              <div
+                data-pencil-name="src/types/user.ts file clip card"
+                class="box-border w-full h-fit shrink-0 flex flex-col gap-0 justify-start items-start bg-[#1C2630] [outline:1px_solid_#5B859F] [outline-offset:-0.5px] rounded-[8px] overflow-hidden"
+              >
+                <div
+                  data-pencil-name="src/types/user.ts event heading"
+                  class="[box-sizing:content-box] w-[640px] h-[37.5px] shrink-0 flex flex-row gap-[7px] p-[12px_14px] justify-start items-center bg-[#2B4050] [border-width:0px_0px_1px_0px] [border-style:solid] [border-color:#405564] [margin:0px_0px_-0.5px_0px]"
+                >
+                  <svg
+                    data-pencil-name="src/types/user.ts icon"
+                    viewBox="0 0 12 12"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="file-text"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[12px] shrink-0 h-[12px] overflow-visible"
+                  >
+                    <path
+                      d="M2.856 .516q-.503 .035-.876 .383-.372 .349-.457 .853-.023 .143-.023 4.248 0 4.105 .023 4.248 .085 .457 .402 .794 .319 .334 .776 .431 .094 .011 .574 .023h2.725 2.725q.48-.012 .574-.023 .457-.097 .773-.431 .32-.337 .405-.794 .023-.143 .023-3.258 0-3.114-.023-3.258-.074-.445-.349-.791-.097-.12-1.069-1.092-.768-.756-.95-.917-.178-.164-.357-.249-.264-.132-.577-.167-.12-.024-2.136-.024-2.016 0-2.183 .024zM6.504 2.593v1.09l.035 .12q.073 .193 .211 .348 .138 .156 .305 .241 .12 .061 .193 .073 .108 .023 .349 .035h1.895v5.244q0 .372-.032 .445-.029 .071-.103 .15-.07 .076-.14 .114l-.085 .035h-6.264l-.085-.035q-.07-.038-.143-.114-.071-.079-.103-.15-.029-.073-.029-.6v-3.589-3.589q0-.527 .023-.586 .05-.108 .144-.199 .096-.091 .205-.114 .073-.012 1.837-.012h1.775zM8.399 2.604l.888 .888h-1.787v-.888q0-.887 0-.899zM3.841 4.031q-.158 .05-.249 .182-.088 .132-.088 .287 0 .205 .155 .36 .073 .071 .132 .097 .062 .023 .217 .035 .108 0 .492 0 .384 0 .492 0 .155-.012 .214-.035 .062-.026 .135-.097 .155-.155 .155-.36 0-.205-.143-.349-.062-.058-.144-.108l-.073-.035h-.624q-.624 0-.671 .023zM3.876 6.012q-.12 .035-.229 .143-.143 .132-.149 .32-.006 .184 .108 .331 .115 .143 .305 .178 .085 .024 2.089 .024 2.004 0 2.089-.024 .202-.035 .316-.202 .115-.17 .079-.375-.011-.082-.044-.14-.029-.062-.096-.121-.065-.061-.135-.099l-.085-.035-2.089-.012q-2.1 0-2.159 .012zM3.923 8.004q-.252 .047-.366 .275-.112 .229-.006 .457 .038 .059 .102 .12 .068 .059 .138 .097l.085 .035h4.248l.085-.035q.07-.038 .135-.097 .067-.061 .096-.12 .033-.061 .044-.155 .036-.17-.044-.313-.076-.144-.243-.229l-.085-.035h-2.065q-2.051 0-2.124 0z"
+                      fill="#789fb9"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="src/types/user.ts path"
+                    class="text-[11px]/[normal] box-border text-[#A2CBE3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    src/types/user.ts
+                  </div>
+                  <div
+                    data-pencil-name="Event header space"
+                    class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+                  ></div>
+                  <div
+                    data-pencil-name="Event time"
+                    class="text-[10px]/[normal] box-border text-[#68879E] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    16:45:30
+                  </div>
+                  <div
+                    data-pencil-name="Open indicator"
+                    class="text-[9px]/[normal] box-border text-[#78AAD0] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    OPEN →
+                  </div>
+                </div>
+                <div
+                  data-pencil-name="src/types/user.ts code snippet"
+                  class="box-border w-full h-fit shrink-0 flex flex-col gap-0 p-[14px_10px_16px_10px] justify-start items-start bg-[#1D2D3B]"
+                >
+                  <div
+                    data-pencil-name="Snippet line 6"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      6
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      export enum ActivityState {
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 7"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      7
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      Inactive = 'inactive',
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 8"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      8
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      Active = 'active',
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 9"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      9
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      Suspended = 'suspended',
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 10"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      10
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      }
+                    </div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line ···"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      ···
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    ></div>
+                  </div>
+                  <div
+                    data-pencil-name="Snippet line 16"
+                    class="box-border w-full h-[22px] shrink-0 flex flex-row gap-[10px] justify-start items-center"
+                  >
+                    <div
+                      data-pencil-name="Blue modification marker"
+                      class="box-border w-[3px] shrink-0 h-full flex flex-row gap-0 justify-start items-start bg-[#4B9CDA]"
+                    ></div>
+                    <div
+                      data-pencil-name="Snippet line number"
+                      class="text-[10px]/[normal] box-border w-[25px] shrink-0 text-[#5F8099] font-['Geist_Mono',system-ui,sans-serif] font-normal text-right"
+                    >
+                      16
+                    </div>
+                    <div
+                      data-pencil-name="Snippet source"
+                      class="text-[12px]/[normal] box-border text-[#BDCDDF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      isActive: ActivityState;
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Footer"
+            class="[box-sizing:content-box] w-[680px] h-[33.5px] shrink-0 flex flex-row gap-[8px] p-[10px_20px] justify-start items-center bg-[#191F27] [border-width:1px_0px_0px_0px] [border-style:solid] [border-color:#314351] [margin:-0.5px_0px_0px_0px]"
+          >
+            <svg
+              data-pencil-name="Live pulse"
+              viewBox="0 0 13 13"
+              preserveAspectRatio="xMidYMid meet"
+              data-icon-name="activity"
+              data-icon-set="lucide"
+              xmlns="http://www.w3.org/2000/svg"
+              class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+            >
+              <path
+                d="M4.77 .559q-.089 .012-.174 .054-.086 .038-.184 .123-.096 .083-.137 .162-.038 .076-.689 2.39-.647 2.314-.682 2.38-.032 .064-.124 .15-.089 .085-.149 .104-.057 .019-.2 .032l-1.495 .013-.079 .038q-.206 .105-.279 .314-.07 .206 .006 .403 .054 .089 .13 .168 .079 .077 .156 .111 .079 .032 .209 .032h.714q.664 0 .832-.012 .171-.013 .352-.08 .298-.105 .559-.343 .26-.241 .377-.526 .038-.105 .143-.458l.495-1.739q.311-1.133 .324-1.133 .013 0 1.304 4.624 1.295 4.622 1.333 4.71 .067 .131 .21 .242 .143 .111 .298 .136 .21 .026 .403-.07 .197-.098 .286-.282 .054-.076 .695-2.377 .644-2.301 .676-2.371 .035-.073 .111-.149 .08-.08 .172-.121l.088-.038 1.521-.025q.117 0 .181-.032 .066-.035 .142-.111 .08-.08 .118-.169 .041-.092 .041-.209 0-.117-.038-.222-.092-.181-.273-.273l-.079-.038h-.832q-.584 0-.736 0-.149 0-.251 .025-.416 .092-.755 .378-.092 .079-.203 .216-.108 .136-.162 .254-.051 .114-.143 .403-.089 .285-.441 1.533-.403 1.482-.416 1.482-.013 0-1.314-4.628-1.298-4.63-1.339-4.713-.038-.085-.124-.168-.083-.086-.162-.124-.181-.105-.416-.066z"
+                fill="#83bda4"
+              />
+            </svg>
+            <div
+              data-pencil-name="Live status"
+              class="text-[11px]/[normal] box-border text-[#789F91] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Live · New changes appear below
+            </div>
+            <div
+              data-pencil-name="Live footer gap"
+              class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+            ></div>
+            <div
+              data-pencil-name="Jump latest"
+              class="text-[10px]/[normal] box-border text-[#82AAC5] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Jump to latest ↓
+            </div>
+          </div>
+        </div>
+        <div
+          data-pencil-name="Viewer"
+          class="box-border [flex:1_1_0] h-full flex flex-col gap-0 justify-center items-center bg-[#11171D]"
+        >
+          <div
+            data-pencil-name="Viewer hint"
+            class="text-[12px]/[normal] box-border text-[#68879E] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+          >
+            Select a change to open its file
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
