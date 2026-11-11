@@ -16,23 +16,25 @@ struct RecorderMessageView: View {
   }
 
   private var full: some View {
-    VStack(alignment: .leading, spacing: DesignTokens.RecorderMessage.gap) {
-      HStack(alignment: .firstTextBaseline, spacing: DesignTokens.RecorderMessage.headlineGap) {
-        IconView(icon: DesignTokens.RecorderMessage.headlineIcon(message))
-        Text(message.headline)
-          .font(DesignTokens.RecorderMessage.headlineFont)
-          .foregroundStyle(DesignTokens.RecorderMessage.headlineColor)
-          .lineSpacing(DesignTokens.RecorderMessage.headlineLineSpacing)
-          .fixedSize(horizontal: false, vertical: true)
-          .textSelection(.enabled)
-      }
-      if let evidence = message.evidence {
-        EvidenceBlockView(evidence: evidence, copyTapped: copyTapped)
-      }
-      HStack(spacing: DesignTokens.RecorderMessage.buttonGap) {
-        ForEach(message.actions, id: \.self) { action in
-          Button(action.title) { actionTapped(action) }
-            .buttonStyle(RecorderButtonStyle(isPrimary: message.isPrimary(action)))
+    ScrollView {
+      VStack(alignment: .leading, spacing: DesignTokens.RecorderMessage.gap) {
+        HStack(alignment: .firstTextBaseline, spacing: DesignTokens.RecorderMessage.headlineGap) {
+          IconView(icon: DesignTokens.RecorderMessage.headlineIcon(message))
+          Text(message.headline)
+            .font(DesignTokens.RecorderMessage.headlineFont)
+            .foregroundStyle(DesignTokens.RecorderMessage.headlineColor)
+            .lineSpacing(DesignTokens.RecorderMessage.headlineLineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+        }
+        if let evidence = message.evidence {
+          EvidenceBlockView(evidence: evidence, copyTapped: copyTapped)
+        }
+        HStack(spacing: DesignTokens.RecorderMessage.buttonGap) {
+          ForEach(message.actions, id: \.self) { action in
+            Button(action.title) { actionTapped(action) }
+              .buttonStyle(RecorderButtonStyle(isPrimary: message.isPrimary(action)))
+          }
         }
       }
     }

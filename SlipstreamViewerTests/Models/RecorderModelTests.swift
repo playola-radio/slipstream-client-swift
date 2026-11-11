@@ -115,7 +115,7 @@ struct RecorderModelTests {
             """)))
   }
 
-  @Test func sameBuildIsRunningWithoutAdopting() async {
+  @Test func sameBuildIsRunningMigrates() async {
     fake.running.setValue(Self.bundledBuild)
     fake.lockPID.setValue(501)
     fake.job.setValue(LaunchdJob(pid: 501, lastExit: nil))
@@ -124,7 +124,31 @@ struct RecorderModelTests {
     await model.appLaunched()
 
     expectNoDifference(model.state, .running)
-    expectNoDifference(fake.events.value, ["prepare", "activate"])
+    expectNoDifference(fake.events.value, ["prepare", "activate", "link", Self.adoptCommand])
+  }
+
+  @Test func unfinishedMigrationIsRetriedOnRelaunch() async {
+    fake.running.setValue(Self.bundledBuild)
+    fake.lockPID.setValue(501)
+    fake.job.setValue(LaunchdJob(pid: 501, lastExit: nil))
+    fake.shimResults.setValue(["adopt-app": (1, "failed /w/.claude/settings.local.json: EACCES\n")])
+    let model = makeModel()
+
+    await model.appLaunched()
+
+    expectNoDifference(
+      model.state,
+      .migrationIncomplete(
+        Self.bundled,
+        MigrationFailure(links: [], adoptFailed: true),
+        Evidence(
+          source: "slipstream adopt-app · exit 1",
+          text: """
+            $ /rt/bin/slipstream adopt-app --store test-store
+            failed /w/.claude/settings.local.json: EACCES
+            exit 1
+            """)))
+    expectNoDifference(fake.events.value, ["prepare", "activate", "link", Self.adoptCommand])
   }
 
   @Test func ownedOtherBuildRestarts() async {
@@ -205,7 +229,7 @@ struct RecorderModelTests {
     await model.appLaunched()
 
     expectNoDifference(model.state, .running)
-    expectNoDifference(fake.events.value, ["prepare", "activate", "activate"])
+    expectNoDifference(fake.events.value, ["prepare", "activate", "activate", "link", Self.adoptCommand])
   }
 
   @Test func probeFailureWhileStoppingIsWontStart() async {
@@ -259,7 +283,9 @@ struct RecorderModelTests {
     await retry.value
 
     expectNoDifference(model.state, .running)
-    expectNoDifference(fake.events.value, ["prepare", "activate", Self.installCommand, "prepare", "activate"])
+    expectNoDifference(
+      fake.events.value,
+      ["prepare", "activate", Self.installCommand, "prepare", "activate", "link", Self.adoptCommand])
   }
 
   @Test func quitStopsRecorderWork() async {

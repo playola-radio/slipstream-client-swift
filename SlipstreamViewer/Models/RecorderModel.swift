@@ -231,6 +231,7 @@ final class RecorderModel: ViewModel {
     if running == DaemonBuild(version: bundled.version, build: bundled.build) {
       guard await activateKeepingRunning(running, probe, bundled, prepared, mine) != nil else { return }
       publish(.running, mine)
+      await migrate(bundled, mine)
       return
     }
     guard let lockPID = probe.lockPID, lockPID == probe.job?.pid, !running.isNewer(than: bundled) else {
@@ -258,7 +259,7 @@ final class RecorderModel: ViewModel {
     }
     guard isCurrent(mine) else { return }
     if probe.job?.pid != nil {
-      await poll(bundled, prepared, logOffset: service.logSize(), migrate: false, mine)
+      await poll(bundled, prepared, logOffset: service.logSize(), migrate: true, mine)
     } else {
       await install(bundled, prepared, mine)
     }
