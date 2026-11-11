@@ -4180,6 +4180,49 @@ extension ChangeStreamPageTests {
         == "Its folder is removed. The branch is kept. Claude's current reply will be stopped.")
   }
 
+  @Test func reloadShortcutAlsoRefreshesPRStatus() async throws {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let before = model.prStatusBar.pollKey
+
+    await model.reloadShortcutPressed()
+
+    #expect(model.prStatusBar.pollKey != before)
+  }
+
+  @Test func archiveFromBarUsesArchiveConfirmation() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    #expect(!model.isArchiveConfirmationPresented)
+
+    model.prStatusBar.archiveTapped()
+
+    #expect(model.isArchiveConfirmationPresented)
+    expectNoDifference(model.archiveTarget?.id, Fixture.otherSession)
+  }
+
+  @Test func barIsArchivableOnlyForAnArchivableSelection() async throws {
+    let model = makeModel(workspace: workspaceClient())
+    #expect(!model.prStatusBar.isArchivable())
+
+    listWorkspace()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    #expect(model.prStatusBar.isArchivable())
+
+    let conductorRoot = "/work/conductor/workspaces/r/lisbon"
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: conductorRoot, startedAtMs: 0)])
+    fake.setCaptures([Fixture.capture(session: Fixture.session, root: conductorRoot)])
+    await model.reloadShortcutPressed()
+    model.sessionSelected(Fixture.session)
+    #expect(!model.prStatusBar.isArchivable())
+  }
+
   @Test func archiveStopsChatsBeforeRunningTheCommand() async throws {
     listWorkspace()
     let agent = AgentFake()

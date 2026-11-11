@@ -191,6 +191,13 @@ final class PRStatusBarModel: ViewModel {
 
   var isDetailsShown: Bool { failure != nil }
 
+  var isDetailsPopoverPresented: Bool {
+    get { isDetailsPresented }
+    set {
+      if newValue { detailsTapped() } else { detailsDismissed() }
+    }
+  }
+
   // MARK: - User Actions
 
   /// Run by the view as `.task(id: pollKey)`: any key change cancels it and starts a new one.

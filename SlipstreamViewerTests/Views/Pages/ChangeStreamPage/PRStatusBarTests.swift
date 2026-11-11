@@ -772,6 +772,22 @@ struct PRStatusBarTests {
     expectNoDifference(model.statusLabel, "Ready to merge")
   }
 
+  @Test func detailsPopoverBindingPresentsAndDismisses() async {
+    PRFixture.scriptRepository(repo)
+    PRFixture.setPullRequest(repo)
+    repo.set(PRFixture.mergeCommand(), stderr: "Pull request is not mergeable\n", ending: .exit(1))
+    let model = makeModel()
+    await load(model)
+    await model.primaryButtonTapped()
+
+    model.isDetailsPopoverPresented = true
+    #expect(model.isDetailsPresented)
+    model.isDetailsPopoverPresented = false
+
+    #expect(!model.isDetailsPresented)
+    expectNoDifference(model.failure, nil)
+  }
+
   @Test func actionFailureClearedByWorkspaceChange() async {
     PRFixture.scriptRepository(repo)
     PRFixture.setPullRequest(repo)
