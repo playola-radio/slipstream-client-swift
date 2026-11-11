@@ -148,7 +148,7 @@ private struct WorkspaceRowView: View {
             .foregroundStyle(model.rowNameColor(session))
             .lineLimit(1)
           Spacer()
-          if model.isWorking(session) {
+          if model.isSpinnerShown(session) {
             SpinnerView(spinner: DesignTokens.Sidebar.spinner)
           } else if model.isRecordingDotShown(session) {
             Circle()

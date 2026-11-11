@@ -24,6 +24,20 @@ struct WorkspaceRoots: Equatable, Sendable {
   }
 }
 
+/// A workspace `slipstream workspace create` is making, shown as a row until its session is
+/// listed. Its folder is a guess until the command prints the real one; `previousRowID` is the
+/// row to go back to if it fails.
+struct CreatingWorkspace: Identifiable, Equatable, Sendable {
+  var id: Int
+  var folder: String
+  var isFolderKnown = false
+  var isSetupEnded = false
+  var previousRowID: String?
+
+  var name: String { URL(filePath: folder).lastPathComponent }
+  var row: SessionOption { SessionOption(id: "creating-workspace-\(id)", label: name, root: folder) }
+}
+
 struct SidebarGroup: Identifiable, Equatable, Sendable {
   var repository: String?
   var rows: [SessionOption]

@@ -695,6 +695,8 @@ enum DesignTokens {
       Icons.Icon(assetName: "CirclePause", size: 13, color: isHighlighted ? Color(hex: 0x6B7C89) : Color(hex: 0x3F4C57))
     }
 
+    static let settingUpRowNameColor = pausedRowNameColor(isHighlighted: false)
+
     static func pausedRowNameColor(isHighlighted: Bool) -> Color {
       isHighlighted ? Color(hex: 0x8B9AA6) : Color(hex: 0x56646F)
     }

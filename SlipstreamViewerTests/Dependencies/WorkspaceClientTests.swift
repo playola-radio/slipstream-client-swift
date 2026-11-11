@@ -11,6 +11,14 @@ struct WorkspaceClientTests {
       "/nonexistent-home/x/slipstream/workspaces")
   }
 
+  @Test func nextFolderIsTheFirstUnusedWorkspaceNumber() {
+    let existing: Set<String> = ["/w/r/workspace-1", "/w/r/workspace-2", "/w/r/workspace-4"]
+
+    expectNoDifference(
+      WorkspaceClient.nextFolder(repository: "r", managedRoot: "/w", exists: existing.contains),
+      "/w/r/workspace-3")
+  }
+
   @Test func successHasNoFailureText() {
     #expect(WorkspaceClient.failureText(output: "archived /w/workspace-1\n", status: 0) == nil)
   }

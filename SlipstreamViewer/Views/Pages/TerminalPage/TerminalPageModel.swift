@@ -69,6 +69,10 @@ final class TerminalPageModel: ViewModel {
 
   func showsCloseButton(_ tab: TerminalTabModel) -> Bool { isSelected(tab) || isHovered(tab) }
 
+  func isSettingUp(folder: String) -> Bool {
+    state.tabs.contains { $0.folder == folder && $0.kind == .setup(.running) }
+  }
+
   // MARK: - User Actions
 
   /// Marks every Setup that was running when the app last quit as interrupted. Runs once.
@@ -162,6 +166,12 @@ final class TerminalPageModel: ViewModel {
     } else if focusedTabID == id {
       focusedTabID = nil
     }
+  }
+
+  /// Returns once no Setup is running in the folder: its command ended, or the tab stopped.
+  func setupEnded(in folder: String) async {
+    let running = state.tabs.filter { $0.folder == folder && $0.kind == .setup(.running) }
+    for tab in running.compactMap({ tabs[id: $0.id] }) { await tab.ended() }
   }
 
   /// Stops the folder's tabs before it is archived; a Setup still running there is interrupted. Its records and logs are kept until

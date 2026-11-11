@@ -9,10 +9,15 @@ struct ChatPageView: View {
     VStack(spacing: 0) {
       tabStrip
       if let noWorkspaceText = model.noWorkspaceText {
-        Text(noWorkspaceText)
-          .font(DesignTokens.Chat.Transcript.noWorkspaceFont)
-          .foregroundStyle(DesignTokens.Chat.Transcript.noWorkspaceColor)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        HStack(spacing: DesignTokens.Chat.WorkingStatus.gap) {
+          if model.isNoWorkspaceSpinnerShown {
+            SpinnerView(spinner: DesignTokens.Chat.WorkingStatus.spinner)
+          }
+          Text(noWorkspaceText)
+            .font(DesignTokens.Chat.Transcript.noWorkspaceFont)
+            .foregroundStyle(DesignTokens.Chat.Transcript.noWorkspaceColor)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if let tab = model.selectedTab {
         TranscriptView(tab: tab, tryAgainText: model.tryAgainText) {
           Task { await model.tryAgainTapped() }

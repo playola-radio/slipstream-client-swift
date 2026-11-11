@@ -3958,7 +3958,7 @@ extension ChangeStreamPageTests {
   ) -> WorkspaceClient {
     WorkspaceClient(
       roots: { WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces")) },
-      chooseFolder: { _, _ in choose }, archive: archive)
+      chooseFolder: { _, _ in choose }, nextFolder: WorkspaceClient.testValue.nextFolder, archive: archive)
   }
 
   /// The launch running `slipstream workspace create` in the Setup tab.
@@ -4040,10 +4040,12 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     #expect(model.isWorkspaceBusy)
     setupPrintsPath(Self.workspaceRoot)
-    await creating.value
+    await Task.megaYield()
 
     #expect(!model.isWorkspaceBusy)
     #expect(model.terminals.state.tabs.contains { $0.folder == Self.workspaceRoot && $0.kind == .setup(.running) })
+    setupFinishes(.exited(0))
+    await creating.value
   }
 
   @Test func newWorkspaceAvailableWhileSessionsRefreshAfterMove() async {
@@ -4060,6 +4062,8 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
 
     #expect(!model.isWorkspaceBusy)
+    open.yield()
+    setupFinishes(.exited(0))
     open.yield()
     await creating.value
   }
@@ -4090,7 +4094,8 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     open.yield()
     await Task.megaYield()
-    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.selectedSession == nil)
+    #expect(model.chatEmptyText == "Creating workspace-1…")
 
     daemon.setSessions(
       [
@@ -4103,10 +4108,12 @@ extension ChangeStreamPageTests {
         Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
         "new": SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
       ])
-    terminal.send("workspace_path: \(Self.secondWorkspaceRoot)\n", launch: 1)
+    setupPrintsPath(Self.secondWorkspaceRoot)
+    open.yield()
+    await second.value
+    terminal.finish(.exited(0), launch: 0)
     open.yield()
     await first.value
-    await second.value
 
     #expect(model.selectedSession?.id == "new")
     #expect(model.chat.folder == Self.secondWorkspaceRoot)
@@ -4143,6 +4150,7 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceFailurePresented)
     #expect(!model.isWorkspaceBusy)
     #expect(model.selectedSession?.id == Fixture.session)
+    #expect(model.sidebarGroups.allSatisfy { $0.repository != "r" })
   }
 
   @Test func firstEverWorkspaceShowsSetupInEmptyPane() async {
@@ -4193,9 +4201,271 @@ extension ChangeStreamPageTests {
         "new": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
       ])
     setupPrintsPath(Self.workspaceRoot)
+    await Task.megaYield()
+    #expect(model.selectedSession?.id == Fixture.session)
+    setupFinishes(.exited(0))
     await creating.value
 
     #expect(model.selectedSession?.id == Fixture.session)
+  }
+
+  func newRows(_ model: ChangeStreamPageModel) -> [SessionOption] {
+    model.sidebarGroups.first { $0.repository == "r" }?.rows ?? []
+  }
+
+  @Test func aNewWorkspaceIsListedAndSelectedRightAway() async throws {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+
+    let row = try #require(newRows(model).first)
+    expectNoDifference(newRows(model).map(model.rowName), ["workspace-1"])
+    #expect(model.isSelected(row))
+    #expect(model.isSpinnerShown(row))
+    #expect(!model.isArchivable(row))
+    #expect(model.rowNameColor(row) == DesignTokens.Sidebar.settingUpRowNameColor)
+    #expect(model.selectedSession == nil)
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
+  @Test func theChatSpinsWhileTheNewWorkspaceIsCreated() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+
+    #expect(model.chatEmptyText == "Creating workspace-1…")
+    #expect(model.chat.folder == nil)
+    #expect(model.chat.isNoWorkspaceSpinnerShown)
+    setupFinishes(.exited(1))
+    await creating.value
+    #expect(!model.chat.isNoWorkspaceSpinnerShown)
+  }
+
+  @Test func theNewRowTakesTheNameTheDaemonPicked() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.secondWorkspaceRoot)
+    await Task.megaYield()
+
+    expectNoDifference(newRows(model).map(model.rowName), ["workspace-2"])
+    #expect(model.chat.noWorkspaceText == "Creating workspace-2…")
+    setupFinishes(.exited(0))
+    await creating.value
+  }
+
+  @Test func aNewWorkspaceThatIsNeverListedIsDroppedWhenSetupEnds() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.workspaceRoot)
+    await Task.megaYield()
+    setupFinishes(.exited(0))
+    await creating.value
+
+    expectNoDifference(newRows(model), [])
+    #expect(model.selectedSession?.id == Fixture.session)
+  }
+
+  @Test func theListedWorkspaceSpinsUntilSetupFinishes() async throws {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    listWorkspace()
+    setupPrintsPath(Self.workspaceRoot)
+    await creating.value
+
+    let row = try #require(model.selectedSession)
+    expectNoDifference(newRows(model).map(\.id), [Fixture.otherSession])
+    #expect(model.chat.folder == Self.workspaceRoot)
+    #expect(model.isSpinnerShown(row))
+    #expect(model.rowNameColor(row) == DesignTokens.Sidebar.settingUpRowNameColor)
+
+    setupFinishes(.exited(0))
+    await Task.megaYield()
+
+    #expect(!model.isSpinnerShown(row))
+  }
+
+  @Test func returningToTheNewRowStillOpensTheWorkspaceOnceListed() async throws {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.session)
+    #expect(model.selectedSession?.id == Fixture.session)
+    model.sessionSelected(try #require(newRows(model).first).id)
+    #expect(model.selectedSession == nil)
+
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+      ])
+    setupPrintsPath(Self.workspaceRoot)
+    await creating.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
+  @Test func aFailedSecondWorkspaceGoesBackToTheFirstStillBeingCreated() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let first = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    let firstSetup = setupLaunch
+    terminal.send("workspace_path: \(Self.workspaceRoot)\n", launch: firstSetup)
+    await Task.megaYield()
+    let second = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupFinishes(.exited(1))
+    await second.value
+
+    expectNoDifference(newRows(model).map(\.id), ["creating-workspace-1"])
+    #expect(newRows(model).allSatisfy(model.isSelected))
+    #expect(model.chat.noWorkspaceText == "Creating workspace-1…")
+    terminal.finish(.exited(0), launch: firstSetup)
+    await first.value
+    #expect(model.selectedSession?.id == Fixture.session)
+  }
+
+  @Test func aFailedSecondWorkspaceGoesToTheFirstOnceItIsListed() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let first = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    let firstSetup = setupLaunch
+    terminal.send("workspace_path: \(Self.workspaceRoot)\n", launch: firstSetup)
+    await Task.megaYield()
+    let second = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    listWorkspace()
+    await model.reloadShortcutPressed()
+    setupFinishes(.exited(1))
+    await second.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    terminal.finish(.exited(0), launch: firstSetup)
+    await first.value
+  }
+
+  @Test func aFailedNewWorkspaceDoesNotGoBackToAnArchivedOne() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let archived = try #require(model.selectedSession)
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.secondWorkspaceRoot)
+    await Task.megaYield()
+    model.archiveTapped(archived)
+    await model.archiveConfirmed()
+    setupFinishes(.exited(0))
+    await creating.value
+
+    #expect(model.selectedSession == nil)
+  }
+
+  @Test func theNewWorkspacesSetupStaysInViewOnceItsFolderExists() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.workspaceRoot)
+    await Task.megaYield()
+
+    #expect(model.terminals.selectedTab?.title == "Setup")
+    #expect(model.chat.folder == nil)
+    setupFinishes(.exited(0))
+    await creating.value
+  }
+
+  @Test func setupEndingAfterTheWindowClosesStartsNoRefresh() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.workspaceRoot)
+    await Task.megaYield()
+    model.viewDisappeared()
+    let calls = fake.sessionsCallCount
+    setupFinishes(.exited(0))
+    await creating.value
+
+    #expect(fake.sessionsCallCount == calls)
+  }
+
+  @Test func aFailedRefreshAfterSetupKeepsTheNewRow() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    setupPrintsPath(Self.workspaceRoot)
+    await Task.megaYield()
+    fake.setSessionsError(DaemonHTTPError.status(500, durableSeq: nil))
+    setupFinishes(.exited(0))
+    await creating.value
+    expectNoDifference(newRows(model).map(\.id), ["creating-workspace-1"])
+
+    fake.setSessionsError(nil)
+    listWorkspace()
+    await model.reloadShortcutPressed()
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+  }
+
+  @Test func theOnlyOtherWorkspaceDoesNotTakeTheSelectionFromTheNewRow() async {
+    fake.setSessions([])
+    fake.setCaptures([])
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    fake.setCaptures([Fixture.capture()])
+    await model.reloadShortcutPressed()
+
+    #expect(model.selectedSession == nil)
+    #expect(model.chatEmptyText == "Creating workspace-1…")
+    setupFinishes(.exited(1))
+    await creating.value
   }
 
   @Test func newWorkspaceCancelledDoesNothing() async {
@@ -4357,7 +4627,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
+      chooseFolder: workspace.chooseFolder, nextFolder: workspace.nextFolder, archive: workspace.archive))
     let appeared = Task { await model.viewAppeared() }
     defer { model.viewDisappeared() }
     await appeared.value
@@ -4408,6 +4678,7 @@ extension ChangeStreamPageTests {
         return await workspace.roots()
       },
       chooseFolder: workspace.chooseFolder,
+      nextFolder: workspace.nextFolder,
       archive: workspace.archive
     )
     let model = makeModel(workspace: slowWorkspace)
@@ -4439,7 +4710,7 @@ extension ChangeStreamPageTests {
     let creating = Task { await model.newWorkspaceTapped() }
     await Task.megaYield()
     setupPrintsPath(Self.workspaceRoot)
-    await creating.value
+    await Task.megaYield()
     fake.setSessions(
       [
         SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
@@ -4454,7 +4725,8 @@ extension ChangeStreamPageTests {
     )
 
     model.sessionSelected(Fixture.otherSession)
-    await Task.megaYield()
+    setupFinishes(.exited(0))
+    await creating.value
 
     #expect(model.selectedSession?.id == Fixture.otherSession)
   }
@@ -4813,10 +5085,12 @@ extension ChangeStreamPageTests {
       sessions + [SessionSummary(id: "created-session", durableSeq: .zero, removed: false)],
       starts: starts.merging(["created-session": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0)]) { $1 })
     setupPrintsPath(Self.workspaceRoot)
-    await creating.value
+    await Task.megaYield()
 
     #expect(model.selectedSession?.id == Fixture.otherSession)
     #expect(model.terminals.state.tabs.contains { $0.folder == Self.workspaceRoot && $0.kind == .setup(.running) })
+    setupFinishes(.exited(0))
+    await creating.value
   }
 
   @Test func theRowBeingArchivedCannotBeSelected() async throws {
@@ -4871,10 +5145,11 @@ extension ChangeStreamPageTests {
     }))
     await model.viewAppeared()
     defer { model.viewDisappeared() }
+    let workspace = try #require(model.selectedSession)
     let creating = Task { await model.newWorkspaceTapped() }
     await Task.megaYield()
 
-    model.archiveTapped(try #require(model.selectedSession))
+    model.archiveTapped(workspace)
     await model.archiveConfirmed()
 
     #expect(archived.value == 0)

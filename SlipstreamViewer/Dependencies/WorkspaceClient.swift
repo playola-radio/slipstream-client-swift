@@ -8,6 +8,7 @@ import Foundation
 struct WorkspaceClient: Sendable {
   var roots: @Sendable () async -> WorkspaceRoots
   var chooseFolder: @MainActor @Sendable (_ message: String, _ prompt: String) async -> URL?
+  var nextFolder: @Sendable (_ repository: String, _ managedRoot: String) -> String
   /// Returns why the command failed, or nil once the workspace is archived.
   var archive: @Sendable (_ workspace: URL, _ store: String) async -> String?
 }
@@ -19,6 +20,15 @@ extension WorkspaceClient {
   static func managedRoot(environment: [String: String]) -> URL {
     URL(filePath: environment["HOME"] ?? NSHomeDirectory())
       .appending(path: "slipstream/workspaces").resolvingSymlinksInPath()
+  }
+
+  /// The first `workspace-N` folder that doesn't exist yet, as `slipstream workspace create`
+  /// picks it. The daemon also skips a leftover branch, so this is only a guess.
+  static func nextFolder(repository: String, managedRoot: String, exists: (String) -> Bool) -> String {
+    let parent = URL(filePath: managedRoot).appending(path: repository)
+    var number = 1
+    while exists(parent.appending(path: "workspace-\(number)").path) { number += 1 }
+    return parent.appending(path: "workspace-\(number)").path
   }
 
   static func failureText(output: String, status: Int32) -> String? {
@@ -49,6 +59,9 @@ extension WorkspaceClient: DependencyKey {
         panel.prompt = prompt
         return panel.runModal() == .OK ? panel.url : nil
       },
+      nextFolder: { repository, managedRoot in
+        nextFolder(repository: repository, managedRoot: managedRoot, exists: FileManager.default.fileExists(atPath:))
+      },
       archive: { workspace, store in
         let environment: [String: String]
         let shim: String
@@ -72,6 +85,7 @@ extension WorkspaceClient: DependencyKey {
           conductor: URL(filePath: "/tmp/conductor-test/workspaces"))
       },
       chooseFolder: unimplemented("WorkspaceClient.chooseFolder", placeholder: nil),
+      nextFolder: { repository, managedRoot in nextFolder(repository: repository, managedRoot: managedRoot) { _ in false } },
       archive: unimplemented("WorkspaceClient.archive", placeholder: nil)
     )
   }
