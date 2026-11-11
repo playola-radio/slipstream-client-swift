@@ -1573,15 +1573,15 @@ final class ChangeStreamPageModel: ViewModel {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
   }
 
-  /// One row per folder, so a recreated folder's old capture is hidden. A row waits for its folder,
-  /// so it never shows under its id. Unknown capture state hides nothing else.
-  /// Only workspaces `slipstream workspace create` made keep a row while paused.
+  /// Only workspaces `slipstream workspace create` made are listed, so chats the daemon captures
+  /// elsewhere (Conductor, a plain checkout) stay out of the sidebar unless selected. A row waits for
+  /// its folder, so it never shows under its id. One row per folder, so a recreated folder's old
+  /// capture is hidden. Unknown capture state hides nothing else.
   private func isListed(_ session: SessionOption) -> Bool {
     if session.id == selectedSession?.id { return true }
-    guard session.root != nil else { return false }
+    guard isArchivable(session) else { return false }
     let status = captureStatus(of: session)
     guard case .available = status.availability else { return true }
-    guard !status.isPaused || isArchivable(session) else { return false }
     return !status.isInactive && listedCaptureSessionIDs.contains(session.id)
   }
 
