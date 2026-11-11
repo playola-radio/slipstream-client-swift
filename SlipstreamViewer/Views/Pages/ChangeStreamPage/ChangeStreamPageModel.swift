@@ -75,9 +75,10 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
   private(set) var isWorkspaceBusy = false
-  private(set) var workspaceRoots: WorkspaceRoots?
+  private(set) var workspaceRoots: WorkspaceRoots? { didSet { sidebarInputsChanged() } }
   private(set) var archiveTarget: SessionOption?
-  private var listedCaptureSessionIDs: Set<String> = []
+  private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
+  private(set) var sidebarGroups: [SidebarGroup] = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -95,16 +96,22 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var viewport = CGRect.zero
   private(set) var composerSize = CGSize(width: DesignTokens.Ask.width, height: 396)
 
-  var sessions: IdentifiedArrayOf<SessionOption> = [] { didSet { chatWorkspaceMayHaveChanged() } }
+  var sessions: IdentifiedArrayOf<SessionOption> = [] {
+    didSet {
+      sidebarInputsChanged()
+      chatWorkspaceMayHaveChanged()
+    }
+  }
   var hasLoadedSessions = false { didSet { chatWorkspaceMayHaveChanged() } }
   var sessionsError: RecorderMessage? { didSet { chatWorkspaceMayHaveChanged() } }
   var selectedSession: SessionOption? {
     didSet {
       openIn.folder = selectedFolder
+      sidebarInputsChanged()
       chatWorkspaceMayHaveChanged()
     }
   }
-  private(set) var captureAvailability = CaptureAvailability.loading
+  private(set) var captureAvailability = CaptureAvailability.loading { didSet { sidebarInputsChanged() } }
   var selectedFolder: String? { selectedSession?.root }
   private(set) var baselineCompletedSeq: Seq?
   private(set) var functionChanges: FunctionChangesLiveModel? {
@@ -223,7 +230,7 @@ final class ChangeStreamPageModel: ViewModel {
   /// Counts rows recording now, not slots in use.
   var recordingCountText: String? {
     guard case .available = captureAvailability else { return nil }
-    let count = pickerSessions.filter { captureStatus(of: $0).captureDot == .recording }.count
+    let count = sidebarGroups.flatMap(\.rows).filter { captureStatus(of: $0).captureDot == .recording }.count
     return "\(count) recording"
   }
 
@@ -314,7 +321,7 @@ final class ChangeStreamPageModel: ViewModel {
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
       if captureAvailability == .failed { return "The capture list didn't load. Press ⌘R to check again." }
-      return pickerSessions.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
+      return sidebarGroups.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
@@ -640,14 +647,6 @@ final class ChangeStreamPageModel: ViewModel {
     }
     queuedQuestion = composer.sessionID == selectedSession?.id ? .here : .elsewhere(sessionID: composer.sessionID)
     questionDismissed()
-  }
-
-  var pickerSessions: IdentifiedArrayOf<SessionOption> {
-    sessions.filter(isListed)
-  }
-
-  var sidebarGroups: [SidebarGroup] {
-    SidebarGroup.groups(pickerSessions, roots: workspaceRoots)
   }
 
   var isOpenInShown: Bool { selectedSession != nil }
@@ -1150,7 +1149,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func loadSessions(preferring preferredRoot: String? = nil) async {
-    if let preferredRoot { pendingPreferredRoot = Self.normalizedFolder(preferredRoot) }
+    if let preferredRoot { pendingPreferredRoot = preferredRoot }
+    let preferred = pendingPreferredRoot
     sessionsGeneration += 1
     refreshGeneration += 1
     let generation = sessionsGeneration
@@ -1158,24 +1158,28 @@ final class ChangeStreamPageModel: ViewModel {
     let daemon = daemon
     do {
       let descriptor = try await daemon.discover()
-      async let captureReply = Self.captures(daemon, descriptor, date)
+      async let pendingCaptures = Self.captures(daemon, descriptor, date, terminalRuntime, preferring: preferred)
       let summaries = try await daemon.sessions(descriptor).filter { !$0.removed }
-      let (captures, checkedAt) = await captureReply
+      let captureReply = await pendingCaptures
       guard generation == sessionsGeneration else {
-        if refresh == refreshGeneration { capturesArrivedWithoutSessions(captures, checkedAt: checkedAt) }
+        if refresh == refreshGeneration { capturesArrivedWithoutSessions(captureReply) }
         return
       }
-      let snapshot = captureResultArrived(captures, checkedAt: checkedAt)
+      let rootless = summaries.map(\.id).filter { knownSession($0)?.root == nil && captureReply.roots[$0] == nil }
+      let startedRoots = await Self.startedRoots(of: rootless, daemon, descriptor)
+      guard generation == sessionsGeneration else {
+        if refresh == refreshGeneration { capturesArrivedWithoutSessions(captureReply) }
+        return
+      }
+      let snapshot = captureResultArrived(captureReply)
       let capturesByID = Dictionary(snapshot.map { ($0.sessionID, $0) }, uniquingKeysWith: { first, _ in first })
-      let previous = sessions
-      let selected = selectedSession
-      sessions = IdentifiedArray(
+      var next = IdentifiedArray(
         uniqueElements: summaries.map { summary in
           var option = SessionOption(
             id: summary.id, label: summary.id, agentConnection: summary.agentConnection,
             readinessSeq: summary.durableSeq, capture: capturesByID[summary.id], naming: summary.naming)
-          let known = selected?.id == summary.id ? selected : previous[id: summary.id]
-          option.root = known?.root
+          let known = knownSession(summary.id)
+          option.root = known?.root ?? captureReply.roots[summary.id] ?? startedRoots[summary.id]
           if let known, known.readinessSeq > summary.durableSeq {
             option.agentConnection = known.agentConnection
             option.readinessSeq = known.readinessSeq
@@ -1183,17 +1187,8 @@ final class ChangeStreamPageModel: ViewModel {
           return option
         }
       )
-      let listedIDs = Set(summaries.map(\.id))
-      let captureOnly = snapshot.filter { !listedIDs.contains($0.sessionID) }
-      let captureLabels = Self.uniqueLabels(captureOnly.map {
-        (id: $0.sessionID, label: URL(fileURLWithPath: $0.root).lastPathComponent)
-      })
-      for capture in captureOnly {
-        sessions.append(
-          SessionOption(
-            id: capture.sessionID, label: captureLabels[capture.sessionID] ?? capture.sessionID,
-            root: Self.normalizedFolder(capture.root), capture: capture, hasHistory: false))
-      }
+      Self.appendCaptureOnly(snapshot, roots: captureReply.roots, to: &next)
+      sessions = next
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
@@ -1221,6 +1216,8 @@ final class ChangeStreamPageModel: ViewModel {
           selectedSession?.naming = listed.naming
           if !listed.hasHistory {
             selectedSession?.label = listed.label
+          }
+          if !listed.hasHistory || selectedSession?.root == nil {
             selectedSession?.root = listed.root
           }
           if historyChanged {
@@ -1245,26 +1242,14 @@ final class ChangeStreamPageModel: ViewModel {
         !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
-      await withTaskGroup(of: (String, SessionStarted?).self) { group in
-        for summary in summaries where sessions[id: summary.id]?.root == nil {
-          group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
-        }
-        for await (id, start) in group {
-          guard generation == sessionsGeneration else { return }
-          if let start {
-            let root = Self.normalizedFolder(start.root)
-            sessions[id: id]?.root = root
-            if selectedSession?.id == id { selectedSession?.root = root }
-          }
-        }
-      }
       if selectedSession == nil, let folder = chat.folder,
         let session = sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
       }
-      if let pendingPreferredRoot, generation == sessionsGeneration,
-        let session = snapshot.current(in: pendingPreferredRoot).flatMap({ sessions[id: $0.sessionID] })
-          ?? sessions.first(where: { $0.root == pendingPreferredRoot }) {
+      if let preferred, pendingPreferredRoot == preferred, generation == sessionsGeneration,
+        let folder = captureReply.preferredFolder,
+        let session = captureReply.currentByFolder[folder].flatMap({ sessions[id: $0.sessionID] })
+          ?? sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
         self.pendingPreferredRoot = nil
       }
@@ -1302,17 +1287,37 @@ final class ChangeStreamPageModel: ViewModel {
       icon: .failure, tone: .error, headline: headline, footer: headline, evidence: evidence, actions: [.tryAgain])
   }
 
+  private func knownSession(_ id: String) -> SessionOption? {
+    selectedSession?.id == id ? selectedSession : sessions[id: id]
+  }
+
+  /// A capture with no daemon session still gets a row, rooted at its own folder.
+  private static func appendCaptureOnly(
+    _ captures: [CaptureSummary], roots: [String: String], to sessions: inout IdentifiedArrayOf<SessionOption>
+  ) {
+    let captureOnly = captures.filter { sessions[id: $0.sessionID] == nil }
+    let labels = uniqueLabels(captureOnly.map {
+      (id: $0.sessionID, label: URL(fileURLWithPath: $0.root).lastPathComponent)
+    })
+    for capture in captureOnly {
+      sessions.append(
+        SessionOption(
+          id: capture.sessionID, label: labels[capture.sessionID] ?? capture.sessionID,
+          root: roots[capture.sessionID], capture: capture, hasHistory: false))
+    }
+  }
+
   /// An archived workspace's folder is gone, so it is never picked for the user.
   private static func isArchived(_ session: SessionOption) -> Bool {
     session.capture?.state == .stopped && session.capture?.reason == "archived"
   }
 
-  private func captureResultArrived(_ result: Result<CaptureList?, any Error>, checkedAt: Date) -> [CaptureSummary] {
-    switch result {
+  private func captureResultArrived(_ captureReply: CaptureReply) -> [CaptureSummary] {
+    switch captureReply.result {
     case .success(let list?):
-      captureAvailability = .available(checkedAt: checkedAt)
-      listedCaptureSessionIDs = listedCaptureSessionIDs(list.captures)
-      chat.capturesArrived(list.captures)
+      captureAvailability = .available(checkedAt: captureReply.checkedAt)
+      listedCaptureSessionIDs = captureReply.listedSessionIDs
+      chat.capturesArrived(captureReply.currentByFolder)
       return list.captures
     case .success(nil):
       captureAvailability = .unavailableFromReader
@@ -1325,20 +1330,13 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
-  private func capturesArrivedWithoutSessions(_ result: Result<CaptureList?, any Error>, checkedAt: Date) {
-    let snapshot = captureResultArrived(result, checkedAt: checkedAt)
+  private func capturesArrivedWithoutSessions(_ captureReply: CaptureReply) {
+    let snapshot = captureResultArrived(captureReply)
     let capturesByID = Dictionary(snapshot.map { ($0.sessionID, $0) }, uniquingKeysWith: { first, _ in first })
-    for id in sessions.ids { sessions[id: id]?.capture = capturesByID[id] }
-    let captureOnly = snapshot.filter { sessions[id: $0.sessionID] == nil }
-    let labels = Self.uniqueLabels(captureOnly.map {
-      (id: $0.sessionID, label: URL(fileURLWithPath: $0.root).lastPathComponent)
-    })
-    for capture in captureOnly {
-      sessions.append(
-        SessionOption(
-          id: capture.sessionID, label: labels[capture.sessionID] ?? capture.sessionID,
-          root: Self.normalizedFolder(capture.root), capture: capture, hasHistory: false))
-    }
+    var next = sessions
+    for id in next.ids { next[id: id]?.capture = capturesByID[id] }
+    Self.appendCaptureOnly(snapshot, roots: captureReply.roots, to: &next)
+    sessions = next
     if let selectedID = selectedSession?.id { selectedSession?.capture = capturesByID[selectedID] }
     reply?.captureChanged(selectedSession?.capture)
     if let composer = askAgent {
@@ -1575,31 +1573,66 @@ final class ChangeStreamPageModel: ViewModel {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
   }
 
-  /// One row per folder, so a recreated folder's old capture is hidden. Unknown capture state
-  /// hides nothing.
+  /// One row per folder, so a recreated folder's old capture is hidden. A row waits for its folder,
+  /// so it never shows under its id. Unknown capture state hides nothing else.
   /// Only workspaces `slipstream workspace create` made keep a row while paused.
   private func isListed(_ session: SessionOption) -> Bool {
     if session.id == selectedSession?.id { return true }
+    guard session.root != nil else { return false }
     let status = captureStatus(of: session)
     guard case .available = status.availability else { return true }
     guard !status.isPaused || isArchivable(session) else { return false }
     return !status.isInactive && listedCaptureSessionIDs.contains(session.id)
   }
 
-  /// The capture `current(in:)` picks for each folder. A paused folder that no longer exists has no
-  /// row.
-  private func listedCaptureSessionIDs(_ captures: [CaptureSummary]) -> Set<String> {
-    let byFolder = Dictionary(grouping: captures) { Self.normalizedFolder($0.root) }
-    return Set(byFolder.compactMap { folder, captures in
-      guard let current = captures.current(in: folder) else { return nil }
-      return current.isPaused && !terminalRuntime.folderExists(current.root) ? nil : current.sessionID
-    })
+  private func sidebarInputsChanged() {
+    let groups = SidebarGroup.groups(sessions.filter(isListed), roots: workspaceRoots)
+    if groups != sidebarGroups { sidebarGroups = groups }
   }
 
-  private static func captures(
-    _ daemon: DaemonClient, _ descriptor: DaemonDescriptor, _ date: DateGenerator
-  ) async -> (Result<CaptureList?, any Error>, Date) {
-    do { return (.success(try await daemon.listCaptures(descriptor)), date.now) } catch { return (.failure(error), date.now) }
+  /// A capture list with everything that touches the disk already worked out off the main actor.
+  private struct CaptureReply: Sendable {
+    var result: Result<CaptureList?, any Error>
+    var checkedAt: Date
+    /// Each capture's folder, normalized.
+    var roots: [String: String]
+    var currentByFolder: [String: CaptureSummary]
+    /// The current capture of each folder, unless it is paused and its folder no longer exists.
+    var listedSessionIDs: Set<String>
+    var preferredFolder: String?
+  }
+
+  nonisolated private static func captures(
+    _ daemon: DaemonClient, _ descriptor: DaemonDescriptor, _ date: DateGenerator, _ runtime: TerminalRuntimeClient,
+    preferring preferredRoot: String?
+  ) async -> CaptureReply {
+    let result: Result<CaptureList?, any Error>
+    do { result = .success(try await daemon.listCaptures(descriptor)) } catch { result = .failure(error) }
+    let checkedAt = date.now
+    let captures = (try? result.get())?.captures ?? []
+    var roots: [String: String] = [:]
+    for capture in captures where roots[capture.sessionID] == nil {
+      roots[capture.sessionID] = normalizedFolder(capture.root)
+    }
+    let currentByFolder = captures.currentByFolder()
+    let listed = currentByFolder.values.filter { !$0.isPaused || runtime.folderExists($0.root) }.map(\.sessionID)
+    return CaptureReply(
+      result: result, checkedAt: checkedAt, roots: roots, currentByFolder: currentByFolder,
+      listedSessionIDs: Set(listed), preferredFolder: preferredRoot.map(normalizedFolder))
+  }
+
+  /// Each session's folder from its start record, for sessions no capture names.
+  nonisolated private static func startedRoots(
+    of sessionIDs: [String], _ daemon: DaemonClient, _ descriptor: DaemonDescriptor
+  ) async -> [String: String] {
+    await withTaskGroup(of: (String, String?).self) { group in
+      for id in sessionIDs {
+        group.addTask { (id, try? await daemon.sessionStart(descriptor, id).map { normalizedFolder($0.root) }) }
+      }
+      var roots: [String: String] = [:]
+      for await (id, root) in group { roots[id] = root }
+      return roots
+    }
   }
 
   /// The link icon and Ask notice read the capture's binding, which these events move on —

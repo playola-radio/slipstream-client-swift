@@ -204,26 +204,67 @@ struct ChangeStreamPageTests {
     #expect(model.emptyStateText == "No capture sessions yet")
   }
 
-  @Test func readySessionFolderAppearsWhileAnotherStartLookupIsSlow() async {
+  @Test func aRefreshPublishesOnlyOnceEveryFolderIsKnown() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionStartGates: ["slow": gate])
     daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/work/ready", startedAtMs: 0)])
+    daemon.setCaptures(.failure(.status(500, durableSeq: nil)))
+    let model = makeModel(daemon: daemon)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let before = model.sidebarGroups
+    daemon.setSessions(
       [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
         SessionSummary(id: "slow", durableSeq: .zero, removed: false),
-        SessionSummary(id: "ready", durableSeq: .zero, removed: false),
       ],
       starts: [
-        "slow": SessionStarted(root: "/work/slow", startedAtMs: 1_791_037_090_974),
-        "ready": SessionStarted(root: "/work/ready", startedAtMs: 1_791_037_090_974),
-      ]
-    )
-    let model = makeModel(daemon: daemon)
-    let appeared = Task { await model.viewAppeared() }
+        Fixture.session: SessionStarted(root: "/work/ready", startedAtMs: 0),
+        "slow": SessionStarted(root: "/work/slow", startedAtMs: 0),
+      ])
+
+    let reloading = Task { await model.reloadShortcutPressed() }
     await daemon.waitForSessionStartCall(2)
     await Task.megaYield()
-    #expect(model.sessions[id: "ready"]?.root == ChangeStreamPageModel.normalizedFolder("/work/ready"))
+    expectNoDifference(model.sidebarGroups, before)
+    #expect(model.sessions[id: "slow"] == nil)
+
     release.yield()
-    await appeared.value
+    await reloading.value
+    expectNoDifference(model.sidebarGroups.map(\.name), ["ready", "slow"])
+  }
+
+  @Test func aNewSessionTakesItsCapturesFolder() async {
+    fake.setSessions([SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false)])
+    fake.setCaptures([Fixture.capture(session: Fixture.otherSession, root: Self.workspaceRoot)])
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["r", "workspace-1"]])
+    expectNoDifference(fake.sessionStartCallCount, 0)
+  }
+
+  @Test func aSessionWithoutAFolderIsNotListed() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["project", "project"]])
+  }
+
+  static func names(_ groups: [SidebarGroup]) -> [[String]] {
+    groups.map { [$0.name] + $0.rows.map(SidebarGroup.rowName) }
   }
 
   @Test func closingTheWindowDuringSessionDiscoveryStartsNothing() async {
@@ -279,7 +320,7 @@ struct ChangeStreamPageTests {
     #expect(model.sessions[id: Fixture.session]?.root == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
   }
 
-  @Test func rootAndOpenButtonFolderAreNilUntilStartLoads() async {
+  @Test func aSessionIsSelectedOnlyOnceItsFolderLoads() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
     daemon.setSessions(
@@ -289,7 +330,7 @@ struct ChangeStreamPageTests {
     let appeared = Task { await model.viewAppeared() }
     await daemon.waitForSessionStartCall(1)
     await Task.megaYield()
-    #expect(model.selectedSession != nil)
+    #expect(model.selectedSession == nil)
     #expect(model.selectedFolder == nil)
     #expect(model.openIn.folder == nil)
     release.yield()
@@ -333,21 +374,20 @@ struct ChangeStreamPageTests {
   }
 
   @Test func chatTextWhileFolderUnknown() async {
-    let (gate, release) = AsyncStream<Void>.makeStream()
-    let daemon = DaemonFake(sessionStartGates: [Fixture.session: gate])
+    let daemon = DaemonFake()
     daemon.setSessions(
       [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
       starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    daemon.setSessionStartError(URLError(.networkConnectionLost))
     let model = makeModel(daemon: daemon)
 
-    let appeared = Task { await model.viewAppeared() }
-    await daemon.waitForSessionStartCall(1)
-    await Task.megaYield()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
     #expect(model.chatEmptyText == "Finding this stream's folder…")
     #expect(model.chat.noWorkspaceText == "Finding this stream's folder…")
 
-    release.yield()
-    await appeared.value
+    daemon.setSessionStartError(nil)
+    await model.reloadShortcutPressed()
     #expect(model.chatEmptyText == nil)
     #expect(model.chat.folder == ChangeStreamPageModel.normalizedFolder("/tmp/project"))
   }
@@ -702,6 +742,7 @@ struct ChangeStreamPageTests {
   }
 
   @Test func pollFetchesStartRecordsOnce() async {
+    fake.setCaptures([])
     fake.setSessions(
       [
         SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
@@ -2745,11 +2786,17 @@ extension ChangeStreamPageTests {
   }
 
   func listThreeSessionsWithOneRecording() {
-    fake.setSessions([
-      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
-      SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
-      SessionSummary(id: "uncaptured", durableSeq: .zero, removed: false),
-    ])
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: "uncaptured", durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/work/old", startedAtMs: 0),
+        "uncaptured": SessionStarted(root: "/work/uncaptured", startedAtMs: 0),
+      ])
     fake.setCaptures([
       Fixture.capture(),
       Fixture.capture(.stopped, reason: "archived", session: Fixture.otherSession, root: "/work/old", binding: nil),
@@ -2774,7 +2821,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     listThreeSessionsWithOneRecording()
     await model.reloadShortcutPressed()
-    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession])
+    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.otherSession, Fixture.session])
   }
 
   @Test func theSidebarHidesNothingWhenCaptureStateIsUnknown() async {
@@ -2784,7 +2831,7 @@ extension ChangeStreamPageTests {
     await model.viewAppeared()
     defer { model.viewDisappeared() }
     expectNoDifference(
-      model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession, "uncaptured"])
+      model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.otherSession, Fixture.session, "uncaptured"])
   }
 
   /// Capture-only rows: each capture is a row rooted at its own folder.
@@ -2825,7 +2872,7 @@ extension ChangeStreamPageTests {
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
-    expectNoDifference(sidebarRowIDs(model), ["managed", "recording"])
+    expectNoDifference(sidebarRowIDs(model), ["recording", "managed"])
   }
 
   @Test func aPausedRowBrightensWhenSelectedOrHovered() async throws {
@@ -3967,7 +4014,7 @@ extension ChangeStreamPageTests {
 
     let creating = Task { await model.newWorkspaceTapped() }
     await Task.megaYield()
-    expectNoDifference(terminal.launches.last?.arguments, ["workspace", "create", "/r", "--store", "store-a"])
+    expectNoDifference(setupLaunch.map { terminal.launches[$0].arguments }, ["workspace", "create", "/r", "--store", "store-a"])
     fake.setSessions(
       [
         SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
@@ -4227,6 +4274,67 @@ extension ChangeStreamPageTests {
     #expect(model.chat.folder == nil)
   }
 
+  /// The daemon lists sessions in id order, which for real UUIDs is random.
+  nonisolated func listWorkspacesInIDOrder(_ workspaces: [(id: String, root: String)]) {
+    let sorted = workspaces.sorted { $0.id < $1.id }
+    fake.setSessions(sorted.map { SessionSummary(id: $0.id, durableSeq: .zero, removed: false) })
+    fake.setCaptures(sorted.map { Fixture.capture(session: $0.id, root: $0.root) })
+  }
+
+  static let threeWorkspaces = [
+    (id: "e1", root: "/work/slipstream/workspaces/zeta/workspace-1"),
+    (id: "b2", root: "/work/slipstream/workspaces/Alpha/workspace-10"),
+    (id: "d3", root: "/work/slipstream/workspaces/Alpha/workspace-2"),
+    (id: "a4", root: "/tmp/elsewhere"),
+  ]
+
+  @Test func addingAndArchivingAWorkspaceMovesNothingElse() async {
+    listWorkspacesInIDOrder(Self.threeWorkspaces)
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    expectNoDifference(
+      Self.names(model.sidebarGroups),
+      [["Alpha", "workspace-2", "workspace-10"], ["zeta", "workspace-1"], ["elsewhere", "elsewhere"]])
+
+    listWorkspacesInIDOrder(Self.threeWorkspaces + [(id: "0new", root: "/work/slipstream/workspaces/zeta/workspace-3")])
+    await expectDifference(Self.names(model.sidebarGroups)) {
+      await model.reloadShortcutPressed()
+    } changes: {
+      $0[1].append("workspace-3")
+    }
+
+    listWorkspacesInIDOrder(
+      Self.threeWorkspaces.filter { $0.id != "d3" } + [(id: "0new", root: "/work/slipstream/workspaces/zeta/workspace-3")])
+    await expectDifference(Self.names(model.sidebarGroups)) {
+      await model.reloadShortcutPressed()
+    } changes: {
+      $0[0].remove(at: 1)
+    }
+  }
+
+  @Test func renamingAWorkspaceKeepsItsPlace() async {
+    listTwoWorkspaces()
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+    expectNoDifference(Self.names(model.sidebarGroups), [["r", "workspace-1", "workspace-2"]])
+
+    fake.setSessions([
+      SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+      SessionSummary(
+        id: Fixture.otherSession, durableSeq: .zero, removed: false,
+        naming: SessionNaming(agentName: nil, userName: "Aardvark")),
+    ])
+    await expectDifference(Self.names(model.sidebarGroups)) {
+      await model.reloadShortcutPressed()
+    } changes: {
+      $0[0][2] = "Aardvark"
+    }
+  }
+
   @Test func rowsGroupByRepoOnceTheRootsLoad() async {
     let conductorRoot = "/work/conductor/workspaces/r/lisbon"
     fake.setSessions(
@@ -4255,13 +4363,13 @@ extension ChangeStreamPageTests {
     await appeared.value
     await Task.megaYield()
     let selected = model.selectedSession
-    expectNoDifference(model.sidebarGroups.map(\.name), ["workspace-1", "lisbon"])
+    expectNoDifference(model.sidebarGroups.map(\.name), ["lisbon", "workspace-1"])
 
     release.yield()
     await Task.megaYield()
 
     expectNoDifference(model.sidebarGroups.map(\.name), ["r"])
-    expectNoDifference(model.sidebarGroups.first?.rows.map(\.id), [Fixture.session, Fixture.otherSession])
+    expectNoDifference(model.sidebarGroups.first?.rows.map(\.id), [Fixture.otherSession, Fixture.session])
     expectNoDifference(model.selectedSession, selected)
   }
 
@@ -4455,7 +4563,7 @@ extension ChangeStreamPageTests {
     let creating = Task { await model.newWorkspaceTapped(in: group) }
     await Task.megaYield()
     expectNoDifference(
-      terminal.launches.last?.arguments, ["workspace", "create", Self.workspaceRoot, "--store", "store-a"])
+      setupLaunch.map { terminal.launches[$0].arguments }, ["workspace", "create", Self.workspaceRoot, "--store", "store-a"])
     let created = "1b2c3d4e-2222-4c55-9a7e-2f4b8c9d0e1b"
     fake.setSessions(
       [
@@ -4644,6 +4752,7 @@ extension ChangeStreamPageTests {
         "sibling-session": SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
         Fixture.otherSession: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
       ])
+    fake.setCaptures([Fixture.capture(root: Self.workspaceRoot)])
     let model = makeModel(chat: makeWorkingChat(AgentFake()), workspace: workspaceClient(archive: archive))
     await model.viewAppeared()
     await Task.megaYield()
