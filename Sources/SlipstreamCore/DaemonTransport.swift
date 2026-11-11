@@ -5,12 +5,20 @@ public struct SessionSummary: Equatable, Sendable, Decodable, Identifiable {
   public var durableSeq: Seq
   public var removed: Bool
   public var agentConnection: AgentConnection
+  public var naming: SessionNaming?
 
-  public init(id: String, durableSeq: Seq, removed: Bool, agentConnection: AgentConnection = .unreported) {
+  public init(
+    id: String,
+    durableSeq: Seq,
+    removed: Bool,
+    agentConnection: AgentConnection = .unreported,
+    naming: SessionNaming? = nil
+  ) {
     self.id = id
     self.durableSeq = durableSeq
     self.removed = removed
     self.agentConnection = agentConnection
+    self.naming = naming
   }
 
   public init(from decoder: any Decoder) throws {
@@ -24,6 +32,7 @@ public struct SessionSummary: Equatable, Sendable, Decodable, Identifiable {
     } else {
       agentConnection = .unreported
     }
+    naming = (try? container.decodeIfPresent(SessionNaming.self, forKey: .naming)) ?? nil
   }
 
   private enum CodingKeys: String, CodingKey {
@@ -31,6 +40,22 @@ public struct SessionSummary: Equatable, Sendable, Decodable, Identifiable {
     case durableSeq = "durable_seq"
     case removed
     case agentConnection = "agent_connection"
+    case naming
+  }
+}
+
+public struct SessionNaming: Equatable, Sendable, Decodable {
+  public var agentName: String?
+  public var userName: String?
+
+  public init(agentName: String? = nil, userName: String? = nil) {
+    self.agentName = agentName
+    self.userName = userName
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case agentName = "agent_name"
+    case userName = "user_name"
   }
 }
 

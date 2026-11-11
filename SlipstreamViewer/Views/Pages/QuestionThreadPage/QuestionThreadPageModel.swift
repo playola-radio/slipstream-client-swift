@@ -53,12 +53,13 @@ final class QuestionThreadPageModel: ViewModel {
 
   init(
     key: QuestionThreadKey, thread: QuestionThread, bindingGeneration: String?, folder: String?,
-    instantAsk: InstantAskModel
+    workspaceName: @escaping (String) -> String, instantAsk: InstantAskModel
   ) {
     self.key = key
     self.thread = thread
     self.bindingGeneration = bindingGeneration
     self.folder = folder
+    self.workspaceName = workspaceName
     self.instantAsk = instantAsk
     super.init()
   }
@@ -68,6 +69,7 @@ final class QuestionThreadPageModel: ViewModel {
   private(set) var key: QuestionThreadKey
   private var bindingGeneration: String?
   private let folder: String?
+  @ObservationIgnored private let workspaceName: (String) -> String
   @ObservationIgnored private let instantAsk: InstantAskModel
   private(set) var thread: QuestionThread
   private(set) var isDismissed = false
@@ -148,7 +150,7 @@ final class QuestionThreadPageModel: ViewModel {
 
   var pendingFailureDetail: String? {
     switch pendingTurn?.state {
-    case .couldntAnswer(let failure): failure.detail
+    case .couldntAnswer(let failure): failure.detail(workspaceName: workspaceName)
     case .couldntRecord: "The daemon didn't confirm it saved the answer."
     case .answering, .recording, .recorded, nil: nil
     }

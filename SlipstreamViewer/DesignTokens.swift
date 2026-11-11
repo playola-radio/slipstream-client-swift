@@ -749,6 +749,84 @@ enum DesignTokens {
     static let footerColor = Color(hex: 0x8B9AA6)
   }
 
+  enum RenameDialog {
+    static let width: CGFloat = 420
+    static let padding: CGFloat = 24
+    static let gap: CGFloat = 14
+    static let fill = Color(hex: 0x1B222A)
+
+    static let headerGap: CGFloat = 10
+    static let headerIcon = Icons.Icon(assetName: "Folder", size: 18, color: Color(hex: 0xA9B7C2))
+    static let titleFont = variableFont(family: geistFamily, size: 17, weight: 600)
+    static let titleColor = Color(hex: 0xE6EDF3)
+
+    static let fieldHeight: CGFloat = 38
+    static let fieldHorizontalPadding: CGFloat = 10
+    static let fieldRadius: CGFloat = 6
+    static let fieldFill = Color(hex: 0x11171D)
+    static let fieldFont = variableFont(family: geistFamily, size: 14, weight: 400)
+
+    static func fieldTextColor(isDisabled: Bool) -> Color {
+      isDisabled ? Color(hex: 0x6B7C89) : Color(hex: 0xE6EDF3)
+    }
+
+    static func fieldStroke(isInvalid: Bool, isDisabled: Bool) -> Color {
+      if isDisabled { return Color(hex: 0x2A3640) }
+      return isInvalid ? Color(hex: 0xF0A4AB) : Color(hex: 0x6CB6FF)
+    }
+
+    static let errorGap: CGFloat = 6
+    static let errorIcon = Icons.Icon(assetName: "CircleAlert", size: 13, color: Color(hex: 0xF0A4AB))
+    static let errorFont = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let errorColor = Color(hex: 0xF0A4AB)
+    static let errorLineSpacing: CGFloat = 12 * (1.35 - 1)
+
+    static let detailInsets = EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 8)
+    static let detailGap: CGFloat = 8
+    static let detailRadius: CGFloat = 6
+    static let detailFill = Color(hex: 0x11171D)
+    static let detailStroke = Color(hex: 0x2A3640)
+    static let detailFont = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+    static let detailColor = Color(hex: 0xC9D6DF)
+    static let detailLineSpacing: CGFloat = 11.5 * (1.45 - 1)
+
+    static let copyInsets = EdgeInsets(top: 3, leading: 7, bottom: 3, trailing: 7)
+    static let copyGap: CGFloat = 4
+    static let copyRadius: CGFloat = 4
+    static let copyStroke = Color(hex: 0x34414E)
+    static let copyIcon = Icons.Icon(assetName: "Copy", size: 12, color: Color(hex: 0xA9B7C2))
+    static let copyFont = variableFont(family: geistFamily, size: 11.5, weight: 500)
+    static let copyColor = Color(hex: 0xA9B7C2)
+
+    static let helperFont = variableFont(family: geistFamily, size: 12, weight: 400)
+    static let helperColor = Color(hex: 0x6B7C89)
+    static let helperLineSpacing: CGFloat = 12 * (1.4 - 1)
+
+    static let buttonGap: CGFloat = 8
+    static let buttonHeight: CGFloat = 32
+    static let buttonHorizontalPadding: CGFloat = 14
+    static let buttonRadius: CGFloat = 6
+    static let buttonContentGap: CGFloat = 6
+    static let buttonFont = variableFont(family: geistFamily, size: 13, weight: 500)
+
+    struct ButtonColors {
+      let fill: Color
+      let text: Color
+    }
+
+    private static let dimmedButton = ButtonColors(fill: Color(hex: 0x26303A), text: Color(hex: 0x56646F))
+
+    static func cancelButton(isDimmed: Bool) -> ButtonColors {
+      isDimmed ? dimmedButton : ButtonColors(fill: .clear, text: Color(hex: 0xC9D6DF))
+    }
+
+    static func primaryButton(isDimmed: Bool) -> ButtonColors {
+      isDimmed ? dimmedButton : ButtonColors(fill: Color(hex: 0x6CB6FF), text: Color(hex: 0x0E1318))
+    }
+
+    static let savingSpinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x0E1318))
+  }
+
   enum TaskHeading {
     static let fill = Color(hex: 0x24313B)
     static let stroke = Color(hex: 0x526B7B)

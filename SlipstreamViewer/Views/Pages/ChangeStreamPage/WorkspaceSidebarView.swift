@@ -195,6 +195,20 @@ private struct WorkspaceRowView: View {
     }
     .onHover { model.rowHoverChanged(session, isHovering: $0) }
     .onChange(of: focus) { model.rowFocusChanged(session, isFocused: focus != nil) }
+    .contextMenu {
+      Button(model.renameMenuText, systemImage: "pencil") { model.renameMenuTapped(session) }
+        .disabled(!model.isRenameEnabled(session))
+        .help(model.renameHelpText(session))
+      Button(model.useAgentNameMenuText, systemImage: "arrow.uturn.backward") {
+        Task { await model.useAgentNameMenuTapped(session) }
+      }
+      .disabled(!model.isUseAgentNameEnabled(session))
+      if model.isArchivable(session) {
+        Divider()
+        Button(model.archiveMenuText, systemImage: "archivebox") { model.archiveTapped(session) }
+          .disabled(model.isWorkspaceBusy)
+      }
+    }
   }
 
   private func rowAction(_ action: DesignTokens.Sidebar.RowAction) -> some View {

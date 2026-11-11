@@ -22,6 +22,8 @@ struct ChangeStreamPageTests {
   let agent = AgentFake()
   let terminal = TerminalFake()
   let recordingFake = RecordingFake()
+  let nameFake = WorkspaceNameFake()
+  let copied = LockIsolated<[String]>([])
 
   init() {
     fake = DaemonFake()
@@ -46,6 +48,8 @@ struct ChangeStreamPageTests {
       $0.date = DateGenerator(now ?? { Fixture.checkedAt })
       $0.terminalRuntime = terminal.runtimeClient
       $0.recording = recordingFake.client
+      $0.workspaceName = nameFake.client
+      $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
       $0.openIn.installedApps = { [] }
     } operation: {
       let chat = chat ?? makeChat()
@@ -177,7 +181,7 @@ struct ChangeStreamPageTests {
 
   // MARK: - Sessions
 
-  @Test func sessionsAreLabelledByRootAndStartTimeAndRemovedOnesHidden() async {
+  @Test func sessionsKeepTheirIDAsLabelAndRemovedOnesHidden() async {
     fake.setCaptures([])
     fake.setSessions(
       [
@@ -192,7 +196,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       model.sessions,
       [
-        SessionOption(id: "a", label: "/work/alpha · started Oct 3 14:18:10", root: "/work/alpha"),
+        SessionOption(id: "a", label: "a", root: "/work/alpha"),
         SessionOption(id: "c", label: "c"),
       ]
     )
@@ -200,27 +204,7 @@ struct ChangeStreamPageTests {
     #expect(model.emptyStateText == "No capture sessions yet")
   }
 
-  @Test func capturesOfTheSameFolderAreToldApartByStartTime() async {
-    fake.setCaptures([])
-    fake.setSessions(
-      [
-        SessionSummary(id: "a", durableSeq: .zero, removed: false),
-        SessionSummary(id: "b", durableSeq: .zero, removed: false),
-      ],
-      starts: [
-        "a": SessionStarted(root: "/work/alpha", startedAtMs: 1_790_950_000_000),
-        "b": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_974),
-      ]
-    )
-    let model = makeModel()
-    await model.viewAppeared()
-    expectNoDifference(
-      model.sessions.map(\.label),
-      ["/work/alpha · started Oct 2 14:06:40", "/work/alpha · started Oct 3 14:18:10"]
-    )
-  }
-
-  @Test func readySessionLabelAppearsWhileAnotherStartLookupIsSlow() async {
+  @Test func readySessionFolderAppearsWhileAnotherStartLookupIsSlow() async {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let daemon = DaemonFake(sessionStartGates: ["slow": gate])
     daemon.setSessions(
@@ -237,35 +221,9 @@ struct ChangeStreamPageTests {
     let appeared = Task { await model.viewAppeared() }
     await daemon.waitForSessionStartCall(2)
     await Task.megaYield()
-    #expect(model.sessions[id: "ready"]?.label == "/work/ready · started Oct 3 14:18:10")
+    #expect(model.sessions[id: "ready"]?.root == ChangeStreamPageModel.normalizedFolder("/work/ready"))
     release.yield()
     await appeared.value
-  }
-
-  @Test func capturesStartedInTheSameSecondAreToldApartByID() async {
-    fake.setCaptures([])
-    fake.setSessions(
-      [
-        SessionSummary(id: "11111111-aaaa", durableSeq: .zero, removed: false),
-        SessionSummary(id: "22222222-bbbb", durableSeq: .zero, removed: false),
-        SessionSummary(id: "33333333-cccc", durableSeq: .zero, removed: false),
-      ],
-      starts: [
-        "11111111-aaaa": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_100),
-        "22222222-bbbb": SessionStarted(root: "/work/alpha", startedAtMs: 1_791_037_090_974),
-        "33333333-cccc": SessionStarted(root: "/work/beta", startedAtMs: 1_791_037_090_100),
-      ]
-    )
-    let model = makeModel()
-    await model.viewAppeared()
-    expectNoDifference(
-      model.sessions.map(\.label),
-      [
-        "/work/alpha · started Oct 3 14:18:10 · 11111111-aaaa",
-        "/work/alpha · started Oct 3 14:18:10 · 22222222-bbbb",
-        "/work/beta · started Oct 3 14:18:10",
-      ]
-    )
   }
 
   @Test func closingTheWindowDuringSessionDiscoveryStartsNothing() async {
@@ -302,7 +260,7 @@ struct ChangeStreamPageTests {
 
   @Test func singleSessionIsSelectedAutomatically() async {
     let model = await connectedModel()
-    #expect(model.selectedSession?.label == "/tmp/project · started Jan 1 00:00:00")
+    #expect(model.selectedSession?.id == Fixture.session)
     expectNoDifference(fake.follows, [FollowRequest(token: "token-1", sessionID: Fixture.session, cursor: .zero)])
     #expect(model.statusText == "Connecting…")
     #expect(model.emptyStateText == "Waiting for changes…")
@@ -526,6 +484,332 @@ struct ChangeStreamPageTests {
     fake.setSessions([SessionSummary(id: "a", durableSeq: .zero, removed: false), SessionSummary(id: "b", durableSeq: .zero, removed: false)])
     await model.reloadShortcutPressed()
     #expect(model.sessions.ids == ["a", "b"])
+  }
+
+  // MARK: - Workspace names
+
+  @Test func namesUpdateRowAndBreadcrumbTogether() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+
+    await model.reloadShortcutPressed()
+
+    expectNoDifference([model.rowName(model.sessions[0]), model.breadcrumbWorkspaceText], ["My name", "My name"])
+  }
+
+  @Test func queuedNoticeUsesLatestNameAfterPoll() async {
+    fake.setCaptures([])
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name")),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    model.selectedSession = model.sessions[id: Fixture.otherSession]
+    model.connection = .live
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { try AskAgentPageTests.ack($0) }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name")),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+
+    await model.reloadShortcutPressed()
+
+    expectNoDifference(
+      model.footerText, "Connected · New changes appear below · Question queued for My name (delivery not confirmed)")
+  }
+
+  @Test func renameDisabledReasons() {
+    let model = makeModel()
+
+    expectNoDifference(
+      [
+        SessionOption(id: "named", label: "named", naming: SessionNaming()),
+        SessionOption(id: "capture-only", label: "w", hasHistory: false),
+        SessionOption(id: "older-daemon", label: "older-daemon"),
+      ].map(model.renameDisabledReason),
+      [
+        nil,
+        "Can be named once work starts here.",
+        "This version of the Slipstream daemon can't rename workspaces.",
+      ])
+  }
+
+  @Test func renameHelpTextIsTheDisabledReason() {
+    let model = makeModel()
+
+    expectNoDifference(
+      [
+        SessionOption(id: "named", label: "named", naming: SessionNaming()),
+        SessionOption(id: "capture-only", label: "w", hasHistory: false),
+      ].map(model.renameHelpText),
+      ["", "Can be named once work starts here."])
+  }
+
+  @Test func useAgentNameEnabledOnlyWithUserName() {
+    let model = makeModel()
+
+    expectNoDifference(
+      [
+        SessionOption(id: "renamed", label: "renamed", naming: SessionNaming(agentName: "Agent's name", userName: "My name")),
+        SessionOption(id: "agent-named", label: "agent-named", naming: SessionNaming(agentName: "Agent's name")),
+        SessionOption(id: "older-daemon", label: "older-daemon"),
+      ].map(model.isUseAgentNameEnabled),
+      [true, false, false])
+  }
+
+  @Test func pollDoesNotChangeDraft() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.renameMenuTapped(model.sessions[0])
+    model.naming.draftChanged("My draft")
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Newer agent name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let poll = Task { await model.sessionPollTask() }
+
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    expectNoDifference(model.rowName(model.sessions[0]), "Newer agent name")
+    expectNoDifference(model.naming.dialog?.draft, "My draft")
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func useAgentNameFailureRaisesAlert() async {
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+
+    await model.useAgentNameMenuTapped(model.sessions[0])
+
+    expectNoDifference([model.isWorkspaceFailurePresented, model.isWorkspaceFailureCopyShown], [true, true])
+    expectNoDifference(
+      [model.workspaceFailureTitle, model.workspaceFailureText, model.workspaceFailureDetail],
+      [
+        "Couldn't switch back to the agent's name", "STORAGE_UNAVAILABLE: store lock lost",
+        "STORAGE_UNAVAILABLE: store lock lost",
+      ])
+    model.copyWorkspaceFailureTapped()
+    expectNoDifference(copied.value, ["STORAGE_UNAVAILABLE: store lock lost"])
+  }
+
+  @Test func namingMenuActionsAreDisabledWhileAMutationRuns() async {
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    nameFake.hold()
+
+    let clear = Task { await model.useAgentNameMenuTapped(model.sessions[0]) }
+    await Task.megaYield()
+
+    expectNoDifference(
+      [model.isRenameEnabled(model.sessions[0]), model.isUseAgentNameEnabled(model.sessions[0])], [false, false])
+    nameFake.release()
+    await clear.value
+  }
+
+  // MARK: - Session poll
+
+  @Test func pollRefreshesEveryTwoSeconds() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let calls = fake.sessionsCallCount
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let poll = Task { await model.sessionPollTask() }
+
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    expectNoDifference(fake.sessionsCallCount, calls + 1)
+    expectNoDifference(model.rowName(model.sessions[0]), "Agent's name")
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func noPollWhileInactive() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let poll = Task { await model.sessionPollTask() }
+    await Task.megaYield()
+    model.chat.appActivityChanged(isActive: false)
+    let calls = fake.sessionsCallCount
+
+    await clock.advance(by: .seconds(10))
+    await Task.megaYield()
+
+    expectNoDifference(fake.sessionsCallCount, calls)
+    #expect(!model.isSessionPollRunning)
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func reactivationRefreshesImmediately() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.chat.appActivityChanged(isActive: false)
+    let calls = fake.sessionsCallCount
+
+    await model.appBecameActive()
+
+    expectNoDifference(fake.sessionsCallCount, calls + 1)
+    #expect(model.isSessionPollRunning)
+  }
+
+  @Test func pollFetchesStartRecordsOnce() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let poll = Task { await model.sessionPollTask() }
+
+    for _ in 1...3 {
+      await clock.advance(by: .seconds(2))
+      await Task.megaYield()
+    }
+
+    expectNoDifference(fake.sessionStartCallCount, 2)
+    poll.cancel()
+    await poll.value
+  }
+
+  @Test func pollTicksCoalesce() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    daemon.setCaptures([Fixture.capture()])
+    let model = makeModel(daemon: daemon)
+    defer { model.viewDisappeared() }
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    open.yield()
+    await appeared.value
+    let calls = daemon.sessionsCallCount
+    let poll = Task { await model.sessionPollTask() }
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    await model.reloadShortcutPressed()
+    await model.reloadShortcutPressed()
+    expectNoDifference(daemon.sessionsCallCount, calls + 1)
+    open.yield()
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+
+    expectNoDifference(daemon.sessionsCallCount, calls + 2)
+    poll.cancel()
+    open.finish()
+    await poll.value
+  }
+
+  @Test func backgroundingMidPollKeepsTheRefresh() async {
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    let daemon = DaemonFake(sessionsGate: gate)
+    daemon.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    daemon.setCaptures([Fixture.capture()])
+    let model = makeModel(daemon: daemon)
+    defer { model.viewDisappeared() }
+    let appeared = Task { await model.viewAppeared() }
+    await Task.megaYield()
+    open.yield()
+    await appeared.value
+    let calls = daemon.sessionsCallCount
+    let poll = Task { await model.sessionPollTask() }
+    await clock.advance(by: .seconds(2))
+    await Task.megaYield()
+
+    model.chat.appActivityChanged(isActive: false)
+    poll.cancel()
+    await model.appBecameActive()
+    open.yield()
+    await Task.megaYield()
+    open.yield()
+    await Task.megaYield()
+
+    expectNoDifference(daemon.sessionsCallCount, calls + 2)
+    expectNoDifference(model.captureAvailability, .available(checkedAt: Fixture.checkedAt))
+    open.finish()
+    await poll.value
+  }
+
+  @Test func namingWriteAfterTheWindowClosesDoesNotRefresh() async {
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "My name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+    nameFake.hold()
+    let clear = Task { await model.useAgentNameMenuTapped(model.sessions[0]) }
+    await Task.megaYield()
+
+    model.viewDisappeared()
+    let calls = fake.sessionsCallCount
+    nameFake.release()
+    await clear.value
+
+    expectNoDifference(fake.sessionsCallCount, calls)
   }
 
   // MARK: - Cursor
@@ -4102,6 +4386,7 @@ extension ChangeStreamPageTests {
     #expect(model.isWorkspaceFailurePresented)
     #expect(model.workspaceFailureTitle == "Couldn't archive the workspace")
     #expect(model.workspaceFailureText == "slipstream: the workspace has uncommitted or untracked changes.")
+    #expect(!model.isWorkspaceFailureCopyShown)
   }
 
   @Test func refusedArchiveRestoresEachDraft() async throws {
@@ -4166,11 +4451,24 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     expectNoDifference(
       terminal.launches.last?.arguments, ["workspace", "create", Self.workspaceRoot, "--store", "store-a"])
-    listTwoWorkspaces()
+    let created = "1b2c3d4e-2222-4c55-9a7e-2f4b8c9d0e1b"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: created, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        created: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(session: Fixture.otherSession, root: Self.workspaceRoot),
+      Fixture.capture(session: created, root: Self.secondWorkspaceRoot),
+    ])
     setupPrintsPath(Self.secondWorkspaceRoot)
     await creating.value
 
-    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.selectedSession?.id == created)
     #expect(model.chat.folder == Self.secondWorkspaceRoot)
     #expect(!model.isWorkspaceBusy)
   }

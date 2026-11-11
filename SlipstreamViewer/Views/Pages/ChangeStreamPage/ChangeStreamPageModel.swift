@@ -17,6 +17,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Dependency(\.timeZone) var timeZone
   @ObservationIgnored @Dependency(\.workspace) var workspace
   @ObservationIgnored @Dependency(\.terminalRuntime) var terminalRuntime
+  @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
 
   // MARK: - Shared State
 
@@ -44,6 +45,13 @@ final class ChangeStreamPageModel: ViewModel {
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
     recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
+    naming.onWriteFinished = { [weak self] in
+      guard let self, isShown else { return }
+      await reloadSessions()
+    }
+    naming.onClearFailed = { [weak self] detail in
+      self?.workspaceFailed(title: "Couldn't switch back to the agent's name", text: detail, detail: detail)
+    }
   }
 
   // MARK: - Properties
@@ -55,6 +63,7 @@ final class ChangeStreamPageModel: ViewModel {
   let terminals: TerminalPageModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
+  let naming = WorkspaceNamingModel()
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -74,7 +83,9 @@ final class ChangeStreamPageModel: ViewModel {
   var isWorkspaceFailurePresented = false
   private(set) var workspaceFailureTitle = ""
   private(set) var workspaceFailureText = ""
-  private(set) var queuedQuestionNotice: String?
+  /// The raw error behind the alert, copied by "Copy error"; nil hides that button.
+  private(set) var workspaceFailureDetail: String?
+  private var queuedQuestion: QueuedQuestion?
   private(set) var feedViewport = CGRect.zero
   private(set) var isSourceBlockVisible = false
   private(set) var sourceSelection: SourceSelection?
@@ -133,7 +144,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var workspaceRootsTask: Task<Void, Never>?
   @ObservationIgnored private var workspaceRootsGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
-  @ObservationIgnored private var isShown = false
+  private var isShown = false
   @ObservationIgnored private var needsReadinessRefresh = false
   @ObservationIgnored private var awaitsFreshSnapshot = false
   @ObservationIgnored private var pendingReadiness: (state: AgentConnection, seq: Seq)?
@@ -156,10 +167,14 @@ final class ChangeStreamPageModel: ViewModel {
 
   let newWorkspaceHelpText = "New workspace"
   let archiveWorkspaceHelpText = "Archive workspace"
+  let renameMenuText = "Rename…"
+  let useAgentNameMenuText = "Use agent's name"
+  let archiveMenuText = "Archive"
   let archiveConfirmationTitle = "Archive this workspace?"
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
   let workspaceFailureDismissText = "OK"
+  let workspaceFailureCopyText = "Copy error"
 
   var sidebarToggleHelpText: String { isSidebarHidden ? "Show Sidebar" : "Hide Sidebar" }
   var rightPaneToggleHelpText: String { isRightPaneHidden ? "Show Right Panel" : "Hide Right Panel" }
@@ -256,6 +271,15 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  var queuedQuestionNotice: String? {
+    switch queuedQuestion {
+    case nil: nil
+    case .here: "Question queued (delivery not confirmed)"
+    case .elsewhere(let sessionID):
+      "Question queued for \(workspaceName(for: sessionID) ?? "another capture") (delivery not confirmed)"
+    }
+  }
+
   var footerText: String {
     let captureText: String
     if connection == .live {
@@ -291,6 +315,10 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   // MARK: - View Helpers
+
+  var isSessionPollRunning: Bool { isShown && chat.isAppActive }
+
+  var isWorkspaceFailureCopyShown: Bool { workspaceFailureDetail != nil }
 
   var isSidebarShown: Bool { !isSidebarHidden }
   var isRightPaneShown: Bool { !isRightPaneHidden }
@@ -334,6 +362,24 @@ final class ChangeStreamPageModel: ViewModel {
 
   func rowName(_ session: SessionOption) -> String {
     SidebarGroup.rowName(session)
+  }
+
+  func renameDisabledReason(_ session: SessionOption) -> String? {
+    if !session.hasHistory { return "Can be named once work starts here." }
+    if session.naming == nil { return "This version of the Slipstream daemon can't rename workspaces." }
+    return nil
+  }
+
+  func renameHelpText(_ session: SessionOption) -> String {
+    renameDisabledReason(session) ?? ""
+  }
+
+  func isRenameEnabled(_ session: SessionOption) -> Bool {
+    renameDisabledReason(session) == nil && !naming.isMutationInFlight
+  }
+
+  func isUseAgentNameEnabled(_ session: SessionOption) -> Bool {
+    session.naming?.userName != nil && !naming.isMutationInFlight
   }
 
   func isSelected(_ session: SessionOption) -> Bool {
@@ -498,7 +544,7 @@ final class ChangeStreamPageModel: ViewModel {
   func sourceDragEnded() {
     guard askAgent == nil, let selection = sourceSelection else { return }
     replyCollapsed()
-    queuedQuestionNotice = nil
+    queuedQuestion = nil
     askAgent = withDependencies(from: self) {
       AskAgentPageModel(
         sessionID: selection.sessionID,
@@ -566,12 +612,7 @@ final class ChangeStreamPageModel: ViewModel {
       if let entry = pendingRoots[id: requestID] { replyOpened(on: entry.rootThread) }
       return
     }
-    if composer.sessionID == selectedSession?.id {
-      queuedQuestionNotice = "Question queued (delivery not confirmed)"
-    } else {
-      let capture = sessions[id: composer.sessionID]?.label ?? "another capture"
-      queuedQuestionNotice = "Question queued for \(capture) (delivery not confirmed)"
-    }
+    queuedQuestion = composer.sessionID == selectedSession?.id ? .here : .elsewhere(sessionID: composer.sessionID)
     questionDismissed()
   }
 
@@ -654,6 +695,15 @@ final class ChangeStreamPageModel: ViewModel {
     await reloadSessions()
   }
 
+  func sessionPollTask() async {
+    while isSessionPollRunning {
+      do { try await clock.sleep(for: .seconds(2)) } catch { return }
+      guard isSessionPollRunning else { return }
+      // Unstructured, so backgrounding cancels the poll but never the fetch it started.
+      await Task { await reloadSessions() }.value
+    }
+  }
+
   func reloadShortcutPressed() async {
     await reloadSessions()
   }
@@ -708,6 +758,21 @@ final class ChangeStreamPageModel: ViewModel {
     } else if focusedRowID == session.id {
       focusedRowID = nil
     }
+  }
+
+  func renameMenuTapped(_ session: SessionOption) {
+    guard isRenameEnabled(session) else { return }
+    naming.renameTapped(sessionID: session.id, currentName: rowName(session))
+  }
+
+  func useAgentNameMenuTapped(_ session: SessionOption) async {
+    guard isUseAgentNameEnabled(session) else { return }
+    await naming.useAgentNameTapped(sessionID: session.id)
+  }
+
+  func copyWorkspaceFailureTapped() {
+    guard let workspaceFailureDetail else { return }
+    pasteboard.copy(workspaceFailureDetail)
   }
 
   func archiveTapped(_ session: SessionOption) {
@@ -911,6 +976,15 @@ final class ChangeStreamPageModel: ViewModel {
 
   // MARK: - Private Helpers
 
+  private enum QueuedQuestion {
+    case here
+    case elsewhere(sessionID: String)
+  }
+
+  private func workspaceName(for sessionID: String) -> String? {
+    (sessions[id: sessionID] ?? selectedSession.flatMap { $0.id == sessionID ? $0 : nil }).map(rowName)
+  }
+
   nonisolated static func normalizedFolder(_ root: String) -> String {
     URL(fileURLWithPath: root).standardizedFileURL.resolvingSymlinksInPath().path
   }
@@ -1006,9 +1080,10 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
-  private func workspaceFailed(title: String, text: String) {
+  private func workspaceFailed(title: String, text: String, detail: String? = nil) {
     workspaceFailureTitle = title
     workspaceFailureText = text
+    workspaceFailureDetail = detail
     isWorkspaceFailurePresented = true
   }
 
@@ -1049,7 +1124,7 @@ final class ChangeStreamPageModel: ViewModel {
         uniqueElements: summaries.map { summary in
           var option = SessionOption(
             id: summary.id, label: summary.id, agentConnection: summary.agentConnection,
-            readinessSeq: summary.durableSeq, capture: capturesByID[summary.id])
+            readinessSeq: summary.durableSeq, capture: capturesByID[summary.id], naming: summary.naming)
           let known = selected?.id == summary.id ? selected : previous[id: summary.id]
           option.root = known?.root
           if let known, known.readinessSeq > summary.durableSeq {
@@ -1094,6 +1169,7 @@ final class ChangeStreamPageModel: ViewModel {
           selectedSession?.readinessSeq = listed.readinessSeq
           selectedSession?.capture = listed.capture
           selectedSession?.hasHistory = listed.hasHistory
+          selectedSession?.naming = listed.naming
           if !listed.hasHistory {
             selectedSession?.label = listed.label
             selectedSession?.root = listed.root
@@ -1121,21 +1197,15 @@ final class ChangeStreamPageModel: ViewModel {
         _ = select(sessions[0].id)
       }
       await withTaskGroup(of: (String, SessionStarted?).self) { group in
-        for summary in summaries {
+        for summary in summaries where sessions[id: summary.id]?.root == nil {
           group.addTask { (summary.id, try? await daemon.sessionStart(descriptor, summary.id)) }
         }
-        var starts: [String: SessionStarted] = [:]
         for await (id, start) in group {
-          starts[id] = start
           guard generation == sessionsGeneration else { return }
           if let start {
             let root = Self.normalizedFolder(start.root)
             sessions[id: id]?.root = root
             if selectedSession?.id == id { selectedSession?.root = root }
-          }
-          for (id, label) in sessionLabels(starts) {
-            sessions[id: id]?.label = label
-            if selectedSession?.id == id { selectedSession?.label = label }
           }
         }
       }
@@ -1244,7 +1314,8 @@ final class ChangeStreamPageModel: ViewModel {
     reply = withDependencies(from: self) {
       QuestionThreadPageModel(
         key: key, thread: thread, bindingGeneration: selectedSession?.capture?.binding?.generation,
-        folder: selectedSession?.root, instantAsk: instantAsk)
+        folder: selectedSession?.root, workspaceName: { [weak self] id in self?.workspaceName(for: id) ?? id },
+        instantAsk: instantAsk)
     }
     replyBarFrame = barFrames[thread.id] ?? .zero
     isReplyBarVisible = barFrames[thread.id] != nil
@@ -1560,18 +1631,6 @@ final class ChangeStreamPageModel: ViewModel {
     if follow == .following { scrollToLatestRequest += 1 }
   }
 
-  private func sessionLabels(_ starts: [String: SessionStarted]) -> [String: String] {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = timeZone
-    formatter.dateFormat = "MMM d HH:mm:ss"
-    let labels = starts.mapValues { start in
-      let started = formatter.string(from: Date(timeIntervalSince1970: Double(start.startedAtMs) / 1000))
-      return "\(start.root) · started \(started)"
-    }
-    return Self.uniqueLabels(labels.map { (id: $0.key, label: $0.value) })
-  }
-
   private static func uniqueLabels(_ labels: [(id: String, label: String)]) -> [String: String] {
     let counts = Dictionary(labels.map { ($0.label, 1) }, uniquingKeysWith: +)
     var unique: [String: String] = [:]
@@ -1645,7 +1704,7 @@ final class ChangeStreamPageModel: ViewModel {
     replyCollapsed()
     questionThreads = QuestionThreads()
     barFrames = [:]
-    queuedQuestionNotice = nil
+    queuedQuestion = nil
     isSourceBlockVisible = false
     feedGeneration += 1
     sections = []

@@ -88,6 +88,7 @@ final class DaemonFake: Sendable {
 
   func setTokens(_ tokens: [String]) { state.withLock { $0.tokens = tokens } }
   var sessionsCallCount: Int { state.withLock { $0.sessionsCallCount } }
+  var sessionStartCallCount: Int { state.withLock { $0.sessionStartCallCount } }
   func setSessionsError(_ error: (any Error)?) { state.withLock { $0.sessionsError = error } }
   var capturesCallCount: Int { state.withLock { $0.capturesCallCount } }
   func setCaptures(_ captures: [CaptureSummary]) { setCaptures(.list(CaptureList(captures: captures))) }
@@ -151,6 +152,7 @@ final class DaemonFake: Sendable {
         }
         if let sessionsGate {
           for await _ in sessionsGate { break }
+          try Task.checkCancellation()
         }
         if let error = state.withLock({ $0.sessionsError }) { throw error }
         return snapshot

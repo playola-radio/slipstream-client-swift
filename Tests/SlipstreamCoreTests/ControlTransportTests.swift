@@ -269,3 +269,32 @@ extension ControlTransportTests {
     }
   }
 }
+
+extension ControlTransportTests {
+  static func renameLine(_ name: String) -> String {
+    #"{"v":1,"verb":"rename_session","session_id":"\#(QuestionsTests.session)","name":\#(name)}"#
+  }
+
+  @Test func renameSendsNameAndSessionID() async throws {
+    try await exchange(reply: #"{"v":1,"ok":true}"#, expecting: Self.renameLine(#""Fix login""#)) {
+      try await $0.renameSession(sessionID: QuestionsTests.session, name: "Fix login")
+    }
+  }
+
+  @Test func clearSendsExplicitNull() async throws {
+    try await exchange(reply: #"{"v":1,"ok":true}"#, expecting: Self.renameLine("null")) {
+      try await $0.renameSession(sessionID: QuestionsTests.session, name: nil)
+    }
+  }
+
+  @Test func sessionNotFoundIsRejected() async throws {
+    try await exchange(
+      reply: #"{"v":1,"ok":false,"code":"SESSION_NOT_FOUND","message":"session was deleted"}"#,
+      expecting: Self.renameLine(#""Fix login""#)
+    ) { transport in
+      await #expect(throws: QuestionError.rejected(code: "SESSION_NOT_FOUND", message: "session was deleted")) {
+        try await transport.renameSession(sessionID: QuestionsTests.session, name: "Fix login")
+      }
+    }
+  }
+}
