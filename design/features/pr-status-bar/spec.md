@@ -233,14 +233,18 @@ is while merging) while an operation is in flight or any chat tab in the workspa
 ### Continue
 
 Shown only in Merged, which already guarantees a clean worktree whose `HEAD` is the merged head.
+Disabled, like the agent buttons, while an action runs or a chat in the folder is working (D15).
 
 1. `git fetch origin <target>`.
 2. Pick `<name>`: the old branch with `-2`, `-3`… (an existing `-N` suffix is incremented); the
    first name that exists neither locally nor on origin. One `git for-each-ref
    --format=%(refname:short) refs/heads` and one `git ls-remote --heads origin` supply both lists;
    a pure function in Core picks the name.
-3. `git switch -c <name> origin/<target>`. No upstream is set; the next Create PR pushes it.
-4. Any failure shows in Details; success refreshes. The chats stay.
+3. Recheck at click time that the branch, `HEAD` (the PR's `headRefOid`) and a clean
+   `git status` still hold; if not, show the failure and reload instead of switching.
+4. `git switch --no-track -c <name> origin/<target>`. No upstream is set; the next Create PR
+   pushes it.
+5. Any failure shows in Details; success refreshes. The chats stay.
 
 ### Archive
 
