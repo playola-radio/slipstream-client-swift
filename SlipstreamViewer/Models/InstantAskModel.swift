@@ -46,13 +46,18 @@ struct AskFailure: Equatable, Sendable {
 
   let kind: Kind
   let detail: String?
+  /// The workspace a `.noChat` failure names; its name is looked up when shown, so a rename shows.
+  var sessionID: String? = nil
 
   static let noReply = Self(kind: .noReply, detail: nil)
 
-  static func noChat(folder: String) -> Self {
-    Self(
-      kind: .noChat,
-      detail: "No chat is connected to \(URL(fileURLWithPath: folder).lastPathComponent). Send a message in a chat tab to connect it, then try again.")
+  static func noChat(sessionID: String) -> Self {
+    Self(kind: .noChat, detail: nil, sessionID: sessionID)
+  }
+
+  func detail(workspaceName: (String) -> String) -> String? {
+    guard kind == .noChat, let sessionID else { return detail }
+    return "No chat is connected to \(workspaceName(sessionID)). Send a message in a chat tab to connect it, then try again."
   }
 
   static func environment(_ error: any Error) -> Self {
@@ -192,7 +197,7 @@ final class InstantAskModel: ViewModel {
     case .couldntAnswer:
       guard let question = questions[requestID], let index = pending.index(id: requestID) else { return nil }
       guard answeringTab(for: question) != nil else {
-        pending[id: requestID]?.state = .couldntAnswer(.noChat(folder: question.folder))
+        pending[id: requestID]?.state = .couldntAnswer(.noChat(sessionID: question.sessionID))
         return requestID
       }
       forget(requestID)
@@ -324,7 +329,7 @@ final class InstantAskModel: ViewModel {
         source: question.source,
         replyToQuestionID: question.replyToQuestionID,
         text: question.text,
-        state: tab == nil ? .couldntAnswer(.noChat(folder: question.folder)) : .answering
+        state: tab == nil ? .couldntAnswer(.noChat(sessionID: question.sessionID)) : .answering
       ),
       at: index
     )

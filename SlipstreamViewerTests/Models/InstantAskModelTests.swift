@@ -338,12 +338,28 @@ struct InstantAskModelTests {
     let retried = model.tryAgainTapped(requestID: Self.firstRequest)
 
     #expect(retried == Self.firstRequest)
-    expectNoDifference(model.pending, [entry(state: .couldntAnswer(.noChat(folder: "/w")))])
-    expectNoDifference(
-      model.pending.first?.state,
-      .couldntAnswer(
-        AskFailure(kind: .noChat, detail: "No chat is connected to w. Send a message in a chat tab to connect it, then try again.")))
+    expectNoDifference(model.pending, [entry(state: .couldntAnswer(.noChat(sessionID: Self.capture)))])
     expectNoDifference(fork.requests.count, 1)
+  }
+
+  @Test func noChatCopyUsesLatestWorkspaceNameAfterPoll() async {
+    let model = makeModel(records: [])
+    await asking(model, question(replyTo: "q-1", threadChat: Self.threadChat))
+    let names = LockIsolated([Self.capture: "Agent's name"])
+    guard case .couldntAnswer(let failure) = model.pending.first?.state else {
+      Issue.record("Expected a failed question")
+      return
+    }
+    let before = failure.detail(workspaceName: { names.value[$0] ?? $0 })
+
+    names.withValue { $0[Self.capture] = "My name" }
+
+    expectNoDifference(
+      [before, failure.detail(workspaceName: { names.value[$0] ?? $0 })],
+      [
+        "No chat is connected to Agent's name. Send a message in a chat tab to connect it, then try again.",
+        "No chat is connected to My name. Send a message in a chat tab to connect it, then try again.",
+      ])
   }
 
   @Test func lateEventAfterErrorDropsPendingEntry() async {
@@ -444,7 +460,7 @@ struct InstantAskModelTests {
 
     await asking(model, question(replyTo: "q-1", threadChat: Self.threadChat))
 
-    expectNoDifference(model.pending.map(\.state), [.couldntAnswer(.noChat(folder: "/w"))])
+    expectNoDifference(model.pending.map(\.state), [.couldntAnswer(.noChat(sessionID: Self.capture))])
     expectNoDifference(model.pending.map(\.chatSessionID), [Self.threadChat])
     expectNoDifference(fork.requests, [])
   }

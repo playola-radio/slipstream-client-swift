@@ -1,5 +1,6 @@
 import CustomDump
 import Foundation
+import SlipstreamCore
 import Testing
 @testable import SlipstreamViewer
 
@@ -42,6 +43,19 @@ struct WorkspaceSidebarTests {
 
     expectNoDifference(Self.names(groups), [["r", "r"], ["deeper", "deeper"], ["w", "w"]])
     expectNoDifference(groups.map(\.repository), [nil, nil, nil])
+  }
+
+  @Test(arguments: [
+    (SessionNaming(agentName: "Agent's name", userName: "My name"), "My name"),
+    (SessionNaming(agentName: "Agent's name", userName: nil), "Agent's name"),
+    (SessionNaming(agentName: nil, userName: nil), "w"),
+    (nil, "w"),
+  ])
+  func rowNamePrefersUserThenAgentThenFolder(naming: SessionNaming?, name: String) {
+    var session = Self.session("/u/conductor/workspaces/r/w")
+    session.naming = naming
+
+    expectNoDifference(SidebarGroup.rowName(session), name)
   }
 
   @Test func aSessionWithoutARootShowsItsLabel() {

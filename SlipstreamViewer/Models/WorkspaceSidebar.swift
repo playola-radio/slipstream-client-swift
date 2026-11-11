@@ -46,7 +46,8 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   }
 
   static func rowName(_ session: SessionOption) -> String {
-    session.root.map { URL(filePath: $0).lastPathComponent } ?? session.label
+    session.naming?.userName ?? session.naming?.agentName
+      ?? session.root.map { URL(filePath: $0).lastPathComponent } ?? session.label
   }
 }
 

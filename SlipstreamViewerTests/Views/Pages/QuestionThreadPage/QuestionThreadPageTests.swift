@@ -56,7 +56,8 @@ struct QuestionThreadPageTests {
     } operation: {
       QuestionThreadPageModel(
         key: Self.key, thread: QuestionThread(id: "q1", source: source, turns: turns, link: link),
-        bindingGeneration: bindingGeneration, folder: folder, instantAsk: instantAsk ?? makeInstantAsk())
+        bindingGeneration: bindingGeneration, folder: folder, workspaceName: { _ in "w" },
+        instantAsk: instantAsk ?? makeInstantAsk())
     }
   }
 
@@ -643,7 +644,8 @@ extension QuestionThreadPageTests {
     let model = withDependencies { $0.defaultInMemoryStorage = storage } operation: {
       QuestionThreadPageModel(
         key: QuestionThreadKey(storeID: Self.key.storeID, sessionID: Self.key.sessionID, rootQuestionID: requestID),
-        thread: entry.rootThread, bindingGeneration: nil, folder: "/w", instantAsk: instantAsk)
+        thread: entry.rootThread, bindingGeneration: nil, folder: "/w", workspaceName: { _ in "w" },
+        instantAsk: instantAsk)
     }
     await Task.megaYield()
     fork.reply(.failure(.timedOut))

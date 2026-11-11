@@ -10,6 +10,7 @@ struct SessionOption: Identifiable, Equatable, Sendable {
   var root: String?
   var capture: CaptureSummary?
   var hasHistory = true
+  var naming: SessionNaming? = nil
 }
 
 enum ConnectionState: Equatable, Sendable {
