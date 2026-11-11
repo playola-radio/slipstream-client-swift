@@ -1596,10 +1596,11 @@ final class ChangeStreamPageModel: ViewModel {
     rememberRepositories(in: groups)
   }
 
-  /// Looks up each new repo group's main checkout once, so the group outlives its last workspace.
+  /// Looks up each repo group's main checkout once a run, so the group outlives its last workspace
+  /// and a moved checkout is followed while the repo still has one.
   private func rememberRepositories(in groups: [SidebarGroup]) {
     for group in groups {
-      guard let name = group.repository, sidebarRepositories[name] == nil, let folder = group.rows.first?.root,
+      guard let name = group.repository, let folder = group.rows.first?.root,
         lookedUpRepositories.insert(name).inserted
       else { continue }
       let workspace = workspace

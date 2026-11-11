@@ -4598,13 +4598,19 @@ extension ChangeStreamPageTests {
 
 
   @Test func aRepoStaysListedAfterItsLastWorkspaceGoes() async throws {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/moved-from/r"] }
+    }
     listWorkspace()
     let lookedUp = LockIsolated<[String]>([])
     let model = makeModel(
       workspace: workspaceClient(repository: { folder in
         lookedUp.withValue { $0.append(folder.path) }
         return URL(filePath: "/code/r")
-      }))
+      }),
+      fileStorage: fileStorage)
     await model.viewAppeared()
     defer { model.viewDisappeared() }
     await Task.megaYield()
