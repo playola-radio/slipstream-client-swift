@@ -69,7 +69,6 @@ platform :mac do
     sh("cd .. && ruby packaging/release_notes.rb extract CHANGELOG.md '#{release_short}' '#{notes}'")
 
     sh("cd .. && packaging/build-app.sh")
-    sh("cd .. && ruby packaging/daemon_freshness.rb packaging/dist/Slipstream.app/Contents/Resources/SlipstreamRuntime")
     sh("cd .. && packaging/sign-app.sh packaging/dist/Slipstream.app")
     sh("cd .. && packaging/notarize-app.sh packaging/dist/Slipstream.app")
     sh("cd .. && packaging/make-dmg.sh")
