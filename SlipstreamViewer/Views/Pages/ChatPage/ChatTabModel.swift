@@ -61,6 +61,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var reloadWhenIdle = false
   /// Whether the current process launched after its link was seen.
   @ObservationIgnored private var launchedLinked = false
+  /// A link made since the last launch, which the last capture read may not show yet.
+  @ObservationIgnored private var linkedSinceLaunch = false
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var handleGeneration = 0
   /// Relays written to each launch that it hasn't echoed yet, in the order they were sent.
@@ -254,7 +256,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     do {
       try await handle.write(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: sentInstructions)))
     } catch {
-      if launch == handleGeneration { instructions = sentInstructions }
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
       if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
       projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
@@ -294,7 +296,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         ClaudeInvocation.userMessage(
           SlipstreamInstruction.prefixed(message.text, with: sentInstructions), uuid: message.relayID))
     } catch {
-      if launch == handleGeneration { instructions = sentInstructions }
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
       // Already echoed or reported as unread, so it is no longer this call's to fail.
       guard unreadRelays[launch]?.contains(message.relayID) == true else { return }
       unreadRelays[launch]?.removeAll { $0 == message.relayID }
@@ -370,6 +372,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// A running Claude doesn't load the hook and answer tool a link installs, so a process that
   /// predates the link is dropped once idle. The next send resumes in a fresh one.
   func streamLinked() {
+    linkedSinceLaunch = true
     guard handle != nil || !starting.isEmpty else { return }
     if isWorking || hasUnreadInput {
       reloadWhenIdle = true
@@ -463,7 +466,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
-      launchedLinked = isStreamLinked()
+      launchedLinked = linkedSinceLaunch || isStreamLinked()
+      linkedSinceLaunch = false
       instructions = Self.instructions(session: session, lookup: lookup, isLinked: launchedLinked)
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
       followers[generation] = Task { [weak self] in

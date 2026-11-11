@@ -2309,6 +2309,32 @@ struct ChatPageTests {
     expectNoDifference(agent.writes(0), [json(ClaudeInvocation.userMessage("/review")), firstMessage("hi")])
   }
 
+  @Test func linkingTellsTheChatItsToolsBeforeTheCapturesShowTheLink() async {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    agent.setTranscript(UUID(0), .found([.title("Saying hi")]))
+    await line(Line.result())
+    await Task.megaYield()
+
+    await send(model, "again")
+
+    expectNoDifference(
+      agent.writes(1), [json(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed("again", with: [.linked])))])
+  }
+
+  @Test func failedSlashCommandKeepsTheInstructionForTheNextMessage() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    agent.setWriteError(WriteFailed())
+    await send(model, "/review")
+    agent.setWriteError(nil)
+
+    await send(model, "hello")
+
+    #expect(agent.launches.count == 1)
+    expectNoDifference(agent.writes(0), [firstMessage("hello")])
+  }
+
   @Test func failedWriteKeepsTheInstructionForTheRetry() async {
     agent.setWriteError(WriteFailed())
     let model = makeModel(records: [record()])
