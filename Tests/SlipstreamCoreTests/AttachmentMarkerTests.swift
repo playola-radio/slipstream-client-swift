@@ -27,9 +27,38 @@ struct AttachmentMarkerTests {
   func roundTripsAwkwardPaths(path: String) {
     let marker = AttachmentMarker.format(name: "f.md", path: path)
     expectNoDifference(
-      AttachmentMarker.parse("go " + marker),
-      AttachmentMarker.Parsed(body: "go", name: "f.md", path: path)
+      AttachmentMarker.segments("go " + marker),
+      [.text("go "), .attachment(name: "f.md", path: path)]
     )
+  }
+
+  static let a = AttachmentMarker.Segment.attachment(name: "a.md", path: "/tmp/a.md")
+  static let b = AttachmentMarker.Segment.attachment(name: "b.md", path: "/tmp/b.md")
+
+  @Test(arguments: [
+    ("hi", [.text("hi")]),
+    ("😀 é\nline", [.text("😀 é\nline")]),
+    ("Create a PR @⟦a.md⟧(/tmp/a.md)", [.text("Create a PR "), a]),
+    ("@⟦a.png⟧(/tmp/a.png)", [.attachment(name: "a.png", path: "/tmp/a.png")]),
+    ("see @⟦a.md⟧(/tmp/a.md) and @⟦b.md⟧(/tmp/b.md)!", [.text("see "), a, .text(" and "), b, .text("!")]),
+    ("@⟦a.md⟧(/tmp/a.md)@⟦b.md⟧(/tmp/b.md)", [a, b]),
+    ("go @⟦a.md⟧(tmp/a.md)", [.text("go @⟦a.md⟧(tmp/a.md)")]),
+    ("go @⟦a.md⟧(/tmp/%zz.md)", [.text("go @⟦a.md⟧(/tmp/%zz.md)")]),
+    ("go @⟦a.md⟧(/tmp/a.md", [.text("go @⟦a.md⟧(/tmp/a.md")]),
+    ("go @⟦a.md⟧(/tmp%2Fa.md)", [.text("go @⟦a.md⟧(/tmp%2Fa.md)")]),
+    ("x @⟦bad @⟦a.md⟧(/tmp/a.md)", [.text("x @⟦bad "), a]),
+  ] as [(String, [AttachmentMarker.Segment])])
+  func segmentsSplitAndRoundTrip(input: String, expected: [AttachmentMarker.Segment]) {
+    let segments = AttachmentMarker.segments(input)
+    expectNoDifference(segments, expected)
+    expectNoDifference(AttachmentMarker.text(segments), input)
+  }
+
+  @Test func isImageFollowsTheExtension() {
+    #expect(AttachmentMarker.Segment.attachment(name: "a.png", path: "/tmp/a.png").isImage)
+    #expect(AttachmentMarker.Segment.attachment(name: "b.HEIC", path: "/tmp/b.HEIC").isImage)
+    #expect(!AttachmentMarker.Segment.attachment(name: "c.md", path: "/tmp/c.md").isImage)
+    #expect(!AttachmentMarker.Segment.text("a.png").isImage)
   }
 
   @Test(arguments: [

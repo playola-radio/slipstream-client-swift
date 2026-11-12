@@ -46,7 +46,7 @@
   - `static func text(_ segments: [Segment]) -> String`
   - `parse`/`Parsed` stay until Task 4.
 
-- [ ] **Step 1: Write failing tests.** One parameterized `segmentsSplitAndRoundTrip` asserts, for each `(input, expected)`, both `segments(input) == expected` and `text(segments(input)) == input`:
+- [x] **Step 1: Write failing tests.** One parameterized `segmentsSplitAndRoundTrip` asserts, for each `(input, expected)`, both `segments(input) == expected` and `text(segments(input)) == input`:
   - `"hi"` → `[.text("hi")]`
   - `"😀 é\nline"` → `[.text("😀 é\nline")]`
   - `"Create a PR @⟦a.md⟧(/tmp/a.md)"` → `[.text("Create a PR "), .attachment(name: "a.md", path: "/tmp/a.md")]`
@@ -57,10 +57,10 @@
   - `"x @⟦bad @⟦a.md⟧(/tmp/a.md)"` → `[.text("x @⟦bad "), .attachment(a)]`
 
   Convert `roundTripsAwkwardPaths` to assert `segments("go " + marker) == [.text("go "), .attachment(name: "f.md", path: path)]`. Add `isImageFollowsTheExtension`: `a.png` and `b.HEIC` are images; `c.md` and `.text` are not.
-- [ ] **Step 2:** Run `swift test --filter AttachmentMarkerTests`. Expect a FAIL (no `segments`).
-- [ ] **Step 3: Implement `segments` and `text`.** Scan the matches of `@⟦([^⟦⟧\n]+)⟧\(([^()\s]+)\)` (the same character classes as `parse`). Keep a match only if its path decodes to a string starting with `/` and `format(name:decodedPath)` reproduces the matched text exactly; that makes `text` (which maps `.attachment` through `format`) an exact inverse. Text between kept matches is emitted verbatim; empty runs are dropped.
-- [ ] **Step 4:** Run `swift test --filter AttachmentMarkerTests`. Expect a PASS.
-- [ ] **Step 5:** Commit `Split chat text into text and attachment segments`.
+- [x] **Step 2:** Run `swift test --filter AttachmentMarkerTests`. Expect a FAIL (no `segments`).
+- [x] **Step 3: Implement `segments` and `text`.** Scan the matches of `@⟦([^⟦⟧\n]+)⟧\(([^()\s]+)\)` (the same character classes as `parse`). Keep a match only if its path decodes to a string starting with `/` and `format(name:decodedPath)` reproduces the matched text exactly; that makes `text` (which maps `.attachment` through `format`) an exact inverse. Text between kept matches is emitted verbatim; empty runs are dropped.
+- [x] **Step 4:** Run `swift test --filter AttachmentMarkerTests`. Expect a PASS.
+- [x] **Step 5:** Commit `Split chat text into text and attachment segments`.
 
 ### Task 2: AttachmentClient copies files and writes bytes
 
