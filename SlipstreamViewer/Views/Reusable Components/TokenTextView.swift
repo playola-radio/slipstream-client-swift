@@ -60,9 +60,15 @@ struct TokenTextView: NSViewRepresentable {
       text.placeholderColor = NSColor(placeholderColor)
       text.needsDisplay = true
     }
-    let current = AttachmentMarker.text(text.segments)
+    let currentSegments = text.segments
+    let current = AttachmentMarker.text(currentSegments)
     let wanted = AttachmentMarker.text(segments)
-    guard current != wanted || text.fontScale != fontScale else { return }
+    guard TokenNSTextView.needsStorageUpdate(
+      current: currentSegments,
+      wanted: segments,
+      currentFontScale: text.fontScale,
+      wantedFontScale: fontScale
+    ) else { return }
     let caret = TokenNSTextView.caretOffset(text.draftOffset(at: text.selectedRange().location), from: current, to: wanted)
     text.fontScale = fontScale
     text.textStorage?.setAttributedString(text.attributedString(for: segments))
@@ -125,6 +131,12 @@ final class TokenNSTextView: NSTextView {
 
   var segments: [AttachmentMarker.Segment] {
     textStorage.map(Self.segments(in:)) ?? []
+  }
+
+  static func needsStorageUpdate(
+    current: [AttachmentMarker.Segment], wanted: [AttachmentMarker.Segment], currentFontScale: CGFloat, wantedFontScale: CGFloat
+  ) -> Bool {
+    current != wanted || currentFontScale != wantedFontScale
   }
 
   /// Fills its scroll view however short the draft is, so a drop anywhere in that area lands here.
@@ -374,6 +386,7 @@ private final class TokenCell: NSTextAttachmentCell {
   private let icon: DesignTokens.Icons.Icon
   private let nameFont: NSFont
   private let nameWidth: CGFloat
+  private let height: CGFloat
   private let baselineOffset: CGFloat
 
   init(segment: AttachmentMarker.Segment, textFont: NSFont, scale: CGFloat) {
@@ -381,7 +394,8 @@ private final class TokenCell: NSTextAttachmentCell {
     icon = segment.isImage ? Token.imageIcon : Token.icon
     nameFont = Token.nameFont.nsFont(scale: scale) ?? .systemFont(ofSize: 12.5 * scale)
     nameWidth = min(ceil((name as NSString).size(withAttributes: [.font: nameFont]).width), Token.maxNameWidth)
-    baselineOffset = (textFont.ascender + textFont.descender - Token.height) / 2
+    height = Token.height * scale
+    baselineOffset = (textFont.ascender + textFont.descender - height) / 2
     super.init(textCell: "")
   }
 
@@ -394,7 +408,7 @@ private final class TokenCell: NSTextAttachmentCell {
   }
 
   override func cellSize() -> NSSize {
-    NSSize(width: Token.iconCellWidth + Token.namePadding * 2 + nameWidth, height: Token.height)
+    NSSize(width: Token.iconCellWidth + Token.namePadding * 2 + nameWidth, height: height)
   }
 
   override func cellBaselineOffset() -> NSPoint {
