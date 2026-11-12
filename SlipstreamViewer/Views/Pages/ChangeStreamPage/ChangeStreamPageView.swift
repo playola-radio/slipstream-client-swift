@@ -22,6 +22,9 @@ struct ChangeStreamPageView: View {
         resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
         rightPane
           .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
+          .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("question-workspace")).minX } action: {
+            model.rightPaneMeasured(minX: $0)
+          }
           .transition(.move(edge: .trailing))
       }
     }
@@ -74,6 +77,7 @@ struct ChangeStreamPageView: View {
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
     .task { await model.chat.clockTask() }
     .task(id: model.isSessionPollRunning) { if model.isSessionPollRunning { await model.sessionPollTask() } }
+    .task(id: model.prStatusBar.pollKey) { await model.prStatusBar.pollTask() }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       Task { await model.appBecameActive() }
     }
@@ -169,7 +173,6 @@ struct ChangeStreamPageView: View {
 
   private var rightPane: some View {
     VStack(spacing: 0) {
-      PRStatusBarView(model: model.prStatusBar)
       rightPaneStrip
       if model.isStreamShown {
         feedPane
@@ -465,29 +468,31 @@ struct ChangeStreamPageView: View {
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
-      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") {
-        withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.sidebarToggleTapped() }
+      HStack(spacing: DesignTokens.WindowHeader.Breadcrumb.gap) {
+        sidebarToggle
+        breadcrumb
+        if model.isWorkspaceBusy {
+          ProgressView().controlSize(.small)
+        }
       }
-        .labelStyle(.iconOnly)
-        .font(.system(size: DesignTokens.WindowHeader.toggleSize))
-        .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
-        .help(model.sidebarToggleHelpText)
+      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.prStatusBar.navigationMeasured(width: $0) }
     }
     .withoutGlass()
-    ToolbarItem(placement: .navigation) { breadcrumb }
-      .withoutGlass()
-    if model.isWorkspaceBusy {
-      ToolbarItem(placement: .navigation) {
-        ProgressView().controlSize(.small)
-      }
-      .withoutGlass()
-    }
     if #available(macOS 26, *) {
       ToolbarSpacer(.flexible)
     }
-    if model.isOpenInShown {
+    if model.isOpenInShown || model.prStatusBar.isShown {
       ToolbarItem {
-        OpenInButton(model: model.openIn)
+        HStack(spacing: 0) {
+          if model.isOpenInShown {
+            OpenInButton(model: model.openIn)
+              .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.prStatusBar.openInMeasured(width: $0) }
+            Color.clear.frame(width: model.openInTrailingGap, height: 0)
+          }
+          if model.prStatusBar.isShown {
+            PRStatusBarView(model: model.prStatusBar)
+          }
+        }
       }
       .withoutGlass()
     }
@@ -521,6 +526,16 @@ struct ChangeStreamPageView: View {
     }
     .lineLimit(1)
     .accessibilityElement(children: .combine)
+  }
+
+  private var sidebarToggle: some View {
+    Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") {
+      withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.sidebarToggleTapped() }
+    }
+    .labelStyle(.iconOnly)
+    .font(.system(size: DesignTokens.WindowHeader.toggleSize))
+    .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
+    .help(model.sidebarToggleHelpText)
   }
 }
 

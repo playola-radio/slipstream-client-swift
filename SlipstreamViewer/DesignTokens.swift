@@ -574,9 +574,11 @@ enum DesignTokens {
   }
 
   enum PRStatusBar {
-    static let height: CGFloat = 40
+    static let height: CGFloat = 32
+    static let cornerRadius: CGFloat = 8
     static let gap: CGFloat = 10
-    static let horizontalPadding: CGFloat = 16
+    static let leadingPadding: CGFloat = 6
+    static let trailingPadding: CGFloat = 4
     static let stroke = Color(hex: 0x2A3640)
     static let detailColor = Color(hex: 0x8B9AA6)
 
@@ -641,7 +643,6 @@ enum DesignTokens {
 
       static let height: CGFloat = 24
       static let cornerRadius: CGFloat = 5
-      static let horizontalPadding: CGFloat = 9
       static let gap: CGFloat = 6
       static let iconSize: CGFloat = 13
       static let labelFont = variableFont(family: geistFamily, size: 12, weight: 500)
@@ -651,6 +652,8 @@ enum DesignTokens {
       static let detailsIconName = "ChevronDown"
 
       static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.5 }
+
+      static func horizontalPadding(isTitleShown: Bool) -> CGFloat { isTitleShown ? 9 : 6 }
 
       static func appearance(_ button: PRBarButton) -> Appearance {
         switch button {
@@ -723,6 +726,11 @@ enum DesignTokens {
 
     static let fill = Sidebar.fill
     static let toggleSize: CGFloat = 15
+    /// From the PR status's right edge to the window's: the right-panel toggle, toolbar item spacing and the
+    /// window inset. Measured on macOS 26.
+    static let trailingChromeWidth: CGFloat = 52
+    /// Between Open In and the right panel's divider or the PR status, whichever is further left.
+    static let openInMargin: CGFloat = 12
     static let toggleColor = secondary
 
     enum Breadcrumb {

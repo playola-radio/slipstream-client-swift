@@ -117,6 +117,7 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var sourceSelection: SourceSelection?
   private(set) var selectionFrame = CGRect.zero
   private(set) var viewport = CGRect.zero
+  private var rightPaneMinX: CGFloat = 0
   private(set) var composerSize = CGSize(width: DesignTokens.Ask.width, height: 396)
 
   var sessions: IdentifiedArrayOf<SessionOption> = [] {
@@ -607,7 +608,12 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func feedViewportChanged(_ frame: CGRect) { feedViewport = frame }
-  func viewportChanged(_ size: CGSize) { viewport = CGRect(origin: .zero, size: size) }
+  func viewportChanged(_ size: CGSize) {
+    viewport = CGRect(origin: .zero, size: size)
+    prStatusBar.windowResized(width: size.width)
+  }
+
+  func rightPaneMeasured(minX: CGFloat) { rightPaneMinX = minX }
   func composerMeasured(_ size: CGSize) { composerSize = size }
 
   func sourceDragged(row: FileChangeRow, block: CodeBlock, startY: CGFloat, endY: CGFloat, frame: CGRect) {
@@ -699,6 +705,10 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var isOpenInShown: Bool { selectedSession != nil }
+
+  var openInTrailingGap: CGFloat {
+    prStatusBar.openInTrailingGap(dividerInset: isRightPaneShown ? viewport.width - rightPaneMinX : 0)
+  }
 
   var canCompareFunctions: Bool {
     !isFunctionDemoVisible && selectedSession != nil && baselineCompletedSeq != nil

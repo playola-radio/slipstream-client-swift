@@ -4712,6 +4712,49 @@ extension ChangeStreamPageTests {
     #expect(model.prStatusBar.pollKey != before)
   }
 
+  @Test func prStatusStaysShownWhileTheRightPanelIsHidden() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    #expect(model.prStatusBar.isShown)
+
+    model.rightPaneToggleTapped()
+
+    #expect(!model.isRightPaneShown)
+    #expect(model.prStatusBar.isShown)
+  }
+
+  @Test func prStatusIsHiddenWithoutAWorkspace() {
+    let model = makeModel(workspace: workspaceClient())
+
+    #expect(!model.prStatusBar.isShown)
+  }
+
+  @Test func windowResizeReachesThePRStatusLayout() {
+    let model = makeModel()
+    model.prStatusBar.openInMeasured(width: 60)
+    model.prStatusBar.layoutMeasured(.full, width: 400)
+    model.prStatusBar.layoutMeasured(.withoutDetail, width: 300)
+    #expect(model.prStatusBar.layout == .iconsOnly)
+
+    model.viewportChanged(CGSize(width: PRStatusBarTests.windowWidth(room: 400, openIn: 60), height: 900))
+
+    #expect(model.prStatusBar.layout == .full)
+  }
+
+  @Test func openInFollowsTheRightPaneDivider() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1400, height: 900))
+    model.prStatusBar.openInMeasured(width: 60)
+    model.rightPaneMeasured(minX: 900)
+    expectNoDifference(model.openInTrailingGap, model.prStatusBar.openInTrailingGap(dividerInset: 500))
+
+    model.rightPaneToggleTapped()
+
+    expectNoDifference(model.openInTrailingGap, model.prStatusBar.openInTrailingGap(dividerInset: 0))
+  }
+
   @Test func archiveFromBarUsesArchiveConfirmation() async throws {
     listWorkspace()
     let model = makeModel(workspace: workspaceClient())
