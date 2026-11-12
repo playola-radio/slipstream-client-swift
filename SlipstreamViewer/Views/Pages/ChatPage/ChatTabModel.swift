@@ -204,6 +204,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     case quote(AttributedString)
     case rule
     case code(String)
+    case table(MarkdownTable)
   }
 
   struct MarkdownListItem: Equatable {
@@ -212,8 +213,30 @@ final class ChatTabModel: ViewModel, Identifiable {
     let text: AttributedString
   }
 
+  /// Every row has one cell per column.
+  struct MarkdownTable: Equatable {
+    enum Alignment: Equatable {
+      case leading, center, trailing
+    }
+
+    let alignments: [Alignment]
+    let header: [AttributedString]
+    let rows: [[AttributedString]]
+
+    /// Narrow columns keep their natural width; wider ones split what's left evenly and wrap.
+    static func columnWidths(natural: [CGFloat], available: CGFloat) -> [CGFloat] {
+      var widths = natural
+      var remaining = available
+      for (position, column) in natural.indices.sorted(by: { natural[$0] < natural[$1] }).enumerated() {
+        widths[column] = min(natural[column], remaining / CGFloat(natural.count - position))
+        remaining -= widths[column]
+      }
+      return widths
+    }
+  }
+
   /// Fenced code blocks come out whole; the prose between them is split into headings, lists,
-  /// quotes, rules and paragraphs, each with inline markdown.
+  /// quotes, rules, tables and paragraphs, each with inline markdown.
   static func markdownBlocks(_ text: String) -> [MarkdownBlock] {
     var blocks: [MarkdownBlock] = []
     var lines: [Substring] = []
@@ -284,7 +307,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       blocks.append(.list(listItems))
       items = []
     }
-    for line in lines {
+    var tableEnd = 0
+    for (index, line) in lines.enumerated() where index >= tableEnd {
       let trimmed = line.drop { $0 == " " || $0 == "\t" }
       let indent = line.count - trimmed.count
       defer { afterBlank = trimmed.isEmpty }
@@ -295,6 +319,10 @@ final class ChatTabModel: ViewModel, Identifiable {
       {
         if !quote.isEmpty { closeAll() }
         paragraph.append(line)
+      } else if let (table, end) = table(lines, at: index) {
+        closeAll()
+        blocks.append(.table(table))
+        tableEnd = end
       } else if isRule(trimmed) {
         closeAll()
         blocks.append(.rule)
@@ -332,6 +360,75 @@ final class ChatTabModel: ViewModel, Identifiable {
     let marks = line.filter { $0 != " " && $0 != "\t" }
     guard let mark = marks.first, "-*_".contains(mark) else { return false }
     return marks.count >= 3 && marks.allSatisfy { $0 == mark }
+  }
+
+  /// A header row, a separator row with as many cells, then every following line with a pipe.
+  private static func table(_ lines: [Substring], at start: Int) -> (MarkdownTable, end: Int)? {
+    guard start + 1 < lines.count, lines[start].contains("|"), lines[start + 1].contains("|") else { return nil }
+    let header = tableCells(lines[start])
+    let separator = tableCells(lines[start + 1])
+    let alignments = separator.compactMap(columnAlignment)
+    guard !header.isEmpty, separator.count == header.count, alignments.count == header.count else { return nil }
+    var end = start + 2
+    while end < lines.count, lines[end].contains("|") { end += 1 }
+    let rows = lines[start + 2..<end].map { line in
+      let cells = tableCells(line)
+      return header.indices.map { cells.indices.contains($0) ? inlineMarkdown(cells[$0]) : AttributedString() }
+    }
+    return (MarkdownTable(alignments: alignments, header: header.map(inlineMarkdown), rows: rows), end)
+  }
+
+  /// Splits on pipes that aren't escaped or inside inline code. The outer pipes are optional.
+  private static func tableCells(_ line: Substring) -> [String] {
+    let row = line.trimmingCharacters(in: .whitespaces)
+    var cells: [String] = []
+    var cell = ""
+    var rest = row[...]
+    while let character = rest.first {
+      if character == "\\", let next = rest.dropFirst().first {
+        cell += next == "|" ? "|" : "\\\(next)"
+        rest = rest.dropFirst(2)
+      } else if character == "`" {
+        let ticks = rest.prefix { $0 == "`" }
+        let end = codeSpanEnd(rest[ticks.endIndex...], ticks: ticks.count) ?? ticks.endIndex
+        cell += rest[..<end].replacingOccurrences(of: "\\|", with: "|")
+        rest = rest[end...]
+      } else if character == "|" {
+        cells.append(cell)
+        cell = ""
+        rest = rest.dropFirst()
+      } else {
+        cell.append(character)
+        rest = rest.dropFirst()
+      }
+    }
+    if !cell.isEmpty || cells.isEmpty { cells.append(cell) }
+    if row.hasPrefix("|") { cells.removeFirst() }
+    return cells.map { $0.trimmingCharacters(in: .whitespaces) }
+  }
+
+  /// The end of the first run of exactly `ticks` backticks.
+  private static func codeSpanEnd(_ text: Substring, ticks: Int) -> Substring.Index? {
+    var rest = text
+    while let start = rest.firstIndex(of: "`") {
+      let run = rest[start...].prefix { $0 == "`" }
+      if run.count == ticks { return run.endIndex }
+      rest = rest[run.endIndex...]
+    }
+    return nil
+  }
+
+  /// Dashes, with a colon on the side the column aligns to, or on both to centre it.
+  private static func columnAlignment(_ cell: String) -> MarkdownTable.Alignment? {
+    let leading = cell.hasPrefix(":")
+    let trailing = cell.hasSuffix(":")
+    let dashes = cell.dropFirst(leading ? 1 : 0).dropLast(trailing ? 1 : 0)
+    guard !dashes.isEmpty, dashes.allSatisfy({ $0 == "-" }) else { return nil }
+    return switch (leading, trailing) {
+    case (true, true): .center
+    case (false, true): .trailing
+    default: .leading
+    }
   }
 
   private static func heading(_ line: Substring) -> (Int, Substring)? {

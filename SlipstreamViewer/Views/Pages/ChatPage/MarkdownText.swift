@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A reply: headings, lists, quotes and paragraphs with inline markdown, and fenced code in Geist Mono.
+/// A reply: headings, lists, quotes, tables and paragraphs with inline markdown, and fenced code in Geist Mono.
 struct MarkdownText: View {
   let text: String
   @Environment(\.fontScale) private var fontScale
@@ -53,10 +53,51 @@ struct MarkdownText: View {
           .frame(maxWidth: .infinity, alignment: .leading)
           .background(DesignTokens.Chat.CodeBlock.fill,
             in: RoundedRectangle(cornerRadius: DesignTokens.Chat.CodeBlock.radius))
+        case .table(let table):
+          tableBlock(table)
         }
       }
     }
     .textSelection(.enabled)
+  }
+
+  private func tableBlock(_ table: ChatTabModel.MarkdownTable) -> some View {
+    TableLayout(columns: table.header.count) {
+      ForEach(Array(table.header.enumerated()), id: \.offset) { column, header in
+        cell(header, font: DesignTokens.Chat.Table.headerFont, alignment: table.alignments[column])
+          .background(DesignTokens.Chat.Table.headerFill)
+      }
+      ForEach(Array(table.rows.enumerated()), id: \.offset) { _, row in
+        ForEach(Array(row.enumerated()), id: \.offset) { column, text in
+          cell(text, font: DesignTokens.Chat.Table.font, alignment: table.alignments[column])
+            .overlay(alignment: .top) {
+              Rectangle()
+                .fill(DesignTokens.Chat.Table.gridColor)
+                .frame(height: DesignTokens.Chat.Table.gridWidth)
+            }
+        }
+      }
+    }
+    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Chat.Table.radius))
+    .overlay {
+      RoundedRectangle(cornerRadius: DesignTokens.Chat.Table.radius)
+        .strokeBorder(DesignTokens.Chat.Table.gridColor, lineWidth: DesignTokens.Chat.Table.gridWidth)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func cell(
+    _ text: AttributedString, font: DesignTokens.FontToken, alignment: ChatTabModel.MarkdownTable.Alignment
+  ) -> some View {
+    Text(DesignTokens.Chat.Paragraph.styled(text, base: font, scale: fontScale))
+      .font(font)
+      .foregroundStyle(DesignTokens.Chat.Table.color)
+      .multilineTextAlignment(DesignTokens.Chat.Table.textAlignment(alignment))
+      .fixedSize(horizontal: false, vertical: true)
+      .padding(.horizontal, DesignTokens.Chat.Table.cellHorizontalPadding)
+      .padding(.vertical, DesignTokens.Chat.Table.cellVerticalPadding)
+      .frame(
+        maxWidth: .infinity, maxHeight: .infinity, alignment: DesignTokens.Chat.Table.cellAlignment(alignment))
   }
 
   private func paragraph(_ text: AttributedString, color: Color = DesignTokens.Chat.Paragraph.color) -> some View {
@@ -66,5 +107,46 @@ struct MarkdownText: View {
       .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
       .fixedSize(horizontal: false, vertical: true)
       .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+/// Cells in row order, `columns` to a row, each row as tall as its tallest cell.
+private struct TableLayout: Layout {
+  let columns: Int
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    let widths = columnWidths(available: proposal.width, subviews)
+    return CGSize(width: widths.reduce(0, +), height: rowHeights(widths, subviews).reduce(0, +))
+  }
+
+  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    let widths = columnWidths(available: bounds.width, subviews)
+    var y = bounds.minY
+    for (row, height) in rowHeights(widths, subviews).enumerated() {
+      var x = bounds.minX
+      for column in widths.indices where row * columns + column < subviews.count {
+        subviews[row * columns + column].place(
+          at: CGPoint(x: x, y: y), proposal: ProposedViewSize(width: widths[column], height: height))
+        x += widths[column]
+      }
+      y += height
+    }
+  }
+
+  private func columnWidths(available: CGFloat?, _ subviews: Subviews) -> [CGFloat] {
+    var natural = Array(repeating: CGFloat.zero, count: columns)
+    for (index, cell) in subviews.enumerated() {
+      natural[index % columns] = max(natural[index % columns], cell.sizeThatFits(.unspecified).width)
+    }
+    guard let available else { return natural }
+    return ChatTabModel.MarkdownTable.columnWidths(natural: natural, available: available)
+  }
+
+  private func rowHeights(_ widths: [CGFloat], _ subviews: Subviews) -> [CGFloat] {
+    stride(from: 0, to: subviews.count, by: columns).map { start in
+      widths.indices.filter { start + $0 < subviews.count }.map { column in
+        subviews[start + column].sizeThatFits(ProposedViewSize(width: widths[column], height: nil)).height
+      }.max() ?? 0
+    }
   }
 }
