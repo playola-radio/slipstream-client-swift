@@ -74,6 +74,7 @@ struct ChangeStreamPageView: View {
     .task(id: model.chat.selectedTab?.id) { await model.chat.viewAppeared() }
     .task { await model.chat.clockTask() }
     .task(id: model.isSessionPollRunning) { if model.isSessionPollRunning { await model.sessionPollTask() } }
+    .task(id: model.prStatusBar.pollKey) { await model.prStatusBar.pollTask() }
     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
       Task { await model.appBecameActive() }
     }
@@ -169,7 +170,6 @@ struct ChangeStreamPageView: View {
 
   private var rightPane: some View {
     VStack(spacing: 0) {
-      PRStatusBarView(model: model.prStatusBar)
       rightPaneStrip
       if model.isStreamShown {
         feedPane
@@ -486,8 +486,15 @@ struct ChangeStreamPageView: View {
       ToolbarSpacer(.flexible)
     }
     if model.isOpenInShown {
-      ToolbarItem {
+      ToolbarItem(placement: .principal) {
         OpenInButton(model: model.openIn)
+          .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.prStatusBar.openInMeasured(width: $0) }
+      }
+      .withoutGlass()
+    }
+    if model.prStatusBar.isShown {
+      ToolbarItem {
+        PRStatusBarView(model: model.prStatusBar)
       }
       .withoutGlass()
     }

@@ -202,7 +202,7 @@ struct ReadCase: Sendable, CustomTestStringConvertible {
 }
 
 struct Display: Equatable, Sendable {
-  var isRowContentShown = true
+  var isShown = true
   var prNumberText: String?
   var statusIconName: String?
   var statusLabel = ""
@@ -216,11 +216,30 @@ struct Display: Equatable, Sendable {
 extension Display {
   @MainActor init(_ model: PRStatusBarModel) {
     self.init(
-      isRowContentShown: model.isRowContentShown, prNumberText: model.prNumberText,
+      isShown: model.isShown, prNumberText: model.prNumberText,
       statusIconName: model.statusIconName, statusLabel: model.statusLabel, statusDetail: model.statusDetail,
       tone: model.tone, primaryButton: model.primaryButton, isContinueShown: model.isContinueShown,
       isDetailsShown: model.isDetailsShown)
   }
+}
+
+struct LayoutCase: Sendable, CustomTestStringConvertible {
+  var testDescription: String
+  var room: CGFloat
+  var widths: [PRStatusBarModel.Layout: CGFloat]
+  var expected: PRStatusBarModel.Layout
+
+  static let measured: [PRStatusBarModel.Layout: CGFloat] = [.full: 400, .withoutDetail: 300]
+
+  static let all: [LayoutCase] = [
+    LayoutCase(testDescription: "full fits", room: 500, widths: measured, expected: .full),
+    LayoutCase(testDescription: "full fits exactly", room: 400, widths: measured, expected: .full),
+    LayoutCase(testDescription: "detail dropped", room: 399, widths: measured, expected: .withoutDetail),
+    LayoutCase(testDescription: "without detail fits exactly", room: 300, widths: measured, expected: .withoutDetail),
+    LayoutCase(testDescription: "icons only", room: 299, widths: measured, expected: .iconsOnly),
+    LayoutCase(testDescription: "nothing measured", room: 500, widths: [:], expected: .iconsOnly),
+    LayoutCase(testDescription: "only full measured", room: 350, widths: [.full: 400], expected: .iconsOnly),
+  ]
 }
 
 struct DisplayCase: Sendable, CustomTestStringConvertible {
@@ -251,10 +270,10 @@ struct DisplayCase: Sendable, CustomTestStringConvertible {
         isDetailsShown: true)),
     DisplayCase(
       testDescription: "not applicable", script: { $0.set(PRFixture.branchCommand, ending: .exit(128)) },
-      expected: Display(isRowContentShown: false)),
+      expected: Display(isShown: false)),
     DisplayCase(
       testDescription: "nothing to submit", script: { $0.set(PRFixture.aheadCommand(), stdout: "0\n") },
-      expected: Display(isRowContentShown: false)),
+      expected: Display(isShown: false)),
     DisplayCase(
       testDescription: "no PR, uncommitted", script: { $0.set(PRFixture.statusCommand, stdout: " M a.swift\n") },
       expected: Display(statusLabel: "Uncommitted changes", tone: .neutral, primaryButton: .createPR)),
@@ -737,6 +756,58 @@ struct PRStatusBarTests {
     repo.release()
     poll.cancel()
     await poll.value
+  }
+
+  // MARK: - Toolbar layout
+
+  /// The window width that leaves `room` for the PR section beside a centred Open In.
+  static func windowWidth(room: CGFloat, openIn: CGFloat) -> CGFloat {
+    2 * (room + DesignTokens.WindowHeader.trailingChromeWidth) + openIn
+  }
+
+  @Test(arguments: LayoutCase.all)
+  func layoutCollapsesToTheRoomBesideOpenIn(_ layoutCase: LayoutCase) {
+    let model = makeModel()
+
+    model.windowResized(width: Self.windowWidth(room: layoutCase.room, openIn: 60))
+    model.openInMeasured(width: 60)
+    for (layout, width) in layoutCase.widths { model.layoutMeasured(layout, width: width) }
+
+    expectNoDifference(model.layout, layoutCase.expected)
+  }
+
+  @Test func layoutWaitsForTheWindowWidth() {
+    let model = makeModel()
+
+    model.openInMeasured(width: 60)
+    model.layoutMeasured(.full, width: 400)
+    model.layoutMeasured(.withoutDetail, width: 300)
+
+    expectNoDifference(model.layout, .iconsOnly)
+  }
+
+  @Test func widerOpenInLeavesLessRoom() {
+    let model = makeModel()
+    model.windowResized(width: Self.windowWidth(room: 400, openIn: 60))
+    model.openInMeasured(width: 60)
+    model.layoutMeasured(.full, width: 400)
+    model.layoutMeasured(.withoutDetail, width: 300)
+    expectNoDifference(model.layout, .full)
+
+    model.openInMeasured(width: 62)
+
+    expectNoDifference(model.layout, .withoutDetail)
+  }
+
+  @Test func layoutHidesTheDetailFirstThenButtonTitles() async {
+    PRFixture.scriptRepository(repo)
+    let model = makeModel()
+    await load(model)
+
+    expectNoDifference(
+      PRStatusBarModel.Layout.allCases.map { model.statusDetail(in: $0) },
+      ["· 3 commits ahead of develop", nil, nil])
+    expectNoDifference(PRStatusBarModel.Layout.allCases.map(\.isButtonTitleShown), [true, true, false])
   }
 
   @Test func pullRequestChipOpensThePullRequest() async {

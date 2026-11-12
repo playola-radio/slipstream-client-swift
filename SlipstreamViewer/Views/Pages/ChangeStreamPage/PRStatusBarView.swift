@@ -5,55 +5,90 @@ struct PRStatusBarView: View {
 
   var body: some View {
     HStack(spacing: DesignTokens.PRStatusBar.gap) {
-      if model.isRowContentShown {
-        if let url = model.pullRequestURL, let number = model.prNumberText {
-          chip(number: number, url: url)
-        }
-        status
-        Spacer(minLength: 0)
-        if let button = model.primaryButton {
-          primaryButton(button)
-        }
-        if model.isContinueShown {
-          continueButton
-        }
-        if model.isArchiveShown {
-          archiveButton
-        }
-        if model.isDetailsShown {
-          detailsButton
-        }
+      if let url = model.pullRequestURL, let number = model.prNumberText {
+        Link(destination: url) { chip(number: number) }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Pull request \(number)")
+      }
+      status(model.layout)
+      if let button = model.primaryButton {
+        primaryButton(button)
+      }
+      if model.isContinueShown {
+        continueButton
+      }
+      if model.isArchiveShown {
+        archiveButton
+      }
+      if model.isDetailsShown {
+        detailsButton
       }
     }
-    .padding(.horizontal, DesignTokens.PRStatusBar.horizontalPadding)
-    .frame(maxWidth: .infinity)
-    .frame(height: DesignTokens.PRStatusBar.height)
-    .background(DesignTokens.PRStatusBar.fill(model.tone))
-    .overlay(alignment: .bottom) {
-      Rectangle().fill(DesignTokens.PRStatusBar.stroke).frame(height: 1)
-    }
-    .task(id: model.pollKey) { await model.pollTask() }
+    .modifier(Pill(tone: model.tone))
+    .background { probes }
   }
 
-  private func chip(number: String, url: URL) -> some View {
-    Link(destination: url) {
-      HStack(spacing: DesignTokens.PRStatusBar.Chip.gap) {
-        Text(number)
-          .font(DesignTokens.PRStatusBar.Chip.font)
-          .foregroundStyle(DesignTokens.PRStatusBar.Chip.color(model.tone))
-        IconView(icon: DesignTokens.PRStatusBar.Chip.arrow(model.tone))
+  /// Hidden, inert copies of the wider layouts, measured so the model can pick the one that fits.
+  private var probes: some View {
+    ZStack {
+      ForEach(PRStatusBarModel.measuredLayouts, id: \.self) { layout in
+        probe(layout)
+          .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.layoutMeasured(layout, width: $0) }
       }
-      .padding(.horizontal, DesignTokens.PRStatusBar.Chip.horizontalPadding)
-      .frame(height: DesignTokens.PRStatusBar.Chip.height)
-      .overlay(
-        RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Chip.cornerRadius)
-          .stroke(DesignTokens.PRStatusBar.Chip.stroke(model.tone), lineWidth: 1))
     }
-    .buttonStyle(.plain)
-    .accessibilityLabel("Pull request \(number)")
+    .hidden()
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
   }
 
-  private var status: some View {
+  private func probe(_ layout: PRStatusBarModel.Layout) -> some View {
+    HStack(spacing: DesignTokens.PRStatusBar.gap) {
+      if let number = model.prNumberText {
+        chip(number: number)
+      }
+      status(layout)
+      if let button = model.primaryButton {
+        PRBarActionLabel(
+          title: button.title, iconName: button.iconName, shortcutText: button.shortcutText,
+          appearance: DesignTokens.PRStatusBar.Button.appearance(button), isTitleShown: layout.isButtonTitleShown)
+      }
+      if model.isContinueShown {
+        PRBarActionLabel(
+          title: PRStatusBarModel.continueText, iconName: DesignTokens.PRStatusBar.Button.continueIconName,
+          shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.continueAppearance,
+          isTitleShown: layout.isButtonTitleShown)
+      }
+      if model.isArchiveShown {
+        PRBarActionLabel(
+          title: PRStatusBarModel.archiveText, iconName: DesignTokens.PRStatusBar.Button.archiveIconName,
+          shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.archiveAppearance,
+          isTitleShown: layout.isButtonTitleShown)
+      }
+      if model.isDetailsShown {
+        PRBarActionLabel(
+          title: PRStatusBarModel.detailsText, iconName: DesignTokens.PRStatusBar.Button.detailsIconName,
+          shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.detailsAppearance,
+          isTitleShown: layout.isButtonTitleShown)
+      }
+    }
+    .modifier(Pill(tone: model.tone))
+  }
+
+  private func chip(number: String) -> some View {
+    HStack(spacing: DesignTokens.PRStatusBar.Chip.gap) {
+      Text(number)
+        .font(DesignTokens.PRStatusBar.Chip.font)
+        .foregroundStyle(DesignTokens.PRStatusBar.Chip.color(model.tone))
+      IconView(icon: DesignTokens.PRStatusBar.Chip.arrow(model.tone))
+    }
+    .padding(.horizontal, DesignTokens.PRStatusBar.Chip.horizontalPadding)
+    .frame(height: DesignTokens.PRStatusBar.Chip.height)
+    .overlay(
+      RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Chip.cornerRadius)
+        .stroke(DesignTokens.PRStatusBar.Chip.stroke(model.tone), lineWidth: 1))
+  }
+
+  private func status(_ layout: PRStatusBarModel.Layout) -> some View {
     HStack(spacing: DesignTokens.PRStatusBar.Status.gap) {
       if let iconName = model.statusIconName {
         IconView(icon: DesignTokens.PRStatusBar.Status.icon(named: iconName, tone: model.tone))
@@ -61,7 +96,7 @@ struct PRStatusBarView: View {
       Text(model.statusLabel)
         .font(DesignTokens.PRStatusBar.Status.labelFont)
         .foregroundStyle(DesignTokens.PRStatusBar.Status.color(model.tone))
-      if let detail = model.statusDetail {
+      if let detail = model.statusDetail(in: layout) {
         Text(detail)
           .font(DesignTokens.PRStatusBar.Status.detailFont)
           .foregroundStyle(DesignTokens.PRStatusBar.detailColor)
@@ -74,7 +109,7 @@ struct PRStatusBarView: View {
   private func primaryButton(_ button: PRBarButton) -> some View {
     PRBarActionButton(
       title: button.title, iconName: button.iconName, shortcutText: button.shortcutText,
-      appearance: DesignTokens.PRStatusBar.Button.appearance(button)
+      appearance: DesignTokens.PRStatusBar.Button.appearance(button), isTitleShown: model.layout.isButtonTitleShown
     ) {
       Task { await model.primaryButtonTapped() }
     }
@@ -85,7 +120,8 @@ struct PRStatusBarView: View {
   private var continueButton: some View {
     PRBarActionButton(
       title: PRStatusBarModel.continueText, iconName: DesignTokens.PRStatusBar.Button.continueIconName,
-      shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.continueAppearance
+      shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.continueAppearance,
+      isTitleShown: model.layout.isButtonTitleShown
     ) {
       Task { await model.continueTapped() }
     }
@@ -95,7 +131,8 @@ struct PRStatusBarView: View {
   private var archiveButton: some View {
     PRBarActionButton(
       title: PRStatusBarModel.archiveText, iconName: DesignTokens.PRStatusBar.Button.archiveIconName,
-      shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.archiveAppearance
+      shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.archiveAppearance,
+      isTitleShown: model.layout.isButtonTitleShown
     ) {
       model.archiveTapped()
     }
@@ -104,7 +141,8 @@ struct PRStatusBarView: View {
   private var detailsButton: some View {
     PRBarActionButton(
       title: PRStatusBarModel.detailsText, iconName: DesignTokens.PRStatusBar.Button.detailsIconName,
-      shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.detailsAppearance
+      shortcutText: nil, appearance: DesignTokens.PRStatusBar.Button.detailsAppearance,
+      isTitleShown: model.layout.isButtonTitleShown
     ) {
       model.detailsTapped()
     }
@@ -159,19 +197,58 @@ struct PRStatusBarView: View {
   }
 }
 
+private struct Pill: ViewModifier {
+  let tone: PRStatusTone
+
+  func body(content: Content) -> some View {
+    content
+      .padding(.leading, DesignTokens.PRStatusBar.leadingPadding)
+      .padding(.trailing, DesignTokens.PRStatusBar.trailingPadding)
+      .frame(height: DesignTokens.PRStatusBar.height)
+      .background(
+        DesignTokens.PRStatusBar.fill(tone), in: RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.cornerRadius)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.cornerRadius)
+          .stroke(DesignTokens.PRStatusBar.stroke, lineWidth: 1)
+      }
+      .fixedSize()
+  }
+}
+
 private struct PRBarActionButton: View {
   let title: String
   let iconName: String
   let shortcutText: String?
   let appearance: DesignTokens.PRStatusBar.Button.Appearance
+  let isTitleShown: Bool
   let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      PRBarActionLabel(
+        title: title, iconName: iconName, shortcutText: shortcutText, appearance: appearance,
+        isTitleShown: isTitleShown)
+    }
+    .buttonStyle(.plain)
+    .help(title)
+    .accessibilityLabel(title)
+  }
+}
+
+private struct PRBarActionLabel: View {
+  let title: String
+  let iconName: String
+  let shortcutText: String?
+  let appearance: DesignTokens.PRStatusBar.Button.Appearance
+  let isTitleShown: Bool
 
   @Environment(\.isEnabled) private var isEnabled
 
   var body: some View {
-    Button(action: action) {
-      HStack(spacing: DesignTokens.PRStatusBar.Button.gap) {
-        IconView(icon: appearance.icon(named: iconName))
+    HStack(spacing: DesignTokens.PRStatusBar.Button.gap) {
+      IconView(icon: appearance.icon(named: iconName))
+      if isTitleShown {
         Text(title)
           .font(DesignTokens.PRStatusBar.Button.labelFont)
           .foregroundStyle(appearance.foreground)
@@ -181,20 +258,18 @@ private struct PRBarActionButton: View {
             .foregroundStyle(appearance.shortcut)
         }
       }
-      .padding(.horizontal, DesignTokens.PRStatusBar.Button.horizontalPadding)
-      .frame(height: DesignTokens.PRStatusBar.Button.height)
-      .background(
-        appearance.fill, in: RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Button.cornerRadius)
-      )
-      .overlay {
-        if let stroke = appearance.stroke {
-          RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Button.cornerRadius).stroke(stroke, lineWidth: 1)
-        }
-      }
-      .opacity(DesignTokens.PRStatusBar.Button.opacity(isEnabled: isEnabled))
-      .contentShape(RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Button.cornerRadius))
     }
-    .buttonStyle(.plain)
-    .accessibilityLabel(title)
+    .padding(.horizontal, DesignTokens.PRStatusBar.Button.horizontalPadding(isTitleShown: isTitleShown))
+    .frame(height: DesignTokens.PRStatusBar.Button.height)
+    .background(
+      appearance.fill, in: RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Button.cornerRadius)
+    )
+    .overlay {
+      if let stroke = appearance.stroke {
+        RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Button.cornerRadius).stroke(stroke, lineWidth: 1)
+      }
+    }
+    .opacity(DesignTokens.PRStatusBar.Button.opacity(isEnabled: isEnabled))
+    .contentShape(RoundedRectangle(cornerRadius: DesignTokens.PRStatusBar.Button.cornerRadius))
   }
 }

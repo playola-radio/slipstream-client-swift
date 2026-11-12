@@ -90,6 +90,16 @@ final class PRStatusBarModel: ViewModel {
     case merging, continuing, sending
   }
 
+  /// How much of the section fits in the toolbar, widest first.
+  enum Layout: CaseIterable, Hashable, Sendable {
+    case full, withoutDetail, iconsOnly
+
+    var isButtonTitleShown: Bool { self != .iconsOnly }
+  }
+
+  /// The view measures hidden copies of these; icon-only is the fallback and needs no measuring.
+  static let measuredLayouts: [Layout] = [.full, .withoutDetail]
+
   private struct FailedAction {
     var folder: String
     var failure: PRBarFailure
@@ -101,6 +111,9 @@ final class PRStatusBarModel: ViewModel {
   private(set) var isDetailsPresented = false
   private var failedAction: FailedAction?
   private var refreshCount = 0
+  private var windowWidth: CGFloat = 0
+  private var openInWidth: CGFloat = 0
+  private var layoutWidths: [Layout: CGFloat] = [:]
   /// Set by the owner: whether the selected workspace can be archived.
   @ObservationIgnored var isArchivable: @MainActor () -> Bool = { false }
   @ObservationIgnored var onArchive: @MainActor () -> Void = {}
@@ -156,12 +169,22 @@ final class PRStatusBarModel: ViewModel {
 
   var statusDetail: String? { appearance.detail }
 
+  func statusDetail(in layout: Layout) -> String? {
+    layout == .full ? statusDetail : nil
+  }
+
   // MARK: - View Helpers
 
-  var isRowContentShown: Bool {
+  var isShown: Bool {
     if failure != nil || isCheckingShown { return true }
     guard let status else { return false }
     return status != .nothingToSubmit
+  }
+
+  /// The widest layout that fits beside Open In, which is centred on the whole window.
+  var layout: Layout {
+    let room = (windowWidth - openInWidth) / 2 - DesignTokens.WindowHeader.trailingChromeWidth
+    return Self.measuredLayouts.first { layoutWidths[$0].map { $0 <= room } ?? false } ?? .iconsOnly
   }
 
   var statusIconName: String? { appearance.iconName }
@@ -285,6 +308,18 @@ final class PRStatusBarModel: ViewModel {
   func detailsDismissed() {
     isDetailsPresented = false
     failedAction = nil
+  }
+
+  func windowResized(width: CGFloat) {
+    windowWidth = width
+  }
+
+  func openInMeasured(width: CGFloat) {
+    openInWidth = width
+  }
+
+  func layoutMeasured(_ layout: Layout, width: CGFloat) {
+    layoutWidths[layout] = width
   }
 
   func copyTapped() {

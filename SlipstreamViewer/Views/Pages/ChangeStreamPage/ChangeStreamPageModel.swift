@@ -593,7 +593,11 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func feedViewportChanged(_ frame: CGRect) { feedViewport = frame }
-  func viewportChanged(_ size: CGSize) { viewport = CGRect(origin: .zero, size: size) }
+  func viewportChanged(_ size: CGSize) {
+    viewport = CGRect(origin: .zero, size: size)
+    prStatusBar.windowResized(width: size.width)
+  }
+
   func composerMeasured(_ size: CGSize) { composerSize = size }
 
   func sourceDragged(row: FileChangeRow, block: CodeBlock, startY: CGFloat, endY: CGFloat, frame: CGRect) {

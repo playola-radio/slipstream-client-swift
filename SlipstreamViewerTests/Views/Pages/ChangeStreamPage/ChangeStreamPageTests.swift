@@ -4327,6 +4327,37 @@ extension ChangeStreamPageTests {
     #expect(model.prStatusBar.pollKey != before)
   }
 
+  @Test func prStatusStaysShownWhileTheRightPanelIsHidden() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    #expect(model.prStatusBar.isShown)
+
+    model.rightPaneToggleTapped()
+
+    #expect(!model.isRightPaneShown)
+    #expect(model.prStatusBar.isShown)
+  }
+
+  @Test func prStatusIsHiddenWithoutAWorkspace() {
+    let model = makeModel(workspace: workspaceClient())
+
+    #expect(!model.prStatusBar.isShown)
+  }
+
+  @Test func windowResizeReachesThePRStatusLayout() {
+    let model = makeModel()
+    model.prStatusBar.openInMeasured(width: 60)
+    model.prStatusBar.layoutMeasured(.full, width: 400)
+    model.prStatusBar.layoutMeasured(.withoutDetail, width: 300)
+    #expect(model.prStatusBar.layout == .iconsOnly)
+
+    model.viewportChanged(CGSize(width: PRStatusBarTests.windowWidth(room: 400, openIn: 60), height: 900))
+
+    #expect(model.prStatusBar.layout == .full)
+  }
+
   @Test func archiveFromBarUsesArchiveConfirmation() async throws {
     listWorkspace()
     let model = makeModel(workspace: workspaceClient())
