@@ -30,10 +30,12 @@ struct ChangeStreamPageView: View {
         .frame(maxWidth: model.detailPaneMaxWidth)
       if model.isRightPaneShown {
         resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
-        rightPane
-          .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
-          .transition(.move(edge: .trailing))
       }
+      rightPane
+        .frame(width: model.rightPaneContentWidth)
+        .frame(minWidth: model.rightPaneMinWidth, maxWidth: model.rightPaneMaxWidth, alignment: .leading)
+        .allowsHitTesting(model.isRightPaneShown)
+        .accessibilityHidden(!model.isRightPaneShown)
     }
     .clipped()
     .frame(
@@ -181,10 +183,15 @@ struct ChangeStreamPageView: View {
     VStack(spacing: 0) {
       PRStatusBarView(model: model.prStatusBar)
       rightPaneStrip
-      if model.isStreamShown {
+      ZStack {
+        let isFeedSelected = model.isSelected(.stream)
         feedPane
-      } else {
-        TerminalPageView(model: model.terminals)
+          .opacity(isFeedSelected ? 1 : 0)
+          .allowsHitTesting(isFeedSelected)
+          .accessibilityHidden(!isFeedSelected)
+        if model.isTerminalsShown {
+          TerminalPageView(model: model.terminals)
+        }
       }
     }
     .background(DesignTokens.FeedPane.fill)

@@ -377,6 +377,17 @@ final class ChangeStreamPageModel: ViewModel {
   var detailPaneWidth: CGFloat? { isRightPaneShown ? chatColumnWidth : nil }
   var detailPaneMaxWidth: CGFloat? { isRightPaneShown ? nil : .infinity }
 
+  /// A hidden right pane keeps its shown width just past the window's edge, so the stream stays
+  /// laid out and scrolled where it was.
+  var rightPaneContentWidth: CGFloat? {
+    guard isRightPaneHidden else { return nil }
+    return max(
+      DesignTokens.FeedPane.width,
+      viewport.width - (isSidebarShown ? sidebarColumnWidth : 0) - chatColumnWidth)
+  }
+  var rightPaneMinWidth: CGFloat { isRightPaneShown ? DesignTokens.FeedPane.width : 0 }
+  var rightPaneMaxWidth: CGFloat { isRightPaneShown ? .infinity : 0 }
+
   /// The chat's dragged width, until the window is too narrow for it: then the chat gives way
   /// before the stream does. Only a screen too narrow for all three columns takes the chat under
   /// its minimum.
@@ -399,6 +410,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   var isStreamShown: Bool { isRightPaneShown && rightPane == .stream }
+  var isTerminalsShown: Bool { isRightPaneShown && rightPane == .terminals }
 
   func isSelected(_ pane: RightPane) -> Bool {
     rightPane == pane
@@ -962,11 +974,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func rightPaneToggleTapped() {
     $isRightPaneHidden.withLock { $0.toggle() }
-    if isRightPaneHidden {
-      replyCollapsed()
-    } else if isStreamShown {
-      follow.jumpToLatest()
-    }
+    if isRightPaneHidden { replyCollapsed() }
   }
 
   /// `translation` is how far the drag has moved since it began.
@@ -1000,15 +1008,12 @@ final class ChangeStreamPageModel: ViewModel {
   func rightPaneSelected(_ pane: RightPane) {
     guard pane != rightPane else { return }
     rightPane = pane
-    switch pane {
-    case .stream: follow.jumpToLatest()
-    case .terminals: replyCollapsed()
-    }
+    if pane == .terminals { replyCollapsed() }
   }
 
   /// ⌘W closes the focused terminal's tab while Terminals shows, otherwise the chat's.
   func closeShortcutPressed() async {
-    if isRightPaneShown, rightPane == .terminals, terminals.hasKeyboardFocus {
+    if isTerminalsShown, terminals.hasKeyboardFocus {
       await terminals.closeShortcutPressed()
     } else {
       await chat.closeShortcutPressed()
