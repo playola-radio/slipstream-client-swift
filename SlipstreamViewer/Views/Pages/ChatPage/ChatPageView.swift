@@ -272,7 +272,10 @@ private struct TranscriptView: View {
       }
       .frame(maxWidth: .infinity, alignment: .trailing)
     case .reply:
-      MarkdownText(text: tab.rowText(for: item))
+      MarkdownText(
+        text: tab.rowText(for: item),
+        codeCopyAccessibilityLabel: tab.codeCopyAccessibilityLabel,
+        codeCopyTapped: { tab.codeCopyTapped($0) })
     case .thinking:
       VStack(alignment: .leading, spacing: DesignTokens.Chat.Thinking.gap) {
         Button { tab.itemToggled(item) } label: {

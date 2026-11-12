@@ -1349,6 +1349,9 @@ enum DesignTokens {
       static let fill = Bubble.fill
       static let padding: CGFloat = 12
       static let radius: CGFloat = 6
+      static let maxHeight: CGFloat = 320
+      static let copy = Icons.Icon(assetName: "Copy", size: 13, color: muted)
+      static let copyPadding: CGFloat = 8
     }
 
     enum TurnFooter {

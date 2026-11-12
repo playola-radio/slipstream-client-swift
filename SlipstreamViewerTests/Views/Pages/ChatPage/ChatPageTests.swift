@@ -1636,6 +1636,16 @@ struct ChatPageTests {
     expectNoDifference(copied.value, ["First\n\nSecond"])
   }
 
+  @Test func copyingACodeBlockCopiesOnlyItsCode() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+
+    tab.codeCopyTapped("let a = 1\nlet b = 2")
+
+    expectNoDifference(copied.value, ["let a = 1\nlet b = 2"])
+  }
+
   @Test func fencedCodeSplitsFromProse() throws {
     let text = """
       Run **this**:
