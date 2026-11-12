@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.20] - 2026-11-12
+
+- When a question about a chat comes back without a usable answer, the error now says how
+  Claude Code stopped and what it said, and the failure is written to the app log.
+
 ## [0.4.19] - 2026-11-12
 
 - Long code blocks in chat replies now stop at a fixed height and scroll inside, and every code
