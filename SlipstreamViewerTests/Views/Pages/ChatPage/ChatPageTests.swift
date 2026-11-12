@@ -1939,6 +1939,15 @@ struct ChatPageTests {
       ])])
   }
 
+  @Test func singleColumnTablesAllowAHeaderWithoutPipes() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("Name\n|---|\n| Alice |"),
+      [.table(.init(
+        alignments: [.leading],
+        header: [try inline("Name")],
+        rows: [[try inline("Alice")]]))])
+  }
+
   @Test func almostTablesStayProse() throws {
     let noSeparator = "| a | b |\n| 1 | 2 |"
     let wrongCount = "| a | b |\n|---|---|---|\n| 1 | 2 |"

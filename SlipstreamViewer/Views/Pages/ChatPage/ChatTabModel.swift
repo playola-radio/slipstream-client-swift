@@ -365,7 +365,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// A header row, a separator row with as many cells, then every following line with a pipe
   /// that doesn't start another block.
   private static func table(_ lines: [Substring], at start: Int) -> (MarkdownTable, end: Int)? {
-    guard start + 1 < lines.count, lines[start].contains("|"), lines[start + 1].contains("|") else { return nil }
+    guard start + 1 < lines.count, lines[start + 1].contains("|") else { return nil }
     let header = tableCells(lines[start])
     let separator = tableCells(lines[start + 1])
     let alignments = separator.compactMap(columnAlignment)
