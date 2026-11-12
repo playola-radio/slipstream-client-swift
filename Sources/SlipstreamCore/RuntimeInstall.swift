@@ -161,8 +161,8 @@ public struct RuntimeInstall: Sendable {
 
   static let shimScripts = ["slipstream": "cli.js", "slipstream-mcp": "mcp-forwarder.js"]
 
-  static func shellQuoted(_ value: String) -> String {
-    "'\(value.replacingOccurrences(of: "'", with: "'\\\\''"))'"
+  public static func shellQuoted(_ value: String) -> String {
+    "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
   }
 
   static func shim(execing script: String, root: String) -> String {

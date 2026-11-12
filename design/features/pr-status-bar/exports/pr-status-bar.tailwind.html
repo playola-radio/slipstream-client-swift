@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      tailwind = { config: { corePlugins: { preflight: false } } };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist%3Awght%40100..900&family=Geist+Mono%3Awght%40100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *, ::before, ::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body style="background-color: #0B0F13">
+    <div class="relative w-[2240px] h-[1865px]">
+      <div
+        data-pencil-name="Screen · A · Right header states"
+        class="box-border w-fit h-fit absolute left-0 top-0 flex flex-col gap-[12px] justify-start items-start"
+      >
+        <div
+          data-pencil-name="Screen title"
+          class="text-[16px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+        >
+          A · Right header: one state at a time
+        </div>
+        <div
+          data-pencil-name="Screen note"
+          class="text-[13px]/[20px] box-border w-[1600px] text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left"
+        >
+          A new 40pt row at the top of the right column, above the Change stream / Terminals tabs.
+          Left: the PR number chip (opens the PR on GitHub) and where things stand. Right: the one
+          next step. Buttons that hand work to the agent send a short message with the instructions
+          attached as a chip (screen B). Merge, Continue and Archive run directly, no agent.
+        </div>
+        <div
+          data-pencil-name="States"
+          class="box-border w-fit h-fit shrink-0 flex flex-col gap-[22px] justify-start items-start"
+        >
+          <div
+            data-pencil-name="State · checking"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              1 · Checking — first look after choosing a workspace (no flicker: shown only if it
+              takes over a moment)
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--checking"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="loader-circle"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.005 1.104q-1.39 .131-2.555 .924-1.162 .794-1.787 2.041-.416 .831-.546 1.793-.025 .156-.025 .638 0 .482 .025 .638 .156 1.13 .702 2.079 .546 .949 1.444 1.625 .558 .428 1.253 .695 .695 .266 1.413 .346 .219 .025 .571 .025 .352 0 .571-.025 1.041-.118 1.955-.597 .918-.482 1.594-1.269 .676-.787 1.015-1.787 .13-.416 .207-.851 .079-.438 .066-.8 0-.158-.006-.209-.006-.051-.032-.105-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012-.105 0-.143 .012-.038 .013-.092 .039-.168 .092-.241 .234-.07 .143-.076 .438-.007 .292-.086 .68-.26 1.288-1.209 2.224-1.038 1.026-2.561 1.21-.169 .025-.496 .025-.323 0-.504-.025-.727-.105-1.371-.416-.645-.314-1.152-.819-.61-.612-.943-1.406-.33-.793-.33-1.663 0-.521 .111-.981 .111-.463 .33-.93 .314-.625 .819-1.136 .508-.514 1.158-.841 .467-.219 .927-.33 .464-.111 .984-.111 .336 0 .616 .041 .282 .038 .619 .14 .222 .054 .311 .054 .196-.026 .339-.162 .143-.137 .156-.333 .013-.143-.048-.273-.057-.13-.158-.207-.146-.092-.55-.19-.399-.098-.818-.137-.156-.012-.48-.012-.323 0-.482 .012z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Checking for a pull request…
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · nothing-to-submit"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              2 · No PR, nothing to submit — branch matches its target, no uncommitted work
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--nothing-to-submit"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            ></div>
+          </div>
+          <div
+            data-pencil-name="State · no-pr-uncommitted"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              3 · No PR, uncommitted changes
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--no-pr-uncommitted"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Uncommitted changes
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Create PR button"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-0 justify-start items-center bg-[#2B3540] rounded-[5px]"
+              >
+                <div
+                  data-pencil-name="Main part"
+                  class="box-border w-fit shrink-0 h-full flex flex-row gap-[6px] p-[0px_9px] justify-start items-center"
+                >
+                  <svg
+                    data-pencil-name="Create PR icon"
+                    viewBox="0 0 13 13"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="git-pull-request-create"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                  >
+                    <path
+                      d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-6.174l.156-.054q.469-.155 .819-.498 .352-.346 .52-.8 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM6.852 2.742q-.092 .041-.177 .121-.083 .076-.124 .162-.038 .082-.045 .219-.006 .136 .032 .222 .041 .082 .118 .162 .079 .076 .155 .117l.092 .038 1.885 .013 .092 .038q.194 .092 .286 .286l.038 .092 .013 1.885 .038 .092q.041 .076 .117 .155 .08 .077 .162 .118 .086 .038 .222 .032 .137-.007 .229-.045 .194-.105 .273-.301 .025-.064 .025-.207v-.898l-.012-.882q0-.156-.026-.235-.235-.755-.911-1.066-.13-.064-.26-.105-.092-.026-.241-.032-.149-.006-.889-.006h-.885q-.156 0-.207 .025zM9.607 7.604q-.235 .08-.352 .286-.025 .067-.032 .152-.006 .083-.006 .55v.625h-1.247l-.08 .051q-.168 .092-.26 .247-.038 .079-.038 .235 0 .156 .038 .229 .041 .069 .117 .149 .08 .076 .143 .111 .067 .032 .149 .038 .086 .006 .553 .006h.625v.625q0 .467 .006 .553 .007 .082 .038 .149 .035 .063 .111 .143 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .111-.143 .035-.067 .041-.149 .006-.086 .006-.553v-.625h.625q.467 0 .55-.006 .085-.006 .149-.038 .066-.035 .143-.111 .079-.08 .117-.149 .041-.073 .041-.229 0-.156-.038-.235-.092-.155-.26-.247l-.079-.051h-1.248v-.625q0-.467-.006-.55-.006-.085-.032-.152-.092-.168-.26-.247-.079-.039-.21-.045-.13-.006-.168 .006z"
+                      fill="#e6edf3"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="Create PR label"
+                    class="text-[12px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                  >
+                    Create PR
+                  </div>
+                  <div
+                    data-pencil-name="Shortcut"
+                    class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    ⌘⇧P
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · no-pr-committed"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              4 · No PR, work committed (pushed or not)
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--no-pr-committed"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Ready for a pull request
+                </div>
+                <div
+                  data-pencil-name="Status detail"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  · 3 commits ahead of develop
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Create PR button"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-0 justify-start items-center bg-[#2B3540] rounded-[5px]"
+              >
+                <div
+                  data-pencil-name="Main part"
+                  class="box-border w-fit shrink-0 h-full flex flex-row gap-[6px] p-[0px_9px] justify-start items-center"
+                >
+                  <svg
+                    data-pencil-name="Create PR icon"
+                    viewBox="0 0 13 13"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="git-pull-request-create"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                  >
+                    <path
+                      d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-6.174l.156-.054q.469-.155 .819-.498 .352-.346 .52-.8 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM6.852 2.742q-.092 .041-.177 .121-.083 .076-.124 .162-.038 .082-.045 .219-.006 .136 .032 .222 .041 .082 .118 .162 .079 .076 .155 .117l.092 .038 1.885 .013 .092 .038q.194 .092 .286 .286l.038 .092 .013 1.885 .038 .092q.041 .076 .117 .155 .08 .077 .162 .118 .086 .038 .222 .032 .137-.007 .229-.045 .194-.105 .273-.301 .025-.064 .025-.207v-.898l-.012-.882q0-.156-.026-.235-.235-.755-.911-1.066-.13-.064-.26-.105-.092-.026-.241-.032-.149-.006-.889-.006h-.885q-.156 0-.207 .025zM9.607 7.604q-.235 .08-.352 .286-.025 .067-.032 .152-.006 .083-.006 .55v.625h-1.247l-.08 .051q-.168 .092-.26 .247-.038 .079-.038 .235 0 .156 .038 .229 .041 .069 .117 .149 .08 .076 .143 .111 .067 .032 .149 .038 .086 .006 .553 .006h.625v.625q0 .467 .006 .553 .007 .082 .038 .149 .035 .063 .111 .143 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .111-.143 .035-.067 .041-.149 .006-.086 .006-.553v-.625h.625q.467 0 .55-.006 .085-.006 .149-.038 .066-.035 .143-.111 .079-.08 .117-.149 .041-.073 .041-.229 0-.156-.038-.235-.092-.155-.26-.247l-.079-.051h-1.248v-.625q0-.467-.006-.55-.006-.085-.032-.152-.092-.168-.26-.247-.079-.039-.21-.045-.13-.006-.168 .006z"
+                      fill="#e6edf3"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="Create PR label"
+                    class="text-[12px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                  >
+                    Create PR
+                  </div>
+                  <div
+                    data-pencil-name="Shortcut"
+                    class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    ⌘⇧P
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-uncommitted"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              5 · PR open, uncommitted or unpushed work
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-uncommitted"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Uncommitted changes
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Commit and push"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#2B3540] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Commit and push icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-commit-horizontal"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.164 4.367q-.613 .105-1.07 .489-.454 .384-.647 .955l-.054 .156h-2.924l-.079 .051q-.168 .092-.26 .247-.038 .079-.038 .235 0 .156 .038 .229 .041 .069 .117 .149 .08 .076 .143 .117l.079 .038h2.924l.054 .156q.155 .469 .498 .822 .346 .349 .8 .517 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .454-.168 .797-.517 .346-.353 .502-.822l.053-.156h2.924l.079-.038q.063-.041 .14-.117 .079-.08 .117-.149 .041-.073 .041-.229 0-.156-.038-.235-.092-.155-.26-.247l-.079-.051h-2.924l-.053-.156q-.194-.546-.619-.923-.423-.378-.994-.508-.13-.026-.397-.032-.266-.006-.38 .019zM6.773 5.446q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08z"
+                    fill="#e6edf3"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Commit and push label"
+                  class="text-[12px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Commit and push
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-conflicts"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              6 · PR open, merge conflicts with its target
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-conflicts"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="triangle-alert"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.383 1.079q-.429 .025-.819 .286-.105 .079-.229 .209-.124 .13-.187 .219-.105 .156-2.276 3.961-2.171 3.802-2.209 3.891-.117 .273-.117 .6-.013 .181 .006 .305 .019 .124 .073 .279 .143 .403 .467 .682 .324 .28 .755 .372 .076 .025 .832 .025h3.821 3.926q.638 0 .74-.025 .469-.105 .806-.445 .482-.479 .482-1.142 0-.39-.168-.727-.054-.092-2.2-3.847-2.142-3.757-2.221-3.888-.168-.272-.46-.466-.292-.197-.607-.264-.219-.038-.415-.025zM6.735 2.209q.089 .054 .146 .127 .06 .07 2.25 3.904 2.193 3.834 2.219 3.913 .063 .21-.048 .403-.108 .194-.33 .26-.064 .013-.793 .013h-8.138l-.105-.051q-.181-.079-.273-.273-.038-.092-.038-.215 0-.124 .044-.213 .048-.092 2.19-3.856 2.146-3.764 2.2-3.841 .105-.142 .305-.193 .2-.054 .371 .035zM6.357 4.354q-.235 .08-.352 .286l-.038 .079v2.289q0 .168 .032 .247 .034 .077 .111 .156 .079 .076 .174 .124 .099 .044 .216 .044 .117 0 .213-.044 .098-.048 .174-.124 .08-.079 .111-.156 .035-.079 .035-.247v-2.289l-.038-.079q-.092-.168-.26-.247-.079-.039-.21-.045-.13-.006-.168 .006zM6.408 8.684q-.168 .025-.298 .155-.194 .197-.143 .47 .051 .273 .298 .39 .092 .038 .235 .038 .235 0 .39-.155 .118-.118 .143-.286 .051-.273-.146-.466-.193-.197-.479-.146z"
+                    fill="#e4c282"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Merge conflicts
+                </div>
+                <div
+                  data-pencil-name="Status detail"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  with develop
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Resolve conflicts"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#3A3020] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Resolve conflicts icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-compare-arrows"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.352 1.117q-.232 .041-.479 .146-.248 .102-.442 .245-.13 .092-.282 .247-.149 .156-.238 .286-.365 .546-.365 1.209 0 .87 .612 1.495 .35 .378 .857 .558l.143 .054v1.664q0 1.688 .026 1.818 .025 .286 .155 .546 .143 .302 .41 .524 .266 .219 .606 .323l.143 .051h1.688l-.374 .391q-.248 .247-.327 .336-.092 .105-.118 .171-.025 .064-.025 .194 0 .13 .032 .209 .034 .077 .123 .169 .092 .089 .169 .123 .079 .032 .222 .032 .143 0 .219-.038 .079-.041 .955-.917 .879-.879 .933-.955 .026-.054 .032-.099 .006-.044 .006-.149 0-.105-.006-.149-.006-.045-.032-.099-.041-.076-.911-.936l-.104-.105q-.48-.479-.623-.609-.184-.181-.263-.219-.076-.041-.194-.041h-.025q-.105 0-.143 .012-.038 .013-.092 .039-.168 .092-.26 .247-.038 .079-.038 .222 0 .143 .025 .21 .026 .063 .118 .168 .079 .089 .327 .336l.374 .391h-.701q-.534 0-.695-.013-.162-.013-.242-.051-.076-.041-.142-.111-.064-.073-.105-.149l-.038-.092-.013-3.444 .13-.054q.571-.193 .962-.634 .39-.445 .492-1.029 .104-.584-.102-1.145-.155-.442-.489-.772-.33-.333-.784-.501-.234-.092-.549-.124-.311-.032-.558 .019zM7.982 1.104q-.105 .026-.266 .169-.162 .143-.8 .793-.87 .86-.911 .936-.025 .054-.032 .099-.006 .044-.006 .149 0 .105 .006 .149 .007 .045 .032 .099 .054 .076 .93 .955 .879 .876 .955 .917 .08 .038 .222 .038 .143 0 .219-.032 .08-.034 .169-.123 .092-.092 .123-.169 .035-.079 .035-.209 0-.13-.025-.194-.026-.066-.118-.171-.079-.089-.326-.336l-.375-.391h.689q.688 0 .793 .026 .286 .038 .403 .298l.038 .092 .013 3.444-.105 .041q-.596 .193-.993 .663-.397 .467-.502 1.098-.104 .629 .197 1.254 .273 .559 .79 .885 .521 .324 1.146 .324 .365 0 .676-.105 .546-.18 .93-.596 .384-.416 .514-.962 .156-.651-.092-1.276-.168-.441-.52-.777-.352-.34-.806-.483l-.143-.051-.013-3.278q-.013-.298-.025-.375-.105-.415-.365-.72-.26-.308-.638-.463-.194-.08-.372-.093-.174-.012-.837-.012h-.778l.375-.391q.247-.247 .326-.336 .092-.105 .118-.168 .025-.067 .025-.197 0-.13-.035-.206-.031-.08-.108-.172-.155-.143-.365-.155-.13 0-.168 .012zM2.977 2.196q.26 .067 .492 .302 .235 .231 .289 .504 .025 .105 .025 .248 0 .143-.025 .248-.054 .272-.286 .507-.184 .181-.358 .254-.175 .07-.41 .07-.339 0-.584-.168-.314-.222-.432-.565-.114-.346-.006-.689 .111-.346 .425-.555 .181-.13 .413-.168 .235-.039 .457 .025zM10.661 8.738q.181 .063 .343 .206 .162 .143 .254 .324 .181 .377 .076 .768-.102 .39-.454 .625-.244 .168-.571 .168-.248 0-.422-.07-.175-.073-.359-.254-.143-.142-.206-.273-.105-.222-.105-.469 0-.248 .07-.422 .073-.175 .228-.346 .299-.286 .651-.311 .273-.026 .495 .054z"
+                    fill="#e4c282"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Resolve conflicts label"
+                  class="text-[12px]/[normal] box-border text-[#E4C282] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Resolve conflicts
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-checks-failed"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              7 · PR open, a check failed
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-checks-failed"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="circle-x"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.214 .559q-1.079 .038-2.069 .469-.987 .429-1.768 1.178-.777 .746-1.247 1.72-.454 .936-.559 2.003-.025 .181-.025 .571 0 .39 .025 .571 .105 1.067 .559 2.003 .612 1.301 1.761 2.171 1.152 .87 2.555 1.117 .495 .092 1.054 .092 .701 0 1.33-.143 .631-.143 1.257-.441 1.171-.574 2.009-1.58 .838-1.007 1.165-2.27 .273-1.038 .168-2.091-.105-1.054-.559-2.016-.546-1.117-1.504-1.936-.956-.819-2.149-1.184-.936-.285-2.003-.234zM7.113 1.663q.999 .13 1.85 .632 .851 .501 1.45 1.307 .768 1.025 .937 2.365 .012 .155 .012 .533 0 .378-.012 .533-.13 1.079-.67 1.978-.54 .895-1.425 1.507-.441 .311-.974 .521-.534 .206-1.105 .285-.235 .038-.676 .038-.441 0-.676-.038-1-.143-1.819-.638-.818-.495-1.418-1.288-.768-1.025-.937-2.365-.012-.155-.012-.533 0-.378 .012-.533 .131-1.041 .622-1.905 .496-.863 1.33-1.475 .505-.378 1.121-.622 .619-.248 1.231-.302l.235-.025q.089-.013 .441 0 .352 .012 .483 .025zM4.732 4.354q-.235 .08-.352 .286-.038 .079-.038 .235 0 .156 .044 .235 .048 .076 .698 .739l.648 .651-.648 .651q-.65 .663-.698 .742-.044 .076-.044 .219 0 .143 .032 .222 .034 .077 .123 .169 .092 .089 .169 .123 .079 .032 .222 .032 .143 0 .219-.044 .079-.048 .742-.698l.651-.648 .651 .648q.663 .65 .739 .698 .08 .044 .222 .044 .143 0 .219-.032 .08-.034 .169-.123 .092-.092 .123-.169 .035-.079 .035-.222 0-.143-.047-.219-.045-.079-.695-.742l-.635-.651 .635-.651q.65-.663 .695-.739 .047-.079 .047-.235 0-.156-.038-.235-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012h-.013q-.13 0-.203 .035-.07 .031-.225 .174-.118 .102-.508 .492l-.676 .689-.651-.648q-.403-.403-.52-.507-.168-.156-.241-.188-.07-.035-.194-.041-.124-.006-.162 .006z"
+                    fill="#f0a4ab"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#F0A4AB] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Checks failed
+                </div>
+                <div
+                  data-pencil-name="Status detail"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  · 2 of 9 failed
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Fix errors"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#3A2226] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Fix errors icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="wrench"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M8.347 .546q-.663 .067-1.269 .346-.603 .279-1.073 .733-.936 .936-1.105 2.276-.05 .361-.012 .799 .038 .435 .155 .734l.026 .104-2.054 2.054q-2.053 2.053-2.129 2.158-.235 .311-.315 .695-.076 .384 .026 .762 .117 .428 .441 .755 .327 .324 .755 .441 .625 .169 1.197-.13 .143-.066 .26-.171 .168-.143 .625-.597l3.599-3.574 .067 .026q.194 .063 .546 .13 .168 .025 .559 .025 .39 0 .571-.025 1.041-.171 1.834-.806 .857-.689 1.213-1.743 .358-1.053 .085-2.132-.076-.273-.247-.442-.194-.209-.467-.241-.273-.032-.546 .099-.079 .038-.234 .187-.156 .149-.769 .761l-.882 .87-.844-.844 .87-.882q.872-.873 .923-.949 .118-.21 .13-.442 .013-.234-.104-.444-.051-.105-.15-.194-.098-.092-.196-.142-.096-.054-.305-.099-.206-.047-.403-.073-.143-.025-.391-.025-.244 0-.387 .013zM8.906 1.638q.025 0 0 .041-.026 .038-.168 .181l-.508 .52q-.73 .727-.794 .819-.155 .245-.168 .533-.013 .286 .118 .546 .038 .089 .126 .188 .093 .098 .508 .52 .416 .422 .508 .508 .092 .082 .194 .12 .273 .131 .552 .118 .282-.013 .527-.168 .079-.064 .819-.794l.742-.727v.077q.013 .092 .007 .327-.007 .234-.032 .377-.025 .143-.098 .359-.073 .213-.15 .355-.196 .403-.536 .737-.336 .33-.733 .511-.394 .181-.844 .235-.448 .05-.864-.039-.209-.041-.584-.184-.104-.038-.235-.038h-.038q-.092 .013-.184 .076-.143 .105-.546 .496l-3.497 3.484q-.391 .391-.533 .48-.089 .066-.181 .079h-.038q-.197 .013-.353-.082-.155-.099-.235-.27-.038-.076-.044-.115-.006-.041-.006-.146v-.05q-.013-.076 .012-.13 .038-.092 .194-.261 .159-.168 .536-.546l1.559-1.558q1.352-1.365 1.787-1.812 .438-.451 .463-.502 .038-.079 .051-.209 0-.092-.007-.137-.006-.044-.057-.174-.117-.286-.165-.521-.044-.235-.044-.508 0-.545 .197-1.041 .168-.441 .511-.815 .346-.378 .774-.584 .428-.21 .886-.276 .101-.013 .307-.013 .21 0 .264 .013z"
+                    fill="#f0a4ab"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Fix errors label"
+                  class="text-[12px]/[normal] box-border text-[#F0A4AB] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Fix errors
+                </div>
+                <div
+                  data-pencil-name="Shortcut"
+                  class="text-[11.5px]/[normal] box-border text-[#C98A90] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  ⌘⇧X
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-checks-running"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              8 · PR open, checks still running — no button
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-checks-running"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="loader-circle"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.005 1.104q-1.39 .131-2.555 .924-1.162 .794-1.787 2.041-.416 .831-.546 1.793-.025 .156-.025 .638 0 .482 .025 .638 .156 1.13 .702 2.079 .546 .949 1.444 1.625 .558 .428 1.253 .695 .695 .266 1.413 .346 .219 .025 .571 .025 .352 0 .571-.025 1.041-.118 1.955-.597 .918-.482 1.594-1.269 .676-.787 1.015-1.787 .13-.416 .207-.851 .079-.438 .066-.8 0-.158-.006-.209-.006-.051-.032-.105-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012-.105 0-.143 .012-.038 .013-.092 .039-.168 .092-.241 .234-.07 .143-.076 .438-.007 .292-.086 .68-.26 1.288-1.209 2.224-1.038 1.026-2.561 1.21-.169 .025-.496 .025-.323 0-.504-.025-.727-.105-1.371-.416-.645-.314-1.152-.819-.61-.612-.943-1.406-.33-.793-.33-1.663 0-.521 .111-.981 .111-.463 .33-.93 .314-.625 .819-1.136 .508-.514 1.158-.841 .467-.219 .927-.33 .464-.111 .984-.111 .336 0 .616 .041 .282 .038 .619 .14 .222 .054 .311 .054 .196-.026 .339-.162 .143-.137 .156-.333 .013-.143-.048-.273-.057-.13-.158-.207-.146-.092-.55-.19-.399-.098-.818-.137-.156-.012-.48-.012-.323 0-.482 .012z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Checks running
+                </div>
+                <div
+                  data-pencil-name="Status detail"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  · 6 of 9 done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-ready"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              9 · PR open, ready to merge (checks passed or none, no conflicts)
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-ready"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="circle-check"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.214 .559q-1.079 .038-2.069 .469-.987 .429-1.768 1.178-.777 .746-1.247 1.72-.454 .936-.559 2.003-.025 .181-.025 .571 0 .39 .025 .571 .105 1.067 .559 2.003 .612 1.301 1.761 2.171 1.152 .87 2.555 1.117 .495 .092 1.054 .092 .701 0 1.33-.143 .631-.143 1.257-.441 1.171-.574 2.009-1.58 .838-1.007 1.165-2.27 .273-1.038 .168-2.091-.105-1.054-.559-2.016-.546-1.117-1.504-1.936-.956-.819-2.149-1.184-.936-.285-2.003-.234zM7.113 1.663q.999 .13 1.85 .632 .851 .501 1.45 1.307 .768 1.025 .937 2.365 .012 .155 .012 .533 0 .378-.012 .533-.13 1.079-.67 1.978-.54 .895-1.425 1.507-.441 .311-.974 .521-.534 .206-1.105 .285-.235 .038-.676 .038-.441 0-.676-.038-1-.143-1.819-.638-.818-.495-1.418-1.288-.768-1.025-.937-2.365-.012-.155-.012-.533 0-.378 .012-.533 .131-1.041 .622-1.905 .496-.863 1.33-1.475 .505-.378 1.121-.622 .619-.248 1.231-.302l.235-.025q.089-.013 .441 0 .352 .012 .483 .025zM7.995 4.888q-.064 .025-.118 .047-.05 .019-.987 .952l-.923 .924-.378-.374q-.247-.248-.336-.315-.118-.104-.184-.13-.064-.025-.181-.025-.118 0-.156 .012-.038 .013-.092 .039-.168 .092-.26 .247-.038 .079-.038 .235v.013q0 .13 .032 .196 .034 .064 .165 .207 .088 .105 .453 .47l.039 .038q.39 .39 .514 .507 .123 .115 .187 .143 .13 .064 .273 .051 .143-.013 .26-.092 .067-.051 1.197-1.181 .806-.806 .974-.987 .171-.184 .197-.251 .089-.257-.054-.485-.143-.229-.416-.241-.117-.013-.168 0z"
+                    fill="#7ee787"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#7EE787] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Ready to merge
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Merge"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#1E3A2A] [outline:1px_solid_#2F6B45] [outline-offset:-0.5px] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Merge icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-merge"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079 .013-3.393 .067 .079q.676 .857 1.644 1.397 .968 .539 2.047 .644l.089 .013 .054 .142q.142 .467 .492 .832 .352 .365 .806 .533 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.168-.442-.52-.791-.35-.352-.807-.495-.193-.066-.33-.092-.136-.025-.371-.025-.286 0-.416 .038-.441 .092-.8 .333-.358 .241-.603 .603-.146 .235-.234 .495l-.039 .118h-.092q-.311-.042-.688-.156-1.146-.352-1.959-1.241-.812-.892-1.044-2.063-.041-.193-.054-.298v-.079l.118-.039q.454-.142 .812-.491 .359-.353 .527-.807 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM10.023 8.696q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08z"
+                    fill="#8fe3a5"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Merge label"
+                  class="text-[12px]/[normal] box-border text-[#8FE3A5] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Merge
+                </div>
+                <div
+                  data-pencil-name="Shortcut"
+                  class="text-[11.5px]/[normal] box-border text-[#6FB585] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  ⌘⇧M
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-draft"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              9b · PR open as a draft, nothing to fix — no button (gh won't merge drafts)
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-draft"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-pull-request-draft"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-6.174l.156-.054q.469-.155 .819-.498 .352-.346 .52-.8 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM9.658 2.184q-.143 .012-.254 .111-.108 .098-.162 .215-.025 .064-.025 .143 0 .076 0 .356 0 .279 .006 .352 .007 .07 .038 .13 .035 .057 .111 .137 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .111-.137 .035-.06 .041-.13 .006-.073 .006-.359 0-.323-.012-.422-.013-.098-.099-.206-.086-.111-.222-.162-.136-.054-.292-.028zM9.62 4.888q-.118 .025-.222 .123-.102 .099-.156 .216-.012 .064-.019 .137-.006 .07-.006 .323 0 .254 .006 .327 .007 .07 .019 .134 .08 .196 .273 .301 .092 .038 .235 .038 .143 0 .235-.038 .194-.105 .273-.301 .013-.064 .019-.134 .006-.073 .006-.327 0-.253-.006-.323-.006-.073-.019-.137-.079-.184-.264-.279-.18-.098-.374-.06zM9.41 7.617q-.831 .143-1.336 .768-.171 .207-.27 .416-.095 .21-.174 .482-.025 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .155 .442 .492 .781 .34 .337 .781 .492 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.193-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.384 .019zM10.023 8.696q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Draft
+                </div>
+                <div
+                  data-pencil-name="Status detail"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  · all checks passed
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · open-waiting"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              9c · PR open, nothing to fix, but GitHub won't merge yet (computing, review required,
+              branch protection, behind base) — no button
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--open-waiting"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="hourglass"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.625 .546q-.219 .038-.356 .228-.136 .188-.085 .41 .012 .089 .044 .155 .035 .064 .105 .13 .073 .064 .143 .099 .073 .032 .13 .038 .06 .006 .308 .019h.336v.924q0 .923 .025 1.066 .038 .248 .143 .454 .092 .168 .267 .365 .178 .193 .981 1l1.066 1.066-1.066 1.066q-.803 .807-.981 1.003-.175 .194-.267 .362-.105 .206-.143 .454-.025 .143-.025 1.066v.924h-.336q-.248 .013-.308 .019-.057 .006-.124 .032-.26 .117-.305 .39-.044 .273 .149 .483 .118 .117 .286 .142 .092 .026 3.888 .026 3.796 0 3.888-.026 .219-.038 .343-.219 .124-.184 .085-.406-.012-.089-.047-.152-.032-.067-.105-.13-.07-.067-.143-.099-.07-.035-.13-.041-.057-.006-.305-.019h-.336v-.924q0-.923-.025-1.066-.038-.248-.143-.441-.092-.181-.27-.375-.175-.196-.977-1.003l-1.054-1.066 1.054-1.066q.802-.807 .977-1 .178-.197 .27-.378 .105-.193 .143-.441 .025-.143 .025-1.066v-.924h.336q.248-.013 .305-.019 .06-.006 .13-.038 .073-.035 .143-.099 .073-.066 .105-.13 .035-.066 .047-.168 .039-.184-.047-.339-.083-.156-.264-.248l-.092-.038h-3.862q-3.847 0-3.926 0zM8.658 2.536q0 .663 0 .8 0 .136-.025 .203-.026 .063-.184 .231-.156 .169-.895 .911l-1.054 1.051-1.041-1.051q-.752-.742-.911-.911-.155-.168-.181-.231-.025-.067-.025-.21v-1.704h4.316zM7.554 8.319q.739 .755 .895 .917 .158 .162 .184 .228 .025 .064 .025 .207v1.704h-4.316v-1.704q0-.143 .025-.207 .026-.066 .181-.228 .159-.162 .898-.917 1.041-1.038 1.054-1.038 .013 0 1.054 1.038z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Waiting on GitHub
+                </div>
+                <div
+                  data-pencil-name="Status detail"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  · review required
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · merging"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              10 · Merging — Merge clicked, waiting for GitHub
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--merging"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="loader-circle"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.005 1.104q-1.39 .131-2.555 .924-1.162 .794-1.787 2.041-.416 .831-.546 1.793-.025 .156-.025 .638 0 .482 .025 .638 .156 1.13 .702 2.079 .546 .949 1.444 1.625 .558 .428 1.253 .695 .695 .266 1.413 .346 .219 .025 .571 .025 .352 0 .571-.025 1.041-.118 1.955-.597 .918-.482 1.594-1.269 .676-.787 1.015-1.787 .13-.416 .207-.851 .079-.438 .066-.8 0-.158-.006-.209-.006-.051-.032-.105-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012-.105 0-.143 .012-.038 .013-.092 .039-.168 .092-.241 .234-.07 .143-.076 .438-.007 .292-.086 .68-.26 1.288-1.209 2.224-1.038 1.026-2.561 1.21-.169 .025-.496 .025-.323 0-.504-.025-.727-.105-1.371-.416-.645-.314-1.152-.819-.61-.612-.943-1.406-.33-.793-.33-1.663 0-.521 .111-.981 .111-.463 .33-.93 .314-.625 .819-1.136 .508-.514 1.158-.841 .467-.219 .927-.33 .464-.111 .984-.111 .336 0 .616 .041 .282 .038 .619 .14 .222 .054 .311 .054 .196-.026 .339-.162 .143-.137 .156-.333 .013-.143-.048-.273-.057-.13-.158-.207-.146-.092-.55-.19-.399-.098-.818-.137-.156-.012-.48-.012-.323 0-.482 .012z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Merging…
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Merge"
+                class="box-border w-fit shrink-0 h-[24px] opacity-[0.45] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#1E3A2A] [outline:1px_solid_#2F6B45] [outline-offset:-0.5px] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Merge icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-merge"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079 .013-3.393 .067 .079q.676 .857 1.644 1.397 .968 .539 2.047 .644l.089 .013 .054 .142q.142 .467 .492 .832 .352 .365 .806 .533 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.168-.442-.52-.791-.35-.352-.807-.495-.193-.066-.33-.092-.136-.025-.371-.025-.286 0-.416 .038-.441 .092-.8 .333-.358 .241-.603 .603-.146 .235-.234 .495l-.039 .118h-.092q-.311-.042-.688-.156-1.146-.352-1.959-1.241-.812-.892-1.044-2.063-.041-.193-.054-.298v-.079l.118-.039q.454-.142 .812-.491 .359-.353 .527-.807 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM10.023 8.696q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08z"
+                    fill="#8fe3a5"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Merge label"
+                  class="text-[12px]/[normal] box-border text-[#8FE3A5] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Merge
+                </div>
+                <div
+                  data-pencil-name="Shortcut"
+                  class="text-[11.5px]/[normal] box-border text-[#6FB585] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  ⌘⇧M
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · merged"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              11 · Merged
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--merged"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#1A1724] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#4B3A70] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#BC8CFF] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#bc8cff"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-merge"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079 .013-3.393 .067 .079q.676 .857 1.644 1.397 .968 .539 2.047 .644l.089 .013 .054 .142q.142 .467 .492 .832 .352 .365 .806 .533 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.168-.442-.52-.791-.35-.352-.807-.495-.193-.066-.33-.092-.136-.025-.371-.025-.286 0-.416 .038-.441 .092-.8 .333-.358 .241-.603 .603-.146 .235-.234 .495l-.039 .118h-.092q-.311-.042-.688-.156-1.146-.352-1.959-1.241-.812-.892-1.044-2.063-.041-.193-.054-.298v-.079l.118-.039q.454-.142 .812-.491 .359-.353 .527-.807 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM10.023 8.696q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08z"
+                    fill="#bc8cff"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#BC8CFF] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Merged
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Continue"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#1E1A2B] [outline:1px_solid_#5B4690] [outline-offset:-0.5px] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Continue icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-branch-plus"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M3.107 1.104q-.235 .08-.352 .286l-.038 .079v6.174l-.156 .054q-.469 .155-.822 .501-.349 .343-.517 .797-.079 .209-.105 .352-.025 .143-.025 .403 0 .26 .025 .403 .026 .143 .105 .352 .155 .442 .492 .781 .339 .337 .781 .492 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.209-.006-.286-.006-.079-.032-.181-.143-.545-.482-.936-.168-.222-.429-.397-.26-.177-.52-.253l-.118-.039v-.092q.026-.209 .105-.501 .079-.292 .168-.514 .403-1.038 1.254-1.746 .854-.711 1.933-.93 .193-.041 .298-.054h.079l.039 .118q.142 .454 .492 .812 .352 .359 .806 .527 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.168-.442-.52-.791-.35-.352-.807-.495-.193-.066-.33-.092-.136-.025-.371-.025-.235 0-.371 .025-.137 .026-.33 .092-.483 .156-.848 .527-.362 .371-.504 .851l-.054 .142-.156 .013q-.923 .118-1.78 .533-1.08 .546-1.819 1.47l-.092 .117-.013-3.393-.038-.079q-.092-.168-.26-.247-.079-.039-.21-.045-.13-.006-.168 .006zM10.023 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM9.607 7.604q-.235 .08-.352 .286-.025 .067-.032 .152-.006 .083-.006 .55v.625h-1.247l-.08 .051q-.168 .092-.26 .247-.038 .079-.038 .235 0 .156 .038 .229 .041 .069 .117 .149 .08 .076 .143 .111 .067 .032 .149 .038 .086 .006 .553 .006h.625v.625q0 .467 .006 .553 .007 .082 .038 .149 .035 .063 .111 .143 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .111-.143 .035-.067 .041-.149 .006-.086 .006-.553v-.625h.625q.467 0 .55-.006 .085-.006 .149-.038 .066-.035 .143-.111 .079-.08 .117-.149 .041-.073 .041-.229 0-.156-.038-.235-.092-.155-.26-.247l-.079-.051h-1.248v-.625q0-.467-.006-.55-.006-.085-.032-.152-.092-.168-.26-.247-.079-.039-.21-.045-.13-.006-.168 .006zM3.523 8.696q.273 .067 .492 .295 .222 .226 .289 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .067-.26 .286-.486 .222-.228 .482-.295 .105-.012 .286-.012 .181 0 .273 .012z"
+                    fill="#bc8cff"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Continue label"
+                  class="text-[12px]/[normal] box-border text-[#BC8CFF] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Continue
+                </div>
+              </div>
+              <div
+                data-pencil-name="Archive"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#7C4FD6] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Archive icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="archive"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M1.365 1.117q-.261 .054-.495 .286-.115 .117-.181 .216-.064 .098-.105 .254l-.038 .117v1.999l.038 .131q.079 .209 .229 .377 .149 .169 .33 .261 .234 .117 .419 .117h.063l.013 5.681 .038 .143q.143 .482 .466 .787 .327 .305 .797 .397 .089 .025 .676 .025h2.885 2.885q.587 0 .676-.025 .47-.092 .794-.397 .326-.305 .469-.787l.038-.143 .013-5.681h.064q.184 0 .418-.117 .181-.092 .331-.261 .149-.168 .228-.377l.038-.131v-1.999l-.038-.117q-.041-.156-.108-.254-.063-.099-.178-.216-.234-.232-.507-.286-.118-.025-5.129-.025-5.012 0-5.129 .025zM11.375 2.977v.806h-9.75v-1.625h9.75zM10.283 7.658v2.781l-.038 .079q-.092 .181-.273 .273l-.105 .038h-6.734l-.092-.038q-.194-.092-.286-.273l-.038-.079v-5.564h7.566zM5.227 5.992q-.092 .041-.177 .121-.083 .076-.118 .149-.032 .07-.038 .108-.006 .038-.006 .13 0 .143 .038 .235 .105 .193 .301 .273 .064 .025 .232 .025h1.041 1.041q.168 0 .232-.025 .197-.08 .301-.273 .038-.092 .038-.235 0-.092-.006-.13-.006-.038-.032-.105-.041-.076-.127-.152-.082-.08-.162-.111-.076-.035-.244-.035h-1.041-1.041q-.181 .012-.232 .025z"
+                    fill="#ffffff"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Archive label"
+                  class="text-[12px]/[normal] box-border text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Archive
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · closed"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              12 · Closed without merging
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--closed"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="PR number"
+                class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[4px]"
+              >
+                <div
+                  data-pencil-name="PR number label"
+                  class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  #61
+                </div>
+                <svg
+                  data-pencil-name="Open PR"
+                  viewBox="0 0 11 11"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="arrow-up-right"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[11px] shrink-0 h-[11px] overflow-visible"
+                >
+                  <path
+                    d="M3.102 2.761q-.11 .032-.204 .121-.094 .088-.127 .198-.042 .153 .022 .309 .067 .153 .199 .231 .067 .022 .153 .032 .134 .011 .518 .022h3.013l-1.925 1.925q-1.297 1.297-1.617 1.628-.317 .33-.341 .373-.086 .188-.011 .365 .078 .175 .253 .253 .177 .075 .365-.011 .043-.024 .373-.341 .331-.32 1.628-1.617l1.925-1.925v1.737q0 1.749 .022 1.816 .021 .142 .121 .231 .155 .153 .362 .137 .21-.016 .33-.194l.022-.021q.035-.043 .046-.143 .01-.12 .021-.539v-4.225l-.032-.075q-.022-.089-.1-.166-.077-.078-.166-.1l-.075-.032h-2.366q-2.353 0-2.409 .011z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+              </div>
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="git-pull-request-closed"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-6.174l.156-.054q.469-.155 .819-.498 .352-.346 .52-.8 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM7.982 1.104q-.235 .08-.352 .286-.038 .079-.038 .235 0 .155 .044 .235 .048 .076 .699 .739l.634 .651-.634 .651q-.651 .663-.699 .742-.044 .076-.044 .219 0 .143 .032 .222 .034 .077 .123 .169 .092 .089 .169 .123 .079 .032 .222 .032 .143 0 .219-.044 .079-.048 .742-.698l.651-.648 .651 .648q.663 .65 .739 .698 .08 .044 .222 .044 .143 0 .219-.032 .08-.034 .169-.123 .092-.092 .123-.169 .035-.079 .035-.222 0-.143-.047-.219-.045-.079-.695-.742l-.635-.651 .635-.651q.65-.663 .695-.739 .047-.08 .047-.235 0-.156-.038-.235-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012h-.013q-.13 0-.203 .035-.07 .031-.225 .174-.118 .102-.508 .492l-.676 .689-.651-.648q-.403-.403-.52-.507-.168-.156-.241-.188-.07-.035-.194-.041-.124-.006-.162 .006zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM9.62 5.707q-.118 .025-.222 .117-.102 .092-.156 .209-.025 .064-.025 .181 0 .118 0 .676v.753l-.156 .054q-.469 .155-.822 .501-.349 .343-.517 .797-.079 .209-.105 .352-.025 .143-.025 .403 0 .26 .025 .403 .026 .143 .105 .352 .155 .442 .492 .781 .34 .337 .781 .492 .209 .079 .352 .105 .143 .025 .403 .025 .26 0 .403-.025 .143-.026 .352-.105 .442-.155 .778-.492 .34-.339 .495-.781 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.168-.454-.52-.797-.35-.346-.819-.501l-.156-.054v-.753q0-.558 0-.676 0-.117-.025-.181-.079-.184-.264-.273-.18-.092-.374-.053zM10.023 8.696q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08z"
+                    fill="#8b9aa6"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Closed
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Create PR button"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-0 justify-start items-center bg-[#2B3540] rounded-[5px]"
+              >
+                <div
+                  data-pencil-name="Main part"
+                  class="box-border w-fit shrink-0 h-full flex flex-row gap-[6px] p-[0px_9px] justify-start items-center"
+                >
+                  <svg
+                    data-pencil-name="Create PR icon"
+                    viewBox="0 0 13 13"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="git-pull-request-create"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                  >
+                    <path
+                      d="M2.914 1.117q-.835 .143-1.34 .768-.171 .207-.27 .416-.095 .209-.174 .482-.026 .102-.032 .181-.006 .077-.006 .286 0 .26 .025 .403 .026 .143 .105 .352 .168 .454 .517 .8 .353 .343 .822 .498l.156 .054v6.174l.038 .079q.041 .063 .117 .143 .08 .076 .149 .117 .073 .038 .229 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-6.174l.156-.054q.469-.155 .819-.498 .352-.346 .52-.8 .079-.209 .105-.352 .025-.143 .025-.403 0-.26-.025-.403-.026-.143-.105-.352-.194-.518-.619-.883-.422-.365-.968-.482-.13-.026-.397-.032-.266-.006-.38 .019zM3.523 2.196q.26 .067 .486 .295 .228 .226 .295 .486 .025 .117 .025 .273 0 .156-.025 .26-.067 .273-.283 .495-.212 .219-.498 .299-.105 .025-.273 .025-.168 0-.273-.025-.286-.08-.501-.299-.213-.222-.28-.495-.025-.104-.025-.26 0-.156 .025-.273 .054-.209 .21-.403 .155-.194 .377-.298 .324-.169 .74-.08zM6.852 2.742q-.092 .041-.177 .121-.083 .076-.124 .162-.038 .082-.045 .219-.006 .136 .032 .222 .041 .082 .118 .162 .079 .076 .155 .117l.092 .038 1.885 .013 .092 .038q.194 .092 .286 .286l.038 .092 .013 1.885 .038 .092q.041 .076 .117 .155 .08 .077 .162 .118 .086 .038 .222 .032 .137-.007 .229-.045 .194-.105 .273-.301 .025-.064 .025-.207v-.898l-.012-.882q0-.156-.026-.235-.235-.755-.911-1.066-.13-.064-.26-.105-.092-.026-.241-.032-.149-.006-.889-.006h-.885q-.156 0-.207 .025zM9.607 7.604q-.235 .08-.352 .286-.025 .067-.032 .152-.006 .083-.006 .55v.625h-1.247l-.08 .051q-.168 .092-.26 .247-.038 .079-.038 .235 0 .156 .038 .229 .041 .069 .117 .149 .08 .076 .143 .111 .067 .032 .149 .038 .086 .006 .553 .006h.625v.625q0 .467 .006 .553 .007 .082 .038 .149 .035 .063 .111 .143 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .111-.143 .035-.067 .041-.149 .006-.086 .006-.553v-.625h.625q.467 0 .55-.006 .085-.006 .149-.038 .066-.035 .143-.111 .079-.08 .117-.149 .041-.073 .041-.229 0-.156-.038-.235-.092-.155-.26-.247l-.079-.051h-1.248v-.625q0-.467-.006-.55-.006-.085-.032-.152-.092-.168-.26-.247-.079-.039-.21-.045-.13-.006-.168 .006z"
+                      fill="#e6edf3"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="Create PR label"
+                    class="text-[12px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                  >
+                    Create PR
+                  </div>
+                  <div
+                    data-pencil-name="Shortcut"
+                    class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    ⌘⇧P
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · error"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              13 · Couldn't check (gh missing, signed out, network) — Details shows the full output
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--error"
+              class="[box-sizing:content-box] w-[1059.5px] h-[39.5px] shrink-0 flex flex-row gap-[10px] p-[0px_16px] justify-start items-center bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden"
+            >
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="circle-alert"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.214 .559q-1.079 .038-2.069 .469-.987 .429-1.768 1.178-.777 .746-1.247 1.72-.454 .936-.559 2.003-.025 .181-.025 .571 0 .39 .025 .571 .105 1.067 .559 2.003 .612 1.301 1.761 2.171 1.152 .87 2.555 1.117 .495 .092 1.054 .092 .701 0 1.33-.143 .631-.143 1.257-.441 1.171-.574 2.009-1.58 .838-1.007 1.165-2.27 .273-1.038 .168-2.091-.105-1.054-.559-2.016-.546-1.117-1.504-1.936-.956-.819-2.149-1.184-.936-.285-2.003-.234zM7.113 1.663q.999 .13 1.85 .632 .851 .501 1.45 1.307 .768 1.025 .937 2.365 .012 .155 .012 .533 0 .378-.012 .533-.13 1.079-.67 1.978-.54 .895-1.425 1.507-.441 .311-.974 .521-.534 .206-1.105 .285-.235 .038-.676 .038-.441 0-.676-.038-1-.143-1.819-.638-.818-.495-1.418-1.288-.768-1.025-.937-2.365-.012-.155-.012-.533 0-.378 .012-.533 .131-1.041 .622-1.905 .496-.863 1.33-1.475 .505-.378 1.121-.622 .619-.248 1.231-.302l.235-.025q.089-.013 .441 0 .352 .012 .483 .025zM6.408 3.809q-.089 .012-.162 .047-.07 .032-.143 .118-.07 .082-.104 .155-.032 .07-.032 .238v2.289l.038 .079q.041 .063 .117 .143 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-2.171q0-.248-.019-.318-.019-.073-.073-.149l-.013-.013q-.092-.117-.228-.168-.136-.054-.292-.028zM6.357 8.15q-.193 .054-.298 .21-.105 .155-.092 .346 .013 .187 .143 .33 .079 .076 .142 .117 .197 .089 .391 .032 .193-.06 .311-.228 .117-.169 .079-.378-.012-.102-.047-.165-.032-.067-.111-.13-.077-.067-.15-.105-.069-.041-.181-.048-.107-.006-.187 .019z"
+                    fill="#f0a4ab"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#F0A4AB] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Couldn't check the pull request
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+              ></div>
+              <div
+                data-pencil-name="Details"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#191F27] [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[5px]"
+              >
+                <svg
+                  data-pencil-name="Details icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="chevron-down"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M3.107 4.354q-.235 .08-.352 .286-.038 .079-.038 .235 0 .156 .044 .241 .048 .083 1.73 1.768 1.685 1.682 1.768 1.73 .086 .044 .241 .044 .156 0 .238-.044 .086-.048 1.768-1.73 1.685-1.685 1.73-1.768 .047-.085 .047-.241 0-.156-.038-.235-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012-.105 0-.143 .012-.038 .013-.105 .039-.092 .054-1.545 1.51l-1.457 1.454-2.625-2.612q-.289-.273-.39-.352-.079-.051-.184-.051h-.026q-.13 0-.168 .012z"
+                    fill="#b7c3cd"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Details label"
+                  class="text-[12px]/[normal] box-border text-[#B7C3CD] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Details
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · error-details"
+            class="box-border w-fit h-fit shrink-0 flex flex-col gap-[8px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              13a · Details open — the full gh output, selectable, with Copy
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--error-details"
+              class="[box-sizing:content-box] w-[1059.5px] h-[209.5px] shrink-0 flex flex-row gap-[10px] p-[8px_16px_0px_16px] justify-start items-start bg-[#191F27] [border-width:0px_0px_1px_1px] [border-style:solid] [border-color:#2A3640] [margin:0px_0px_-0.5px_-0.5px] overflow-hidden relative"
+            >
+              <div
+                data-pencil-name="Status"
+                class="box-border w-fit shrink-0 h-fit flex flex-row gap-[6px] justify-start items-center relative [z-index:0]"
+              >
+                <svg
+                  data-pencil-name="Status icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="circle-alert"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M6.214 .559q-1.079 .038-2.069 .469-.987 .429-1.768 1.178-.777 .746-1.247 1.72-.454 .936-.559 2.003-.025 .181-.025 .571 0 .39 .025 .571 .105 1.067 .559 2.003 .612 1.301 1.761 2.171 1.152 .87 2.555 1.117 .495 .092 1.054 .092 .701 0 1.33-.143 .631-.143 1.257-.441 1.171-.574 2.009-1.58 .838-1.007 1.165-2.27 .273-1.038 .168-2.091-.105-1.054-.559-2.016-.546-1.117-1.504-1.936-.956-.819-2.149-1.184-.936-.285-2.003-.234zM7.113 1.663q.999 .13 1.85 .632 .851 .501 1.45 1.307 .768 1.025 .937 2.365 .012 .155 .012 .533 0 .378-.012 .533-.13 1.079-.67 1.978-.54 .895-1.425 1.507-.441 .311-.974 .521-.534 .206-1.105 .285-.235 .038-.676 .038-.441 0-.676-.038-1-.143-1.819-.638-.818-.495-1.418-1.288-.768-1.025-.937-2.365-.012-.155-.012-.533 0-.378 .012-.533 .131-1.041 .622-1.905 .496-.863 1.33-1.475 .505-.378 1.121-.622 .619-.248 1.231-.302l.235-.025q.089-.013 .441 0 .352 .012 .483 .025zM6.408 3.809q-.089 .012-.162 .047-.07 .032-.143 .118-.07 .082-.104 .155-.032 .07-.032 .238v2.289l.038 .079q.041 .063 .117 .143 .08 .076 .15 .117 .073 .038 .228 .038 .156 0 .225-.038 .073-.041 .15-.117 .079-.08 .12-.143l.038-.079v-2.171q0-.248-.019-.318-.019-.073-.073-.149l-.013-.013q-.092-.117-.228-.168-.136-.054-.292-.028zM6.357 8.15q-.193 .054-.298 .21-.105 .155-.092 .346 .013 .187 .143 .33 .079 .076 .142 .117 .197 .089 .391 .032 .193-.06 .311-.228 .117-.169 .079-.378-.012-.102-.047-.165-.032-.067-.111-.13-.077-.067-.15-.105-.069-.041-.181-.048-.107-.006-.187 .019z"
+                    fill="#f0a4ab"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Status label"
+                  class="text-[12.5px]/[normal] box-border text-[#F0A4AB] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Couldn't check the pull request
+                </div>
+              </div>
+              <div
+                data-pencil-name="Spacer"
+                class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start relative [z-index:1]"
+              ></div>
+              <div
+                data-pencil-name="Details"
+                class="box-border w-fit shrink-0 h-[24px] flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#191F27] [outline:1px_solid_#2A3640] [outline-offset:-0.5px] rounded-[5px] relative [z-index:2]"
+              >
+                <svg
+                  data-pencil-name="Details icon"
+                  viewBox="0 0 13 13"
+                  preserveAspectRatio="xMidYMid meet"
+                  data-icon-name="chevron-down"
+                  data-icon-set="lucide"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                >
+                  <path
+                    d="M3.107 4.354q-.235 .08-.352 .286-.038 .079-.038 .235 0 .156 .044 .241 .048 .083 1.73 1.768 1.685 1.682 1.768 1.73 .086 .044 .241 .044 .156 0 .238-.044 .086-.048 1.768-1.73 1.685-1.685 1.73-1.768 .047-.085 .047-.241 0-.156-.038-.235-.092-.155-.26-.247-.054-.026-.092-.039-.038-.012-.143-.012-.105 0-.143 .012-.038 .013-.105 .039-.092 .054-1.545 1.51l-1.457 1.454-2.625-2.612q-.289-.273-.39-.352-.079-.051-.184-.051h-.026q-.13 0-.168 .012z"
+                    fill="#b7c3cd"
+                  />
+                </svg>
+                <div
+                  data-pencil-name="Details label"
+                  class="text-[12px]/[normal] box-border text-[#B7C3CD] font-[Geist,system-ui,sans-serif] font-medium text-left [white-space:nowrap]"
+                >
+                  Details
+                </div>
+              </div>
+              <div
+                data-pencil-name="Details popover"
+                class="box-border w-[560px] h-fit [box-shadow:0px_8px_24px_#00000080] absolute left-[484px] top-[36px] flex flex-col gap-[10px] p-[12px] justify-start items-start bg-[#1C232B] [outline:1px_solid_#2F3B47] [outline-offset:-0.5px] rounded-[7px] [z-index:3]"
+              >
+                <div
+                  data-pencil-name="Popover header"
+                  class="box-border w-full h-fit shrink-0 flex flex-row gap-[8px] justify-start items-center"
+                >
+                  <div
+                    data-pencil-name="Command"
+                    class="text-[11.5px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    gh pr view --json number,state,… · exit 4
+                  </div>
+                  <div
+                    data-pencil-name="Spacer"
+                    class="box-border [flex:1_1_0] h-[1px] flex flex-row gap-0 justify-start items-start"
+                  ></div>
+                  <div
+                    data-pencil-name="Copy"
+                    class="box-border w-fit shrink-0 h-[22px] flex flex-row gap-[5px] p-[0px_7px] justify-start items-center [outline:1px_solid_#2F3B47] [outline-offset:-0.5px] rounded-[4px]"
+                  >
+                    <svg
+                      data-pencil-name="Copy icon"
+                      viewBox="0 0 12 12"
+                      preserveAspectRatio="xMidYMid meet"
+                      data-icon-name="copy"
+                      data-icon-set="lucide"
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="box-border w-[12px] shrink-0 h-[12px] overflow-visible"
+                    >
+                      <path
+                        d="M1.849 .516q-.252 .023-.504 .143-.252 .12-.434 .314-.264 .275-.372 .671l-.035 .143v5.426l.035 .143q.193 .671 .782 .973 .179 .094 .402 .144 .222 .047 .354 .023 .214-.047 .334-.208 .12-.164 .073-.381-.023-.143-.137-.263-.115-.121-.343-.144-.337-.035-.457-.299l-.035-.085v-5.232l.035-.085q.085-.167 .252-.252l.085-.035h5.232l.085 .035q.264 .12 .299 .445 .023 .229 .155 .361 .109 .108 .264 .131 .252 .047 .434-.131 .096-.097 .126-.211 .029-.115 .017-.282-.073-.553-.451-.923-.378-.372-.929-.421-.143-.024-2.628-.024-2.484 0-2.639 .024zM4.849 3.516q-.252 .023-.504 .143-.252 .12-.434 .325-.264 .276-.372 .683l-.035 .146v5.4l.035 .143q.062 .217 .155 .378 .097 .162 .252 .32 .159 .155 .32 .252 .161 .093 .378 .155l.143 .035h5.426l.143-.035q.217-.062 .378-.155 .162-.097 .317-.252 .158-.158 .252-.32 .096-.161 .158-.378l.035-.143v-5.426l-.035-.143q-.108-.396-.372-.671-.384-.408-.973-.469-.143-.012-2.628-.012-2.484 0-2.639 .024zM10.201 4.547q.167 .085 .252 .252l.035 .085v5.232l-.023 .073q-.109 .226-.325 .288-.071 .023-2.64 .023-2.569 0-2.64-.023-.216-.062-.325-.288l-.023-.073v-5.232l.035-.085q.097-.214 .325-.276 .073-.023 2.663-.023l2.581 .012z"
+                        fill="#b7c3cd"
+                      />
+                    </svg>
+                    <div
+                      data-pencil-name="Copy label"
+                      class="text-[11.5px]/[normal] box-border text-[#B7C3CD] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                    >
+                      Copy
+                    </div>
+                  </div>
+                </div>
+                <div
+                  data-pencil-name="Output"
+                  class="text-[11.5px]/[17px] box-border w-full text-[#E6EDF3] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left"
+                >
+                  To get started with GitHub CLI, please run:&nbsp;&nbsp;gh auth login
+                  <br />
+                  Alternatively, populate the GH_TOKEN environment variable with a GitHub API
+                  authentication token.
+                  <br />
+                  <br />
+                  Press ⌘R to check again.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="Screen · B · Chat shows the instructions as a chip"
+        class="box-border w-fit h-fit absolute left-0 top-[1637px] flex flex-col gap-[12px] justify-start items-start"
+      >
+        <div
+          data-pencil-name="Screen title"
+          class="text-[16px]/[normal] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-semibold text-left [white-space:nowrap]"
+        >
+          B · Chat: the message is short, the instructions ride along as a chip
+        </div>
+        <div
+          data-pencil-name="Screen note"
+          class="text-[13px]/[20px] box-border w-[1600px] text-[#8B9AA6] font-[Geist,system-ui,sans-serif] font-normal text-left"
+        >
+          The button writes the instructions to ~/Library/Application
+          Support/Slipstream/attachments/&lt;id&gt;/&lt;name&gt;.md (outside the worktree, so it
+          never shows as a change) and sends the agent one line ending in an @⟦name⟧(path) marker.
+          The chat draws the marker as a chip; clicking it opens the file. The chip survives
+          reopening the chat because the marker is part of the message text. Commit and push and
+          Resolve conflicts have no file, so they're plain messages.
+        </div>
+        <div
+          data-pencil-name="States"
+          class="box-border w-fit h-fit shrink-0 flex flex-row gap-[40px] justify-start items-start"
+        >
+          <div
+            data-pencil-name="State · create-pr"
+            class="box-border w-fit shrink-0 h-fit flex flex-col gap-[10px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Create PR sent
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--chat-create-pr"
+              class="box-border w-[720px] h-fit shrink-0 flex flex-row gap-0 p-[20px_48px] justify-end items-start bg-[#12171D]"
+            >
+              <div
+                data-pencil-name="Bubble"
+                class="box-border w-fit shrink-0 h-fit flex flex-col gap-[8px] p-[10px_16px] justify-start items-start bg-[#232C36] rounded-[8px]"
+              >
+                <div
+                  data-pencil-name="Paragraph"
+                  class="text-[14px]/[23px] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Create a PR
+                </div>
+                <div
+                  data-pencil-name="Attachment chip"
+                  class="box-border w-fit h-[26px] shrink-0 flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#1A2129] [outline:1px_solid_#33404C] [outline-offset:-0.5px] rounded-[5px]"
+                >
+                  <svg
+                    data-pencil-name="File icon"
+                    viewBox="0 0 13 13"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="file-text"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                  >
+                    <path
+                      d="M3.094 .559q-.545 .038-.948 .415-.404 .378-.496 .924-.025 .155-.025 4.602 0 4.447 .025 4.602 .092 .495 .435 .86 .346 .362 .841 .467 .102 .012 .622 .025h2.952 2.952q.52-.013 .622-.025 .495-.105 .838-.467 .346-.365 .438-.86 .025-.155 .025-3.529 0-3.374-.025-3.53-.08-.482-.378-.856-.105-.131-1.158-1.184-.832-.819-1.029-.994-.193-.177-.387-.27-.286-.142-.625-.18-.13-.026-2.314-.026-2.184 0-2.365 .026zM7.046 2.809v1.18l.038 .131q.079 .209 .229 .377 .149 .169 .33 .261 .13 .066 .209 .079 .118 .025 .378 .038h2.053v5.681q0 .403-.035 .483-.031 .076-.111 .161-.076 .083-.152 .124l-.092 .038h-6.786l-.092-.038q-.076-.041-.155-.124-.077-.085-.111-.161-.032-.08-.032-.651v-3.888-3.888q0-.571 .025-.635 .054-.117 .156-.216 .104-.098 .222-.123 .079-.013 1.99-.013h1.923zM9.099 2.822l.962 .961h-1.936v-.961q0-.962 0-.975zM4.161 4.367q-.171 .054-.27 .197-.095 .143-.095 .311 0 .222 .168 .39 .079 .077 .143 .105 .067 .026 .235 .038 .117 0 .533 0 .416 0 .533 0 .168-.012 .232-.038 .067-.028 .146-.105 .168-.168 .168-.39 0-.222-.155-.378-.067-.063-.156-.117l-.079-.038h-.676q-.676 0-.727 .025zM4.199 6.513q-.13 .038-.248 .155-.155 .143-.161 .346-.007 .2 .117 .359 .124 .155 .33 .193 .092 .026 2.263 .026 2.171 0 2.263-.026 .219-.038 .343-.219 .124-.184 .085-.406-.012-.089-.047-.152-.032-.067-.105-.13-.07-.067-.146-.108l-.092-.038-2.263-.013q-2.276 0-2.339 .013zM4.25 8.671q-.273 .051-.397 .298-.121 .248-.006 .495 .041 .064 .111 .13 .073 .064 .149 .105l.092 .038h4.602l.092-.038q.076-.041 .146-.105 .073-.066 .105-.13 .035-.066 .047-.168 .039-.184-.047-.339-.083-.156-.264-.248l-.092-.038h-2.237q-2.222 0-2.301 0z"
+                      fill="#8b9aa6"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="File name"
+                    class="text-[12.5px]/[normal] box-border text-[#B7C3CD] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    PR instructions.md
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · fix-errors"
+            class="box-border w-fit shrink-0 h-fit flex flex-col gap-[10px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Fix errors sent (failure logs inside the file)
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--chat-fix-errors"
+              class="box-border w-[720px] h-fit shrink-0 flex flex-row gap-0 p-[20px_48px] justify-end items-start bg-[#12171D]"
+            >
+              <div
+                data-pencil-name="Bubble"
+                class="box-border w-fit shrink-0 h-fit flex flex-col gap-[8px] p-[10px_16px] justify-start items-start bg-[#232C36] rounded-[8px]"
+              >
+                <div
+                  data-pencil-name="Paragraph"
+                  class="text-[14px]/[23px] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Fix the failing CI actions. I've attached the failure logs.
+                </div>
+                <div
+                  data-pencil-name="Attachment chip"
+                  class="box-border w-fit h-[26px] shrink-0 flex flex-row gap-[6px] p-[0px_9px] justify-start items-center bg-[#1A2129] [outline:1px_solid_#33404C] [outline-offset:-0.5px] rounded-[5px]"
+                >
+                  <svg
+                    data-pencil-name="File icon"
+                    viewBox="0 0 13 13"
+                    preserveAspectRatio="xMidYMid meet"
+                    data-icon-name="file-text"
+                    data-icon-set="lucide"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="box-border w-[13px] shrink-0 h-[13px] overflow-visible"
+                  >
+                    <path
+                      d="M3.094 .559q-.545 .038-.948 .415-.404 .378-.496 .924-.025 .155-.025 4.602 0 4.447 .025 4.602 .092 .495 .435 .86 .346 .362 .841 .467 .102 .012 .622 .025h2.952 2.952q.52-.013 .622-.025 .495-.105 .838-.467 .346-.365 .438-.86 .025-.155 .025-3.529 0-3.374-.025-3.53-.08-.482-.378-.856-.105-.131-1.158-1.184-.832-.819-1.029-.994-.193-.177-.387-.27-.286-.142-.625-.18-.13-.026-2.314-.026-2.184 0-2.365 .026zM7.046 2.809v1.18l.038 .131q.079 .209 .229 .377 .149 .169 .33 .261 .13 .066 .209 .079 .118 .025 .378 .038h2.053v5.681q0 .403-.035 .483-.031 .076-.111 .161-.076 .083-.152 .124l-.092 .038h-6.786l-.092-.038q-.076-.041-.155-.124-.077-.085-.111-.161-.032-.08-.032-.651v-3.888-3.888q0-.571 .025-.635 .054-.117 .156-.216 .104-.098 .222-.123 .079-.013 1.99-.013h1.923zM9.099 2.822l.962 .961h-1.936v-.961q0-.962 0-.975zM4.161 4.367q-.171 .054-.27 .197-.095 .143-.095 .311 0 .222 .168 .39 .079 .077 .143 .105 .067 .026 .235 .038 .117 0 .533 0 .416 0 .533 0 .168-.012 .232-.038 .067-.028 .146-.105 .168-.168 .168-.39 0-.222-.155-.378-.067-.063-.156-.117l-.079-.038h-.676q-.676 0-.727 .025zM4.199 6.513q-.13 .038-.248 .155-.155 .143-.161 .346-.007 .2 .117 .359 .124 .155 .33 .193 .092 .026 2.263 .026 2.171 0 2.263-.026 .219-.038 .343-.219 .124-.184 .085-.406-.012-.089-.047-.152-.032-.067-.105-.13-.07-.067-.146-.108l-.092-.038-2.263-.013q-2.276 0-2.339 .013zM4.25 8.671q-.273 .051-.397 .298-.121 .248-.006 .495 .041 .064 .111 .13 .073 .064 .149 .105l.092 .038h4.602l.092-.038q.076-.041 .146-.105 .073-.066 .105-.13 .035-.066 .047-.168 .039-.184-.047-.339-.083-.156-.264-.248l-.092-.038h-2.237q-2.222 0-2.301 0z"
+                      fill="#8b9aa6"
+                    />
+                  </svg>
+                  <div
+                    data-pencil-name="File name"
+                    class="text-[12.5px]/[normal] box-border text-[#B7C3CD] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                  >
+                    Fix errors instructions.md
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="State · commit-and-push"
+            class="box-border w-fit shrink-0 h-fit flex flex-col gap-[10px] justify-start items-start"
+          >
+            <div
+              data-pencil-name="State label"
+              class="text-[12px]/[normal] box-border text-[#8B9AA6] font-['Geist_Mono',system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+            >
+              Commit and push sent (no file)
+            </div>
+            <div
+              data-pencil-name="pr-status-bar--chat-commit-and-push"
+              class="box-border w-[720px] h-fit shrink-0 flex flex-row gap-0 p-[20px_48px] justify-end items-start bg-[#12171D]"
+            >
+              <div
+                data-pencil-name="Bubble"
+                class="box-border w-fit shrink-0 h-fit flex flex-col gap-[8px] p-[10px_16px] justify-start items-start bg-[#232C36] rounded-[8px]"
+              >
+                <div
+                  data-pencil-name="Paragraph"
+                  class="text-[14px]/[23px] box-border text-[#E6EDF3] font-[Geist,system-ui,sans-serif] font-normal text-left [white-space:nowrap]"
+                >
+                  Commit and push all changes
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

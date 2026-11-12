@@ -10,6 +10,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.agentProcess) var agentProcess
+  @ObservationIgnored @Dependency(\.attachments) var attachments
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
   @ObservationIgnored @Dependency(\.date) var date
@@ -36,6 +37,11 @@ final class ChatTabModel: ViewModel, Identifiable {
   var projection = TranscriptProjection()
   var draft = ""
   var errorText: String?
+  var attachmentAlert: String?
+  var isAttachmentAlertPresented: Bool {
+    get { attachmentAlert != nil }
+    set { if !newValue { attachmentAlertDismissed() } }
+  }
   var isWorking: Bool { activeTurn != nil }
   var isTitleBold: Bool { record.isWaiting }
   var showsSpinner: Bool { isWorking }
@@ -54,7 +60,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   private var activeTurn: ActiveTurn?
   private var toggledItemIDs: Set<String> = []
-  private var isClosed = false
+  private(set) var isClosed = false
   private var now = Date.distantPast
   private var needsHistory: Bool
   /// The process predates this chat's link, so it is dropped when the running turn ends.
@@ -71,6 +77,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var echoes: Set<String> = []
   /// Sends written behind an unread relay of the current launch and not yet read.
   @ObservationIgnored private var queuedSends = 0
+  /// Messages of the current launch enqueued mid-turn and not yet echoed.
+  @ObservationIgnored private var unreadEnqueues: Set<UUID> = []
   /// Guidance for the current launch, put in front of the next message written to it.
   @ObservationIgnored private var instructions: [SlipstreamInstruction] = []
   @ObservationIgnored private var followers: [Int: Task<Void, Never>] = [:]
@@ -92,6 +100,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   let thinkingText = "Thinking"
   let closeAccessibilityLabel = "Close chat"
   let copyAccessibilityLabel = "Copy reply"
+  let attachmentAlertTitle = "Couldn't open the file"
+  let attachmentAlertDismissText = "OK"
 
   var pickerText: String {
     Self.pickerText(model: record.model, effort: record.effort)
@@ -127,6 +137,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .gap:
       return Self.gapText
     }
+  }
+
+  func attachment(for item: TranscriptItem) -> AttachmentMarker.Parsed? {
+    guard case .userMessage = item.kind else { return nil }
+    return AttachmentMarker.parse(rowText(for: item))
   }
 
   func relayLabel(for item: TranscriptItem) -> String? {
@@ -363,18 +378,9 @@ final class ChatTabModel: ViewModel, Identifiable {
       return
     }
     guard let handle, activeTurn?.id == turn else { return }
-    let itemID = uuid().uuidString
-    let launch = handleGeneration
-    let isQueued = hasUnreadInput
-    projection.userSent(text, id: itemID)
-    if isQueued { queuedSends += 1 }
-    let sentInstructions = takeInstructions(for: text)
     do {
-      try await handle.write(ClaudeInvocation.userMessage(SlipstreamInstruction.prefixed(text, with: sentInstructions)))
+      try await writeUserMessage(text, to: handle)
     } catch {
-      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
-      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
-      projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
       // An echo means the process is already working on a message it read for this turn.
       if activeTurn?.isEchoed == false { activeTurn = nil }
@@ -419,6 +425,32 @@ final class ChatTabModel: ViewModel, Identifiable {
       projection.markRelay(id: itemID, delivery: .notDelivered)
       if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
       throw RelayNotWritten()
+    }
+    if let startedTurn, activeTurn?.id == startedTurn {
+      $record.withLock { $0.isWaiting = false }
+    }
+  }
+
+  /// Writes like `send()` but also mid-turn, and never reads or clears the draft. Throws when
+  /// nothing reached the process.
+  func enqueueUserMessage(_ text: String) async throws {
+    if activeTurn == nil { await awaitRetired() }
+    guard !isClosed, !Task.isCancelled else { throw MessageNotWritten() }
+    let startedTurn = activeTurn == nil ? beginTurn() : nil
+    if handle == nil, startedTurn != nil {
+      _ = await start()
+    } else if handle == nil {
+      for task in starting { _ = await task.value }
+    }
+    guard let handle, !isClosed, !Task.isCancelled else {
+      if let startedTurn, activeTurn?.id == startedTurn { activeTurn = nil }
+      throw MessageNotWritten()
+    }
+    do {
+      try await writeUserMessage(text, to: handle, isMidTurn: startedTurn == nil)
+    } catch {
+      if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
+      throw error
     }
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
@@ -478,6 +510,19 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   func copyTapped(_ footer: TranscriptItem) {
     pasteboard.copy(projection.replyText(endingAt: footer.id))
+  }
+
+  func attachmentTapped(_ item: TranscriptItem) {
+    guard let parsed = attachment(for: item) else { return }
+    do {
+      try attachments.open(URL(fileURLWithPath: parsed.path))
+    } catch {
+      attachmentAlert = error.localizedDescription
+    }
+  }
+
+  func attachmentAlertDismissed() {
+    attachmentAlert = nil
   }
 
   func clockTicked() {
@@ -543,7 +588,31 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let sendFailedText = "Couldn't send your message to Claude"
   private static let turnFailedText = "Claude couldn't finish this turn"
   private static let crashedText = "Claude stopped unexpectedly"
+  private static let unreadEnqueueText = "Claude stopped before reading the enqueued message"
   private static let gapText = "Part of this conversation couldn't be shown"
+
+  /// Projects the message and writes it, taking the row back out when the write fails. A
+  /// mid-turn message carries its id, so its own echo marks it read.
+  private func writeUserMessage(_ text: String, to handle: AgentProcessHandle, isMidTurn: Bool = false) async throws {
+    let id = uuid()
+    let launch = handleGeneration
+    let isQueued = !isMidTurn && hasUnreadInput
+    projection.userSent(text, id: id.uuidString)
+    if isQueued { queuedSends += 1 }
+    if isMidTurn { unreadEnqueues.insert(id) }
+    let sentInstructions = takeInstructions(for: text)
+    do {
+      try await handle.write(
+        ClaudeInvocation.userMessage(
+          SlipstreamInstruction.prefixed(text, with: sentInstructions), uuid: isMidTurn ? id : nil))
+    } catch {
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
+      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
+      if launch == handleGeneration { unreadEnqueues.remove(id) }
+      projection.removeUserMessage(id: id.uuidString)
+      throw error
+    }
+  }
 
   /// Tracked, so a shutdown can wait for a launch that is still on its way. The generation is
   /// taken before the task is scheduled, so a shutdown in between still invalidates it.
@@ -583,6 +652,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
+      unreadEnqueues = []
       launchedLinked = wasLinkedAtLaunch
       let linkedDuringLaunch = linkedSinceLaunch || isStreamLinked()
       linkedSinceLaunch = false
@@ -725,6 +795,10 @@ final class ChatTabModel: ViewModel, Identifiable {
       projection.markRelay(id: relayID.uuidString, delivery: .notDelivered)
       onRelayDelivery(.exitedUnread(relayID: relayID))
     }
+    if launch == handleGeneration, !unreadEnqueues.isEmpty {
+      unreadEnqueues.removeAll()
+      errorText = Self.unreadEnqueueText
+    }
   }
 
   private func outputArrived() {
@@ -745,7 +819,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       Task { try? await handle.write(reply) }
     case .echo(let uuid):
       guard echoes.insert(uuid).inserted else { return }
-      if !isPickup { queuedSends = max(0, queuedSends - 1) }
+      let isEnqueued = UUID(uuidString: uuid).map { unreadEnqueues.remove($0) != nil } ?? false
+      if !isPickup && !isEnqueued { queuedSends = max(0, queuedSends - 1) }
       // A message queued behind a finished or stopped turn starts a turn of its own.
       if activeTurn == nil { beginTurn() } else { activeTurn?.isEchoed = true }
     default:
@@ -787,10 +862,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     titleRefresh = Task { [weak self] in await self?.refreshTitle(generation: generation) }
   }
 
-  /// A process that predates a link stays up until it has read every relay sent to it, and
-  /// every send queued behind one.
+  /// A process that predates a link stays up until it has read every relay sent to it, every
+  /// send queued behind one, and every message enqueued mid-turn.
   private var hasUnreadInput: Bool {
-    handle != nil && (queuedSends > 0 || !(unreadRelays[handleGeneration] ?? []).isEmpty)
+    handle != nil
+      && (queuedSends > 0 || !unreadEnqueues.isEmpty || !(unreadRelays[handleGeneration] ?? []).isEmpty)
   }
 
   private func duration(of turn: ActiveTurn) -> Duration {
@@ -865,3 +941,5 @@ enum RelayDelivery: Equatable, Sendable {
 }
 
 struct RelayNotWritten: Error {}
+
+struct MessageNotWritten: Error {}

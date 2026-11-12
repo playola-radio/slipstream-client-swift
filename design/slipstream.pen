@@ -478638,6 +478638,2565 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "Mhzm1",
+      "x": 0,
+      "y": 62770,
+      "name": "Zone · PR status bar",
+      "fill": "#0B0F13",
+      "layout": "vertical",
+      "gap": 28,
+      "padding": 40,
+      "children": [
+        {
+          "type": "text",
+          "id": "CDsta",
+          "name": "Zone heading",
+          "fill": "#8B9AA6",
+          "content": "PR STATUS BAR · 2026-11-11 · design/features/pr-status-bar",
+          "fontFamily": "Geist Mono",
+          "fontSize": 14,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "t68du",
+          "name": "Screen · A · Right header states",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "id": "P6Jbt",
+              "name": "Screen title",
+              "fill": "#E6EDF3",
+              "content": "A · Right header: one state at a time",
+              "fontFamily": "Geist",
+              "fontSize": 16,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "T8eHT",
+              "name": "Screen note",
+              "fill": "#8B9AA6",
+              "textGrowth": "fixed-width",
+              "width": 1600,
+              "content": "A new 40pt row at the top of the right column, above the Change stream / Terminals tabs. Left: the PR number chip (opens the PR on GitHub) and where things stand. Right: the one next step. Buttons that hand work to the agent send a short message with the instructions attached as a chip (screen B). Merge, Continue and Archive run directly, no agent.",
+              "lineHeight": 1.5,
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "I0sU7i",
+              "name": "States",
+              "layout": "vertical",
+              "gap": 22,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "enlp6",
+                  "name": "State · checking",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CrtMd",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "1 · Checking — first look after choosing a workspace (no flicker: shown only if it takes over a moment)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JiBez",
+                      "name": "pr-status-bar--checking",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "H0CqN",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "LXgrf",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "loader-circle",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            },
+                            {
+                              "type": "text",
+                              "id": "MxLBQ",
+                              "name": "Status label",
+                              "fill": "#8B9AA6",
+                              "content": "Checking for a pull request…",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "B4CfxI",
+                  "name": "State · nothing-to-submit",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "B1HDYH",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "2 · No PR, nothing to submit — branch matches its target, no uncommitted work",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ik1F7",
+                      "name": "pr-status-bar--nothing-to-submit",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "R7by6",
+                  "name": "State · no-pr-uncommitted",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "toPDx",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "3 · No PR, uncommitted changes",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SKZEl",
+                      "name": "pr-status-bar--no-pr-uncommitted",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "BcanV",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "GefLO",
+                              "name": "Status label",
+                              "fill": "#E6EDF3",
+                              "content": "Uncommitted changes",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ZmYKa",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FtCjK",
+                          "name": "Create PR button",
+                          "height": 24,
+                          "fill": "#2B3540",
+                          "cornerRadius": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "OtZMa",
+                              "name": "Main part",
+                              "height": "fill_container",
+                              "gap": 6,
+                              "padding": [
+                                0,
+                                9
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "k1cg72",
+                                  "name": "Create PR icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "git-pull-request-create",
+                                  "library": "lucide",
+                                  "fill": "#E6EDF3"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ABHQB",
+                                  "name": "Create PR label",
+                                  "fill": "#E6EDF3",
+                                  "content": "Create PR",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "afsdh",
+                                  "name": "Shortcut",
+                                  "fill": "#8B9AA6",
+                                  "content": "⌘⇧P",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 11.5,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "HTIYQ",
+                  "name": "State · no-pr-committed",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Fyjgn",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "4 · No PR, work committed (pushed or not)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gapRS",
+                      "name": "pr-status-bar--no-pr-committed",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Ef9ge",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "e59atV",
+                              "name": "Status label",
+                              "fill": "#E6EDF3",
+                              "content": "Ready for a pull request",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "E7hCcI",
+                              "name": "Status detail",
+                              "fill": "#8B9AA6",
+                              "content": "· 3 commits ahead of develop",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "qNF4m",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "pDaid",
+                          "name": "Create PR button",
+                          "height": 24,
+                          "fill": "#2B3540",
+                          "cornerRadius": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "hqct6",
+                              "name": "Main part",
+                              "height": "fill_container",
+                              "gap": 6,
+                              "padding": [
+                                0,
+                                9
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "j6Ep0",
+                                  "name": "Create PR icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "git-pull-request-create",
+                                  "library": "lucide",
+                                  "fill": "#E6EDF3"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Gb2wB",
+                                  "name": "Create PR label",
+                                  "fill": "#E6EDF3",
+                                  "content": "Create PR",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "k9HG6P",
+                                  "name": "Shortcut",
+                                  "fill": "#8B9AA6",
+                                  "content": "⌘⇧P",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 11.5,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "vUAGM",
+                  "name": "State · open-uncommitted",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "K1DmCI",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "5 · PR open, uncommitted or unpushed work",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "D7cwis",
+                      "name": "pr-status-bar--open-uncommitted",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "GbZEg",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "RgPfY",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "XUkQb",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "dZ66Z",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q1d3w",
+                              "name": "Status label",
+                              "fill": "#E6EDF3",
+                              "content": "Uncommitted changes",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hSq7Q",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ASKM3",
+                          "name": "Commit and push",
+                          "height": 24,
+                          "fill": "#2B3540",
+                          "cornerRadius": 5,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "GRD8o",
+                              "name": "Commit and push icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-commit-horizontal",
+                              "library": "lucide",
+                              "fill": "#E6EDF3"
+                            },
+                            {
+                              "type": "text",
+                              "id": "TlyOe",
+                              "name": "Commit and push label",
+                              "fill": "#E6EDF3",
+                              "content": "Commit and push",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "VBuVM",
+                  "name": "State · open-conflicts",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "spOgq",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "6 · PR open, merge conflicts with its target",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "T2halZ",
+                      "name": "pr-status-bar--open-conflicts",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "E2ROKz",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Zn2st",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "ll5ZK",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "C8GrM",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "LTNXk",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "triangle-alert",
+                              "library": "lucide",
+                              "fill": "#E4C282"
+                            },
+                            {
+                              "type": "text",
+                              "id": "w015Ee",
+                              "name": "Status label",
+                              "fill": "#E4C282",
+                              "content": "Merge conflicts",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "DtXZI",
+                              "name": "Status detail",
+                              "fill": "#8B9AA6",
+                              "content": "with develop",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "e7EGk",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "C2HUkP",
+                          "name": "Resolve conflicts",
+                          "height": 24,
+                          "fill": "#3A3020",
+                          "cornerRadius": 5,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "lMbJ3",
+                              "name": "Resolve conflicts icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-compare-arrows",
+                              "library": "lucide",
+                              "fill": "#E4C282"
+                            },
+                            {
+                              "type": "text",
+                              "id": "d7jkGG",
+                              "name": "Resolve conflicts label",
+                              "fill": "#E4C282",
+                              "content": "Resolve conflicts",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rxEv7",
+                  "name": "State · open-checks-failed",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "UbRw0",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "7 · PR open, a check failed",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ub22i",
+                      "name": "pr-status-bar--open-checks-failed",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "VsXz3",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "rEzxQ",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "QLce4",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "OttcV",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "sY5qQ",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "circle-x",
+                              "library": "lucide",
+                              "fill": "#F0A4AB"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Z9T43B",
+                              "name": "Status label",
+                              "fill": "#F0A4AB",
+                              "content": "Checks failed",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "G4yu9",
+                              "name": "Status detail",
+                              "fill": "#8B9AA6",
+                              "content": "· 2 of 9 failed",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "b5iNg6",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "svWlh",
+                          "name": "Fix errors",
+                          "height": 24,
+                          "fill": "#3A2226",
+                          "cornerRadius": 5,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "h7Ercq",
+                              "name": "Fix errors icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "wrench",
+                              "library": "lucide",
+                              "fill": "#F0A4AB"
+                            },
+                            {
+                              "type": "text",
+                              "id": "V7Bff4",
+                              "name": "Fix errors label",
+                              "fill": "#F0A4AB",
+                              "content": "Fix errors",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "o40Oqj",
+                              "name": "Shortcut",
+                              "fill": "#C98A90",
+                              "content": "⌘⇧X",
+                              "fontFamily": "Geist",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "TNjBj",
+                  "name": "State · open-checks-running",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hZVHu",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "8 · PR open, checks still running — no button",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KCeFx",
+                      "name": "pr-status-bar--open-checks-running",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "LgbGr",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ZQyy7",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "b98OMp",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "WLFQq",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "d29z5L",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "loader-circle",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            },
+                            {
+                              "type": "text",
+                              "id": "KbRAX",
+                              "name": "Status label",
+                              "fill": "#8B9AA6",
+                              "content": "Checks running",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "W1889",
+                              "name": "Status detail",
+                              "fill": "#8B9AA6",
+                              "content": "· 6 of 9 done",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Z5ERZ",
+                  "name": "State · open-ready",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Q4qHLt",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "9 · PR open, ready to merge (checks passed or none, no conflicts)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uNssU",
+                      "name": "pr-status-bar--open-ready",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "MRqpY",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "fP2fZ",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "dXyec",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "F6RBTC",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "CQdkx",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "circle-check",
+                              "library": "lucide",
+                              "fill": "#7EE787"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Z1iQU",
+                              "name": "Status label",
+                              "fill": "#7EE787",
+                              "content": "Ready to merge",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NYedT",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SuiSz",
+                          "name": "Merge",
+                          "height": 24,
+                          "fill": "#1E3A2A",
+                          "cornerRadius": 5,
+                          "stroke": "#2F6B45",
+                          "strokeWidth": 1,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "oZDQr",
+                              "name": "Merge icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-merge",
+                              "library": "lucide",
+                              "fill": "#8FE3A5"
+                            },
+                            {
+                              "type": "text",
+                              "id": "mOZnb",
+                              "name": "Merge label",
+                              "fill": "#8FE3A5",
+                              "content": "Merge",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "P8pIPa",
+                              "name": "Shortcut",
+                              "fill": "#6FB585",
+                              "content": "⌘⇧M",
+                              "fontFamily": "Geist",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "RCFYE",
+                  "name": "State · open-draft",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tPHq7",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "9b · PR open as a draft, nothing to fix — no button (gh won't merge drafts)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Egghy",
+                      "name": "pr-status-bar--open-draft",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "cTc0T",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "X1nma7",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "PPo91",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "tLnnX",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "JG0D8",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-pull-request-draft",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            },
+                            {
+                              "type": "text",
+                              "id": "K0b09",
+                              "name": "Status label",
+                              "fill": "#8B9AA6",
+                              "content": "Draft",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "LabiH",
+                              "name": "Status detail",
+                              "fill": "#8B9AA6",
+                              "content": "· all checks passed",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "FHMfn",
+                  "name": "State · open-waiting",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RISCk",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "9c · PR open, nothing to fix, but GitHub won't merge yet (computing, review required, branch protection, behind base) — no button",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Diimy",
+                      "name": "pr-status-bar--open-waiting",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "m779wU",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "IAuFm",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "PcuWs",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "zzFmv",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "D90B1",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "hourglass",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            },
+                            {
+                              "type": "text",
+                              "id": "f4IEE",
+                              "name": "Status label",
+                              "fill": "#8B9AA6",
+                              "content": "Waiting on GitHub",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "eJyRH",
+                              "name": "Status detail",
+                              "fill": "#8B9AA6",
+                              "content": "· review required",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "oHVqv",
+                  "name": "State · merging",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "yn0K1",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "10 · Merging — Merge clicked, waiting for GitHub",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dLmoG",
+                      "name": "pr-status-bar--merging",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "RquUh",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ktzuc",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "WWomA",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "W3dzS",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "eTNyP",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "loader-circle",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            },
+                            {
+                              "type": "text",
+                              "id": "m2MC6v",
+                              "name": "Status label",
+                              "fill": "#8B9AA6",
+                              "content": "Merging…",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "KAGdT",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "DuCJs",
+                          "name": "Merge",
+                          "opacity": 0.45,
+                          "height": 24,
+                          "fill": "#1E3A2A",
+                          "cornerRadius": 5,
+                          "stroke": "#2F6B45",
+                          "strokeWidth": 1,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "mKqHp",
+                              "name": "Merge icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-merge",
+                              "library": "lucide",
+                              "fill": "#8FE3A5"
+                            },
+                            {
+                              "type": "text",
+                              "id": "A7uSj",
+                              "name": "Merge label",
+                              "fill": "#8FE3A5",
+                              "content": "Merge",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "X6UCPL",
+                              "name": "Shortcut",
+                              "fill": "#6FB585",
+                              "content": "⌘⇧M",
+                              "fontFamily": "Geist",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "k1ZnuP",
+                  "name": "State · merged",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dykfE",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "11 · Merged",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AyH6f",
+                      "name": "pr-status-bar--merged",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#1A1724",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ELcGr",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#4B3A70",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "m0n82",
+                              "name": "PR number label",
+                              "fill": "#BC8CFF",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "hD6Ns",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#BC8CFF"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "LnGcJ",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "llpP5",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-merge",
+                              "library": "lucide",
+                              "fill": "#BC8CFF"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Uieib",
+                              "name": "Status label",
+                              "fill": "#BC8CFF",
+                              "content": "Merged",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Zq6rh",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SDekH",
+                          "name": "Continue",
+                          "height": 24,
+                          "fill": "#1E1A2B",
+                          "cornerRadius": 5,
+                          "stroke": "#5B4690",
+                          "strokeWidth": 1,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Y4LtYC",
+                              "name": "Continue icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-branch-plus",
+                              "library": "lucide",
+                              "fill": "#BC8CFF"
+                            },
+                            {
+                              "type": "text",
+                              "id": "C2fj0",
+                              "name": "Continue label",
+                              "fill": "#BC8CFF",
+                              "content": "Continue",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "V8t4TN",
+                          "name": "Archive",
+                          "height": 24,
+                          "fill": "#7C4FD6",
+                          "cornerRadius": 5,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "FbCoK",
+                              "name": "Archive icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "archive",
+                              "library": "lucide",
+                              "fill": "#FFFFFF"
+                            },
+                            {
+                              "type": "text",
+                              "id": "cOEPk",
+                              "name": "Archive label",
+                              "fill": "#FFFFFF",
+                              "content": "Archive",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rtY3D",
+                  "name": "State · closed",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "UIIXb",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "12 · Closed without merging",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "c7Bvm",
+                      "name": "pr-status-bar--closed",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "xeFdN",
+                          "name": "PR number",
+                          "height": 22,
+                          "cornerRadius": 4,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 5,
+                          "padding": [
+                            0,
+                            7
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "yYW75",
+                              "name": "PR number label",
+                              "fill": "#8B9AA6",
+                              "content": "#61",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "hl0RJ",
+                              "name": "Open PR",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "arrow-up-right",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "IFJZu",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "d8q21m",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "git-pull-request-closed",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            },
+                            {
+                              "type": "text",
+                              "id": "DrUO3",
+                              "name": "Status label",
+                              "fill": "#8B9AA6",
+                              "content": "Closed",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "S6NDY1",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ZExcP",
+                          "name": "Create PR button",
+                          "height": 24,
+                          "fill": "#2B3540",
+                          "cornerRadius": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "jHoyV",
+                              "name": "Main part",
+                              "height": "fill_container",
+                              "gap": 6,
+                              "padding": [
+                                0,
+                                9
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "h5iAp",
+                                  "name": "Create PR icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "git-pull-request-create",
+                                  "library": "lucide",
+                                  "fill": "#E6EDF3"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "O6nNA",
+                                  "name": "Create PR label",
+                                  "fill": "#E6EDF3",
+                                  "content": "Create PR",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "nhEKt",
+                                  "name": "Shortcut",
+                                  "fill": "#8B9AA6",
+                                  "content": "⌘⇧P",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 11.5,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lAe0b",
+                  "name": "State · error",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "VplZ7",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "13 · Couldn't check (gh missing, signed out, network) — Details shows the full output",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "chZSM",
+                      "name": "pr-status-bar--error",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 40,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        16
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "LEmRT",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Sautg",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "circle-alert",
+                              "library": "lucide",
+                              "fill": "#F0A4AB"
+                            },
+                            {
+                              "type": "text",
+                              "id": "S1hRq",
+                              "name": "Status label",
+                              "fill": "#F0A4AB",
+                              "content": "Couldn't check the pull request",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "v8cHOL",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "EWG0F",
+                          "name": "Details",
+                          "height": 24,
+                          "fill": "#191F27",
+                          "cornerRadius": 5,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q060y",
+                              "name": "Details icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "#B7C3CD"
+                            },
+                            {
+                              "type": "text",
+                              "id": "a20DWK",
+                              "name": "Details label",
+                              "fill": "#B7C3CD",
+                              "content": "Details",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZVRN7",
+                  "name": "State · error-details",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CjIqR",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "13a · Details open — the full gh output, selectable, with Copy",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "VYTJt",
+                      "name": "pr-status-bar--error-details",
+                      "clip": true,
+                      "width": 1060,
+                      "height": 210,
+                      "fill": "#191F27",
+                      "stroke": "#2A3640",
+                      "strokeWidth": {
+                        "bottom": 1,
+                        "left": 1
+                      },
+                      "gap": 10,
+                      "padding": [
+                        8,
+                        16,
+                        0,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "o4k3l",
+                          "name": "Status",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "HBcMB",
+                              "name": "Status icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "circle-alert",
+                              "library": "lucide",
+                              "fill": "#F0A4AB"
+                            },
+                            {
+                              "type": "text",
+                              "id": "W55123",
+                              "name": "Status label",
+                              "fill": "#F0A4AB",
+                              "content": "Couldn't check the pull request",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "U8Lves",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "T5jyg",
+                          "name": "Details",
+                          "height": 24,
+                          "fill": "#191F27",
+                          "cornerRadius": 5,
+                          "stroke": "#2A3640",
+                          "strokeWidth": 1,
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Q9S4y",
+                              "name": "Details icon",
+                              "width": 13,
+                              "height": 13,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "#B7C3CD"
+                            },
+                            {
+                              "type": "text",
+                              "id": "euExU",
+                              "name": "Details label",
+                              "fill": "#B7C3CD",
+                              "content": "Details",
+                              "fontFamily": "Geist",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "gV0NQ",
+                          "layoutPosition": "absolute",
+                          "x": 484,
+                          "y": 36,
+                          "name": "Details popover",
+                          "width": 560,
+                          "fill": "#1C232B",
+                          "cornerRadius": 7,
+                          "stroke": "#2F3B47",
+                          "strokeWidth": 1,
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#00000080",
+                            "offset": {
+                              "x": 0,
+                              "y": 8
+                            },
+                            "blur": 24
+                          },
+                          "layout": "vertical",
+                          "gap": 10,
+                          "padding": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "i6wHCm",
+                              "name": "Popover header",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "L9dG6a",
+                                  "name": "Command",
+                                  "fill": "#8B9AA6",
+                                  "content": "gh pr view --json number,state,… · exit 4",
+                                  "fontFamily": "Geist Mono",
+                                  "fontSize": 11.5,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "izqWE",
+                                  "name": "Spacer",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "RTE4s",
+                                  "name": "Copy",
+                                  "height": 22,
+                                  "cornerRadius": 4,
+                                  "stroke": "#2F3B47",
+                                  "strokeWidth": 1,
+                                  "gap": 5,
+                                  "padding": [
+                                    0,
+                                    7
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "B6zi3z",
+                                      "name": "Copy icon",
+                                      "width": 12,
+                                      "height": 12,
+                                      "icon": "copy",
+                                      "library": "lucide",
+                                      "fill": "#B7C3CD"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "FTm3e",
+                                      "name": "Copy label",
+                                      "fill": "#B7C3CD",
+                                      "content": "Copy",
+                                      "fontFamily": "Geist",
+                                      "fontSize": 11.5,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "S40pj",
+                              "name": "Output",
+                              "fill": "#E6EDF3",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "To get started with GitHub CLI, please run:  gh auth login\nAlternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.\n\nPress ⌘R to check again.",
+                              "lineHeight": 1.5,
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "V3XP4",
+          "name": "Screen · B · Chat shows the instructions as a chip",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "id": "mPvJx",
+              "name": "Screen title",
+              "fill": "#E6EDF3",
+              "content": "B · Chat: the message is short, the instructions ride along as a chip",
+              "fontFamily": "Geist",
+              "fontSize": 16,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "k0MoGn",
+              "name": "Screen note",
+              "fill": "#8B9AA6",
+              "textGrowth": "fixed-width",
+              "width": 1600,
+              "content": "The button writes the instructions to ~/Library/Application Support/Slipstream/attachments/<id>/<name>.md (outside the worktree, so it never shows as a change) and sends the agent one line ending in an @⟦name⟧(path) marker. The chat draws the marker as a chip; clicking it opens the file. The chip survives reopening the chat because the marker is part of the message text. Commit and push and Resolve conflicts have no file, so they're plain messages.",
+              "lineHeight": 1.5,
+              "fontFamily": "Geist",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "V4Nsx",
+              "name": "States",
+              "gap": 40,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "XTzNa",
+                  "name": "State · create-pr",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "yHyuw",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "Create PR sent",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ctgj4",
+                      "name": "pr-status-bar--chat-create-pr",
+                      "width": 720,
+                      "fill": "#12171D",
+                      "padding": [
+                        20,
+                        48
+                      ],
+                      "justifyContent": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Pa1hS",
+                          "name": "Bubble",
+                          "fill": "#232C36",
+                          "cornerRadius": 8,
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": [
+                            10,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "J3o9w8",
+                              "name": "Paragraph",
+                              "fill": "#E6EDF3",
+                              "content": "Create a PR",
+                              "lineHeight": 1.65,
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FHVna",
+                              "name": "Attachment chip",
+                              "height": 26,
+                              "fill": "#1A2129",
+                              "cornerRadius": 5,
+                              "stroke": "#33404C",
+                              "strokeWidth": 1,
+                              "gap": 6,
+                              "padding": [
+                                0,
+                                9
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "R0a0KH",
+                                  "name": "File icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "file-text",
+                                  "library": "lucide",
+                                  "fill": "#8B9AA6"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "K1Vf2",
+                                  "name": "File name",
+                                  "fill": "#B7C3CD",
+                                  "content": "PR instructions.md",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12.5,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "M1RgE",
+                  "name": "State · fix-errors",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Ib0DY",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "Fix errors sent (failure logs inside the file)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r7kVt",
+                      "name": "pr-status-bar--chat-fix-errors",
+                      "width": 720,
+                      "fill": "#12171D",
+                      "padding": [
+                        20,
+                        48
+                      ],
+                      "justifyContent": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "eo0Y8",
+                          "name": "Bubble",
+                          "fill": "#232C36",
+                          "cornerRadius": 8,
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": [
+                            10,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "vUhdR",
+                              "name": "Paragraph",
+                              "fill": "#E6EDF3",
+                              "content": "Fix the failing CI actions. I've attached the failure logs.",
+                              "lineHeight": 1.65,
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "A2ukgs",
+                              "name": "Attachment chip",
+                              "height": 26,
+                              "fill": "#1A2129",
+                              "cornerRadius": 5,
+                              "stroke": "#33404C",
+                              "strokeWidth": 1,
+                              "gap": 6,
+                              "padding": [
+                                0,
+                                9
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "Yw0Ji",
+                                  "name": "File icon",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "file-text",
+                                  "library": "lucide",
+                                  "fill": "#8B9AA6"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "d6tWqd",
+                                  "name": "File name",
+                                  "fill": "#B7C3CD",
+                                  "content": "Fix errors instructions.md",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12.5,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iayUF",
+                  "name": "State · commit-and-push",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bnrlC",
+                      "name": "State label",
+                      "fill": "#8B9AA6",
+                      "content": "Commit and push sent (no file)",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "eT68U",
+                      "name": "pr-status-bar--chat-commit-and-push",
+                      "width": 720,
+                      "fill": "#12171D",
+                      "padding": [
+                        20,
+                        48
+                      ],
+                      "justifyContent": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KMAjU",
+                          "name": "Bubble",
+                          "fill": "#232C36",
+                          "cornerRadius": 8,
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": [
+                            10,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "c91Qr6",
+                              "name": "Paragraph",
+                              "fill": "#E6EDF3",
+                              "content": "Commit and push all changes",
+                              "lineHeight": 1.65,
+                              "fontFamily": "Geist",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {

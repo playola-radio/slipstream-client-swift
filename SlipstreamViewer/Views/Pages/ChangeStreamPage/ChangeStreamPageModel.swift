@@ -40,8 +40,17 @@ final class ChangeStreamPageModel: ViewModel {
     self.instantAsk = instantAsk
     self.terminals = terminals
     self.recorder = recorder
+    self.prStatusBar = PRStatusBarModel(chat: chat)
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
+    prStatusBar.isArchivable = { [weak self] in
+      guard let self, let session = selectedSession else { return false }
+      return isArchivable(session)
+    }
+    prStatusBar.onArchive = { [weak self] in
+      guard let self, let session = selectedSession else { return }
+      archiveTapped(session)
+    }
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
@@ -64,6 +73,7 @@ final class ChangeStreamPageModel: ViewModel {
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
   let recorder: RecorderModel
+  let prStatusBar: PRStatusBarModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
   let naming = WorkspaceNamingModel()
@@ -746,6 +756,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func reloadShortcutPressed() async {
+    prStatusBar.reloadRequested()
     await reloadSessions()
   }
 
