@@ -12,7 +12,7 @@ public enum Redaction {
     (try! NSRegularExpression(pattern: #"("token"\s*:\s*)"(?:[^"\\]|\\.)*""#), #"$1"<redacted>""#),
     (
       try! NSRegularExpression(
-        pattern: #"(token\\*["']?\s*[:=]?\s*\\*["']?|Bearer\s+)[A-Za-z0-9_\-]{32,}"#, options: .caseInsensitive),
+        pattern: #"(token\\*["']?\s*[:=]?\s*\\*["']?|Bearer\s+)[A-Za-z0-9_\-./+=]{32,}"#, options: .caseInsensitive),
       "$1<redacted>"
     ),
   ]

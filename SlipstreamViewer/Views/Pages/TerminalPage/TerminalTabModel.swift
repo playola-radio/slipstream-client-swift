@@ -141,6 +141,7 @@ final class TerminalTabModel: ViewModel, Identifiable {
       }
     } catch {
       guard !isStopped else { return nil }
+      appLog.error("terminal", "setup could not start: \(error)")
       await setupCouldNotStart((error as? TerminalLaunchError)?.text ?? error.localizedDescription)
       return nil
     }
@@ -264,7 +265,6 @@ final class TerminalTabModel: ViewModel, Identifiable {
   }
 
   private func setupCouldNotStart(_ reason: String) async {
-    appLog.error("terminal", "setup could not start: \(reason)")
     write(note: reason)
     await history.flush(id)
     await setupEnded(.failed(exitStatus: nil))

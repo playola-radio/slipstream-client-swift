@@ -1,8 +1,7 @@
+import Dependencies
 import IssueReporting
 
 struct AppLogIssueReporter: IssueReporter {
-  var log: AppLogClient = .liveValue
-
   func reportIssue(
     _ message: @autoclosure () -> String?,
     severity: IssueSeverity,
@@ -11,6 +10,7 @@ struct AppLogIssueReporter: IssueReporter {
     line: UInt,
     column: UInt
   ) {
+    @Dependency(\.appLog) var log
     log.error("issue", "\(fileID):\(line) \(message() ?? "Issue reported")")
   }
 }

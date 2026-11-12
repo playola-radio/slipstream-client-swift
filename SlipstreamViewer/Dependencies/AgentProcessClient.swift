@@ -185,6 +185,7 @@ private final class AgentProcess: Sendable {
 
   private func stderrReceived(_ chunk: Data) {
     output.withLock { output in
+      guard !output.isFinished else { return }
       output.stderrTail.append(chunk)
       if output.stderrTail.count > Self.stderrTailBytes {
         output.stderrTail = Data(output.stderrTail.suffix(Self.stderrTailBytes))
@@ -198,13 +199,18 @@ private final class AgentProcess: Sendable {
         output.stderrLine = Data(output.stderrLine[(end + 1)...])
         output.isDroppingStderrLine = false
       }
-      if let end = output.stderrLine.lastIndex(of: UInt8(ascii: "\n")) {
-        var lines = Data(output.stderrLine[...end])
+      while let end = output.stderrLine.firstIndex(of: UInt8(ascii: "\n")) {
+        var line = Data(output.stderrLine[...end])
         output.stderrLine = Data(output.stderrLine[(end + 1)...])
-        logStderr(&lines)
+        if line.count > Self.stderrLineBytes {
+          logDroppedStderrLine()
+          line = Data()
+        } else {
+          logStderr(&line)
+        }
       }
       if output.stderrLine.count > Self.stderrLineBytes {
-        log.info("agent", "pid \(pid) stderr: <dropped a line longer than \(Self.stderrLineBytes) bytes>")
+        logDroppedStderrLine()
         output.stderrLine = Data()
         output.isDroppingStderrLine = true
       }
@@ -215,6 +221,10 @@ private final class AgentProcess: Sendable {
     guard !text.isEmpty else { return }
     log.info("agent", "pid \(pid) stderr: \(String(decoding: text, as: UTF8.self))")
     text = Data()
+  }
+
+  private func logDroppedStderrLine() {
+    log.info("agent", "pid \(pid) stderr: <dropped a line longer than \(Self.stderrLineBytes) bytes>")
   }
 
   private func pipeClosed(_ handle: FileHandle) {
@@ -250,7 +260,7 @@ private final class AgentProcess: Sendable {
   private func finish(_ output: inout Output) {
     guard let status = output.status, !output.isFinished else { return }
     output.isFinished = true
-    logStderr(&output.stderrLine)
+    if output.openPipes == 0 { logStderr(&output.stderrLine) }
     continuation.yield(.exited(status: status, stderrTail: Self.decodeTail(output.stderrTail)))
     continuation.finish()
     finished.fulfill()

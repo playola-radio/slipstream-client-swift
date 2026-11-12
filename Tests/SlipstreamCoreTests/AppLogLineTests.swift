@@ -27,4 +27,12 @@ struct AppLogLineTests {
       "2026-11-12T18:03:04.125Z ERROR [daemon] Authorization: Bearer <redacted>\n"
     )
   }
+
+  @Test func redactsAJwtShapedBearerToken() {
+    let token = "abcdefghijklmnopqrstuvwxyz012345.abcdefghijklmnopqrstuvwxyz012345.abcdefghijklmnopqrstuvwxyz012345"
+    let formatted = AppLogLine.format(date: date, level: .error, category: "daemon", message: "Authorization: Bearer \(token)")
+
+    #expect(!formatted.contains(token))
+    #expect(!formatted.contains(".abcdefghijklmnopqrstuvwxyz012345"))
+  }
 }

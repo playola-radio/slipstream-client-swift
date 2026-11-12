@@ -22,7 +22,8 @@ struct TerminalPageTests {
   func makeModel(
     _ records: [TerminalTabRecord] = [],
     selected: [String: UUID] = [:],
-    state: Shared<TerminalState>? = nil
+    state: Shared<TerminalState>? = nil,
+    appLog: AppLogClient = .testValue
   ) -> TerminalPageModel {
     withDependencies {
       $0.defaultFileStorage = fake.fileStorage
@@ -30,6 +31,7 @@ struct TerminalPageTests {
       $0.terminalHistory = fake.historyClient
       $0.uuid = .incrementing
       $0.continuousClock = clock
+      $0.appLog = appLog
     } operation: {
       if let state { return TerminalPageModel(state: state) }
       @Shared(.terminalState) var state
@@ -416,6 +418,16 @@ extension TerminalPageTests {
     #expect(fake.log(UUID(0)).contains("Couldn't read PATH from your login shell"))
     expectNoDifference(fake.saved?.tabs[id: UUID(0)]?.kind, .setup(.failed(exitStatus: nil)))
     expectNoDifference(fake.launches, [])
+  }
+
+  @Test func environmentFailureLogsTheFullError() async {
+    let logged = LockIsolated<[String]>([])
+    fake.setEnvironmentError(TerminalLaunchError(text: "Couldn't read PATH from your login shell"))
+    let model = makeModel(appLog: AppLogClient(write: { _, _, message in logged.withValue { $0.append(message) } }, drain: {}))
+
+    _ = await model.newWorkspaceStarted(repository: repository, store: "store-1", managedRoot: managedRoot)
+
+    expectNoDifference(logged.value, ["setup could not start: TerminalLaunchError(text: \"Couldn\\'t read PATH from your login shell\")"])
   }
 
   @Test func firstValidPathMovesSetupTab() async {

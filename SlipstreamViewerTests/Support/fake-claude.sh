@@ -28,4 +28,12 @@ case "$1" in
     printf '{"child":%s}\n' "$!"
     sleep 100
     ;;
+  split-token-after-exit)
+    printf 'Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345' >&2
+    ( sleep 2; printf '6789abcdefghijklmnopqrstuvwxyz012345\n' >&2 ) &
+    ;;
+  overlong-stderr-line)
+    head -c 65537 /dev/zero | tr '\0' x >&2
+    printf '\nvalid line\n' >&2
+    ;;
 esac
