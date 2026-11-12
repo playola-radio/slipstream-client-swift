@@ -84,6 +84,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
   private(set) var archiveTarget: SessionOption?
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
+  private var currentCapturesByFolder: [String: CaptureSummary] = [:]
   private(set) var sidebarGroups: [SidebarGroup] = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
@@ -840,8 +841,8 @@ final class ChangeStreamPageModel: ViewModel {
   /// Pauses first, so a folder off the sidebar never holds a recording slot. The folder stays on disk.
   func removeFromSidebarTapped(_ session: SessionOption) async {
     guard isRemoveFromSidebarAvailable(session), let folder = session.root else { return }
-    if mayRecord(session) {
-      guard await recording.pauseTapped(folder: session.capture?.root ?? folder) else { return }
+    if mayRecord(folder) {
+      guard await recording.pauseTapped(folder: folder) else { return }
     }
     $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
     dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id))
@@ -1343,15 +1344,18 @@ final class ChangeStreamPageModel: ViewModel {
     switch captureReply.result {
     case .success(let list?):
       captureAvailability = .available(checkedAt: captureReply.checkedAt)
+      currentCapturesByFolder = captureReply.currentByFolder
       listedCaptureSessionIDs = captureReply.listedSessionIDs
       chat.capturesArrived(captureReply.currentByFolder)
       return list.captures
     case .success(nil):
       captureAvailability = .unavailableFromReader
+      currentCapturesByFolder = [:]
       chat.capturesArrived(nil)
       return []
     case .failure:
       captureAvailability = .failed
+      currentCapturesByFolder = [:]
       chat.capturesArrived(nil)
       return []
     }
@@ -1617,9 +1621,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   /// Unknown state might be recording; so might a capture stopped for maintenance, which resumes on its own.
-  private func mayRecord(_ session: SessionOption) -> Bool {
+  private func mayRecord(_ folder: String) -> Bool {
     guard case .available = captureAvailability else { return true }
-    guard let capture = session.capture else { return false }
+    guard let capture = currentCapturesByFolder[folder] else { return false }
     return capture.state != .stopped || capture.reason == "maintenance"
   }
 

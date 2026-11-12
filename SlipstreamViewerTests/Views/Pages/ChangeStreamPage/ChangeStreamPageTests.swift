@@ -5816,6 +5816,22 @@ extension ChangeStreamPageTests {
     expectNoDifference(storedOpenedFolders, [])
   }
 
+  @Test func removeFromSidebarPausesARecreatedFolderUsingItsCurrentCapture() async throws {
+    listCaptures(
+      Fixture.capture(.stopped, reason: "detached", session: "old", root: Self.plainFolder, binding: nil),
+      Fixture.capture(session: "new", root: Self.plainFolder, binding: nil))
+    storedOpenedFolders = [OpenedFolder(storeID: "store-a", folder: Self.plainFolder)]
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected("old")
+    await Task.megaYield()
+
+    await model.removeFromSidebarTapped(try #require(model.selectedSession))
+
+    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder)])
+  }
+
   @Test func removeFromSidebarDoesNotPauseAPausedFolder() async throws {
     listManagedAndPlain(.stopped, reason: "detached")
     storedOpenedFolders = [OpenedFolder(storeID: "store-a", folder: Self.plainFolder)]
