@@ -23,6 +23,7 @@ struct RecorderModelTests {
 
   let clock = TestClock()
   let fake: RecorderFake
+  let logged = LockIsolated<[String]>([])
 
   init() {
     fake = RecorderFake(clock: clock)
@@ -33,6 +34,11 @@ struct RecorderModelTests {
       $0.continuousClock = clock
       $0.recorderService = fake.service
       $0.runtimeInstall = fake.runtimeInstall
+      $0.appLog = AppLogClient(
+        write: { [logged] level, category, message in
+          logged.withValue { $0.append("\(level.rawValue) \(category): \(message)") }
+        },
+        drain: {})
     } operation: {
       RecorderModel()
     }
@@ -113,6 +119,15 @@ struct RecorderModelTests {
             slipstream: launchctl could not load radio.playola.slipstream (exit 5): Bootstrap failed: 5
             exit 1
             """)))
+    expectNoDifference(
+      logged.value.last,
+      """
+      ERROR recorder: wontStart: serviceInstall(exitCode: Optional(1))
+      slipstream service install · exit 1
+      $ /rt/bin/slipstream service install --store test-store
+      slipstream: launchctl could not load radio.playola.slipstream (exit 5): Bootstrap failed: 5
+      exit 1
+      """)
   }
 
   @Test func sameBuildIsRunningMigrates() async {

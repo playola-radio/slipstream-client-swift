@@ -200,6 +200,48 @@ struct EventFollowerTests {
     task.cancel()
     #expect(await task.value == .cancelled)
   }
+
+  @Test func reportsWhyEachAttemptFailed() async {
+    let harness = FollowerHarness(
+      [
+        .init([], .close),
+        .init([], .fail(DaemonHTTPError.status(500, durableSeq: nil, body: "boom"))),
+        .init([frame(1), frame(3)], .close),
+      ],
+      tokens: ["first", "second", "third"]
+    )
+    _ = await harness.drive()
+    expectNoDifference(
+      harness.problems,
+      ["event stream ended", "event stream HTTP 500: boom", "expected #2 got #3"]
+    )
+  }
+
+  @Test func reportsAFailedDiscovery() async {
+    let harness = FollowerHarness([], tokens: [])
+    _ = await harness.drive()
+    #expect(harness.problems.first?.hasPrefix("daemon discovery failed: ") == true)
+  }
+
+  @Test func reportsSilenceAsAnIdleTimeout() async {
+    let clock = TestClock()
+    let harness = FollowerHarness([.init([], .hang)])
+    let task = Task { await harness.run(clock: clock) }
+    await clock.advance(by: .seconds(45))
+    task.cancel()
+    _ = await task.value
+    expectNoDifference(harness.problems, ["no event or heartbeat for 45.0 seconds"])
+  }
+
+  @Test func reportsNothingWhenCancelled() async {
+    let clock = TestClock()
+    let harness = FollowerHarness([.init([], .hang)])
+    let task = Task { await harness.run(clock: clock) }
+    await clock.advance(by: .seconds(1))
+    task.cancel()
+    _ = await task.value
+    #expect(harness.problems.isEmpty)
+  }
 }
 
 struct Open: Equatable {
@@ -230,6 +272,7 @@ final class FollowerHarness: Sendable {
     var opens: [Open] = []
     var statuses: [FollowerStatus] = []
     var applied: [Seq] = []
+    var problems: [String] = []
     var live: AsyncThrowingStream<StreamItem, any Error>.Continuation?
   }
 
@@ -244,6 +287,7 @@ final class FollowerHarness: Sendable {
   var opens: [Open] { state.withLock { $0.opens } }
   var statuses: [FollowerStatus] { state.withLock { $0.statuses } }
   var applied: [Seq] { state.withLock { $0.applied } }
+  var problems: [String] { state.withLock { $0.problems } }
 
   func drive(after start: Seq = .zero, policy: FollowPolicy = FollowPolicy()) async -> FollowerExit {
     let clock = TestClock()
@@ -286,7 +330,8 @@ final class FollowerHarness: Sendable {
       },
       clock: clock,
       jitter: { 1 },
-      policy: policy
+      policy: policy,
+      problem: { [self] message in state.withLock { $0.problems.append(message) } }
     )
     let acceptUpTo = acceptUpTo
     return await follower.run(

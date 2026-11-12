@@ -21,6 +21,8 @@ public struct ForkOutput: Sendable {
 
   private let kind: AskForkKind
   private var isIsolated = false
+  /// Why Claude Code last retried an API call, e.g. `401 authentication_failed`.
+  public private(set) var lastAPIError: String?
 
   public init(kind: AskForkKind) {
     self.kind = kind
@@ -40,8 +42,15 @@ public struct ForkOutput: Sendable {
       else { throw .unavailable(Self.isolationDetail(tools: names, servers: servers)) }
       isIsolated = true
       return nil
+    case (.string("system"), .string("api_retry")):
+      if let error = Self.retryError(object) { lastAPIError = error }
+      return nil
     case (.string("result"), _):
       guard object["is_error"] != .bool(true) else { throw .unavailable(Self.errorDetail(object)) }
+      // Resuming a chat whose background command was stopped ends an empty turn before the question's.
+      if object["is_error"] == .bool(false), object["num_turns"] == .number(0), object["structured_output"] == nil {
+        return nil
+      }
       guard isIsolated else { throw .badReply("Claude Code answered before reporting its setup.") }
       guard case .string(let sessionID)? = object["session_id"], !sessionID.isEmpty else {
         throw .badReply("The reply had no session id.")
@@ -65,6 +74,15 @@ public struct ForkOutput: Sendable {
       servers.isEmpty ? "none" : serverNames.count == servers.count ? serverNames.joined(separator: ", ") : "\(servers.count)"
     return DiagnosticText.line(
       "The read-only copy of the chat wasn't isolated. It had tools \(toolText) and MCP servers \(serverText).")
+  }
+
+  private static func retryError(_ object: [String: JSONValue]) -> String? {
+    var parts: [String] = []
+    if case .number(let status)? = object["error_status"], let code = Int(exactly: status) { parts.append(String(code)) }
+    if case .string(let error)? = object["error"], !DiagnosticText.line(error).isEmpty {
+      parts.append(DiagnosticText.line(error))
+    }
+    return parts.isEmpty ? nil : parts.joined(separator: " ")
   }
 
   private static func errorDetail(_ object: [String: JSONValue]) -> String {

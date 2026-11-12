@@ -10,6 +10,22 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.18] - 2026-11-12
+
+- Questions asked in a chat's question thread now get answered when Claude Code signs in
+  through its settings file, such as a company gateway or a credential helper. When Claude Code
+  can't reach its API, the error now names the failure instead of only saying no reply came.
+
+## [0.4.17] - 2026-11-12
+
+- Slipstream now keeps its own log at `~/Library/Logs/slipstream/app.log`, next to the
+  recorder's log, so problems can be diagnosed afterwards.
+- The figure in the app icon is larger, so it reads clearly in the Dock and Finder.
+- Tables in Claude's chat replies now show as tables, with a header row, column alignment
+  and wrapping cells, instead of raw pipes and dashes.
+- Sidebar rows and repository headers now fade in a highlight when you point at them,
+  and the **+** and archive buttons light up on hover and darken when pressed.
+
 ## [0.4.16] - 2026-11-12
 
 - Drag files from Finder into the chat message box, or paste or drag in images (screenshots,

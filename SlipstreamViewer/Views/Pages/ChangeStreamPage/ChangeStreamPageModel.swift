@@ -18,6 +18,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Dependency(\.workspace) var workspace
   @ObservationIgnored @Dependency(\.terminalRuntime) var terminalRuntime
   @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
+  @ObservationIgnored @Dependency(\.appLog) var appLog
 
   // MARK: - Shared State
 
@@ -104,6 +105,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
+  private var hoveredGroupID: SidebarGroup.ID?
   private var focusedRowID: String?
   var isArchiveConfirmationPresented = false
   var isWorkspaceFailurePresented = false
@@ -460,6 +462,18 @@ final class ChangeStreamPageModel: ViewModel {
 
   func isHighlighted(_ session: SessionOption) -> Bool {
     session.id == hoveredRowID || session.id == focusedRowID
+  }
+
+  func isHighlighted(_ group: SidebarGroup) -> Bool {
+    group.id == hoveredGroupID
+  }
+
+  func rowFill(_ session: SessionOption) -> Color {
+    DesignTokens.Sidebar.rowFill(isSelected: isSelected(session), isHighlighted: isHighlighted(session))
+  }
+
+  func groupHeaderFill(_ group: SidebarGroup) -> Color {
+    DesignTokens.Sidebar.groupHeaderFill(isHighlighted: isHighlighted(group))
   }
 
   /// Archive deletes the folder, so it is offered only for workspaces the app made.
@@ -861,6 +875,14 @@ final class ChangeStreamPageModel: ViewModel {
       hoveredRowID = session.id
     } else if hoveredRowID == session.id {
       hoveredRowID = nil
+    }
+  }
+
+  func groupHoverChanged(_ group: SidebarGroup, isHovering: Bool) {
+    if isHovering {
+      hoveredGroupID = group.id
+    } else if hoveredGroupID == group.id {
+      hoveredGroupID = nil
     }
   }
 
@@ -1580,10 +1602,12 @@ final class ChangeStreamPageModel: ViewModel {
     if after == .zero { replayEndSeq = selectedSession?.readinessSeq ?? .zero }
     let daemon = daemon
     let clock = clock
+    let appLog = appLog
     let random = withRandomNumberGenerator
     watchTask = Task { [weak self] in
       let exit = await Self.follow(
         daemon: daemon,
+        appLog: appLog,
         sessionID: sessionID,
         after: after,
         clock: clock,
@@ -1597,6 +1621,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   private static func follow<C: Clock<Duration>>(
     daemon: DaemonClient,
+    appLog: AppLogClient,
     sessionID: String,
     after: Seq,
     clock: C,
@@ -1608,7 +1633,8 @@ final class ChangeStreamPageModel: ViewModel {
       discover: { try await daemon.discover() },
       open: { daemon.follow($0, sessionID, $1) },
       clock: clock,
-      jitter: jitter
+      jitter: jitter,
+      problem: { appLog.error("follow", "session \(sessionID): \($0)") }
     )
     return await follower.run(after: after, status: { await status($0) }, apply: { await apply($0) })
   }
@@ -1619,6 +1645,7 @@ final class ChangeStreamPageModel: ViewModel {
     case .connecting: connection = .connecting
     case .live:
       connection = .live
+      appLog.info("follow", "session \(selectedSession?.id ?? "?") live")
       Task { [instantAsk, storeID = daemon.storeID] in await instantAsk.daemonConnected(storeID: storeID) }
       if needsReadinessRefresh {
         needsReadinessRefresh = false
@@ -1626,6 +1653,7 @@ final class ChangeStreamPageModel: ViewModel {
       }
     case .reconnecting(let attempt):
       connection = .reconnecting(attempt: attempt)
+      appLog.info("follow", "session \(selectedSession?.id ?? "?") reconnecting (attempt \(attempt))")
       watchedFollowerLeftLive()
     }
   }
@@ -1654,6 +1682,7 @@ final class ChangeStreamPageModel: ViewModel {
     case .malformed(let seq, _):
       connection = .halted("Unreadable event \(seq.map { "#\($0)" } ?? "") — feed stopped")
     }
+    appLog.error("follow", "session \(selectedSession?.id ?? "?") follower exited: \(exit) — \(statusText)")
   }
 
   private func apply(_ event: SlipstreamEvent, generation: Int) -> Bool {

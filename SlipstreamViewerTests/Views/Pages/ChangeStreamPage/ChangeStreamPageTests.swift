@@ -26,6 +26,7 @@ struct ChangeStreamPageTests {
   let suggestionFake = WorkspaceNameSuggestionFake()
   let copied = LockIsolated<[String]>([])
   let files = LockIsolated<[URL: Data]>([:])
+  let logged = LockIsolated<[String]>([])
 
   init() {
     fake = DaemonFake()
@@ -57,6 +58,11 @@ struct ChangeStreamPageTests {
       $0.agentEnvironment = agent.environmentClient
       $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
       $0.openIn.installedApps = { [] }
+      $0.appLog = AppLogClient(
+        write: { [logged] level, category, message in
+          logged.withValue { $0.append("\(level.rawValue) \(category): \(message)") }
+        },
+        drain: {})
     } operation: {
       let chat = chat ?? makeChat()
       return ChangeStreamPageModel(
@@ -1100,6 +1106,28 @@ struct ChangeStreamPageTests {
     await Task.megaYield()
     #expect(model.statusText == "Session removed")
     #expect(!model.isRetryVisible)
+  }
+
+  @Test func followerExitIsLoggedWithTheStatusTheUserSees() async {
+    let model = await connectedModel()
+    await send(.heartbeat)
+    fake.close(throwing: DaemonHTTPError.status(410, durableSeq: nil))
+    await Task.megaYield()
+    #expect(model.statusText == "Session removed")
+    expectNoDifference(
+      logged.value,
+      [
+        "INFO follow: session \(Fixture.session) live",
+        "ERROR follow: session \(Fixture.session) follower exited: sessionRemoved — Session removed",
+      ]
+    )
+  }
+
+  @Test func followerProblemsAreLoggedWithTheSession() async {
+    _ = await connectedModel()
+    fake.close(throwing: DaemonHTTPError.status(500, durableSeq: nil, body: "boom"))
+    await Task.megaYield()
+    #expect(logged.value.contains("ERROR follow: session \(Fixture.session): event stream HTTP 500: boom"))
   }
 
   @Test func unknownSessionIsTerminal() async {
@@ -2996,6 +3024,48 @@ extension ChangeStreamPageTests {
     model.sessionSelected("paused")
     await Task.megaYield()
     expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: true))
+  }
+
+  @Test func aRowFillsWhenHoveredAndSelected() async throws {
+    listCaptures(
+      Fixture.capture(session: "one", root: "/work/one", binding: nil),
+      Fixture.capture(session: "two", root: "/work/two", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected("one")
+    await Task.megaYield()
+    let row = try #require(model.sessions[id: "two"])
+    expectNoDifference(model.rowFill(row), DesignTokens.Sidebar.rowFill(isSelected: false, isHighlighted: false))
+
+    model.rowHoverChanged(row, isHovering: true)
+    expectNoDifference(model.rowFill(row), DesignTokens.Sidebar.rowFill(isSelected: false, isHighlighted: true))
+
+    model.sessionSelected("two")
+    await Task.megaYield()
+    expectNoDifference(model.rowFill(row), DesignTokens.Sidebar.rowFill(isSelected: true, isHighlighted: true))
+  }
+
+  @Test func hoveringAGroupHeaderHighlightsOnlyThatHeader() async throws {
+    listCaptures(
+      Fixture.capture(session: "one", root: "/tmp/slipstream-test/workspaces/a/one", binding: nil),
+      Fixture.capture(session: "two", root: "/tmp/slipstream-test/workspaces/b/two", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let groups = model.sidebarGroups
+    try #require(groups.map(\.name) == ["a", "b"])
+    expectNoDifference(groups.map(model.isHighlighted), [false, false])
+
+    model.groupHoverChanged(groups[0], isHovering: true)
+    expectNoDifference(groups.map(model.isHighlighted), [true, false])
+
+    model.groupHoverChanged(groups[1], isHovering: true)
+    model.groupHoverChanged(groups[0], isHovering: false)
+    expectNoDifference(groups.map(model.isHighlighted), [false, true])
+
+    model.groupHoverChanged(groups[1], isHovering: false)
+    expectNoDifference(groups.map(model.isHighlighted), [false, false])
   }
 
   @Test func aNotRecordingCaptureShowsWithPause() async throws {

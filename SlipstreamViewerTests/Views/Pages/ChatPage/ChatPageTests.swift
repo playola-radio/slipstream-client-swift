@@ -1848,6 +1848,180 @@ struct ChatPageTests {
       [.code("# not a heading\n- not a list")])
   }
 
+  @Test func statusTableRendersAsATable() throws {
+    let text = """
+      | # | What | Status |
+      |---|------|--------|
+      | 1 | Stable sidebar order, no ID-named rows | Merged (#83) |
+      | 2 | New workspace appears in the sidebar instantly while it's created | Merged (#90) |
+      | 3 | Archiving and renaming update the sidebar instantly | Not started |
+      """
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.table(.init(
+        alignments: [.leading, .leading, .leading],
+        header: [try inline("#"), try inline("What"), try inline("Status")],
+        rows: [
+          [try inline("1"), try inline("Stable sidebar order, no ID-named rows"), try inline("Merged (#83)")],
+          [
+            try inline("2"), try inline("New workspace appears in the sidebar instantly while it's created"),
+            try inline("Merged (#90)"),
+          ],
+          [try inline("3"), try inline("Archiving and renaming update the sidebar instantly"), try inline("Not started")],
+        ]))])
+  }
+
+  @Test func tableColumnsAlignFromTheSeparatorRow() throws {
+    let text = "a | b | c | d\n--- | :-- | --: | :-:\n1 | 2 | 3 | 4"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.table(.init(
+        alignments: [.leading, .leading, .trailing, .center],
+        header: [try inline("a"), try inline("b"), try inline("c"), try inline("d")],
+        rows: [[try inline("1"), try inline("2"), try inline("3"), try inline("4")]]))])
+  }
+
+  @Test func tableCellsParseInlineMarkdown() throws {
+    let text = "| Name | Notes |\n|---|---|\n| **bold** | `code` and [link](https://example.com) |"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.table(.init(
+        alignments: [.leading, .leading],
+        header: [try inline("Name"), try inline("Notes")],
+        rows: [[try inline("**bold**"), try inline("`code` and [link](https://example.com)")]]))])
+  }
+
+  @Test func raggedTableRowsArePaddedOrTrimmed() throws {
+    let text = "| a | b | c |\n|---|---|---|\n| 1 |\n| 1 | 2 | 3 | 4 | 5 |"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.table(.init(
+        alignments: [.leading, .leading, .leading],
+        header: [try inline("a"), try inline("b"), try inline("c")],
+        rows: [
+          [try inline("1"), AttributedString(), AttributedString()],
+          [try inline("1"), try inline("2"), try inline("3")],
+        ]))])
+  }
+
+  @Test func escapedPipesAndPipesInCodeStayInTheirCell() throws {
+    let text = #"""
+      | Expression | Meaning |
+      |---|---|
+      | `a | b` | either \| or |
+      | ``x | `y` `` | `p \| q` |
+      """#
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [.table(.init(
+        alignments: [.leading, .leading],
+        header: [try inline("Expression"), try inline("Meaning")],
+        rows: [
+          [try inline("`a | b`"), try inline("either | or")],
+          [try inline("``x | `y` ``"), try inline("`p | q`")],
+        ]))])
+  }
+
+  @Test func tableInterruptsAParagraphAndEndsAtALineWithoutAPipe() throws {
+    let text = "Status:\n| a | b |\n|---|---|\n| 1 | 2 |\nDone."
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .prose(try inline("Status:")),
+        .table(.init(
+          alignments: [.leading, .leading],
+          header: [try inline("a"), try inline("b")],
+          rows: [[try inline("1"), try inline("2")]])),
+        .prose(try inline("Done.")),
+      ])
+  }
+
+  @Test func otherBlocksWithPipesEndATableAndCannotHeadOne() throws {
+    let text = "| a |\n|---|\n| 1 |\n# Results | Summary\n- keep | this\n> note | warning\n- x | y\n--|--"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .table(.init(alignments: [.leading], header: [try inline("a")], rows: [[try inline("1")]])),
+        .heading(level: 1, text: try inline("Results | Summary")),
+        .list([.init(marker: "•", depth: 0, text: try inline("keep | this"))]),
+        .quote(try inline("note | warning")),
+        .list([.init(marker: "•", depth: 0, text: try inline("x | y\n--|--"))]),
+      ])
+  }
+
+  @Test func pipesIndentedUnderAListItemStayInTheItem() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. First\n   a | b\n   --- | ---\n1. Second"),
+      [.list([
+        .init(marker: "1.", depth: 0, text: try inline("First\na | b\n--- | ---")),
+        .init(marker: "2.", depth: 0, text: try inline("Second")),
+      ])])
+  }
+
+  @Test func singleColumnTablesAllowAHeaderWithoutPipes() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("Name\n|---|\n| Alice |"),
+      [.table(.init(
+        alignments: [.leading],
+        header: [try inline("Name")],
+        rows: [[try inline("Alice")]]))])
+  }
+
+  @Test func almostTablesStayProse() throws {
+    let noSeparator = "| a | b |\n| 1 | 2 |"
+    let wrongCount = "| a | b |\n|---|---|---|\n| 1 | 2 |"
+    let notASeparator = "| a | b |\n|---|-x-|"
+    let noPipes = "a\n---"
+
+    expectNoDifference(ChatTabModel.markdownBlocks(noSeparator), [.prose(try inline(noSeparator))])
+    expectNoDifference(ChatTabModel.markdownBlocks(wrongCount), [.prose(try inline(wrongCount))])
+    expectNoDifference(ChatTabModel.markdownBlocks(notASeparator), [.prose(try inline(notASeparator))])
+    expectNoDifference(ChatTabModel.markdownBlocks(noPipes), [.prose(try inline("a")), .rule])
+  }
+
+  @Test func streamingTableStaysProseUntilTheSeparatorArrivesThenStaysATable() throws {
+    let text = "| # | What |\n|---|------|\n| 1 | Stable order |\n| 2 | Instant rows |"
+    let separatorEnd = try #require(text.range(of: "|---|-")).upperBound
+    let tableLength = text.distance(from: text.startIndex, to: separatorEnd)
+
+    for length in 1..<tableLength {
+      let prefix = String(text.prefix(length))
+      expectNoDifference(
+        ChatTabModel.markdownBlocks(prefix), [.prose(try inline(prefix.trimmingCharacters(in: .newlines)))])
+    }
+    for length in tableLength...text.count {
+      let prefix = String(text.prefix(length))
+      let blocks = ChatTabModel.markdownBlocks(prefix)
+      guard case .table(let table)? = blocks.first, blocks.count == 1 else {
+        Issue.record("Not a table: \(prefix.debugDescription)")
+        continue
+      }
+      expectNoDifference(table.header, [try inline("#"), try inline("What")])
+    }
+  }
+
+  @Test func wideTablesWrapTheirWidestColumnsToFitTheChat() {
+    expectNoDifference(
+      ChatTabModel.MarkdownTable.columnWidths(natural: [30, 500, 120], available: 600), [30, 450, 120])
+    expectNoDifference(
+      ChatTabModel.MarkdownTable.columnWidths(natural: [30, 500, 400], available: 600), [30, 285, 285])
+    expectNoDifference(
+      ChatTabModel.MarkdownTable.columnWidths(natural: [30, 200, 120], available: 600), [30, 200, 120])
+  }
+
+  @Test func tableInsideACodeFenceStaysCode() {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```\n| a | b |\n|---|---|\n| 1 | 2 |\n```"),
+      [.code("| a | b |\n|---|---|\n| 1 | 2 |")])
+  }
+
   @Test func boldRunsTakeTheBoldWeightOfTheirFont() throws {
     let base = DesignTokens.Chat.Paragraph.font
 
