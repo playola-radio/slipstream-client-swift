@@ -56,7 +56,7 @@ public struct ForkOutput: Sendable {
         throw .badReply("The reply had no session id.")
       }
       guard case .object(let output)? = object["structured_output"] else {
-        throw .badReply("The reply had no structured answer.")
+        throw .badReply(Self.missingAnswerDetail(object))
       }
       return try answer(output, forkSessionID: sessionID)
     default:
@@ -83,6 +83,23 @@ public struct ForkOutput: Sendable {
       parts.append(DiagnosticText.line(error))
     }
     return parts.isEmpty ? nil : parts.joined(separator: " ")
+  }
+
+  /// How Claude Code stopped comes first so the bound cuts its text, not the facts.
+  private static func missingAnswerDetail(_ object: [String: JSONValue]) -> String {
+    var facts: [String] = []
+    if case .string(let subtype)? = object["subtype"] { facts.append("subtype \(subtype)") }
+    if case .number(let turns)? = object["num_turns"], let count = Int(exactly: turns) { facts.append("turns \(count)") }
+    if case .string(let reason)? = object["stop_reason"] { facts.append("stop reason \(reason)") }
+    if case .string(let reason)? = object["terminal_reason"] { facts.append("terminal reason \(reason)") }
+    let stopped = facts.isEmpty ? "" : " (\(facts.joined(separator: ", ")))"
+    let said: String
+    if case .string(let text)? = object["result"], !DiagnosticText.line(text).isEmpty {
+      said = "It said: \(text)"
+    } else {
+      said = "It said nothing."
+    }
+    return DiagnosticText.line("The reply had no structured answer\(stopped). \(said)")
   }
 
   private static func errorDetail(_ object: [String: JSONValue]) -> String {

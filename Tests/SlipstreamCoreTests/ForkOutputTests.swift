@@ -148,7 +148,21 @@ struct ForkOutputTests {
   @Test func missingStructuredOutputIsBadReply() {
     expectNoDifference(
       failure([ForkLines.initLine(), ForkLines.line(#"{"type":"result","is_error":false,"session_id":"\#(ForkLines.forkID)"}"#)]),
-      .badReply("The reply had no structured answer.")
+      .badReply("The reply had no structured answer. It said nothing.")
+    )
+  }
+
+  @Test func missingStructuredOutputSaysHowClaudeStoppedAndWhatItSaid() {
+    expectNoDifference(
+      failure([
+        ForkLines.initLine(),
+        ForkLines.line(
+          #"{"type":"result","subtype":"success","is_error":false,"num_turns":2,"stop_reason":"end_turn","terminal_reason":"completed","result":"It adds\ntwo numbers.","session_id":"\#(ForkLines.forkID)"}"#
+        ),
+      ]),
+      .badReply(
+        "The reply had no structured answer (subtype success, turns 2, stop reason end_turn, terminal reason completed). It said: It adds two numbers."
+      )
     )
   }
 
