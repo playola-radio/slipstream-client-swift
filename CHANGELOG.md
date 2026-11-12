@@ -10,6 +10,10 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.8] - 2026-11-12
+
+- A bar above the right column shows the workspace's pull request status, with one button for the next step (create, push, fix, merge, continue).
+
 ## [0.4.7] - 2026-11-12
 
 - Folders you record with **Record a folder…** stay in the sidebar after you select something
