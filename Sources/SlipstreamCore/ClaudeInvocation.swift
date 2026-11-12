@@ -30,6 +30,13 @@ public enum ClaudeInvocation {
     ]
   }
 
+  public static func workspaceNameArguments(schema: String) -> [String] {
+    [
+      "-p", "--model=haiku", "--no-session-persistence", "--max-turns=3", "--tools", "", "--strict-mcp-config",
+      "--setting-sources", "", "--output-format", "stream-json", "--verbose", "--json-schema", schema,
+    ]
+  }
+
   public static func userMessage(_ text: String, uuid: UUID? = nil) -> Data {
     var fields: [String: JSONValue] = [
       "type": .string("user"),

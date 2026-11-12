@@ -50,8 +50,9 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   var newWorkspaceFolder: String? { rows.first?.root ?? repositoryFolder }
 
   /// Repos A→Z, including remembered repos with no workspaces, then folders outside the
-  /// workspace roots; rows in natural folder order. The order never depends on input order or on
-  /// a workspace's name, so rows never jump.
+  /// workspace roots. A repo's rows come newest first, in reverse natural folder order
+  /// (`workspace-10` above `workspace-9`). The order never depends on input order or on a
+  /// workspace's name, so rows never jump.
   static func groups(
     _ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?, repositories: [String: String] = [:]
   ) -> [SidebarGroup] {
@@ -65,9 +66,10 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
       }
     }
     let repositories = rowsByRepository
-      .map {
+      .map { repository, rows in
         SidebarGroup(
-          repository: $0.key, rows: $0.value.sorted(by: isInFolderOrder), repositoryFolder: repositories[$0.key])
+          repository: repository, rows: rows.sorted { isInFolderOrder($1, $0) },
+          repositoryFolder: repositories[repository])
       }
       .sorted { precedes(($0.name, $0.id), ($1.name, $1.id)) }
     return repositories + folders.sorted { isInFolderOrder($0.rows[0], $1.rows[0]) }

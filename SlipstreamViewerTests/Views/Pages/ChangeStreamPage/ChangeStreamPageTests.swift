@@ -23,6 +23,7 @@ struct ChangeStreamPageTests {
   let terminal = TerminalFake()
   let recordingFake = RecordingFake()
   let nameFake = WorkspaceNameFake()
+  let suggestionFake = WorkspaceNameSuggestionFake()
   let copied = LockIsolated<[String]>([])
   let files = LockIsolated<[URL: Data]>([:])
 
@@ -52,6 +53,8 @@ struct ChangeStreamPageTests {
       $0.terminalRuntime = terminal.runtimeClient
       $0.recording = recordingFake.client
       $0.workspaceName = nameFake.client
+      $0.workspaceNameSuggestion = suggestionFake.client
+      $0.agentEnvironment = agent.environmentClient
       $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
       $0.openIn.installedApps = { [] }
     } operation: {
@@ -549,6 +552,59 @@ struct ChangeStreamPageTests {
     await model.reloadShortcutPressed()
 
     expectNoDifference([model.rowName(model.sessions[0]), model.breadcrumbWorkspaceText], ["My name", "My name"])
+  }
+
+  @Test func firstMessageInAnUnnamedWorkspaceNamesItsSession() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming())],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+
+    model.chat.onMessageSent("/tmp/project", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, ["Fix the sidebar"])
+    expectNoDifference(
+      nameFake.calls, [.init(sessionID: Fixture.session, name: "Sidebar Polling Backoff", isAgentName: true)])
+  }
+
+  @Test func captureOnlyWorkspaceWithoutNamingStillGetsNamed() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    expectNoDifference(model.sessions[id: Fixture.session]?.naming, nil)
+
+    model.chat.onMessageSent("/tmp/project", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(nameFake.calls.map(\.sessionID), [Fixture.session])
+  }
+
+  @Test func firstMessageInANamedWorkspaceDoesNothing() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+
+    model.chat.onMessageSent("/tmp/project", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, [])
+    expectNoDifference(nameFake.calls, [])
+  }
+
+  @Test func firstMessageInAFolderWithNoSessionDoesNothing() async {
+    fake.setCaptures([])
+    fake.setSessions([])
+    let model = makeModel()
+    await model.viewAppeared()
+
+    model.chat.onMessageSent("/tmp/elsewhere", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, [])
+    expectNoDifference(nameFake.calls, [])
   }
 
   @Test func queuedNoticeUsesLatestNameAfterPoll() async {
@@ -2825,7 +2881,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     listThreeSessionsWithOneRecording()
     await model.reloadShortcutPressed()
-    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.otherSession, Fixture.session])
+    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession])
   }
 
   @Test func theSidebarListsEveryAppWorkspaceWhenCaptureStateIsUnknown() async {
@@ -2844,7 +2900,7 @@ extension ChangeStreamPageTests {
     let model = makeModel()
     await model.viewAppeared()
     defer { model.viewDisappeared() }
-    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.session, Fixture.otherSession])
+    expectNoDifference(model.sidebarGroups.flatMap(\.rows).map(\.id), [Fixture.otherSession, Fixture.session])
   }
 
   /// Capture-only rows: each capture is a row rooted at its own folder.
@@ -2936,7 +2992,7 @@ extension ChangeStreamPageTests {
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
-    expectNoDifference(sidebarRowIDs(model), ["recording", "retrying"])
+    expectNoDifference(sidebarRowIDs(model), ["retrying", "recording"])
     let row = try #require(model.sessions[id: "retrying"])
     expectNoDifference(model.rowActionText(row), "Pause")
     #expect(!model.isRecordingDotShown(row))
@@ -2957,7 +3013,7 @@ extension ChangeStreamPageTests {
     let row = try #require(model.sessions[id: "maintenance"])
     model.rowHoverChanged(row, isHovering: true)
 
-    expectNoDifference(sidebarRowIDs(model), ["maintenance", "recording"])
+    expectNoDifference(sidebarRowIDs(model), ["recording", "maintenance"])
     #expect(!model.isRowActionShown(row))
   }
 
@@ -4304,7 +4360,7 @@ extension ChangeStreamPageTests {
     let row = try #require(newRows(model).first)
     expectNoDifference(newRows(model).map(model.rowName), ["workspace-1"])
     #expect(model.isSelected(row))
-    #expect(model.isSpinnerShown(row))
+    #expect(model.isSettingUp(row))
     #expect(!model.isArchivable(row))
     #expect(model.rowNameColor(row) == DesignTokens.Sidebar.settingUpRowNameColor)
     #expect(model.selectedSession == nil)
@@ -4375,13 +4431,13 @@ extension ChangeStreamPageTests {
     let row = try #require(model.selectedSession)
     expectNoDifference(newRows(model).map(\.id), [Fixture.otherSession])
     #expect(model.chat.folder == Self.workspaceRoot)
-    #expect(model.isSpinnerShown(row))
+    #expect(model.isSettingUp(row))
     #expect(model.rowNameColor(row) == DesignTokens.Sidebar.settingUpRowNameColor)
 
     setupFinishes(.exited(0))
     await Task.megaYield()
 
-    #expect(!model.isSpinnerShown(row))
+    #expect(!model.isSettingUp(row))
   }
 
   @Test func returningToTheNewRowStillOpensTheWorkspaceOnceListed() async throws {
@@ -4521,7 +4577,7 @@ extension ChangeStreamPageTests {
     setupFinishes(.exited(0))
     await creating.value
     expectNoDifference(newRows(model).map(\.id), ["creating-workspace-1"])
-    #expect(!model.isSpinnerShown(try #require(newRows(model).first)))
+    #expect(!model.isSettingUp(try #require(newRows(model).first)))
 
     fake.setSessionsError(nil)
     listWorkspace()
@@ -4558,6 +4614,42 @@ extension ChangeStreamPageTests {
 
     #expect(setupLaunch == nil)
     #expect(!model.isWorkspaceBusy)
+  }
+
+  @Test func newWorkspaceShowsAPlaceholderInItsRepositoryUntilTheSetupEnds() async {
+    let model = makeModel(workspace: workspaceClient())
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    expectNoDifference(newRows(model).map(model.rowName), ["workspace-1"])
+    setupFinishes(.exited(1))
+    await creating.value
+
+    expectNoDifference(model.sidebarGroups.map(\.name), [])
+  }
+
+  @Test func choosingAWorkspaceFolderPutsThePlaceholderInItsRepository() async {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: Self.workspaceRoot)))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    expectNoDifference(model.sidebarGroups.map(\.name), ["r"])
+    #expect(newRows(model).contains { $0.id.hasPrefix("creating-workspace-") })
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
+  @Test func newWorkspaceCancelledShowsNoPlaceholder() async {
+    let model = makeModel(workspace: workspaceClient(choose: nil))
+
+    await model.newWorkspaceTapped()
+
+    expectNoDifference(model.sidebarGroups, [])
   }
 
 
@@ -4692,13 +4784,13 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     expectNoDifference(
       Self.names(model.sidebarGroups),
-      [["Alpha", "workspace-2", "workspace-10"], ["zeta", "workspace-1"]])
+      [["Alpha", "workspace-10", "workspace-2"], ["zeta", "workspace-1"]])
 
     listWorkspacesInIDOrder(Self.threeWorkspaces + [(id: "0new", root: "/work/slipstream/workspaces/zeta/workspace-3")])
     await expectDifference(Self.names(model.sidebarGroups)) {
       await model.reloadShortcutPressed()
     } changes: {
-      $0[1].append("workspace-3")
+      $0[1].insert("workspace-3", at: 1)
     }
 
     listWorkspacesInIDOrder(
@@ -4706,7 +4798,7 @@ extension ChangeStreamPageTests {
     await expectDifference(Self.names(model.sidebarGroups)) {
       await model.reloadShortcutPressed()
     } changes: {
-      $0[0].remove(at: 1)
+      $0[0].remove(at: 2)
     }
   }
 
@@ -4716,7 +4808,7 @@ extension ChangeStreamPageTests {
     await model.viewAppeared()
     defer { model.viewDisappeared() }
     await Task.megaYield()
-    expectNoDifference(Self.names(model.sidebarGroups), [["r", "workspace-1", "workspace-2"]])
+    expectNoDifference(Self.names(model.sidebarGroups), [["r", "workspace-2", "workspace-1"]])
 
     fake.setSessions([
       SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
@@ -4727,7 +4819,7 @@ extension ChangeStreamPageTests {
     await expectDifference(Self.names(model.sidebarGroups)) {
       await model.reloadShortcutPressed()
     } changes: {
-      $0[0][2] = "Aardvark"
+      $0[0][1] = "Aardvark"
     }
   }
 
@@ -4766,7 +4858,7 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
 
     expectNoDifference(model.sidebarGroups.map(\.name), ["r"])
-    expectNoDifference(model.sidebarGroups.first?.rows.map(\.id), [Fixture.otherSession, Fixture.session])
+    expectNoDifference(model.sidebarGroups.first?.rows.map(\.id), [Fixture.session, Fixture.otherSession])
     expectNoDifference(model.selectedSession, selected)
   }
 
@@ -5008,6 +5100,67 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceBusy)
   }
 
+  @Test func plusShowsAPlaceholderAtopTheGroupThenTheNewWorkspaceFirst() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(choose: nil))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let group = try #require(model.sidebarGroups.first)
+    let creating = Task { await model.newWorkspaceTapped(in: group) }
+    await Task.megaYield()
+    #expect(model.sidebarGroups.first?.rows.first?.id.hasPrefix("creating-workspace-") == true)
+    let created = "1b2c3d4e-2222-4c55-9a7e-2f4b8c9d0e1b"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+        SessionSummary(id: created, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        created: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(session: Fixture.otherSession, root: Self.workspaceRoot),
+      Fixture.capture(session: created, root: Self.secondWorkspaceRoot),
+    ])
+    setupPrintsPath(Self.secondWorkspaceRoot)
+    await creating.value
+
+    expectNoDifference(model.sidebarGroups.first?.rows.map(\.id), [created, Fixture.otherSession])
+  }
+
+  @Test func aNewWorkspaceIsSettingUpUntilItsSetupFinishes() async throws {
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(choose: nil))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let group = try #require(model.sidebarGroups.first)
+    let creating = Task { await model.newWorkspaceTapped(in: group) }
+    await Task.megaYield()
+    fake.setSessions(
+      [SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+       SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false)],
+      starts: [
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+        Fixture.session: SessionStarted(root: Self.secondWorkspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures([
+      Fixture.capture(session: Fixture.otherSession, root: Self.workspaceRoot),
+      Fixture.capture(session: Fixture.session, root: Self.secondWorkspaceRoot),
+    ])
+    setupPrintsPath(Self.secondWorkspaceRoot)
+    await creating.value
+    let rows = try #require(model.sidebarGroups.first?.rows)
+    expectNoDifference(rows.map(model.isSettingUp), [true, false])
+
+    setupFinishes(.exited(0))
+    await Task.megaYield()
+
+    expectNoDifference(rows.map(model.isSettingUp), [false, false])
+  }
+
 
   @Test func aRepoStaysListedAfterItsLastWorkspaceGoes() async throws {
     let fileStorage = FileStorage.inMemory
@@ -5043,7 +5196,7 @@ extension ChangeStreamPageTests {
   }
 
   @Test func aLiveWorkspaceRemembersItsRepoWhenAnArchivedWorkspaceSortsFirst() async {
-    let archivedRoot = "/work/slipstream/workspaces/r/archived"
+    let archivedRoot = "/work/slipstream/workspaces/r/workspace-9"
     fake.setSessions(
       [
         SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),

@@ -54,6 +54,7 @@ final class ChangeStreamPageModel: ViewModel {
     }
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
+    chat.onMessageSent = { [weak self] folder, text in self?.chatMessageSent(folder: folder, text: text) }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak self] in self?.folderRecorded($0) }
     recording.onRecordOutcomeUnknown = { [weak self] in self?.recordOutcomeUnknown($0) }
@@ -442,15 +443,12 @@ final class ChangeStreamPageModel: ViewModel {
     session.root.map(chat.hasWorkingTab(in:)) ?? false
   }
 
+  /// The workspace's Setup tab is still running its setup script.
   func isSettingUp(_ session: SessionOption) -> Bool {
     if let creation = creatingWorkspaces.first(where: { $0.row.id == session.id }) {
       return !creation.isSetupEnded
     }
-    return session.root.map(terminals.isSettingUp(folder:)) ?? false
-  }
-
-  func isSpinnerShown(_ session: SessionOption) -> Bool {
-    isWorking(session) || isSettingUp(session)
+    return session.root.map(terminals.state.isSettingUp) ?? false
   }
 
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
@@ -496,7 +494,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func isRecordingDotShown(_ session: SessionOption) -> Bool {
-    captureStatus(of: session).captureDot == .recording && !isSpinnerShown(session)
+    captureStatus(of: session).captureDot == .recording && !isWorking(session)
   }
 
   /// Pause or Record applies: the row has a capture, its state is known, and it isn't archived or stopped for good.
@@ -826,12 +824,12 @@ final class ChangeStreamPageModel: ViewModel {
     guard !isWorkspaceBusy,
       let repository = await workspace.chooseFolder("Choose a git repository for the new workspace", "Create Workspace")
     else { return }
-    await createWorkspace(in: repository, named: repository.lastPathComponent)
+    await createWorkspace(in: repository)
   }
 
   func newWorkspaceTapped(in group: SidebarGroup) async {
     guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
-    await createWorkspace(in: URL(filePath: folder), named: group.repository ?? URL(filePath: folder).lastPathComponent)
+    await createWorkspace(in: URL(filePath: folder), group: group.repository)
   }
 
   func rowActionTapped(_ session: SessionOption) async {
@@ -1199,7 +1197,7 @@ final class ChangeStreamPageModel: ViewModel {
   /// Busy only until the Setup tab names the new workspace (or its command ends): the setup
   /// script keeps running in that tab while the window switches to it. Until its session is
   /// listed, a placeholder row stands in for it, named after the folder the daemon will likely pick.
-  private func createWorkspace(in repository: URL, named repositoryName: String) async {
+  private func createWorkspace(in repository: URL, group: String? = nil) async {
     isWorkspaceBusy = true
     $isRightPaneHidden.withLock { $0 = false }
     rightPaneSelected(.terminals)
@@ -1207,6 +1205,8 @@ final class ChangeStreamPageModel: ViewModel {
     let roots: WorkspaceRoots
     if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
     if workspaceRoots == nil { workspaceRoots = roots }
+    let repositoryName = group ?? roots.repository(of: Self.normalizedFolder(repository.path))
+      ?? repository.lastPathComponent
     creationCount += 1
     let creation = CreatingWorkspace(
       id: creationCount, folder: workspace.nextFolder(repositoryName, roots.managed),
@@ -1767,6 +1767,12 @@ final class ChangeStreamPageModel: ViewModel {
     guard case .available = captureAvailability else { return true }
     guard let capture = currentCapturesByFolder[folder] else { return false }
     return capture.state != .stopped || capture.reason == "maintenance"
+  }
+
+  private func chatMessageSent(folder: String, text: String) {
+    let sessionID = currentCapturesByFolder[folder]?.sessionID ?? selectedSession.flatMap { $0.root == folder ? $0.id : nil }
+    guard let sessionID, sessions[id: sessionID]?.naming?.agentName == nil else { return }
+    naming.messageSent(sessionID: sessionID, text: text)
   }
 
   private func folderRecorded(_ folder: String) {

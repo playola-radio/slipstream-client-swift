@@ -69,10 +69,6 @@ final class TerminalPageModel: ViewModel {
 
   func showsCloseButton(_ tab: TerminalTabModel) -> Bool { isSelected(tab) || isHovered(tab) }
 
-  func isSettingUp(folder: String) -> Bool {
-    state.tabs.contains { $0.folder == folder && $0.kind == .setup(.running) }
-  }
-
   // MARK: - User Actions
 
   /// Marks every Setup that was running when the app last quit as interrupted. Runs once.

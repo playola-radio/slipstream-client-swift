@@ -4,12 +4,13 @@ import Synchronization
 
 @testable import SlipstreamViewer
 
-/// Records every rename. The next call throws the set failure, then calls succeed.
-/// After `hold()`, the next call waits until `release()`.
+/// Records every rename and agent-name write. The next call throws the set failure, then calls
+/// succeed. After `hold()`, the next call waits until `release()`.
 final class WorkspaceNameFake: Sendable {
   struct Call: Equatable {
     var sessionID: String
     var name: String?
+    var isAgentName = false
   }
 
   private struct State {
@@ -39,7 +40,13 @@ final class WorkspaceNameFake: Sendable {
   }
 
   var client: WorkspaceNameClient {
-    WorkspaceNameClient(rename: { try await self.perform(Call(sessionID: $0, name: $1)) })
+    WorkspaceNameClient(
+      rename: { try await self.perform(Call(sessionID: $0, name: $1)) },
+      setAgentName: {
+        try await self.perform(Call(sessionID: $0, name: $1, isAgentName: true))
+        return true
+      }
+    )
   }
 
   private func perform(_ call: Call) async throws {

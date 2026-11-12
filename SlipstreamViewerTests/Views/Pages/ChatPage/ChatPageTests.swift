@@ -313,6 +313,52 @@ struct ChatPageTests {
     #expect(model.records[id: Self.saved]?.isWaiting == true)
   }
 
+  @Test func sentMessageIsReportedWithTheFolderAndTheUsersOwnText() async throws {
+    let model = makeModel(records: [record(folder: "/w")])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[[String]]>([])
+    model.onMessageSent = { folder, text in reported.withValue { $0.append([folder, text]) } }
+
+    await send(model, "Hello")
+
+    expectNoDifference(reported.value, [["/w", "Hello"]])
+  }
+
+  @Test func failedWriteReportsNoSentMessage() async throws {
+    agent.setWriteError(WriteFailed())
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[String]>([])
+    model.onMessageSent = { _, text in reported.withValue { $0.append(text) } }
+
+    await send(model, "Hello")
+
+    expectNoDifference(reported.value, [])
+  }
+
+  @Test(arguments: ["/compact", "/model opus"])
+  func slashCommandsReportNoSentMessage(command: String) async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[String]>([])
+    model.onMessageSent = { _, text in reported.withValue { $0.append(text) } }
+
+    await send(model, command)
+
+    expectNoDifference(reported.value, [])
+  }
+
+  @Test func queuedMessageIsReported() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[String]>([])
+    model.onMessageSent = { _, text in reported.withValue { $0.append(text) } }
+
+    try await #require(model.selectedTab).enqueueUserMessage("Also this")
+
+    expectNoDifference(reported.value, ["Also this"])
+  }
+
   @Test func replyArrivingDuringWriteStaysAfterPromptAndClearsSentDraft() async throws {
     agent.hold(.writes)
     let model = makeModel(records: [record()])
