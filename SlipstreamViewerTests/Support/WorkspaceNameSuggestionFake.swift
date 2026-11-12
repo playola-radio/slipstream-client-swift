@@ -5,29 +5,34 @@ import Synchronization
 
 struct SuggestionFailed: Error, Equatable {}
 
-/// Records every suggestion request and answers with the set name, or throws once failure is set.
+/// Records every suggestion request and answers with a fixed name, or throws once failure is set. After `hold()`, a request waits until its task is cancelled.
 final class WorkspaceNameSuggestionFake: Sendable {
   private struct State {
     var messages: [String] = []
-    var name = "Sidebar Polling Backoff"
     var fails = false
+    var gate: (stream: AsyncStream<Void>, continuation: AsyncStream<Void>.Continuation)?
   }
 
   private let state = Mutex(State())
 
   var messages: [String] { state.withLock { $0.messages } }
 
-  func setName(_ name: String) { state.withLock { $0.name = name } }
   func setFails() { state.withLock { $0.fails = true } }
+
+  func hold() { state.withLock { $0.gate = AsyncStream<Void>.makeStream() } }
 
   var client: WorkspaceNameSuggestionClient {
     WorkspaceNameSuggestionClient(suggest: { message, environment in
       precondition(environment == AgentFake.environment)
-      return try self.state.withLock { state in
+      let gate = self.state.withLock { state in
         state.messages.append(message)
-        if state.fails { throw SuggestionFailed() }
-        return state.name
+        return state.gate?.stream
       }
+      if let gate {
+        for await _ in gate {}
+      }
+      if self.state.withLock({ $0.fails }) { throw SuggestionFailed() }
+      return "Sidebar Polling Backoff"
     })
   }
 }

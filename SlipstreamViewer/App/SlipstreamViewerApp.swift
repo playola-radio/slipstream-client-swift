@@ -9,6 +9,7 @@ struct SlipstreamViewerApp: App {
   @State private var terminals = TerminalPageModel()
   @State private var updater = UpdaterModel()
   @State private var recorder = RecorderModel()
+  @State private var naming = WorkspaceNamingModel()
   @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
   init() {
@@ -29,6 +30,7 @@ struct SlipstreamViewerApp: App {
               instantAsk: instantAsk,
               terminals: terminals,
               recorder: recorder,
+              naming: naming,
               functionChangesDemo: FunctionChangesFixtureModel(
                 root: ProcessInfo.processInfo.environment["SLIPSTREAM_INTERFACE_FIXTURE_ROOT"].map {
                   URL(fileURLWithPath: $0)
@@ -36,7 +38,8 @@ struct SlipstreamViewerApp: App {
                 initialCase: String(fixtureArgument.dropFirst("--function-changes-fixture=".count))
               ))
           } else {
-            ChangeStreamPageView(chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder)
+            ChangeStreamPageView(
+              chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder, naming: naming)
           }
         }
       }
@@ -50,8 +53,8 @@ struct SlipstreamViewerApp: App {
         await recorder.appLaunched()
       }
       .modifier(QuitFlowHandoff(
-        chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder, updater: updater,
-        appDelegate: appDelegate,
+        chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder, naming: naming,
+        updater: updater, appDelegate: appDelegate,
         windowID: Self.windowID))
       .background {
         Button("Make Text Bigger") { fontSize.biggerTapped() }
@@ -72,13 +75,14 @@ struct SlipstreamViewerApp: App {
   private static let windowID = "main"
 }
 
-/// Gives the quit flow the chat, instant answers, terminals, recorder and updater, and a way back to the window when closing it
+/// Gives the quit flow the chat, instant answers, terminals, recorder, naming and updater, and a way back to the window when closing it
 /// is cancelled.
 private struct QuitFlowHandoff: ViewModifier {
   let chat: ChatPageModel
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
   let recorder: RecorderModel
+  let naming: WorkspaceNamingModel
   let updater: UpdaterModel
   let appDelegate: AppDelegate
   let windowID: String
@@ -90,6 +94,7 @@ private struct QuitFlowHandoff: ViewModifier {
       appDelegate.instantAsk = instantAsk
       appDelegate.terminals = terminals
       appDelegate.recorder = recorder
+      appDelegate.naming = naming
       appDelegate.updater = updater
       appDelegate.reopenWindow = { openWindow(id: windowID) }
     }

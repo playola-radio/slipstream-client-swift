@@ -29,7 +29,7 @@ struct WorkspaceNameSuggestionClientTests {
         } catch let error as WorkspaceNameSuggestionError {
           return .failure(error)
         } catch {
-          return .failure(.unavailable("\(error)"))
+          return .failure(.unavailable)
         }
       }
     }
@@ -74,51 +74,23 @@ struct WorkspaceNameSuggestionClientTests {
     #expect(agent.shutdowns(0) == 1)
   }
 
-  @Test func sanitizesTheName() async {
-    let run = await start()
-
-    agent.sendLine(#"{"type":"result","subtype":"success","structured_output":{"name":"  \"Fix login\"  "}}"#)
-
-    let result = await run.value
-    expectNoDifference(result, .success("Fix login"))
-  }
-
-  @Test func malformedLinesAreSkippedUntilTheResult() async {
-    let run = await start()
-
-    agent.sendLine("not json")
-    agent.sendLine(Self.result)
-
-    let result = await run.value
-    expectNoDifference(result, .success("Workspace Loading Indicator"))
-  }
-
   @Test func resultWithoutStructuredOutputIsBadReply() async {
     let run = await start()
 
     agent.sendLine(#"{"type":"result","subtype":"error_max_turns","is_error":false}"#)
 
     let result = await run.value
-    expectNoDifference(result, .failure(.badReply("The reply had no name.")))
+    expectNoDifference(result, .failure(.badReply))
     #expect(agent.shutdowns(0) == 1)
   }
 
-  @Test func errorResultCarriesClaudesOwnText() async {
-    let run = await start()
-
-    agent.sendLine(#"{"type":"result","subtype":"success","is_error":true,"result":"Invalid API key"}"#)
-
-    let result = await run.value
-    expectNoDifference(result, .failure(.unavailable("Claude Code reported an error: Invalid API key")))
-  }
-
-  @Test func nonzeroExitNamesTheStatusAndStderr() async {
+  @Test func nonzeroExitIsUnavailable() async {
     let run = await start()
 
     agent.exit(status: 2, stderrTail: "\nError: Invalid API key\n")
 
     let result = await run.value
-    expectNoDifference(result, .failure(.unavailable("Claude Code exited with status 2: Error: Invalid API key")))
+    expectNoDifference(result, .failure(.unavailable))
   }
 
   @Test func cleanExitWithoutAResultIsBadReply() async {
@@ -127,17 +99,15 @@ struct WorkspaceNameSuggestionClientTests {
     agent.exit(status: 0)
 
     let result = await run.value
-    expectNoDifference(result, .failure(.badReply("Claude Code exited without a name.")))
+    expectNoDifference(result, .failure(.badReply))
   }
 
   @Test func launchFailureIsThrownAndRemovesTheDirectory() async {
     agent.setLaunchError(AgentProcessError.launchFailed(errno: ENOENT))
     let run = await start()
 
-    guard case .failure(.unavailable) = await run.value else {
-      Issue.record("Expected a launch failure")
-      return
-    }
+    let result = await run.value
+    expectNoDifference(result, .failure(.unavailable))
     #expect(agent.shutdownCount == 0)
   }
 

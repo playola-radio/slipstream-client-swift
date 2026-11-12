@@ -2,8 +2,8 @@ import Foundation
 
 public enum WorkspaceNameSuggestionError: Error, Equatable, Sendable {
   case timedOut
-  case unavailable(String)
-  case badReply(String)
+  case unavailable
+  case badReply
 }
 
 public enum WorkspaceNameSuggestion {
@@ -29,17 +29,11 @@ public enum WorkspaceNameSuggestion {
     guard case .object(let object)? = try? JSONDecoder().decode(JSONValue.self, from: line),
       case .string("result")? = object["type"]
     else { return nil }
-    guard object["is_error"] != .bool(true) else {
-      var text = "no details"
-      if case .string(let result)? = object["result"], !DiagnosticText.line(result).isEmpty {
-        text = DiagnosticText.line(result)
-      }
-      throw .unavailable(DiagnosticText.line("Claude Code reported an error: \(text)"))
-    }
+    guard object["is_error"] != .bool(true) else { throw .unavailable }
     guard case .object(let output)? = object["structured_output"], case .string(let raw)? = output["name"] else {
-      throw .badReply("The reply had no name.")
+      throw .badReply
     }
-    guard let name = sanitized(raw) else { throw .badReply("The suggested name wasn't usable.") }
+    guard let name = sanitized(raw) else { throw .badReply }
     return name
   }
 

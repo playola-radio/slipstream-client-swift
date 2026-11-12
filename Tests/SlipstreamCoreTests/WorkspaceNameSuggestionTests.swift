@@ -22,25 +22,25 @@ struct WorkspaceNameSuggestionTests {
   }
 
   @Test func resultWithoutStructuredOutputIsBadReply() {
-    #expect(throws: WorkspaceNameSuggestionError.badReply("The reply had no name.")) {
+    #expect(throws: WorkspaceNameSuggestionError.badReply) {
       try name(#"{"type":"result","subtype":"error_max_turns","is_error":false}"#)
     }
   }
 
   @Test func resultWithoutNameIsBadReply() {
-    #expect(throws: WorkspaceNameSuggestionError.badReply("The reply had no name.")) {
+    #expect(throws: WorkspaceNameSuggestionError.badReply) {
       try name(#"{"type":"result","subtype":"success","structured_output":{"title":"x"}}"#)
     }
   }
 
   @Test func unusableNameIsBadReply() {
-    #expect(throws: WorkspaceNameSuggestionError.badReply("The suggested name wasn't usable.")) {
+    #expect(throws: WorkspaceNameSuggestionError.badReply) {
       try name(#"{"type":"result","subtype":"success","structured_output":{"name":"  "}}"#)
     }
   }
 
-  @Test func errorResultCarriesClaudesOwnText() {
-    #expect(throws: WorkspaceNameSuggestionError.unavailable("Claude Code reported an error: Invalid API key")) {
+  @Test func errorResultIsUnavailable() {
+    #expect(throws: WorkspaceNameSuggestionError.unavailable) {
       try name(#"{"type":"result","subtype":"success","is_error":true,"result":"Invalid API key"}"#)
     }
   }

@@ -34,9 +34,10 @@ final class ChangeStreamPageModel: ViewModel {
 
   init(
     chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel, recorder: RecorderModel,
-    isFunctionDemoVisible: Bool = false
+    naming: WorkspaceNamingModel = WorkspaceNamingModel(), isFunctionDemoVisible: Bool = false
   ) {
     self.chat = chat
+    self.naming = naming
     self.instantAsk = instantAsk
     self.terminals = terminals
     self.recorder = recorder
@@ -77,7 +78,7 @@ final class ChangeStreamPageModel: ViewModel {
   let prStatusBar: PRStatusBarModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
-  let naming = WorkspaceNamingModel()
+  let naming: WorkspaceNamingModel
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
@@ -1642,7 +1643,7 @@ final class ChangeStreamPageModel: ViewModel {
   private func chatMessageSent(folder: String, text: String) {
     let sessionID = currentCapturesByFolder[folder]?.sessionID ?? selectedSession.flatMap { $0.root == folder ? $0.id : nil }
     guard let sessionID, sessions[id: sessionID]?.naming?.agentName == nil else { return }
-    Task { [naming] in await naming.messageSent(sessionID: sessionID, text: text) }
+    naming.messageSent(sessionID: sessionID, text: text)
   }
 
   private func folderRecorded(_ folder: String) {

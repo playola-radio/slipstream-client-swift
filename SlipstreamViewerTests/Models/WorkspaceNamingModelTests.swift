@@ -300,7 +300,8 @@ struct WorkspaceNamingModelTests {
   @Test func firstMessageStoresTheSuggestedNameAsTheAgentsNameAndRefreshes() async {
     let model = makeModel()
 
-    await model.messageSent(sessionID: Self.session, text: "Slow down the sidebar polling")
+    model.messageSent(sessionID: Self.session, text: "Slow down the sidebar polling")
+    await Task.megaYield()
 
     expectNoDifference(suggestionFake.messages, ["Slow down the sidebar polling"])
     expectNoDifference(
@@ -312,9 +313,12 @@ struct WorkspaceNamingModelTests {
   @Test func eachSessionIsSuggestedForOnlyOnce() async {
     let model = makeModel()
 
-    await model.messageSent(sessionID: Self.session, text: "First")
-    await model.messageSent(sessionID: Self.session, text: "Second")
-    await model.messageSent(sessionID: Self.otherSession, text: "Third")
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
+    model.messageSent(sessionID: Self.session, text: "Second")
+    await Task.megaYield()
+    model.messageSent(sessionID: Self.otherSession, text: "Third")
+    await Task.megaYield()
 
     expectNoDifference(suggestionFake.messages, ["First", "Third"])
     expectNoDifference(nameFake.calls.map(\.sessionID), [Self.session, Self.otherSession])
@@ -324,11 +328,11 @@ struct WorkspaceNamingModelTests {
     let model = makeModel()
     agent.hold(.environment)
 
-    let first = Task { await model.messageSent(sessionID: Self.session, text: "First") }
+    model.messageSent(sessionID: Self.session, text: "First")
     await Task.megaYield()
-    await model.messageSent(sessionID: Self.session, text: "Second")
+    model.messageSent(sessionID: Self.session, text: "Second")
     agent.release(.environment)
-    await first.value
+    await Task.megaYield()
 
     expectNoDifference(suggestionFake.messages, ["First"])
   }
@@ -337,7 +341,8 @@ struct WorkspaceNamingModelTests {
     let model = makeModel()
     suggestionFake.setFails()
 
-    await model.messageSent(sessionID: Self.session, text: "First")
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
 
     expectNoDifference(nameFake.calls, [])
     expectNoDifference(refreshes.value, 0)
@@ -347,9 +352,11 @@ struct WorkspaceNamingModelTests {
   @Test func failedSuggestionIsNotRetriedOnTheNextMessage() async {
     let model = makeModel()
     suggestionFake.setFails()
-    await model.messageSent(sessionID: Self.session, text: "First")
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
 
-    await model.messageSent(sessionID: Self.session, text: "Second")
+    model.messageSent(sessionID: Self.session, text: "Second")
+    await Task.megaYield()
 
     expectNoDifference(suggestionFake.messages, ["First"])
   }
@@ -358,7 +365,8 @@ struct WorkspaceNamingModelTests {
     let model = makeModel()
     agent.setEnvironmentError(.claudeNotFound)
 
-    await model.messageSent(sessionID: Self.session, text: "First")
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
 
     expectNoDifference(suggestionFake.messages, [])
     expectNoDifference(nameFake.calls, [])
@@ -372,7 +380,8 @@ struct WorkspaceNamingModelTests {
     let model = makeModel()
     nameFake.setFailure(error)
 
-    await model.messageSent(sessionID: Self.session, text: "First")
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
 
     expectNoDifference(nameFake.calls.count, 1)
     expectNoDifference(refreshes.value, 1)
@@ -386,7 +395,7 @@ struct WorkspaceNamingModelTests {
     model.draftChanged("My own name")
     nameFake.hold()
 
-    let suggestion = Task { await model.messageSent(sessionID: Self.session, text: "First") }
+    model.messageSent(sessionID: Self.session, text: "First")
     await Task.megaYield()
 
     expectNoDifference(
@@ -394,8 +403,31 @@ struct WorkspaceNamingModelTests {
     expectNoDifference([model.isMutationInFlight, model.isRenameEnabled], [false, true])
 
     nameFake.release()
-    await suggestion.value
+    await Task.megaYield()
     expectNoDifference(
       model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "My own name", phase: .editing))
+  }
+
+  @Test func quitStopsARunningSuggestionAndWritesNoName() async {
+    let model = makeModel()
+    suggestionFake.hold()
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
+    expectNoDifference(suggestionFake.messages, ["First"])
+
+    await model.quitConfirmed()
+
+    expectNoDifference(nameFake.calls, [])
+    expectNoDifference(refreshes.value, 0)
+  }
+
+  @Test func nothingIsSuggestedAfterQuit() async {
+    let model = makeModel()
+    await model.quitConfirmed()
+
+    model.messageSent(sessionID: Self.session, text: "First")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, [])
   }
 }

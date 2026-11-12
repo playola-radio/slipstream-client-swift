@@ -34,10 +34,10 @@ extension WorkspaceNameSuggestionClient: DependencyKey {
             try await clock.sleep(for: timeLimit)
             return .failure(.timedOut)
           } catch {
-            return .failure(.unavailable("The name suggestion was cancelled."))
+            return .failure(.unavailable)
           }
         }
-        let first = await group.next() ?? .failure(.unavailable("The name suggestion was cancelled."))
+        let first = await group.next() ?? .failure(.unavailable)
         await handle.shutdown()
         group.cancelAll()
         return first
@@ -57,7 +57,7 @@ extension WorkspaceNameSuggestionClient: DependencyKey {
     do {
       try await handle.write(Data(WorkspaceNameSuggestion.prompt(for: message).utf8))
     } catch {
-      return .failure(.unavailable("The message couldn't be sent to Claude Code: \(error.localizedDescription)"))
+      return .failure(.unavailable)
     }
     await handle.closeInput()
     for await event in handle.events {
@@ -69,15 +69,12 @@ extension WorkspaceNameSuggestionClient: DependencyKey {
           return .failure(error)
         }
       case .overflow:
-        return .failure(.badReply("Claude Code's reply was too long to read."))
-      case .exited(let status, let stderrTail):
-        guard status != 0 else { return .failure(.badReply("Claude Code exited without a name.")) }
-        let summary = AskForkClient.stderrSummary(stderrTail)
-        let exited = "Claude Code exited with status \(status)"
-        return .failure(.unavailable(summary.isEmpty ? exited + "." : "\(exited): \(summary)"))
+        return .failure(.badReply)
+      case .exited(let status, _):
+        return .failure(status == 0 ? .badReply : .unavailable)
       }
     }
-    return .failure(.unavailable("Claude Code stopped unexpectedly."))
+    return .failure(.unavailable)
   }
 
   private static func makeEmptyDirectory() throws -> String {

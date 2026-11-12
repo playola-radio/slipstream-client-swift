@@ -9,11 +9,11 @@ struct ChangeStreamPageView: View {
 
   init(
     chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel, recorder: RecorderModel,
-    functionChangesDemo: FunctionChangesFixtureModel? = nil
+    naming: WorkspaceNamingModel, functionChangesDemo: FunctionChangesFixtureModel? = nil
   ) {
     _model = State(initialValue: ChangeStreamPageModel(
       chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder,
-      isFunctionDemoVisible: functionChangesDemo != nil))
+      naming: naming, isFunctionDemoVisible: functionChangesDemo != nil))
     _functionChangesDemo = State(initialValue: functionChangesDemo)
   }
 
