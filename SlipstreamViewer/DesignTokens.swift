@@ -809,6 +809,17 @@ enum DesignTokens {
     static let groupNameColor = Color(hex: 0xC9D6DF)
     static let newWorkspaceIcon = Icons.Icon(assetName: "Plus", size: 14, color: Color(hex: 0x8B9AA6))
     static let iconButtonPadding: CGFloat = 5
+    static let iconButtonRadius: CGFloat = 4
+    static let hoverAnimation = Animation.easeOut(duration: 0.15)
+
+    static func iconButtonFill(isHovered: Bool, isPressed: Bool) -> Color {
+      if isPressed { return Color(hex: 0x34414D) }
+      return isHovered ? Color(hex: 0x26303A) : .clear
+    }
+
+    static func groupHeaderFill(isHighlighted: Bool) -> Color {
+      isHighlighted ? highlightedRowFill : .clear
+    }
 
     static let rowHeight: CGFloat = 32
     static let rowRadius: CGFloat = 5
@@ -842,6 +853,11 @@ enum DesignTokens {
 
     static func rowIcon(isSelected: Bool) -> Icons.Icon {
       Icons.Icon(assetName: "GitBranch", size: 13, color: isSelected ? Color(hex: 0xC9D6DF) : Color(hex: 0x6B7C89))
+    }
+
+    static func rowFill(isSelected: Bool, isHighlighted: Bool) -> Color {
+      if isSelected { return selectedRowFill }
+      return isHighlighted ? highlightedRowFill : .clear
     }
 
     static func rowNameFont(isBold: Bool) -> FontToken {

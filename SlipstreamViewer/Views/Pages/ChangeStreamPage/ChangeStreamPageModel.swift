@@ -104,6 +104,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
+  private var hoveredGroupID: SidebarGroup.ID?
   private var focusedRowID: String?
   var isArchiveConfirmationPresented = false
   var isWorkspaceFailurePresented = false
@@ -460,6 +461,18 @@ final class ChangeStreamPageModel: ViewModel {
 
   func isHighlighted(_ session: SessionOption) -> Bool {
     session.id == hoveredRowID || session.id == focusedRowID
+  }
+
+  func isHighlighted(_ group: SidebarGroup) -> Bool {
+    group.id == hoveredGroupID
+  }
+
+  func rowFill(_ session: SessionOption) -> Color {
+    DesignTokens.Sidebar.rowFill(isSelected: isSelected(session), isHighlighted: isHighlighted(session))
+  }
+
+  func groupHeaderFill(_ group: SidebarGroup) -> Color {
+    DesignTokens.Sidebar.groupHeaderFill(isHighlighted: isHighlighted(group))
   }
 
   /// Archive deletes the folder, so it is offered only for workspaces the app made.
@@ -861,6 +874,14 @@ final class ChangeStreamPageModel: ViewModel {
       hoveredRowID = session.id
     } else if hoveredRowID == session.id {
       hoveredRowID = nil
+    }
+  }
+
+  func groupHoverChanged(_ group: SidebarGroup, isHovering: Bool) {
+    if isHovering {
+      hoveredGroupID = group.id
+    } else if hoveredGroupID == group.id {
+      hoveredGroupID = nil
     }
   }
 
