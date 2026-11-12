@@ -54,6 +54,7 @@ final class ChangeStreamPageModel: ViewModel {
     }
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
+    chat.onMessageSent = { [weak self] folder, text in self?.chatMessageSent(folder: folder, text: text) }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
     recording.onRecorded = { [weak self] in self?.folderRecorded($0) }
     recording.onRecordOutcomeUnknown = { [weak self] in self?.recordOutcomeUnknown($0) }
@@ -1651,6 +1652,12 @@ final class ChangeStreamPageModel: ViewModel {
     guard case .available = captureAvailability else { return true }
     guard let capture = currentCapturesByFolder[folder] else { return false }
     return capture.state != .stopped || capture.reason == "maintenance"
+  }
+
+  private func chatMessageSent(folder: String, text: String) {
+    let sessionID = currentCapturesByFolder[folder]?.sessionID ?? selectedSession.flatMap { $0.root == folder ? $0.id : nil }
+    guard let sessionID, sessions[id: sessionID]?.naming?.agentName == nil else { return }
+    naming.messageSent(sessionID: sessionID, text: text)
   }
 
   private func folderRecorded(_ folder: String) {

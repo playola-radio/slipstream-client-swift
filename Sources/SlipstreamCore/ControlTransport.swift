@@ -44,6 +44,13 @@ public struct ControlTransport: Sendable {
     }
   }
 
+  /// Whether the daemon stored the name: false when the session already had an agent name.
+  public func nameSession(sessionID: String, name: String) async throws -> Bool {
+    try await send(ControlLine.encode(NameSessionRequest(sessionID: sessionID, name: name))) {
+      try NameSessionRequest.changed($0)
+    }
+  }
+
   public func status() async throws -> DaemonBuild {
     try await send(ControlLine.encode(StatusRequest())) { try DaemonBuild.decode($0) }
   }
@@ -196,6 +203,25 @@ private struct RenameSessionRequest: Encodable {
     try container.encode("rename_session", forKey: .verb)
     try container.encode(sessionID, forKey: .sessionID)
     try container.encode(name, forKey: .name)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case v, verb, name
+    case sessionID = "session_id"
+  }
+}
+
+private struct NameSessionRequest: Encodable {
+  let v = 1
+  let verb = "name_session"
+  let sessionID: String
+  let name: String
+
+  static func changed(_ data: Data) throws -> Bool {
+    try ControlReply.check(data)
+    guard let fields = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let changed = fields["changed"] as? Bool
+    else { throw QuestionError.outcomeUnknown }
+    return changed
   }
 
   private enum CodingKeys: String, CodingKey {

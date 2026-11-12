@@ -300,6 +300,42 @@ extension ControlTransportTests {
 }
 
 extension ControlTransportTests {
+  static func nameLine(_ name: String) -> String {
+    #"{"v":1,"verb":"name_session","session_id":"\#(QuestionsTests.session)","name":"\#(name)"}"#
+  }
+
+  @Test(arguments: [true, false])
+  func nameSessionSendsNameAndReturnsChanged(changed: Bool) async throws {
+    try await exchange(reply: #"{"v":1,"ok":true,"changed":\#(changed)}"#, expecting: Self.nameLine("Fix login")) {
+      let result = try await $0.nameSession(sessionID: QuestionsTests.session, name: "Fix login")
+      expectNoDifference(result, changed)
+    }
+  }
+
+  @Test func nameSessionWithoutChangedIsOutcomeUnknown() async throws {
+    try await exchange(reply: #"{"v":1,"ok":true}"#, expecting: Self.nameLine("Fix login")) { transport in
+      await #expect(throws: QuestionError.outcomeUnknown) {
+        try await transport.nameSession(sessionID: QuestionsTests.session, name: "Fix login")
+      }
+    }
+  }
+
+  @Test(arguments: [
+    ("SESSION_NOT_FOUND", "session was deleted"), ("INVALID_NAME", "name is too long"),
+    ("STORAGE_UNAVAILABLE", "store unreadable"), ("PROTOCOL", "unknown verb: name_session"),
+  ])
+  func nameSessionRefusalCarriesTheDaemonsCodeAndMessage(code: String, message: String) async throws {
+    try await exchange(
+      reply: #"{"v":1,"ok":false,"code":"\#(code)","message":"\#(message)"}"#, expecting: Self.nameLine("Fix login")
+    ) { transport in
+      await #expect(throws: QuestionError.rejected(code: code, message: message)) {
+        try await transport.nameSession(sessionID: QuestionsTests.session, name: "Fix login")
+      }
+    }
+  }
+}
+
+extension ControlTransportTests {
   func status(reply: String) async throws -> DaemonBuild {
     let server = try SocketFixture()
     let serving = server.serve { fd in

@@ -23,6 +23,7 @@ struct ChangeStreamPageTests {
   let terminal = TerminalFake()
   let recordingFake = RecordingFake()
   let nameFake = WorkspaceNameFake()
+  let suggestionFake = WorkspaceNameSuggestionFake()
   let copied = LockIsolated<[String]>([])
   let files = LockIsolated<[URL: Data]>([:])
 
@@ -52,6 +53,8 @@ struct ChangeStreamPageTests {
       $0.terminalRuntime = terminal.runtimeClient
       $0.recording = recordingFake.client
       $0.workspaceName = nameFake.client
+      $0.workspaceNameSuggestion = suggestionFake.client
+      $0.agentEnvironment = agent.environmentClient
       $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
       $0.openIn.installedApps = { [] }
     } operation: {
@@ -549,6 +552,59 @@ struct ChangeStreamPageTests {
     await model.reloadShortcutPressed()
 
     expectNoDifference([model.rowName(model.sessions[0]), model.breadcrumbWorkspaceText], ["My name", "My name"])
+  }
+
+  @Test func firstMessageInAnUnnamedWorkspaceNamesItsSession() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming())],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+
+    model.chat.onMessageSent("/tmp/project", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, ["Fix the sidebar"])
+    expectNoDifference(
+      nameFake.calls, [.init(sessionID: Fixture.session, name: "Sidebar Polling Backoff", isAgentName: true)])
+  }
+
+  @Test func captureOnlyWorkspaceWithoutNamingStillGetsNamed() async {
+    let model = makeModel()
+    await model.viewAppeared()
+    expectNoDifference(model.sessions[id: Fixture.session]?.naming, nil)
+
+    model.chat.onMessageSent("/tmp/project", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(nameFake.calls.map(\.sessionID), [Fixture.session])
+  }
+
+  @Test func firstMessageInANamedWorkspaceDoesNothing() async {
+    fake.setSessions(
+      [SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false, naming: SessionNaming(agentName: "Agent's name"))],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    let model = makeModel()
+    await model.viewAppeared()
+
+    model.chat.onMessageSent("/tmp/project", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, [])
+    expectNoDifference(nameFake.calls, [])
+  }
+
+  @Test func firstMessageInAFolderWithNoSessionDoesNothing() async {
+    fake.setCaptures([])
+    fake.setSessions([])
+    let model = makeModel()
+    await model.viewAppeared()
+
+    model.chat.onMessageSent("/tmp/elsewhere", "Fix the sidebar")
+    await Task.megaYield()
+
+    expectNoDifference(suggestionFake.messages, [])
+    expectNoDifference(nameFake.calls, [])
   }
 
   @Test func queuedNoticeUsesLatestNameAfterPoll() async {
