@@ -1,3 +1,4 @@
+import Darwin
 import Dependencies
 import Foundation
 import SlipstreamCore
@@ -46,12 +47,12 @@ final class AppLogFile: Sendable {
   #endif
 
   private let url: URL
-  private let maxBytes: Int
+  private let maxBytes: UInt64
   private let queue = DispatchQueue(label: "com.playola.SlipstreamViewer.AppLog")
   private let handle = Mutex<FileHandle?>(nil)
   private let logger = Logger(subsystem: "com.playola.SlipstreamViewer", category: "AppLog")
 
-  init(url: URL, maxBytes: Int = 10 * 1024 * 1024) {
+  init(url: URL, maxBytes: UInt64 = 10 * 1024 * 1024) {
     self.url = url
     self.maxBytes = maxBytes
   }
@@ -70,10 +71,8 @@ final class AppLogFile: Sendable {
       do {
         let file = try handle ?? open()
         handle = file
-        let data = Data(line.utf8)
-        let end = try file.seekToEnd()
-        try file.write(contentsOf: data)
-        if Int(end) + data.count > maxBytes {
+        try file.write(contentsOf: Data(line.utf8))
+        if try file.offset() > maxBytes {
           handle = nil
           try rotate(file)
         }
@@ -86,12 +85,11 @@ final class AppLogFile: Sendable {
   }
 
   private func open() throws -> FileHandle {
-    let manager = FileManager.default
-    try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    if !manager.fileExists(atPath: url.path) {
-      manager.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600])
-    }
-    return try FileHandle(forWritingTo: url)
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    // O_APPEND, so lines from another running copy of the app land after ours instead of over them.
+    let descriptor = Darwin.open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o600)
+    guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+    return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
   }
 
   private func rotate(_ file: FileHandle) throws {

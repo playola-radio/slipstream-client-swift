@@ -119,21 +119,13 @@ struct RecorderModelTests {
             slipstream: launchctl could not load radio.playola.slipstream (exit 5): Bootstrap failed: 5
             exit 1
             """)))
-  }
-
-  @Test func serviceInstallFailureIsLoggedWithItsEvidence() async {
-    fake.shimResults.setValue(["service": (1, "slipstream: launchctl could not load\n")])
-    let model = makeModel()
-
-    await model.appLaunched()
-
     expectNoDifference(
       logged.value.last,
       """
       ERROR recorder: wontStart: serviceInstall(exitCode: Optional(1))
       slipstream service install · exit 1
       $ /rt/bin/slipstream service install --store test-store
-      slipstream: launchctl could not load
+      slipstream: launchctl could not load radio.playola.slipstream (exit 5): Bootstrap failed: 5
       exit 1
       """)
   }

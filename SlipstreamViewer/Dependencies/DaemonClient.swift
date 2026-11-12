@@ -21,18 +21,17 @@ extension DaemonClient: DependencyKey {
       environment: ProcessInfo.processInfo.environment,
       home: FileManager.default.homeDirectoryForCurrentUser
     )
-    let log = AppLogClient.liveValue
     return DaemonClient(
       storeID: store.standardizedFileURL.path,
       discover: { try DescriptorDiscovery.discover(store: store) },
       sessions: { descriptor in
-        try await log.logging("sessions") { try await transport.sessions(descriptor) }
+        try await logged("sessions") { try await transport.sessions(descriptor) }
       },
       listCaptures: { descriptor in
-        try await log.logging("listCaptures") { try await transport.captures(descriptor) }
+        try await logged("listCaptures") { try await transport.captures(descriptor) }
       },
       sessionStart: { descriptor, sessionID in
-        try await log.logging("sessionStart \(sessionID)") {
+        try await logged("sessionStart \(sessionID)") {
           guard case .sessionStarted(let start) = try await transport.firstEvent(descriptor, sessionID: sessionID)?.payload
           else { return nil }
           return start
@@ -40,17 +39,17 @@ extension DaemonClient: DependencyKey {
       },
       follow: { transport.follow($0, sessionID: $1, after: $2) },
       clips: { descriptor, sessionID, seq in
-        try await log.logging("clips \(sessionID)") { try await transport.clips(descriptor, sessionID: sessionID, seq: seq) }
+        try await logged("clips \(sessionID)") { try await transport.clips(descriptor, sessionID: sessionID, seq: seq) }
       },
       interfaces: { descriptor, sessionID, before, after, pathPrefix, afterPath, includeIdentical in
-        try await log.logging("interfaces \(sessionID)") {
+        try await logged("interfaces \(sessionID)") {
           try await transport.interfaces(
             descriptor, sessionID: sessionID, before: before, after: after,
             pathPrefix: pathPrefix, afterPath: afterPath, includeIdentical: includeIdentical)
         }
       },
       blob: { descriptor, sha256 in
-        try await log.logging("blob \(sha256)") { try await transport.blob(descriptor, sha256: sha256) }
+        try await logged("blob \(sha256)") { try await transport.blob(descriptor, sha256: sha256) }
       }
     )
   }
@@ -70,16 +69,15 @@ extension DaemonClient: DependencyKey {
   }
 }
 
-extension AppLogClient {
-  fileprivate func logging<T: Sendable>(_ operation: String, _ body: () async throws -> T) async throws -> T {
-    do {
-      return try await body()
-    } catch {
-      if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
-        self.error("daemon", "\(operation) failed: \(error)")
-      }
-      throw error
+private func logged<T: Sendable>(_ operation: String, _ body: () async throws -> T) async throws -> T {
+  do {
+    return try await body()
+  } catch {
+    if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
+      @Dependency(\.appLog) var appLog
+      appLog.error("daemon", "\(operation) failed: \(error)")
     }
+    throw error
   }
 }
 

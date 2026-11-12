@@ -36,8 +36,8 @@ struct AgentProcessClient: Sendable {
 
 extension AgentProcessClient: DependencyKey {
   static var liveValue: Self {
-    let log = AppLogClient.liveValue
-    return Self(launch: { launch in
+    Self(launch: { launch in
+      @Dependency(\.appLog) var log
       let process: AgentProcess
       do {
         process = try AgentProcess(launch, log: log)
@@ -83,6 +83,7 @@ private final class AgentProcess: Sendable {
   static let terminationGrace = 3.0
   static let outputGrace = 1.0
   static let stderrTailBytes = 4096
+  static let stderrLineBytes = 65536
 
   let events: AsyncStream<AgentProcessEvent>
   let input: AgentProcessInput
@@ -99,6 +100,8 @@ private final class AgentProcess: Sendable {
   private struct Output {
     var framer = JSONLineFramer()
     var stderrTail = Data()
+    /// Logged a whole line at a time so redaction never sees half a token.
+    var stderrLine = Data()
     var openPipes = 2
     var status: Int32?
     var isFinished = false
@@ -173,13 +176,26 @@ private final class AgentProcess: Sendable {
   }
 
   private func stderrReceived(_ chunk: Data) {
-    log.info("agent", "pid \(pid) stderr: \(String(decoding: chunk, as: UTF8.self))")
     output.withLock { output in
+      output.stderrLine.append(chunk)
+      if output.stderrLine.count > Self.stderrLineBytes {
+        logStderr(&output.stderrLine)
+      } else if let end = output.stderrLine.lastIndex(of: UInt8(ascii: "\n")) {
+        var lines = Data(output.stderrLine[...end])
+        output.stderrLine = Data(output.stderrLine[(end + 1)...])
+        logStderr(&lines)
+      }
       output.stderrTail.append(chunk)
       if output.stderrTail.count > Self.stderrTailBytes {
         output.stderrTail = Data(output.stderrTail.suffix(Self.stderrTailBytes))
       }
     }
+  }
+
+  private func logStderr(_ text: inout Data) {
+    guard !text.isEmpty else { return }
+    log.info("agent", "pid \(pid) stderr: \(String(decoding: text, as: UTF8.self))")
+    text = Data()
   }
 
   private func pipeClosed(_ handle: FileHandle) {
@@ -196,8 +212,11 @@ private final class AgentProcess: Sendable {
     var info = siginfo_t()
     while waitid(P_PID, id_t(pid), &info, WEXITED | WNOWAIT) == -1 && errno == EINTR {}
     let exitStatus = info.si_code == CLD_EXITED ? info.si_status : 128 + info.si_status
-    let exitLine = "pid \(pid) exited status \(exitStatus)"
-    if exitStatus == 0 { log.info("agent", exitLine) } else { log.error("agent", exitLine) }
+    if exitStatus == 0 || isShuttingDown.withLock({ $0 }) {
+      log.info("agent", "pid \(pid) exited status \(exitStatus)")
+    } else {
+      log.error("agent", "pid \(pid) exited status \(exitStatus) on its own")
+    }
     output.withLock { output in
       output.status = exitStatus
       if output.openPipes == 0 { finish(&output) }
@@ -212,6 +231,7 @@ private final class AgentProcess: Sendable {
   private func finish(_ output: inout Output) {
     guard let status = output.status, !output.isFinished else { return }
     output.isFinished = true
+    logStderr(&output.stderrLine)
     continuation.yield(.exited(status: status, stderrTail: Self.decodeTail(output.stderrTail)))
     continuation.finish()
     finished.fulfill()

@@ -108,7 +108,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
     do {
       descriptor = try await discover()
     } catch {
-      if !Task.isCancelled { problem("daemon discovery failed: \(error)") }
+      if !Task.isCancelled, !(error is CancellationError) { problem("daemon discovery failed: \(error)") }
       return .retry
     }
     let openedAt = clock.now
@@ -158,7 +158,9 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
         return .retry
       }
     } catch is IdleTimeout {
-      problem("no event or heartbeat for \(sawActivity ? policy.idleTimeout : firstItemTimeout)")
+      if !Task.isCancelled {
+        problem("no event or heartbeat for \(sawActivity ? policy.idleTimeout : firstItemTimeout)")
+      }
       return .retry
     } catch {
       if !Task.isCancelled, !(error is CancellationError) { problem("event stream failed: \(error)") }
