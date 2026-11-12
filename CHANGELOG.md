@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.11] - 2026-11-12
+
+- New workspaces now appear at the top of their repository in the sidebar instead of the
+  bottom. While one is being created, a **Creating workspace…** row with a spinner shows in
+  its place, and the workspace's icon stays a spinner until its setup script finishes.
+
 ## [0.4.10] - 2026-11-12
 
 - New workspaces now name themselves within seconds of your first message, instead of
