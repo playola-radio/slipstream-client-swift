@@ -2,38 +2,71 @@ import AppKit
 import SlipstreamCore
 import SwiftUI
 
-/// Chat text whose attachment markers show as inline tokens. Read-only in a sent bubble.
+/// Chat text whose attachment markers show as inline tokens: read-only in a sent bubble, editable
+/// in the message box, where dropped or pasted files and images arrive through `onAttach`.
 struct TokenTextView: NSViewRepresentable {
   let segments: [AttachmentMarker.Segment]
   let isEditable: Bool
   var onTokenTap: (String) -> Void
+  var placeholder = ""
+  var placeholderColor = Color.clear
+  var isEnabled = true
+  var onTextChange: (String) -> Void = { _ in }
+  var onSubmit: () -> Void = {}
+  var onDropTargetChange: (Bool) -> Void = { _ in }
+  var onAttach: ([IncomingAttachment], Int) -> Void = { _, _ in }
   @Environment(\.fontScale) private var fontScale
 
-  func makeCoordinator() -> Coordinator { Coordinator(onTokenTap: onTokenTap) }
+  func makeCoordinator() -> Coordinator { Coordinator() }
 
   func makeNSView(context: Context) -> NSView {
     let text = TokenNSTextView(usingTextLayoutManager: false)
-    text.isEditable = isEditable
     text.isSelectable = true
     text.importsGraphics = false
     text.drawsBackground = false
     text.textContainerInset = .zero
     text.textContainer?.lineFragmentPadding = 0
     text.textContainer?.widthTracksTextView = true
+    text.insertionPointColor = NSColor(DesignTokens.Chat.Paragraph.color)
+    text.allowsUndo = isEditable
     text.delegate = context.coordinator
-    return text
+    guard isEditable else { return text }
+    text.isVerticallyResizable = true
+    text.autoresizingMask = [.width]
+    text.setAccessibilityLabel("Message")
+    let scroll = NSScrollView()
+    scroll.drawsBackground = false
+    scroll.hasVerticalScroller = true
+    scroll.documentView = text
+    return scroll
   }
 
   func updateNSView(_ view: NSView, context: Context) {
-    guard let text = view as? TokenNSTextView else { return }
-    context.coordinator.onTokenTap = onTokenTap
-    guard text.segments != segments || text.fontScale != fontScale else { return }
+    guard let text = (view as? NSScrollView)?.documentView as? TokenNSTextView ?? view as? TokenNSTextView else { return }
+    context.coordinator.view = self
+    text.onAttach = onAttach
+    text.onDropTargetChange = onDropTargetChange
+    text.isEditable = isEditable && isEnabled
+    if text.placeholder != placeholder || text.placeholderColor != NSColor(placeholderColor) {
+      text.placeholder = placeholder
+      text.placeholderColor = NSColor(placeholderColor)
+      text.needsDisplay = true
+    }
+    let current = AttachmentMarker.text(text.segments)
+    let wanted = AttachmentMarker.text(segments)
+    guard current != wanted || text.fontScale != fontScale else { return }
+    let caret = text.draftOffset(at: text.selectedRange().location) + wanted.utf16.count - current.utf16.count
     text.fontScale = fontScale
     text.textStorage?.setAttributedString(text.attributedString(for: segments))
+    text.typingAttributes = text.baseAttributes
+    guard isEditable else { return }
+    text.setSelectedRange(NSRange(location: text.location(forDraftOffset: max(caret, 0)), length: 0))
+    context.coordinator.undoManager.removeAllActions()
   }
 
   func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context: Context) -> CGSize? {
-    guard let text = nsView as? NSTextView, let container = text.textContainer, let layout = text.layoutManager
+    guard !isEditable, let text = nsView as? NSTextView, let container = text.textContainer,
+      let layout = text.layoutManager
     else { return nil }
     let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? .greatestFiniteMagnitude
     container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
@@ -42,36 +75,61 @@ struct TokenTextView: NSViewRepresentable {
     return CGSize(width: ceil(used.width), height: ceil(used.height))
   }
 
-  final class Coordinator: NSObject, NSTextViewDelegate {
-    var onTokenTap: (String) -> Void
+  @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
+    var view: TokenTextView?
+    /// Its own undo stack, cleared whenever the model replaces the draft (send, tab switch,
+    /// attach), so undo never reaches into text that is no longer there.
+    let undoManager = UndoManager()
 
-    init(onTokenTap: @escaping (String) -> Void) { self.onTokenTap = onTokenTap }
+    func undoManager(for view: NSTextView) -> UndoManager? { undoManager }
+
+    func textDidChange(_ notification: Notification) {
+      guard let text = notification.object as? TokenNSTextView else { return }
+      view?.onTextChange(AttachmentMarker.text(text.segments))
+    }
+
+    func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+      guard commandSelector == #selector(NSResponder.insertNewline(_:)) else { return false }
+      if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+        textView.insertNewlineIgnoringFieldEditor(nil)
+      } else {
+        view?.onSubmit()
+      }
+      return true
+    }
 
     func textView(
       _ textView: NSTextView, clickedOn cell: any NSTextAttachmentCellProtocol, in cellFrame: NSRect, at charIndex: Int
     ) {
       guard let token = cell.attachment as? TokenAttachment, case .attachment(_, let path) = token.segment else { return }
-      onTokenTap(path)
+      view?.onTokenTap(path)
     }
   }
 }
 
 final class TokenNSTextView: NSTextView {
   var fontScale: CGFloat = 1
+  var placeholder = ""
+  var placeholderColor = NSColor.clear
+  var onAttach: ([IncomingAttachment], Int) -> Void = { _, _ in }
+  var onDropTargetChange: (Bool) -> Void = { _ in }
 
   var segments: [AttachmentMarker.Segment] {
     textStorage.map(Self.segments(in:)) ?? []
   }
 
-  func attributedString(for segments: [AttachmentMarker.Segment]) -> NSAttributedString {
-    let font = DesignTokens.Chat.Paragraph.font.nsFont(scale: fontScale) ?? .systemFont(ofSize: 14 * fontScale)
+  var baseAttributes: [NSAttributedString.Key: Any] {
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = DesignTokens.Chat.Paragraph.lineSpacing
-    let attributes: [NSAttributedString.Key: Any] = [
-      .font: font,
+    return [
+      .font: DesignTokens.Chat.Paragraph.font.nsFont(scale: fontScale) ?? .systemFont(ofSize: 14 * fontScale),
       .foregroundColor: NSColor(DesignTokens.Chat.Paragraph.color),
       .paragraphStyle: paragraph,
     ]
+  }
+
+  func attributedString(for segments: [AttachmentMarker.Segment]) -> NSAttributedString {
+    let attributes = baseAttributes
     let result = NSMutableAttributedString()
     for segment in segments {
       switch segment {
@@ -79,7 +137,8 @@ final class TokenNSTextView: NSTextView {
         result.append(NSAttributedString(string: text, attributes: attributes))
       case .attachment(_, let path):
         var tokenAttributes = attributes
-        tokenAttributes[.attachment] = TokenAttachment(segment: segment, font: font, scale: fontScale)
+        tokenAttributes[.attachment] = TokenAttachment(
+          segment: segment, font: attributes[.font] as? NSFont ?? .systemFont(ofSize: 14), scale: fontScale)
         tokenAttributes[.toolTip] = path
         result.append(NSAttributedString(string: "\u{FFFC}", attributes: tokenAttributes))
       }
@@ -103,6 +162,30 @@ final class TokenNSTextView: NSTextView {
     return segments
   }
 
+  /// The draft (marker) offset of a storage location, where each token is one character.
+  func draftOffset(at location: Int) -> Int {
+    guard let storage = textStorage else { return 0 }
+    let prefix = storage.attributedSubstring(from: NSRange(location: 0, length: min(location, storage.length)))
+    return AttachmentMarker.text(Self.segments(in: prefix)).utf16.count
+  }
+
+  /// The storage location of a draft offset; an offset inside a marker lands after its token.
+  func location(forDraftOffset offset: Int) -> Int {
+    var remaining = offset
+    var location = 0
+    for segment in segments where remaining > 0 {
+      let length = AttachmentMarker.text([segment]).utf16.count
+      switch segment {
+      case .text: location += min(remaining, length)
+      case .attachment: location += 1
+      }
+      remaining -= length
+    }
+    return location
+  }
+
+  // MARK: Copy, paste and drop
+
   override var writablePasteboardTypes: [NSPasteboard.PasteboardType] { [.string] }
 
   override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
@@ -112,6 +195,126 @@ final class TokenNSTextView: NSTextView {
     }
     pboard.declareTypes([.string], owner: nil)
     return pboard.setString(text.joined(), forType: .string)
+  }
+
+  override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+    [.fileURL, .png, .tiff, .string]
+      + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+  }
+
+  override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+    if attach(from: pboard, at: rangeForUserTextChange.location) { return true }
+    guard let string = pboard.string(forType: .string) else { return super.readSelection(from: pboard, type: type) }
+    insertText(attributedString(for: AttachmentMarker.segments(string)), replacementRange: rangeForUserTextChange)
+    return true
+  }
+
+  override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    guard isEditable, Self.canAttach(from: sender.draggingPasteboard) else { return super.draggingEntered(sender) }
+    onDropTargetChange(true)
+    _ = super.draggingEntered(sender)
+    return .copy
+  }
+
+  override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    guard isEditable, Self.canAttach(from: sender.draggingPasteboard) else { return super.draggingUpdated(sender) }
+    _ = super.draggingUpdated(sender)
+    return .copy
+  }
+
+  override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+    onDropTargetChange(false)
+    super.draggingExited(sender)
+  }
+
+  override func draggingEnded(_ sender: any NSDraggingInfo) {
+    onDropTargetChange(false)
+    super.draggingEnded(sender)
+  }
+
+  override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    onDropTargetChange(false)
+    let location = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
+    guard isEditable, Self.canAttach(from: sender.draggingPasteboard) else { return super.performDragOperation(sender) }
+    setSelectedRange(NSRange(location: location, length: 0))
+    return attach(from: sender.draggingPasteboard, at: location)
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+    guard string.isEmpty, !placeholder.isEmpty else { return }
+    var attributes = baseAttributes
+    attributes[.foregroundColor] = placeholderColor
+    (placeholder as NSString).draw(at: textContainerOrigin, withAttributes: attributes)
+  }
+
+  private static func canAttach(from pboard: NSPasteboard) -> Bool {
+    pboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+      || pboard.canReadObject(forClasses: [NSFilePromiseReceiver.self], options: nil)
+      || (pboard.availableType(from: [.png, .tiff]) != nil && pboard.availableType(from: [.string]) == nil)
+  }
+
+  /// models.md's precedence: file URLs, then promised files, then image data with no text.
+  private func attach(from pboard: NSPasteboard, at location: Int) -> Bool {
+    let offset = draftOffset(at: location)
+    if let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
+      !urls.isEmpty
+    {
+      onAttach(urls.map(IncomingAttachment.file), offset)
+      return true
+    }
+    if let receivers = pboard.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
+      !receivers.isEmpty
+    {
+      receive(receivers, at: offset)
+      return true
+    }
+    guard pboard.availableType(from: [.string]) == nil, let png = Self.pngData(from: pboard) else { return false }
+    onAttach([.image(png)], offset)
+    return true
+  }
+
+  /// Promised files arrive one by one; attach them together, in drag order, once each promise has
+  /// delivered. A failed promise still passes its URL, so the copy reports the real error.
+  private func receive(_ receivers: [NSFilePromiseReceiver], at offset: Int) {
+    let destination = FileManager.default.temporaryDirectory.appending(
+      path: UUID().uuidString, directoryHint: .isDirectory)
+    try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+    let arrivals = PromiseArrivals(count: receivers.count) { [weak self] urls in
+      self?.onAttach(urls.map(IncomingAttachment.file), offset)
+    }
+    for (index, receiver) in receivers.enumerated() {
+      receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: .main) { url, _ in
+        MainActor.assumeIsolated { arrivals.arrived(url, from: index) }
+      }
+    }
+  }
+
+  private static func pngData(from pboard: NSPasteboard) -> Data? {
+    if let png = pboard.data(forType: .png) { return png }
+    guard let tiff = pboard.data(forType: .tiff), let image = NSBitmapImageRep(data: tiff) else { return nil }
+    return image.representation(using: .png, properties: [:])
+  }
+}
+
+@MainActor
+private final class PromiseArrivals {
+  private var urls: [[URL]]
+  private let done: ([URL]) -> Void
+
+  init(count: Int, done: @escaping ([URL]) -> Void) {
+    urls = Array(repeating: [], count: count)
+    self.done = done
+  }
+
+  func arrived(_ url: URL, from index: Int) {
+    let wasWaiting = urls.contains(where: \.isEmpty)
+    urls[index].append(url)
+    if !wasWaiting {
+      done([url])
+    } else if !urls.contains(where: \.isEmpty) {
+      done(urls.flatMap(\.self))
+    }
   }
 }
 

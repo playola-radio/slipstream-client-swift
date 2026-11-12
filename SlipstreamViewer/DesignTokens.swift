@@ -1436,13 +1436,39 @@ enum DesignTokens {
       static let bottomPadding: CGFloat = 12
       static let radius: CGFloat = 10
       static let height: CGFloat = 120
+      static let contentHeight = height - topPadding - bottomPadding
+      static let gap: CGFloat = 12
       static let font = Paragraph.font
       static let color = primary
+      private static let dropTargetColor = Color(hex: 0x6CB6FF)
 
       static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.55 }
 
-      static func placeholderColor(isEnabled: Bool) -> Color {
-        isEnabled ? muted : Color(hex: 0x3E4954)
+      static func placeholderColor(isEnabled: Bool, isDropTargeted: Bool) -> Color {
+        isDropTargeted ? dropTargetColor : isEnabled ? muted : Color(hex: 0x3E4954)
+      }
+
+      static func fill(isDropTargeted: Bool) -> Color { isDropTargeted ? Color(hex: 0x1A2633) : fill }
+      static func stroke(isDropTargeted: Bool) -> Color { isDropTargeted ? dropTargetColor : stroke }
+      static func strokeWidth(isDropTargeted: Bool) -> CGFloat { isDropTargeted ? 1.5 : strokeWidth }
+
+      enum AttachError {
+        static let fill = Color(hex: 0x2A2220)
+        static let radius: CGFloat = 6
+        static let stroke = Color(hex: 0x5C3B32)
+        static let strokeWidth: CGFloat = 1
+        static let gap: CGFloat = 8
+        static let verticalPadding: CGFloat = 8
+        static let horizontalPadding: CGFloat = 10
+        static let icon = Icons.Icon(assetName: "CircleAlert", size: 14, color: Color(hex: 0xF0A070))
+        static let textGap: CGFloat = 3
+        static let titleFont: FontToken = variableFont(family: geistFamily, size: 13, weight: 600)
+        static let titleColor = Color(hex: 0xE6EDF3)
+        static let detailFont: FontToken = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+        static let detailColor = Color(hex: 0xB7C3CD)
+        static let detailLineSpacing: CGFloat = 11.5 * (1.5 - 1)
+        static let dismissSize: CGFloat = 16
+        static let dismissIcon = Icons.Icon(assetName: "X", size: 11, color: Color(hex: 0x8B9AA6))
       }
     }
 

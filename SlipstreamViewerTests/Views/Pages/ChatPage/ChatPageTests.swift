@@ -3447,6 +3447,15 @@ extension ChatPageTests {
     expectNoDifference(model.placeholderText, resting)
   }
 
+  @Test func draftSegmentsShowMarkersAsAttachments() {
+    let model = attachingModel(draft: "see " + marker("a.png"))
+
+    expectNoDifference(
+      model.draftSegments,
+      [.text("see "), .attachment(name: "a.png", path: "/att/a.png")]
+    )
+  }
+
   @Test func markerOnlyDraftSends() async {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)

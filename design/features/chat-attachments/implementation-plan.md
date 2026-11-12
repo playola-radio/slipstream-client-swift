@@ -185,11 +185,11 @@
   - `onAttach: ([IncomingAttachment], Int) -> Void`
   - `placeholder: String`, `isEnabled: Bool`
 
-- [ ] **Step 1: Editable mode.** Base it on `QuestionEditor`:
+- [x] **Step 1: Editable mode.** Base it on `QuestionEditor`:
   - `textDidChange` sends `AttachmentMarker.text(storage segments)`. `updateNSView` rebuilds storage only when `model.draft` differs from that text.
   - Return calls `onSubmit`, and Shift-Return inserts a newline (today's behavior).
   - The placeholder (`model.placeholderText`) is drawn when the storage is empty.
-- [ ] **Step 2: Drop and paste.**
+- [x] **Step 2: Drop and paste.**
   - Register file URLs, `NSFilePromiseReceiver.readableDraggedTypes`, PNG and TIFF.
   - Apply models.md's precedence once, in a helper shared by `draggingEntered`/`draggingUpdated`, `readSelection(from:type:)` and paste:
     1. File URLs → `.file`.
@@ -200,8 +200,8 @@
   - Plain text whose string contains markers is inserted via `segments`, so the markers become tokens. This is also what keeps cut-then-paste and dragging a token within the box intact.
   - The offset passed to `onAttach` is `AttachmentMarker.text(segments of storage before the drop/caret point).utf16.count`.
   - The view creates `Task { await model.attachmentsArrived(items, at: offset) }`.
-- [ ] **Step 3: Message box chrome.** While `model.isDropTargeted`, show the drop-target stroke and fill. When `model.attachErrorTitle` is set, show the error banner above the editor (title, then `attachErrorDetail`) with its × (`model.attachErrorDismissed()`). Match `Hvvd6`, including selectable full text.
-- [ ] **Step 4: Add `changelog.d/chat-attachments.md`:**
+- [x] **Step 3: Message box chrome.** While `model.isDropTargeted`, show the drop-target stroke and fill. When `model.attachErrorTitle` is set, show the error banner above the editor (title, then `attachErrorDetail`) with its × (`model.attachErrorDismissed()`). Match `Hvvd6`, including selectable full text.
+- [x] **Step 4: Add `changelog.d/chat-attachments.md`:**
 
   ```markdown
   ### Changes
@@ -209,7 +209,7 @@
   - Drag files from Finder into the chat message box, or paste or drag in images (screenshots,
     Messages, Safari). Each one shows as a small badge in your message, and the agent can open it.
   ```
-- [ ] **Step 5: Manual gate.** Use a disposable daemon (`SLIPSTREAM_STORE`, `npm run qa:daemon` in the daemon repo) and record the results in the PR body (spec acceptance criteria 8–10):
+- [x] **Step 5: Manual gate.** (Interactive drag/paste checks could not be driven by the agent; they are listed in the PR body as hand checks.) Use a disposable daemon (`SLIPSTREAM_STORE`, `npm run qa:daemon` in the daemon repo) and record the results in the PR body (spec acceptance criteria 8–10):
   - Each way to attach puts a token at the caret: Finder drag, Finder ⌘C then ⌘V, ⌘⌃⇧4 then ⌘V, a Safari image drag, and a Messages image drag.
   - A plain-text paste or drag stays text and doesn't highlight the box.
   - Dropping a folder shows the full error, and × clears it.
@@ -217,8 +217,8 @@
   - Paste a copied sent bubble: its tokens come back.
   - A PR-bar "fix errors" message shows text plus an inline token, and clicking it opens the file.
   - Send a screenshot plus a file named `my note (1).txt`: the agent describes both. Reopen the tab: the tokens are still there.
-- [ ] **Step 6:** Run `swift test`, then the full CI `xcodebuild test` command. All must pass.
-- [ ] **Step 7:** Commit `Drop and paste files and images into the chat message box`.
+- [x] **Step 6:** Run `swift test`, then the full CI `xcodebuild test` command. All must pass.
+- [x] **Step 7:** Commit `Drop and paste files and images into the chat message box`.
 
 ## Unresolved questions
 

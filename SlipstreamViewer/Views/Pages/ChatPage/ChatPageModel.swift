@@ -80,6 +80,7 @@ final class ChatPageModel: ViewModel {
     get { selectedTab?.draft ?? "" }
     set { selectedTab?.draft = newValue }
   }
+  var draftSegments: [AttachmentMarker.Segment] { AttachmentMarker.segments(draft) }
 
   /// The window has one message box, so its drop highlight lives here rather than on a tab.
   var isDropTargeted = false
