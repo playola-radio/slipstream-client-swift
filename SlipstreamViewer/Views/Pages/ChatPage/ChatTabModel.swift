@@ -650,7 +650,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       do {
         handle = try await agentProcess.launch(launch)
       } catch {
-        throw Failure(message: Self.cantStartText)
+        let reason = (error as? AgentProcessError)?.message ?? String(describing: error)
+        throw Failure(message: "\(Self.cantStartText): \(reason)\n\(launch.executable) in \(launch.directory)")
       }
       guard generation == self.generation else {
         retire(handle)
@@ -761,7 +762,9 @@ final class ChatTabModel: ViewModel, Identifiable {
     do {
       environment = try await agentEnvironment.resolve()
     } catch {
-      throw Failure(message: (error as? AgentEnvironmentError)?.message ?? Self.cantStartText)
+      throw Failure(
+        message: (error as? AgentEnvironmentError)?.message
+          ?? "\(Self.cantStartText): \(String(describing: error))")
     }
     do {
       return (environment, try await transcripts.load(environment.configDirectory, id))
