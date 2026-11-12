@@ -152,6 +152,52 @@ struct ForkOutputTests {
     )
   }
 
+  /// Resuming a chat whose background command was stopped ends an empty turn before the question's.
+  @Test func zeroTurnResultFromAStoppedBackgroundTaskIsSkipped() throws {
+    expectNoDifference(
+      try read([
+        ForkLines.line(#"{"type":"system","subtype":"task_notification","status":"stopped"}"#),
+        ForkLines.initLine(),
+        ForkLines.line(#"{"type":"result","is_error":false,"num_turns":0,"session_id":"\#(ForkLines.forkID)"}"#),
+        ForkLines.initLine(),
+        ForkLines.result(),
+      ]),
+      .answer(forkSessionID: ForkLines.forkID, reply: "greet returns early.", isChangeRequest: false)
+    )
+  }
+
+  @Test func zeroTurnResultWithAnAnswerIsRead() throws {
+    expectNoDifference(
+      try read([
+        ForkLines.initLine(),
+        ForkLines.line(
+          #"{"type":"result","is_error":false,"num_turns":0,"session_id":"\#(ForkLines.forkID)","structured_output":{"reply":"Yes."}}"#),
+      ]),
+      .answer(forkSessionID: ForkLines.forkID, reply: "Yes.", isChangeRequest: false)
+    )
+  }
+
+  @Test func zeroTurnErrorResultIsAnError() {
+    expectNoDifference(
+      failure([
+        ForkLines.initLine(), ForkLines.line(#"{"type":"result","is_error":true,"num_turns":0,"result":"Not logged in"}"#),
+      ]),
+      .unavailable("Claude Code reported an error: Not logged in")
+    )
+  }
+
+  @Test func apiRetryKeepsTheLastAPIError() throws {
+    var output = ForkOutput(kind: .answer(allowsChangeRequests: false))
+    expectNoDifference(output.lastAPIError, nil)
+    _ = try output.read(
+      ForkLines.line(#"{"type":"system","subtype":"api_retry","attempt":1,"error_status":null,"error":"unknown"}"#))
+    expectNoDifference(output.lastAPIError, "unknown")
+    _ = try output.read(
+      ForkLines.line(
+        #"{"type":"system","subtype":"api_retry","attempt":2,"error_status":401,"error":"authentication_failed"}"#))
+    expectNoDifference(output.lastAPIError, "401 authentication_failed")
+  }
+
   @Test func whitespaceReplyIsBadReply() {
     expectNoDifference(
       failure([ForkLines.initLine(), ForkLines.result(#"{"reply":" \n　"}"#)]), .badReply("The reply was empty."))

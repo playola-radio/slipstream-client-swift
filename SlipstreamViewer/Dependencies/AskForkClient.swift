@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import SlipstreamCore
+import Synchronization
 
 struct AskForkRequest: Equatable, Sendable {
   let parentSessionID: UUID
@@ -33,6 +34,7 @@ extension AskForkClient: DependencyKey {
       case .report:
         schema = AskPrompt.reportSchema
       }
+      let credentials = try userCredentials(request.environment.configDirectory)
       let handle: AgentProcessHandle
       do {
         handle = try await agentProcess.launch(
@@ -40,8 +42,8 @@ extension AskForkClient: DependencyKey {
             executable: request.environment.claudePath,
             arguments: ClaudeInvocation.forkArguments(
               parentSessionID: request.parentSessionID, model: request.model,
-              effort: request.effort.rawValue, schema: schema),
-            environment: request.environment.variables,
+              effort: request.effort.rawValue, schema: schema, settings: credentials.settings),
+            environment: request.environment.variables.merging(credentials.environment) { $1 },
             directory: request.folder
           )
         )
@@ -49,12 +51,13 @@ extension AskForkClient: DependencyKey {
         throw .unavailable(DiagnosticText.line("Claude Code couldn't start: \(reason(error))"))
       }
 
+      let lastAPIError = LastAPIError()
       let outcome = await withTaskGroup(of: Result<AskForkResult, AskForkError>.self) { group in
-        group.addTask { await converse(handle, request) }
+        group.addTask { await converse(handle, request, lastAPIError) }
         group.addTask { [clock] in
           do {
             try await clock.sleep(for: timeLimit)
-            return .failure(.timedOut)
+            return .failure(lastAPIError.timedOut)
           } catch {
             return .failure(.unavailable(cancelledDetail))
           }
@@ -76,8 +79,22 @@ extension AskForkClient: DependencyKey {
     Self(run: unimplemented("AskForkClient.run", placeholder: .answer(forkSessionID: "", reply: "", isChangeRequest: false)))
   }
 
+  /// `--restricted` keeps the copy from reading the user's settings file, which is where gateway
+  /// and helper-based sign-ins live.
+  private static func userCredentials(_ configDirectory: URL) throws(AskForkError) -> ForkCredentials {
+    let file = configDirectory.appending(path: "settings.json")
+    guard FileManager.default.fileExists(atPath: file.path) else { return .none }
+    do {
+      return try ForkCredentials(userSettings: try Data(contentsOf: file))
+    } catch let error as ForkCredentialsError {
+      throw .unavailable(DiagnosticText.line("Claude Code's settings file \(file.path) couldn't be used: \(error.reason)."))
+    } catch {
+      throw .unavailable(DiagnosticText.line("Claude Code's settings file \(file.path) couldn't be read: \(error)"))
+    }
+  }
+
   private static func converse(
-    _ handle: AgentProcessHandle, _ request: AskForkRequest
+    _ handle: AgentProcessHandle, _ request: AskForkRequest, _ lastAPIError: LastAPIError
   ) async -> Result<AskForkResult, AskForkError> {
     do {
       try await handle.write(Data(request.prompt.utf8))
@@ -90,7 +107,9 @@ extension AskForkClient: DependencyKey {
       switch event {
       case .line(let line):
         do throws(AskForkError) {
-          if let result = try output.read(line) { return .success(result) }
+          let result = try output.read(line)
+          lastAPIError.record(output.lastAPIError)
+          if let result { return .success(result) }
         } catch {
           return .failure(error)
         }
@@ -121,6 +140,20 @@ extension AskForkClient: DependencyKey {
     default:
       error.localizedDescription
     }
+  }
+}
+
+private final class LastAPIError: Sendable {
+  private let value = Mutex<String?>(nil)
+
+  func record(_ error: String?) {
+    value.withLock { $0 = error }
+  }
+
+  var timedOut: AskForkError {
+    guard let error = value.withLock({ $0 }) else { return .timedOut }
+    return .unavailable(
+      DiagnosticText.line("Claude Code didn't answer within 120 seconds. Its last API call failed: \(error)."))
   }
 }
 
