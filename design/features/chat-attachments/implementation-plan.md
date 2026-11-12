@@ -46,7 +46,7 @@
   - `static func text(_ segments: [Segment]) -> String`
   - `parse`/`Parsed` stay until Task 4.
 
-- [ ] **Step 1: Write failing tests.** One parameterized `segmentsSplitAndRoundTrip` asserts, for each `(input, expected)`, both `segments(input) == expected` and `text(segments(input)) == input`:
+- [x] **Step 1: Write failing tests.** One parameterized `segmentsSplitAndRoundTrip` asserts, for each `(input, expected)`, both `segments(input) == expected` and `text(segments(input)) == input`:
   - `"hi"` → `[.text("hi")]`
   - `"😀 é\nline"` → `[.text("😀 é\nline")]`
   - `"Create a PR @⟦a.md⟧(/tmp/a.md)"` → `[.text("Create a PR "), .attachment(name: "a.md", path: "/tmp/a.md")]`
@@ -57,10 +57,10 @@
   - `"x @⟦bad @⟦a.md⟧(/tmp/a.md)"` → `[.text("x @⟦bad "), .attachment(a)]`
 
   Convert `roundTripsAwkwardPaths` to assert `segments("go " + marker) == [.text("go "), .attachment(name: "f.md", path: path)]`. Add `isImageFollowsTheExtension`: `a.png` and `b.HEIC` are images; `c.md` and `.text` are not.
-- [ ] **Step 2:** Run `swift test --filter AttachmentMarkerTests`. Expect a FAIL (no `segments`).
-- [ ] **Step 3: Implement `segments` and `text`.** Scan the matches of `@⟦([^⟦⟧\n]+)⟧\(([^()\s]+)\)` (the same character classes as `parse`). Keep a match only if its path decodes to a string starting with `/` and `format(name:decodedPath)` reproduces the matched text exactly; that makes `text` (which maps `.attachment` through `format`) an exact inverse. Text between kept matches is emitted verbatim; empty runs are dropped.
-- [ ] **Step 4:** Run `swift test --filter AttachmentMarkerTests`. Expect a PASS.
-- [ ] **Step 5:** Commit `Split chat text into text and attachment segments`.
+- [x] **Step 2:** Run `swift test --filter AttachmentMarkerTests`. Expect a FAIL (no `segments`).
+- [x] **Step 3: Implement `segments` and `text`.** Scan the matches of `@⟦([^⟦⟧\n]+)⟧\(([^()\s]+)\)` (the same character classes as `parse`). Keep a match only if its path decodes to a string starting with `/` and `format(name:decodedPath)` reproduces the matched text exactly; that makes `text` (which maps `.attachment` through `format`) an exact inverse. Text between kept matches is emitted verbatim; empty runs are dropped.
+- [x] **Step 4:** Run `swift test --filter AttachmentMarkerTests`. Expect a PASS.
+- [x] **Step 5:** Commit `Split chat text into text and attachment segments`.
 
 ### Task 2: AttachmentClient copies files and writes bytes
 
@@ -75,19 +75,19 @@
   - `AttachmentError.folder(String)`, with the message `"\(path) is a folder; only files can be attached"`
   - `testValue` stays `unimplemented` for each closure.
 
-- [ ] **Step 1: Write failing tests** in `AttachmentClientTests`, using real temp folders as the existing tests do:
+- [x] **Step 1: Write failing tests** in `AttachmentClientTests`, using real temp folders as the existing tests do:
   - `writeCreatesFileUnderAFreshFolder`: now passes `Data("Do the thing".utf8)`, with the same assertions.
   - `copyKeepsTheNameUnderAFreshFolder`: the copy's bytes equal the source's, the name equals the source's last path component, and the parent is a UUID folder under `base`.
   - `copyReplacesMarkerBreakingCharacters`: a source named `"a⟦b⟧\nc.txt"` yields a copy named `"a_b__c.txt"`.
   - `copyRefusesAFolder`: throws `AttachmentError.folder(source.path)`, and `base` has no children afterwards.
   - `copyOfMissingFileCleansUp`: throws, and `base` has no children afterwards.
-- [ ] **Step 2:** Run `-only-testing:SlipstreamViewerTests/AttachmentClientTests`. Expect a FAIL (no compile).
-- [ ] **Step 3: Implement.**
+- [x] **Step 2:** Run `-only-testing:SlipstreamViewerTests/AttachmentClientTests`. Expect a FAIL (no compile).
+- [x] **Step 3: Implement.**
   - `copy` checks `isDirectoryKey` (true for packages too) before creating the UUID folder, then copies with `FileManager.copyItem`, which clones on APFS. On any thrown error, remove the UUID folder and rethrow. The live closure is a `nonisolated` async function (it must not inherit `@MainActor`).
   - In `PRStatusBarModel.attach`, pass `Data(contents.utf8)`. Nothing else in the PR bar changes.
   - Update the `PRStatusBarTests` stub to decode `String(decoding: data, as: UTF8.self)` into `written`.
-- [ ] **Step 4:** Run the `AttachmentClientTests` and `PRStatusBarTests` suites. Expect a PASS.
-- [ ] **Step 5:** Commit `Copy dropped files into the attachments folder`.
+- [x] **Step 4:** Run the `AttachmentClientTests` and `PRStatusBarTests` suites. Expect a PASS.
+- [x] **Step 5:** Commit `Copy dropped files into the attachments folder`.
 
 ### Task 3: Attaching into the draft (model)
 
@@ -114,7 +114,7 @@
     - Pass-throughs mirroring `draft`: `attachErrorDismissed()` and `attachmentsArrived(_:at:) async` forward to `selectedTab` (the optional chain fixes the receiving tab before the await).
     - `attachErrorDismissText = "Dismiss"` is the × accessibility label.
 
-- [ ] **Step 1: Write failing tests:**
+- [x] **Step 1: Write failing tests:**
   - `attachFileInsertsMarkerAtOffset`: with draft `"look  here"`, attaching `[.file(/src/a.png)]` at offset 5 gives `"look " + format("a.png", "/att/a.png") + " here"`.
   - `attachSeveralKeepsOrderSpaceSeparated`: two files plus one image give three markers joined by `" "` in item order. The image is written as `"image.png"`.
   - `attachFailureSetsFullErrorAndKeepsOthers`: the first item (`.file(/src/dir)`) throws `AttachmentError.folder("/src/dir")`. Then `attachErrorTitle == "Couldn't attach dir"`, `attachErrorDetail == "/src/dir is a folder; only files can be attached"`, the second item's marker is inserted, and `attachErrorDismissed()` makes both `nil`.
@@ -122,14 +122,14 @@
   - `attachClampsOffsetToCharacterBoundary`: with draft `"é😀x"` and an offset that lands inside the emoji's UTF-16 pair, the insert goes before the emoji (round down to a `Character` boundary), and the draft's other characters are unchanged.
   - `placeholderReadsDropToAttachWhileTargeted`: `dropTargetChanged(true)` makes `placeholderText == "Drop to attach"`; `dropTargetChanged(false)` restores it.
   - `markerOnlyDraftSends`: with a draft that is just one marker, `send()` writes a user message whose text equals the marker (assert with the existing `agent.writes` / `firstMessage` helpers).
-- [ ] **Step 2:** Run `-only-testing:SlipstreamViewerTests/ChatPageTests`. Expect the new tests to FAIL.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2:** Run `-only-testing:SlipstreamViewerTests/ChatPageTests`. Expect the new tests to FAIL.
+- [x] **Step 3: Implement.**
   - For each item in order: `.file(url)` → `try await attachments.copy(url)`; `.image(data)` → `try attachments.write("image.png", data)`.
   - Format each success with the copy's `lastPathComponent` and `path`.
   - Record the first failure as `AttachError(name:detail:)`: the name is the dropped URL's `lastPathComponent` (or `"image.png"`), the detail its error's `localizedDescription` (an `AttachmentError`'s text, or a `CocoaError`'s, which names the path).
   - Then clamp `offset` to `draft.utf16.count`, convert with `String.Index(utf16Offset:in:)`, round down via `draft.rangeOfComposedCharacterSequence`, and insert the markers joined by `" "`.
-- [ ] **Step 4:** Run `ChatPageTests`. Expect a PASS.
-- [ ] **Step 5:** Commit `Attach dropped and pasted files into the chat draft`.
+- [x] **Step 4:** Run `ChatPageTests`. Expect a PASS.
+- [x] **Step 5:** Commit `Attach dropped and pasted files into the chat draft`.
 
 ### Task 4: Tokens in the sent bubble
 
@@ -151,20 +151,20 @@
     - the editable-only inputs added in Task 5, defaulted here.
   - `DesignTokens.Chat.Attachment`: `imageIcon` (an `Icons.Icon`, like `icon`, from `y7HVvN`), `divider` colour, `maxNameWidth`.
 
-- [ ] **Step 1: Rewrite the tests at 3151-3178:**
+- [x] **Step 1: Rewrite the tests at 3151-3178:**
   - `markerRendersAsAttachment` → `oldEndMarkerSegments`: `attachmentSegments(for: markedRow())` equals `[.text("Create a PR "), .attachment(name: "PR instructions.md", path: "/tmp/x/PR instructions.md")]`.
   - `plainOrReplyRowHasNoAttachmentSegments`: a user row with no marker, and a reply row with one, both give `nil`.
   - `attachmentTapOpensFile` / `attachmentTapMissingFileShowsAlert` now call `attachmentTapped(path: "/tmp/x/PR instructions.md")`, with the same expectations.
-- [ ] **Step 2:** Run `ChatPageTests`. Expect a FAIL.
-- [ ] **Step 3: Implement the model members.** Remove `parse`/`Parsed`. Build `TokenTextView`:
+- [x] **Step 2:** Run `ChatPageTests`. Expect a FAIL.
+- [x] **Step 3: Implement the model members.** Remove `parse`/`Parsed`. Build `TokenTextView`:
   - Storage is built from segments. Each `.attachment` becomes one character holding a `TokenAttachment: NSTextAttachment` subclass that stores its `Segment`; storage turns back into segments by reading `.attachment` attributes.
   - One `NSTextAttachmentCell` subclass draws the token: kind icon (`imageIcon` when `segment.isImage`, else `icon`) | divider | name. The name middle-truncates at `maxNameWidth`; the tooltip is the path; the accessibility label is the name.
   - Copy (and, in Task 5, cut and drag) writes `AttachmentMarker.text(selected segments)` as plain text, because the attachment subclass doesn't survive the rich-text pasteboard.
   - Read-only mode: not editable, selectable, no scroller, sized to its text (`intrinsicContentSize` from the layout manager's used rect at the proposed width).
   - Clicking a token calls `onTokenTap(path)`.
   - In `userBubble`, replace the `attachment`/`attachmentChip` branch with `if let segments = tab.attachmentSegments(for: item)` → `TokenTextView(segments:isEditable: false, onTokenTap: tab.attachmentTapped(path:))`; otherwise today's `bubbleText`.
-- [ ] **Step 4:** Run `ChatPageTests` and `swift test --filter AttachmentMarkerTests`. Expect a PASS.
-- [ ] **Step 5:** Commit `Show attachments as inline tokens in sent messages`.
+- [x] **Step 4:** Run `ChatPageTests` and `swift test --filter AttachmentMarkerTests`. Expect a PASS.
+- [x] **Step 5:** Commit `Show attachments as inline tokens in sent messages`.
 
 ### Task 5: The token message box (drop, paste, errors)
 
@@ -185,11 +185,11 @@
   - `onAttach: ([IncomingAttachment], Int) -> Void`
   - `placeholder: String`, `isEnabled: Bool`
 
-- [ ] **Step 1: Editable mode.** Base it on `QuestionEditor`:
+- [x] **Step 1: Editable mode.** Base it on `QuestionEditor`:
   - `textDidChange` sends `AttachmentMarker.text(storage segments)`. `updateNSView` rebuilds storage only when `model.draft` differs from that text.
   - Return calls `onSubmit`, and Shift-Return inserts a newline (today's behavior).
   - The placeholder (`model.placeholderText`) is drawn when the storage is empty.
-- [ ] **Step 2: Drop and paste.**
+- [x] **Step 2: Drop and paste.**
   - Register file URLs, `NSFilePromiseReceiver.readableDraggedTypes`, PNG and TIFF.
   - Apply models.md's precedence once, in a helper shared by `draggingEntered`/`draggingUpdated`, `readSelection(from:type:)` and paste:
     1. File URLs → `.file`.
@@ -200,8 +200,8 @@
   - Plain text whose string contains markers is inserted via `segments`, so the markers become tokens. This is also what keeps cut-then-paste and dragging a token within the box intact.
   - The offset passed to `onAttach` is `AttachmentMarker.text(segments of storage before the drop/caret point).utf16.count`.
   - The view creates `Task { await model.attachmentsArrived(items, at: offset) }`.
-- [ ] **Step 3: Message box chrome.** While `model.isDropTargeted`, show the drop-target stroke and fill. When `model.attachErrorTitle` is set, show the error banner above the editor (title, then `attachErrorDetail`) with its × (`model.attachErrorDismissed()`). Match `Hvvd6`, including selectable full text.
-- [ ] **Step 4: Add `changelog.d/chat-attachments.md`:**
+- [x] **Step 3: Message box chrome.** While `model.isDropTargeted`, show the drop-target stroke and fill. When `model.attachErrorTitle` is set, show the error banner above the editor (title, then `attachErrorDetail`) with its × (`model.attachErrorDismissed()`). Match `Hvvd6`, including selectable full text.
+- [x] **Step 4: Add `changelog.d/chat-attachments.md`:**
 
   ```markdown
   ### Changes
@@ -209,7 +209,7 @@
   - Drag files from Finder into the chat message box, or paste or drag in images (screenshots,
     Messages, Safari). Each one shows as a small badge in your message, and the agent can open it.
   ```
-- [ ] **Step 5: Manual gate.** Use a disposable daemon (`SLIPSTREAM_STORE`, `npm run qa:daemon` in the daemon repo) and record the results in the PR body (spec acceptance criteria 8–10):
+- [ ] **Step 5: Manual gate.** (Not yet run: the agent could not drive drag/paste; the checks are listed in the PR body for a hand run.) Use a disposable daemon (`SLIPSTREAM_STORE`, `npm run qa:daemon` in the daemon repo) and record the results in the PR body (spec acceptance criteria 8–10):
   - Each way to attach puts a token at the caret: Finder drag, Finder ⌘C then ⌘V, ⌘⌃⇧4 then ⌘V, a Safari image drag, and a Messages image drag.
   - A plain-text paste or drag stays text and doesn't highlight the box.
   - Dropping a folder shows the full error, and × clears it.
@@ -217,8 +217,8 @@
   - Paste a copied sent bubble: its tokens come back.
   - A PR-bar "fix errors" message shows text plus an inline token, and clicking it opens the file.
   - Send a screenshot plus a file named `my note (1).txt`: the agent describes both. Reopen the tab: the tokens are still there.
-- [ ] **Step 6:** Run `swift test`, then the full CI `xcodebuild test` command. All must pass.
-- [ ] **Step 7:** Commit `Drop and paste files and images into the chat message box`.
+- [x] **Step 6:** Run `swift test`, then the full CI `xcodebuild test` command. All must pass.
+- [x] **Step 7:** Commit `Drop and paste files and images into the chat message box`.
 
 ## Unresolved questions
 
