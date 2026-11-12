@@ -124,7 +124,7 @@ private struct TableLayout: Layout {
     var y = bounds.minY
     for (row, height) in rowHeights(widths, subviews).enumerated() {
       var x = bounds.minX
-      for column in widths.indices where row * columns + column < subviews.count {
+      for column in widths.indices {
         subviews[row * columns + column].place(
           at: CGPoint(x: x, y: y), proposal: ProposedViewSize(width: widths[column], height: height))
         x += widths[column]
@@ -144,7 +144,7 @@ private struct TableLayout: Layout {
 
   private func rowHeights(_ widths: [CGFloat], _ subviews: Subviews) -> [CGFloat] {
     stride(from: 0, to: subviews.count, by: columns).map { start in
-      widths.indices.filter { start + $0 < subviews.count }.map { column in
+      widths.indices.map { column in
         subviews[start + column].sizeThatFits(ProposedViewSize(width: widths[column], height: nil)).height
       }.max() ?? 0
     }

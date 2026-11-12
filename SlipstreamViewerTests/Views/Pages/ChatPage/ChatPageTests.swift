@@ -1930,6 +1930,15 @@ struct ChatPageTests {
       ])
   }
 
+  @Test func pipesIndentedUnderAListItemStayInTheItem() throws {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("1. First\n   a | b\n   --- | ---\n1. Second"),
+      [.list([
+        .init(marker: "1.", depth: 0, text: try inline("First\na | b\n--- | ---")),
+        .init(marker: "2.", depth: 0, text: try inline("Second")),
+      ])])
+  }
+
   @Test func almostTablesStayProse() throws {
     let noSeparator = "| a | b |\n| 1 | 2 |"
     let wrongCount = "| a | b |\n|---|---|---|\n| 1 | 2 |"

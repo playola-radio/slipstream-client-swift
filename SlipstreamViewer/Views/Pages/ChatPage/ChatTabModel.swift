@@ -333,7 +333,7 @@ final class ChatTabModel: ViewModel, Identifiable {
           closeAll()
           quote = [trimmed.dropFirst().drop { $0 == " " }]
         }
-      } else if let (table, end) = table(lines, at: index) {
+      } else if items.isEmpty || indent == 0, let (table, end) = table(lines, at: index) {
         closeAll()
         blocks.append(.table(table))
         tableEnd = end
@@ -382,7 +382,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   private static func startsBlock(_ line: Substring) -> Bool {
-    isRule(line) || heading(line) != nil || listItem(line) != nil || line.first == ">"
+    heading(line) != nil || listItem(line) != nil || line.first == ">"
   }
 
   /// Splits on pipes that aren't escaped or inside inline code. The outer pipes are optional.
