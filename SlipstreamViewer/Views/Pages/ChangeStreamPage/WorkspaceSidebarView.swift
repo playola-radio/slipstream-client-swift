@@ -208,6 +208,12 @@ private struct WorkspaceRowView: View {
         Button(model.archiveMenuText, systemImage: "archivebox") { model.archiveTapped(session) }
           .disabled(model.isWorkspaceBusy)
       }
+      if model.isRemoveFromSidebarAvailable(session) {
+        Divider()
+        Button(model.removeFromSidebarMenuText, systemImage: "minus.circle") {
+          Task { await model.removeFromSidebarTapped(session) }
+        }
+      }
     }
   }
 
