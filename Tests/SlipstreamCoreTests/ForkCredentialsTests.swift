@@ -10,7 +10,7 @@ struct ForkCredentialsTests {
 
   @Test func keepsEnvAndCredentialHelpersOnly() throws {
     let settings = """
-      {"env":{"CLAUDE_CODE_USE_BEDROCK":"1","NODE_EXTRA_CA_CERTS":"/certs/corp.pem"},
+      {"env":{"CLAUDE_CODE_USE_BEDROCK":"1","NODE_EXTRA_CA_CERTS":"/certs/corp.pem","PATH":"/corp/bin"},
        "apiKeyHelper":"/opt/bin/key","awsAuthRefresh":"aws sso login","otelHeadersHelper":"/opt/bin/otel",
        "hooks":{"PostToolUse":[]},"permissions":{"allow":["Bash"]},"model":"opus","enabledPlugins":{}}
       """
@@ -18,7 +18,7 @@ struct ForkCredentialsTests {
       try credentials(settings),
       ForkCredentials(
         environment: ["CLAUDE_CODE_USE_BEDROCK": "1", "NODE_EXTRA_CA_CERTS": "/certs/corp.pem"],
-        settings: #"{"apiKeyHelper":"/opt/bin/key","awsAuthRefresh":"aws sso login"}"#
+        settings: #"{"apiKeyHelper":"/opt/bin/key","awsAuthRefresh":"aws sso login","env":{"PATH":"/corp/bin"}}"#
       )
     )
   }

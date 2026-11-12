@@ -283,7 +283,10 @@ struct AskForkClientTests {
 
     expectNoDifference(
       agent.launches.first?.environment, ["PATH": "/opt/claude/bin:/usr/bin", "CLAUDE_CODE_USE_BEDROCK": "1"])
-    expectNoDifference(agent.launches.first?.arguments.suffix(2), ["--settings", #"{"apiKeyHelper":"/opt/bin/key"}"#])
+    expectNoDifference(
+      agent.launches.first?.arguments.suffix(2),
+      ["--settings", #"{"apiKeyHelper":"/opt/bin/key","env":{"HOME":"/corp","PATH":"/corp/bin"}}"#]
+    )
     run.cancel()
     _ = await run.value
   }

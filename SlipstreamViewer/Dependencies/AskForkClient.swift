@@ -43,8 +43,7 @@ extension AskForkClient: DependencyKey {
             arguments: ClaudeInvocation.forkArguments(
               parentSessionID: request.parentSessionID, model: request.model,
               effort: request.effort.rawValue, schema: schema, settings: credentials.settings),
-            environment: request.environment.variables.merging(
-              credentials.environment.filter { !launchVariables.contains($0.key) }) { $1 },
+            environment: request.environment.variables.merging(credentials.environment) { $1 },
             directory: request.folder
           )
         )
@@ -79,9 +78,6 @@ extension AskForkClient: DependencyKey {
   static var testValue: Self {
     Self(run: unimplemented("AskForkClient.run", placeholder: .answer(forkSessionID: "", reply: "", isChangeRequest: false)))
   }
-
-  /// Claude Code applies settings `env` after it starts, so these keep the values it starts with.
-  private static let launchVariables: Set<String> = ["PATH", "HOME", "CLAUDE_CONFIG_DIR"]
 
   /// `--restricted` keeps the copy from reading the user's settings file, which is where gateway
   /// and helper-based sign-ins live.
