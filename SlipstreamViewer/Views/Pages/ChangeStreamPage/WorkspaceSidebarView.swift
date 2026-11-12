@@ -61,7 +61,7 @@ struct WorkspaceSidebarView: View {
           IconView(icon: DesignTokens.Sidebar.newWorkspaceIcon)
             .padding(DesignTokens.Sidebar.iconButtonPadding)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SidebarIconButtonStyle())
         .help(model.newWorkspaceHelpText)
         .disabled(model.isWorkspaceBusy)
       }
@@ -69,6 +69,12 @@ struct WorkspaceSidebarView: View {
     .padding(.leading, DesignTokens.Sidebar.groupHeaderLeadingPadding)
     .padding(.trailing, DesignTokens.Sidebar.groupHeaderTrailingPadding)
     .frame(height: DesignTokens.Sidebar.groupHeaderHeight)
+    .background {
+      RoundedRectangle(cornerRadius: DesignTokens.Sidebar.rowRadius).fill(model.groupHeaderFill(group))
+        .animation(DesignTokens.Sidebar.hoverAnimation, value: model.isHighlighted(group))
+    }
+    .contentShape(Rectangle())
+    .onHover { model.groupHoverChanged(group, isHovering: $0) }
     .contextMenu {
       if model.isRemoveFromSidebarAvailable(group) {
         Button(model.removeFromSidebarMenuText, systemImage: "minus.circle") { model.removeFromSidebarTapped(group) }
@@ -143,8 +149,7 @@ private struct WorkspaceRowView: View {
   }
 
   private var row: some View {
-    let isSelected = model.isSelected(session)
-    return HStack(spacing: DesignTokens.Sidebar.rowGap) {
+    HStack(spacing: DesignTokens.Sidebar.rowGap) {
       Button { model.sessionSelected(session.id) } label: {
         HStack(spacing: DesignTokens.Sidebar.rowGap) {
           if model.isSettingUp(session) {
@@ -187,7 +192,7 @@ private struct WorkspaceRowView: View {
           IconView(icon: DesignTokens.Sidebar.archiveIcon)
             .padding(DesignTokens.Sidebar.iconButtonPadding)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SidebarIconButtonStyle())
         .help(model.archiveWorkspaceHelpText)
         .disabled(model.isWorkspaceBusy)
         .focused($focus, equals: .archive)
@@ -196,11 +201,8 @@ private struct WorkspaceRowView: View {
     .padding(.trailing, DesignTokens.Sidebar.rowTrailingPadding)
     .frame(height: DesignTokens.Sidebar.rowHeight)
     .background {
-      if isSelected {
-        RoundedRectangle(cornerRadius: DesignTokens.Sidebar.rowRadius).fill(DesignTokens.Sidebar.selectedRowFill)
-      } else if model.isHighlighted(session) {
-        RoundedRectangle(cornerRadius: DesignTokens.Sidebar.rowRadius).fill(DesignTokens.Sidebar.highlightedRowFill)
-      }
+      RoundedRectangle(cornerRadius: DesignTokens.Sidebar.rowRadius).fill(model.rowFill(session))
+        .animation(DesignTokens.Sidebar.hoverAnimation, value: model.isHighlighted(session))
     }
     .onHover { model.rowHoverChanged(session, isHovering: $0) }
     .onChange(of: focus) { model.rowFocusChanged(session, isFocused: focus != nil) }
@@ -251,5 +253,29 @@ private struct WorkspaceRowView: View {
     .disabled(isWorking)
     .opacity(DesignTokens.Sidebar.RowAction.opacity(isWorking: isWorking))
     .focused($focus, equals: .action)
+  }
+}
+
+private struct SidebarIconButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    SidebarIconButton(configuration: configuration)
+  }
+}
+
+private struct SidebarIconButton: View {
+  let configuration: ButtonStyleConfiguration
+  @Environment(\.isEnabled) private var isEnabled
+  @State private var isHovered = false
+
+  var body: some View {
+    let fill = DesignTokens.Sidebar.iconButtonFill(isHovered: isHovered && isEnabled, isPressed: configuration.isPressed)
+    configuration.label
+      .opacity(DesignTokens.Sidebar.iconButtonOpacity(isEnabled: isEnabled))
+      .background {
+        RoundedRectangle(cornerRadius: DesignTokens.Sidebar.iconButtonRadius).fill(fill)
+          .animation(DesignTokens.Sidebar.hoverAnimation, value: fill)
+      }
+      .contentShape(Rectangle())
+      .onHover { isHovered = $0 }
   }
 }

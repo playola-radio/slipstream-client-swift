@@ -2998,6 +2998,48 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.rowNameColor(row), DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: true))
   }
 
+  @Test func aRowFillsWhenHoveredAndSelected() async throws {
+    listCaptures(
+      Fixture.capture(session: "one", root: "/work/one", binding: nil),
+      Fixture.capture(session: "two", root: "/work/two", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected("one")
+    await Task.megaYield()
+    let row = try #require(model.sessions[id: "two"])
+    expectNoDifference(model.rowFill(row), DesignTokens.Sidebar.rowFill(isSelected: false, isHighlighted: false))
+
+    model.rowHoverChanged(row, isHovering: true)
+    expectNoDifference(model.rowFill(row), DesignTokens.Sidebar.rowFill(isSelected: false, isHighlighted: true))
+
+    model.sessionSelected("two")
+    await Task.megaYield()
+    expectNoDifference(model.rowFill(row), DesignTokens.Sidebar.rowFill(isSelected: true, isHighlighted: true))
+  }
+
+  @Test func hoveringAGroupHeaderHighlightsOnlyThatHeader() async throws {
+    listCaptures(
+      Fixture.capture(session: "one", root: "/tmp/slipstream-test/workspaces/a/one", binding: nil),
+      Fixture.capture(session: "two", root: "/tmp/slipstream-test/workspaces/b/two", binding: nil))
+    let model = makeModel()
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    let groups = model.sidebarGroups
+    try #require(groups.map(\.name) == ["a", "b"])
+    expectNoDifference(groups.map(model.isHighlighted), [false, false])
+
+    model.groupHoverChanged(groups[0], isHovering: true)
+    expectNoDifference(groups.map(model.isHighlighted), [true, false])
+
+    model.groupHoverChanged(groups[1], isHovering: true)
+    model.groupHoverChanged(groups[0], isHovering: false)
+    expectNoDifference(groups.map(model.isHighlighted), [false, true])
+
+    model.groupHoverChanged(groups[1], isHovering: false)
+    expectNoDifference(groups.map(model.isHighlighted), [false, false])
+  }
+
   @Test func aNotRecordingCaptureShowsWithPause() async throws {
     listCaptures(
       Fixture.capture(session: "recording", root: "/tmp/slipstream-test/workspaces/r/recording", binding: nil),
