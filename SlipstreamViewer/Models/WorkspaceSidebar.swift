@@ -29,6 +29,7 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   var rows: [SessionOption]
   /// The repo's main checkout, remembered so the group outlives its last workspace.
   var repositoryFolder: String?
+  var isCreatingWorkspace = false
 
   var id: String { repository ?? rows[0].id }
   /// The group names a folder, so it never takes a workspace's name.
@@ -36,10 +37,13 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   var newWorkspaceFolder: String? { rows.first?.root ?? repositoryFolder }
 
   /// Repos A→Z, including remembered repos with no workspaces, then folders outside the
-  /// workspace roots; rows in natural folder order. The order never depends on input order or on
-  /// a workspace's name, so rows never jump.
+  /// workspace roots. A repo's rows come newest first, in reverse natural folder order
+  /// (`workspace-10` above `workspace-9`). The order never depends on input order or on a
+  /// workspace's name, so rows never jump. The repo `creatingIn` names gets a group even before
+  /// it has a row.
   static func groups(
-    _ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?, repositories: [String: String] = [:]
+    _ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?, repositories: [String: String] = [:],
+    creatingIn creatingRepository: String? = nil
   ) -> [SidebarGroup] {
     var rowsByRepository: [String: [SessionOption]] = roots == nil ? [:] : repositories.mapValues { _ in [] }
     var folders: [SidebarGroup] = []
@@ -50,10 +54,12 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
         folders.append(SidebarGroup(repository: nil, rows: [session]))
       }
     }
+    if let creatingRepository { rowsByRepository[creatingRepository, default: []] += [] }
     let repositories = rowsByRepository
-      .map {
+      .map { repository, rows in
         SidebarGroup(
-          repository: $0.key, rows: $0.value.sorted(by: isInFolderOrder), repositoryFolder: repositories[$0.key])
+          repository: repository, rows: rows.sorted { isInFolderOrder($1, $0) },
+          repositoryFolder: repositories[repository], isCreatingWorkspace: repository == creatingRepository)
       }
       .sorted { precedes(($0.name, $0.id), ($1.name, $1.id)) }
     return repositories + folders.sorted { isInFolderOrder($0.rows[0], $1.rows[0]) }

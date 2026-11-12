@@ -811,6 +811,27 @@ enum DesignTokens {
     static let highlightedRowFill = Color(hex: 0x1A2129)
     static let archiveIcon = Icons.Icon(assetName: "Archive", size: 13, color: Color(hex: 0x8B9AA6))
     static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x6CB6FF))
+    static let settingUpSpinner = DotSpinner(size: 13, dotSize: 2.4, dotCount: 8, color: Color(hex: 0x6CB6FF))
+    static let creatingRowNameColor = Color(hex: 0x8B9AA6)
+
+    struct DotSpinner {
+      let size: CGFloat
+      let dotSize: CGFloat
+      let dotCount: Int
+      let color: Color
+
+      static let secondsPerTurn: TimeInterval = 0.8
+      static let minimumOpacity = 0.15
+
+      /// The leading dot is solid; each dot behind it is fainter.
+      func opacity(ofDot index: Int) -> Double {
+        max(Self.minimumOpacity, Double(index + 1) / Double(dotCount))
+      }
+
+      func degrees(ofDot index: Int) -> Double {
+        Double(index) / Double(dotCount) * 360
+      }
+    }
 
     static func rowIcon(isSelected: Bool) -> Icons.Icon {
       Icons.Icon(assetName: "GitBranch", size: 13, color: isSelected ? Color(hex: 0xC9D6DF) : Color(hex: 0x6B7C89))
