@@ -1557,12 +1557,15 @@ final class ChangeStreamPageModel: ViewModel {
     } else {
       isReadinessEvent = false
     }
-    let shouldRefreshCaptureSnapshot = event.seq > (selectedSession?.readinessSeq ?? .zero)
-      && ((selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
+    let shouldRefreshCaptureSnapshot = !isReplaying && (
+      (selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
         || event.payload == .sessionResumed
-        || event.payload == .agentConnection(.disconnected(reason: "capture_not_live")))
+        || event.payload == .agentConnection(.disconnected(reason: "capture_not_live"))
+        || Self.captureLifecycleTypes.contains(event.type)
+    )
     let bindingMoved = event.seq > (selectedSession?.readinessSeq ?? .zero)
-      && Self.changesBinding(event.payload, selectedSession?.capture?.binding)
+      && (Self.changesBinding(event.payload, selectedSession?.capture?.binding)
+        || event.type == "slipstream.agent.binding.v1")
     if bindingMoved, awaitsFreshSnapshot { bindingMovedWhileAwaitingSnapshot = true }
     let shouldRefreshBinding = bindingMoved && !awaitsFreshSnapshot
     switch event.payload {
@@ -1770,8 +1773,12 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  private static let captureLifecycleTypes: Set<String> = [
+    "slipstream.capture.ready.v1", "slipstream.capture.stopped.v1",
+  ]
+
   /// The link icon and Ask notice read the capture's binding, which these events move on —
-  /// including a chat linked from the terminal.
+  /// including a chat linked from the terminal. A new link (`agent.binding`) always moves it.
   private static func changesBinding(_ payload: EventPayload, _ binding: CaptureBinding?) -> Bool {
     switch payload {
     case .agentConnection(.connected): binding?.state != .connected

@@ -53,6 +53,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
   @ObservationIgnored var onReadinessChanged: () -> Void = {}
+  /// Called each time any message reaches the process, so the page can link the chat while it works.
+  @ObservationIgnored var onMessageReachedProcess: () -> Void = {}
   /// Called with the user's own text after each message the agent accepted, never for slash commands.
   @ObservationIgnored var onMessageSent: (String) -> Void = { _ in }
   /// Called once per relay, when the agent reads it or its process ends first.
@@ -393,6 +395,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     if activeTurn?.id == turn {
       $record.withLock { $0.isWaiting = false }
     }
+    messageReachedProcess()
   }
 
   /// Writes straight away, even mid-turn: the agent reads it after its current step. The draft
@@ -431,6 +434,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
     }
+    messageReachedProcess()
   }
 
   /// Writes like `send()` but also mid-turn, and never reads or clears the draft. Throws when
@@ -457,6 +461,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
     }
+    messageReachedProcess()
   }
 
   /// Asks Claude to stop, and gives up on it after the deadline.
@@ -822,6 +827,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       Task { try? await handle.write(reply) }
     case .echo(let uuid):
       guard echoes.insert(uuid).inserted else { return }
+      messageReachedProcess()
       let isEnqueued = UUID(uuidString: uuid).map { unreadEnqueues.remove($0) != nil } ?? false
       if !isPickup && !isEnqueued { queuedSends = max(0, queuedSends - 1) }
       // A message queued behind a finished or stopped turn starts a turn of its own.
@@ -843,6 +849,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
+  private func messageReachedProcess() {
+    hasSentMessage = true
+    onReadinessChanged()
+    onMessageReachedProcess()
+  }
+
   @discardableResult
   private func beginTurn() -> UUID {
     errorText = nil
@@ -855,8 +867,6 @@ final class ChatTabModel: ViewModel, Identifiable {
   private func endTurn(_ ending: TurnEnding, duration: Duration) {
     guard let turn = activeTurn else { return }
     activeTurn = nil
-    hasSentMessage = true
-    onReadinessChanged()
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
     if reloadWhenIdle, !hasUnreadInput { retireProcess() }

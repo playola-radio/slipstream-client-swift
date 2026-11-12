@@ -185,6 +185,20 @@ struct ChangeStreamPageTests {
     expectNoDifference(model.selectedSession?.capture?.binding, CaptureBinding(generation: "7", state: .unlinked))
   }
 
+  @Test func linkingAnotherChatRefreshesTheBindingEvenInTheSameState() async {
+    listSessions(.setupPending)
+    fake.setCaptures([Fixture.capture(binding: CaptureBinding(generation: "7", state: .setupPending))])
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setCaptures([Fixture.capture(binding: CaptureBinding(generation: "8", state: .setupPending))])
+
+    await send(Fixture.agentBinding(1, generation: "8"))
+    await Task.megaYield()
+
+    expectNoDifference(model.selectedSession?.capture?.binding, CaptureBinding(generation: "8", state: .setupPending))
+    expectNoDifference(model.sections.flatMap(\.items).count, 0)
+  }
+
   // MARK: - Sessions
 
   @Test func sessionsKeepTheirIDAsLabelAndRemovedOnesHidden() async {
@@ -3568,6 +3582,21 @@ extension ChangeStreamPageTests {
     await Task.megaYield()
     expectNoDifference(fake.capturesCallCount, callsBefore + 1)
     expectNoDifference(model.captureText, "Stopped — maintenance in progress")
+  }
+
+  @Test func aCaptureStoppedEventRefreshesTheCaptureSnapshotWithoutARow() async {
+    listSessions(.connected)
+    let model = await liveModel()
+    defer { model.viewDisappeared() }
+    fake.setCaptures([Fixture.capture(.stopped, reason: "maintenance")])
+    let callsBefore = fake.capturesCallCount
+
+    await send(Fixture.captureStopped(1, reason: "maintenance"))
+    await Task.megaYield()
+
+    expectNoDifference(fake.capturesCallCount, callsBefore + 1)
+    expectNoDifference(model.captureText, "Stopped — maintenance in progress")
+    expectNoDifference(model.sections.flatMap(\.items).count, 0)
   }
 
   @Test func replayingAnEndedCapturesHistoryDoesNotRefresh() async {
