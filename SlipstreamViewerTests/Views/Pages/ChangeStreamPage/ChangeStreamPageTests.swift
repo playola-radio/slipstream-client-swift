@@ -1751,7 +1751,23 @@ struct ChangeStreamPageTests {
     #expect(!model.isStreamShown)
     model.rightPaneSelected(.stream)
     #expect(model.isStreamShown)
-    #expect(model.follow == .paused(newCount: 0))
+    expectNoDifference(model.follow, .paused(newCount: 0))
+  }
+
+  @Test func feedPresentationFollowsTheSelectedRightPane() {
+    let model = makeModel()
+    expectNoDifference(model.feedOpacity, 1)
+    #expect(model.isFeedInteractive)
+
+    model.rightPaneSelected(.terminals)
+
+    expectNoDifference(model.feedOpacity, 0)
+    #expect(!model.isFeedInteractive)
+
+    model.rightPaneToggleTapped()
+
+    expectNoDifference(model.feedOpacity, 0)
+    #expect(!model.isFeedInteractive)
   }
 
   @Test func switchingPanesKeepsWatching() async {
@@ -5750,21 +5766,21 @@ extension ChangeStreamPageTests {
 
     model.rightPaneToggleTapped()
 
-    #expect(model.follow == .paused(newCount: 0))
+    expectNoDifference(model.follow, .paused(newCount: 0))
   }
 
   @Test func hiddenRightPanelKeepsTheWidthItHadWhenShown() {
     let model = makeModel()
     model.viewportChanged(CGSize(width: 1800, height: 900))
-    #expect(model.rightPaneContentWidth == nil)
-    #expect(model.rightPaneMinWidth == 680)
-    #expect(model.rightPaneMaxWidth == .infinity)
+    expectNoDifference(model.rightPaneContentWidth, nil)
+    expectNoDifference(model.rightPaneMinWidth, 680)
+    expectNoDifference(model.rightPaneMaxWidth, .infinity)
 
     model.rightPaneToggleTapped()
 
-    #expect(model.rightPaneContentWidth == 820)
-    #expect(model.rightPaneMinWidth == 0)
-    #expect(model.rightPaneMaxWidth == 0)
+    expectNoDifference(model.rightPaneContentWidth, 820)
+    expectNoDifference(model.rightPaneMinWidth, 0)
+    expectNoDifference(model.rightPaneMaxWidth, 0)
   }
 
   @Test func hidingTheRightPanelTakesTheTerminalsOutOfTheWindow() {

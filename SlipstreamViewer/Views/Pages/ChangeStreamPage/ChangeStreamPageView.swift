@@ -177,11 +177,10 @@ struct ChangeStreamPageView: View {
     VStack(spacing: 0) {
       rightPaneStrip
       ZStack {
-        let isFeedSelected = model.isSelected(.stream)
         feedPane
-          .opacity(isFeedSelected ? 1 : 0)
-          .allowsHitTesting(isFeedSelected)
-          .accessibilityHidden(!isFeedSelected)
+          .opacity(model.feedOpacity)
+          .allowsHitTesting(model.isFeedInteractive)
+          .accessibilityHidden(!model.isFeedInteractive)
         if model.isTerminalsShown {
           TerminalPageView(model: model.terminals)
         }

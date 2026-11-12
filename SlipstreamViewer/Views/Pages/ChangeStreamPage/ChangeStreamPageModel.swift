@@ -417,6 +417,8 @@ final class ChangeStreamPageModel: ViewModel {
 
   var isStreamShown: Bool { isRightPaneShown && rightPane == .stream }
   var isTerminalsShown: Bool { isRightPaneShown && rightPane == .terminals }
+  var feedOpacity: Double { rightPane == .stream ? 1 : 0 }
+  var isFeedInteractive: Bool { rightPane == .stream }
 
   func isSelected(_ pane: RightPane) -> Bool {
     rightPane == pane
