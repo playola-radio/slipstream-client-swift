@@ -22,14 +22,33 @@ public enum SlipstreamInstruction: CaseIterable, Equatable, Sendable {
       This chat is now linked to Slipstream. Load its tools with ToolSearch \
       ("select:mcp__slipstream__slipstream_name_workspace,mcp__slipstream__slipstream_begin_task,\
       mcp__slipstream__slipstream_answer_question"), then:
-      - If you haven't named this workspace yet, call slipstream_name_workspace with a 2-5 word name \
-      for what the work is about.
+      - If this workspace still needs a name, call slipstream_name_workspace with a concise 2-5 word \
+      name for what the work is about.
       - Before changing files for a new task, call slipstream_begin_task with a short title.
       Answer any Slipstream setup check it sends you. If a Slipstream tool returns an error, carry on \
       with the work.
       </slipstream_instruction>
       """
     }
+  }
+
+  /// The `.linked` block as versions through 0.4.8 sent it. Chats already carry it, so it still
+  /// counts as `.linked`: it is stripped from the display and the guidance isn't sent again.
+  private static let earlierLinkedBlock = """
+    <slipstream_instruction>
+    This chat is now linked to Slipstream. Load its tools with ToolSearch \
+    ("select:mcp__slipstream__slipstream_name_workspace,mcp__slipstream__slipstream_begin_task,\
+    mcp__slipstream__slipstream_answer_question"), then:
+    - If you haven't named this workspace yet, call slipstream_name_workspace with a 2-5 word name \
+    for what the work is about.
+    - Before changing files for a new task, call slipstream_begin_task with a short title.
+    Answer any Slipstream setup check it sends you. If a Slipstream tool returns an error, carry on \
+    with the work.
+    </slipstream_instruction>
+    """
+
+  private static var recognized: [(instruction: SlipstreamInstruction, block: String)] {
+    allCases.map { ($0, $0.block) } + [(.linked, earlierLinkedBlock)]
   }
 
   public static func prefixed(_ text: String, with instructions: [SlipstreamInstruction]) -> String {
@@ -61,9 +80,9 @@ public enum SlipstreamInstruction: CaseIterable, Equatable, Sendable {
   private static func leading(_ text: String) -> (instructions: [SlipstreamInstruction], rest: Substring) {
     var instructions: [SlipstreamInstruction] = []
     var rest = Substring(text)
-    while let instruction = allCases.first(where: { rest.hasPrefix($0.block + separator) }) {
-      instructions.append(instruction)
-      rest = rest.dropFirst(instruction.block.count + separator.count)
+    while let match = recognized.first(where: { rest.hasPrefix($0.block + separator) }) {
+      instructions.append(match.instruction)
+      rest = rest.dropFirst(match.block.count + separator.count)
     }
     return (instructions, rest)
   }

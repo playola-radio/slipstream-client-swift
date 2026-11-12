@@ -2,8 +2,9 @@ import Dependencies
 import Foundation
 import SlipstreamCore
 
-/// Owns every workspace-name write: the Rename dialog and "Use agent's name". One write runs at a
-/// time, every write refreshes the list (a lost reply may still have saved), and none is resent.
+/// Owns every workspace-name write: the Rename dialog, "Use agent's name", and the first-message
+/// suggestion. One dialog write runs at a time, every write refreshes the list (a lost reply may
+/// still have saved), and none is resent.
 @MainActor
 @Observable
 final class WorkspaceNamingModel: ViewModel {
@@ -33,6 +34,8 @@ final class WorkspaceNamingModel: ViewModel {
 
   @ObservationIgnored @Dependency(\.workspaceName) var workspaceName
   @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
+  @ObservationIgnored @Dependency(\.workspaceNameSuggestion) var workspaceNameSuggestion
+  @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
 
   // MARK: - Properties
 
@@ -45,6 +48,9 @@ final class WorkspaceNamingModel: ViewModel {
 
   private(set) var dialog: Dialog?
   private(set) var activeMutation: Mutation?
+  @ObservationIgnored private var attemptedSessionIDs: Set<String> = []
+  @ObservationIgnored private var suggestions: [String: Task<Void, Never>] = [:]
+  @ObservationIgnored private var isQuitting = false
 
   // MARK: - Display Text
 
@@ -179,6 +185,24 @@ final class WorkspaceNamingModel: ViewModel {
     if activeMutation == mutation { activeMutation = nil }
   }
 
+  /// Suggests a name for a session whose first message just went out, once per session for the
+  /// life of the app. It never shows a failure or retries, and leaves the Rename dialog alone.
+  func messageSent(sessionID: String, text: String) {
+    guard !isQuitting, attemptedSessionIDs.insert(sessionID).inserted else { return }
+    suggestions[sessionID] = Task { [weak self] in
+      await self?.suggestName(sessionID: sessionID, text: text)
+      self?.suggestions[sessionID] = nil
+    }
+  }
+
+  /// Stops every suggestion and returns once they have all exited. None starts after this.
+  func quitConfirmed() async {
+    isQuitting = true
+    let running = Array(suggestions.values)
+    for task in running { task.cancel() }
+    for task in running { await task.value }
+  }
+
   func copyErrorTapped() {
     guard let failureDetail else { return }
     pasteboard.copy(failureDetail)
@@ -203,6 +227,15 @@ final class WorkspaceNamingModel: ViewModel {
     case 0x00...0x1F, 0x7F...0x9F, 0x2028, 0x2029: true
     default: false
     }
+  }
+
+  private func suggestName(sessionID: String, text: String) async {
+    guard let environment = try? await agentEnvironment.resolve(),
+      let name = try? await workspaceNameSuggestion.suggest(text, environment),
+      !Task.isCancelled
+    else { return }
+    _ = try? await workspaceName.setAgentName(sessionID, name)
+    await onWriteFinished()
   }
 
   private static func failurePhase(_ error: any Error) -> Phase {

@@ -33,6 +33,10 @@ extension TerminalState {
     return folderless + tabs.elements.filter { $0.folder == folder }
   }
 
+  func isSettingUp(_ folder: String) -> Bool {
+    tabs.contains { $0.folder == folder && $0.kind == .setup(.running) }
+  }
+
   func nextTerminalNumber(in folder: String) -> Int {
     let numbers = tabs.compactMap { tab -> Int? in
       guard tab.folder == folder, case .terminal(let number) = tab.kind else { return nil }
