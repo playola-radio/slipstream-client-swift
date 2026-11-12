@@ -10,6 +10,16 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.12] - 2026-11-12
+
+- A new chat now connects to its workspace's stream as soon as you send its first message,
+  instead of after the agent's first reply, so you can ask it about changes while it works.
+- The link icon on a chat tab only appears once the chat really is linked, and while the link
+  is waiting for the agent to confirm it now says **Linked to Stream** instead of claiming
+  it's connected.
+- The stream no longer shows "Unsupported event" rows when a capture starts, stops or links
+  a chat. A capture stopping or a chat linking now updates the stream panel right away.
+
 ## [0.4.11] - 2026-11-12
 
 - New workspaces now appear at the top of their repository in the sidebar instead of the
