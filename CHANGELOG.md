@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.7] - 2026-11-12
+
+- Folders you record with **Record a folder…** stay in the sidebar after you select something
+  else, and still appear after the app restarts. To take one out, right-click it and choose
+  **Remove from sidebar**. This pauses its recording and leaves the folder on disk.
+
 ## [0.4.6] - 2026-11-11
 
 - The sidebar lists only workspaces created in Slipstream. Chats Slipstream records in
