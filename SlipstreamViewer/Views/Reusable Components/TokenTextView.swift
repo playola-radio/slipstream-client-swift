@@ -14,6 +14,8 @@ struct TokenTextView: NSViewRepresentable {
   var onTextChange: (String) -> Void = { _ in }
   var onSubmit: () -> Void = {}
   var onDropTargetChange: (Bool) -> Void = { _ in }
+  /// Identifies whose draft is shown; undo history never carries across a change.
+  var draftID: UUID?
   var onAttach: ([IncomingAttachment], Int) -> Void = { _, _ in }
   @Environment(\.fontScale) private var fontScale
 
@@ -29,6 +31,8 @@ struct TokenTextView: NSViewRepresentable {
     text.textContainer?.widthTracksTextView = true
     text.insertionPointColor = NSColor(DesignTokens.Chat.Paragraph.color)
     text.allowsUndo = isEditable
+    text.fontScale = fontScale
+    text.typingAttributes = text.baseAttributes
     text.delegate = context.coordinator
     guard isEditable else { return text }
     text.isVerticallyResizable = true
@@ -47,6 +51,10 @@ struct TokenTextView: NSViewRepresentable {
     text.onAttach = onAttach
     text.onDropTargetChange = onDropTargetChange
     text.isEditable = isEditable && isEnabled
+    if context.coordinator.draftID != draftID {
+      context.coordinator.draftID = draftID
+      context.coordinator.undoManager.removeAllActions()
+    }
     if text.placeholder != placeholder || text.placeholderColor != NSColor(placeholderColor) {
       text.placeholder = placeholder
       text.placeholderColor = NSColor(placeholderColor)
@@ -55,12 +63,12 @@ struct TokenTextView: NSViewRepresentable {
     let current = AttachmentMarker.text(text.segments)
     let wanted = AttachmentMarker.text(segments)
     guard current != wanted || text.fontScale != fontScale else { return }
-    let caret = text.draftOffset(at: text.selectedRange().location) + wanted.utf16.count - current.utf16.count
+    let caret = TokenNSTextView.caretOffset(text.draftOffset(at: text.selectedRange().location), from: current, to: wanted)
     text.fontScale = fontScale
     text.textStorage?.setAttributedString(text.attributedString(for: segments))
     text.typingAttributes = text.baseAttributes
     guard isEditable else { return }
-    text.setSelectedRange(NSRange(location: text.location(forDraftOffset: max(caret, 0)), length: 0))
+    text.setSelectedRange(NSRange(location: text.location(forDraftOffset: caret), length: 0))
     context.coordinator.undoManager.removeAllActions()
   }
 
@@ -77,6 +85,7 @@ struct TokenTextView: NSViewRepresentable {
 
   @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
     var view: TokenTextView?
+    var draftID: UUID?
     /// Its own undo stack, cleared whenever the model replaces the draft (send, tab switch,
     /// attach), so undo never reaches into text that is no longer there.
     let undoManager = UndoManager()
@@ -116,6 +125,29 @@ final class TokenNSTextView: NSTextView {
 
   var segments: [AttachmentMarker.Segment] {
     textStorage.map(Self.segments(in:)) ?? []
+  }
+
+  /// Fills its scroll view however short the draft is, so a drop anywhere in that area lands here.
+  override func viewDidMoveToSuperview() {
+    super.viewDidMoveToSuperview()
+    guard let clip = superview as? NSClipView else { return }
+    clip.postsFrameChangedNotifications = true
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(clipResized), name: NSView.frameDidChangeNotification, object: clip)
+  }
+
+  @objc private func clipResized() {
+    guard let clip = superview else { return }
+    minSize.height = clip.bounds.height
+    sizeToFit()
+  }
+
+  /// Where a caret at draft offset `caret` belongs once `old` is replaced by `new`: a caret before
+  /// the first change stays put, one at or after it moves with the text that follows.
+  nonisolated static func caretOffset(_ caret: Int, from old: String, to new: String) -> Int {
+    let unchanged = zip(old.utf16, new.utf16).prefix { $0 == $1 }.count
+    guard caret >= unchanged else { return caret }
+    return max(unchanged, caret + new.utf16.count - old.utf16.count)
   }
 
   var baseAttributes: [NSAttributedString.Key: Any] {
@@ -275,17 +307,18 @@ final class TokenNSTextView: NSTextView {
   }
 
   /// Promised files arrive one by one; attach them together, in drag order, once each promise has
-  /// delivered. A failed promise still passes its URL, so the copy reports the real error.
+  /// delivered, through the `onAttach` of the moment of the drop. A failed promise arrives as
+  /// `unavailable` with its error. A failure to make the folder surfaces as each promise's error.
   private func receive(_ receivers: [NSFilePromiseReceiver], at offset: Int) {
     let destination = FileManager.default.temporaryDirectory.appending(
       path: UUID().uuidString, directoryHint: .isDirectory)
     try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-    let arrivals = PromiseArrivals(count: receivers.count) { [weak self] urls in
-      self?.onAttach(urls.map(IncomingAttachment.file), offset)
-    }
+    let onAttach = onAttach
+    let arrivals = PromiseArrivals(count: receivers.count) { items in onAttach(items, offset) }
     for (index, receiver) in receivers.enumerated() {
-      receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: .main) { url, _ in
-        MainActor.assumeIsolated { arrivals.arrived(url, from: index) }
+      receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: .main) { url, error in
+        let item = error.map { IncomingAttachment.unavailable(name: url.lastPathComponent, detail: $0.localizedDescription) }
+        MainActor.assumeIsolated { arrivals.arrived(item ?? .file(url), from: index) }
       }
     }
   }
@@ -299,21 +332,21 @@ final class TokenNSTextView: NSTextView {
 
 @MainActor
 private final class PromiseArrivals {
-  private var urls: [[URL]]
-  private let done: ([URL]) -> Void
+  private var items: [[IncomingAttachment]]
+  private let done: ([IncomingAttachment]) -> Void
 
-  init(count: Int, done: @escaping ([URL]) -> Void) {
-    urls = Array(repeating: [], count: count)
+  init(count: Int, done: @escaping ([IncomingAttachment]) -> Void) {
+    items = Array(repeating: [], count: count)
     self.done = done
   }
 
-  func arrived(_ url: URL, from index: Int) {
-    let wasWaiting = urls.contains(where: \.isEmpty)
-    urls[index].append(url)
+  func arrived(_ item: IncomingAttachment, from index: Int) {
+    let wasWaiting = items.contains(where: \.isEmpty)
+    items[index].append(item)
     if !wasWaiting {
-      done([url])
-    } else if !urls.contains(where: \.isEmpty) {
-      done(urls.flatMap(\.self))
+      done([item])
+    } else if !items.contains(where: \.isEmpty) {
+      done(items.flatMap(\.self))
     }
   }
 }
@@ -334,14 +367,16 @@ private final class TokenCell: NSTextAttachmentCell {
   private typealias Token = DesignTokens.Chat.Attachment
   private let name: String
   private let icon: DesignTokens.Icons.Icon
-  private let textFont: NSFont
   private let nameFont: NSFont
+  private let nameWidth: CGFloat
+  private let baselineOffset: CGFloat
 
   init(segment: AttachmentMarker.Segment, textFont: NSFont, scale: CGFloat) {
     if case .attachment(let name, _) = segment { self.name = name } else { self.name = "" }
     icon = segment.isImage ? Token.imageIcon : Token.icon
-    self.textFont = textFont
     nameFont = Token.nameFont.nsFont(scale: scale) ?? .systemFont(ofSize: 12.5 * scale)
+    nameWidth = min(ceil((name as NSString).size(withAttributes: [.font: nameFont]).width), Token.maxNameWidth)
+    baselineOffset = (textFont.ascender + textFont.descender - Token.height) / 2
     super.init(textCell: "")
   }
 
@@ -353,16 +388,12 @@ private final class TokenCell: NSTextAttachmentCell {
     return [.font: nameFont, .foregroundColor: NSColor(Token.nameColor), .paragraphStyle: paragraph]
   }
 
-  private var nameWidth: CGFloat {
-    min(ceil((name as NSString).size(withAttributes: [.font: nameFont]).width), Token.maxNameWidth)
-  }
-
   override func cellSize() -> NSSize {
     NSSize(width: Token.iconCellWidth + Token.namePadding * 2 + nameWidth, height: Token.height)
   }
 
   override func cellBaselineOffset() -> NSPoint {
-    NSPoint(x: 0, y: (textFont.ascender + textFont.descender - Token.height) / 2)
+    NSPoint(x: 0, y: baselineOffset)
   }
 
   override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {

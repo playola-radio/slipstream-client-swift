@@ -3367,7 +3367,7 @@ extension ChatPageTests {
   @Test func attachFileInsertsMarkerAtOffset() async {
     let model = attachingModel(draft: "look  here")
 
-    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5)
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5, tabID: Self.saved)
 
     expectNoDifference(model.draft, "look " + marker("a.png") + " here")
   }
@@ -3383,7 +3383,7 @@ extension ChatPageTests {
 
     await model.attachmentsArrived(
       [.file(URL(fileURLWithPath: "/src/a.png")), .image(Data([1, 2])), .file(URL(fileURLWithPath: "/src/b.txt"))],
-      at: 0)
+      at: 0, tabID: Self.saved)
 
     expectNoDifference(model.draft, [marker("a.png"), marker("image.png"), marker("b.txt")].joined(separator: " "))
     expectNoDifference(written.value, ["image.png"])
@@ -3398,7 +3398,7 @@ extension ChatPageTests {
       })
 
     await model.attachmentsArrived(
-      [.file(URL(fileURLWithPath: "/src/dir")), .file(URL(fileURLWithPath: "/src/b.txt"))], at: 0)
+      [.file(URL(fileURLWithPath: "/src/dir")), .file(URL(fileURLWithPath: "/src/b.txt"))], at: 0, tabID: Self.saved)
 
     expectNoDifference(model.attachErrorTitle, "Couldn't attach dir")
     expectNoDifference(model.attachErrorDetail, "/src/dir is a folder; only files can be attached")
@@ -3419,7 +3419,7 @@ extension ChatPageTests {
         return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
       })
 
-    let attaching = Task { await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5) }
+    let attaching = Task { await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5, tabID: Self.saved) }
     await Task.megaYield()
     model.draft = "ab"
     try #require(pending.value).resume()
@@ -3431,9 +3431,43 @@ extension ChatPageTests {
   @Test func attachClampsOffsetToCharacterBoundary() async {
     let model = attachingModel(draft: "é😀x")
 
-    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 2)
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 2, tabID: Self.saved)
 
     expectNoDifference(model.draft, "é" + marker("a.png") + "😀x")
+  }
+
+  @Test func attachMovesOffsetOutOfAnExistingMarker() async {
+    let model = attachingModel(draft: "c" + marker("x.md"))
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 3, tabID: Self.saved)
+
+    expectNoDifference(model.draft, "c" + marker("x.md") + marker("a.png"))
+  }
+
+  @Test func attachUnavailableShowsItsErrorAndAttachesNothing() async {
+    let model = attachingModel(draft: "hi")
+
+    await model.attachmentsArrived([.unavailable(name: "photo.heic", detail: "The export failed")], at: 2, tabID: Self.saved)
+
+    expectNoDifference(model.attachErrorTitle, "Couldn't attach photo.heic")
+    expectNoDifference(model.attachErrorDetail, "The export failed")
+    expectNoDifference(model.draft, "hi")
+  }
+
+  @Test func attachmentsLandInTheTabTheyWereDroppedIn() async {
+    let other = UUID(1)
+    let model = withDependencies {
+      $0.attachments.copy = { URL(fileURLWithPath: "/att/\($0.lastPathComponent)") }
+    } operation: {
+      makeModel(records: [record(), record(other)])
+    }
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.tabSelected(other)
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 0, tabID: Self.saved)
+
+    expectNoDifference(model.tabs[id: Self.saved]?.draft, marker("a.png"))
+    expectNoDifference(model.draft, "")
   }
 
   @Test func placeholderReadsDropToAttachWhileTargeted() {

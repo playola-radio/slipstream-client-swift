@@ -332,8 +332,10 @@ final class ChatPageModel: ViewModel {
     isDropTargeted = isTargeted
   }
 
-  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async {
-    await selectedTab?.attachmentsArrived(items, at: offset)
+  /// `tabID` is the tab shown when the items were dropped; promised files can arrive after a switch.
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int, tabID: UUID?) async {
+    guard let tabID else { return }
+    await tabs[id: tabID]?.attachmentsArrived(items, at: offset)
   }
 
   func attachErrorDismissed() {

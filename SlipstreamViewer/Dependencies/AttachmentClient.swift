@@ -5,12 +5,14 @@ enum AttachmentError: Error, Equatable, LocalizedError {
   case folder(String)
   case missing(String)
   case notOpened(String)
+  case unavailable(String)
 
   var errorDescription: String? {
     switch self {
     case .folder(let path): "\(path) is a folder; only files can be attached"
     case .missing(let path): "The file no longer exists at \(path)"
     case .notOpened(let path): "macOS couldn't open \(path)"
+    case .unavailable(let detail): detail
     }
   }
 }
@@ -41,7 +43,8 @@ extension AttachmentClient {
   }
 
   private nonisolated static func copyFile(_ file: URL, into base: URL) async throws -> URL {
-    if try file.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
+    let source = file.resolvingSymlinksInPath()
+    if try source.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
       throw AttachmentError.folder(file.path)
     }
     let name = String(file.lastPathComponent.map { "⟦⟧\n".contains($0) ? "_" : $0 })
@@ -49,7 +52,7 @@ extension AttachmentClient {
     do {
       try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
       let copy = folder.appending(path: name, directoryHint: .notDirectory)
-      try FileManager.default.copyItem(at: file, to: copy)
+      try FileManager.default.copyItem(at: source, to: copy)
       return copy
     } catch {
       try? FileManager.default.removeItem(at: folder)

@@ -57,6 +57,7 @@ pasteboard; the model decides what to do with each item.
 |---|---|---|
 | `file(URL)` | a local file URL | Finder drag, Finder ⌘C then ⌘V, or a file promise (Messages, Photos): the editor receives promises with `NSFilePromiseReceiver` into a fresh temporary folder and hands over the received URLs |
 | `image(Data)` | PNG bytes | an image on the pasteboard with no file behind it (screenshot to clipboard, Safari "Copy Image") |
+| `unavailable(name: String, detail: String)` | the promised file's name and the full error | a file promise its source app failed to deliver; the model shows it as an attach error and attaches nothing for it |
 
 Pasteboard precedence, in the editor: file URLs or file promises → `file`; otherwise image data with
 no plain string → `image`; otherwise the normal text paste/drop. Only the first two highlight the box
@@ -72,7 +73,7 @@ path (folders aren't attachments).
 | `draft: String` | Unchanged type | Now may contain markers. The editor shows each marker as a token and edits around it. |
 | `AttachError` | Added | `struct AttachError: Equatable { var name: String; var detail: String }`: the item's file name (`image.png` for a pasted image) and its full error text. |
 | `attachError: AttachError?` | Added | The first failure of the last attach, shown above the draft. |
-| `attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async` | Added | Copies/writes each item in order through `AttachmentClient` (images are named `image.png`, as in Conductor), then inserts the successes' markers, space-separated, into `draft` at `offset`. `offset` is a UTF-16 offset into `draft` (not into the editor's storage): the editor computes it as `AttachmentMarker.text(segments before the caret).utf16.count`. The model clamps it to `draft`'s length and to a character boundary, since the user may have typed while copying. `attachError` is set to the first failure; the other items still attach. |
+| `attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async` | Added | Copies/writes each item in order through `AttachmentClient` (images are named `image.png`, as in Conductor), then inserts the successes' markers, space-separated, into `draft` at `offset`. `offset` is a UTF-16 offset into `draft` (not into the editor's storage): the editor computes it as `AttachmentMarker.text(segments before the caret).utf16.count`. The model clamps it to `draft`'s length, to a character boundary and out of any marker it lands inside, since the user may have typed while copying. `attachError` is set to the first failure; the other items still attach. |
 | `attachErrorDismissed()` | Added | Clears `attachError`. |
 | `attachmentSegments(for item: TranscriptItem) -> [AttachmentMarker.Segment]?` | Replaces `attachment(for:)` | `AttachmentMarker.segments(rowText(for: item))` for a user message containing at least one marker; `nil` otherwise, so the bubble keeps today's plain text. Old one-end-marker messages keep their text, plus the space before the token. |
 | `attachmentTapped(path: String)` | Replaces `attachmentTapped(_ item:)` | Opens that token's file; failures keep today's alert. |
@@ -86,7 +87,8 @@ path (folders aren't attachments).
 | `dropTargetChanged(_ isTargeted: Bool)` | Added | User action from the editor. |
 | `placeholderText` | Now computed | `"Drop to attach"` while `isDropTargeted`, otherwise today's text. |
 | `attachErrorTitle: String?`, `attachErrorDetail: String?` | Added | From the selected tab's `attachError`: `"Couldn't attach <name>"` and the full error text (`Hvvd6`). |
-| `attachErrorDismissed()`, `attachmentsArrived(_:at:) async` | Added | Pass-throughs to the selected tab, like `draft`. |
+| `attachErrorDismissed()` | Added | Pass-through to the selected tab, like `draft`. |
+| `attachmentsArrived(_:at:tabID:) async` | Added | Passes through to the tab the items were dropped in (`tabID`, captured by the view at drop time), so a file promise that arrives after a tab switch still lands in its own chat. |
 | `attachErrorDismissText` | Added | `"Dismiss"`, the × accessibility label. |
 
 ## TokenTextView — New

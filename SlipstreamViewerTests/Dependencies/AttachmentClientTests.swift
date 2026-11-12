@@ -84,6 +84,45 @@ struct AttachmentClientTests {
     expectNoDifference(try FileManager.default.contentsOfDirectory(atPath: base.path), [])
   }
 
+  @Test func copyOfUnreadableFileCleansUp() async throws {
+    let base = makeBase()
+    let source = makeBase().appending(path: "secret.txt")
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: source.path)
+      try? FileManager.default.removeItem(at: base)
+      try? FileManager.default.removeItem(at: source.deletingLastPathComponent())
+    }
+    try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("x".utf8).write(to: source)
+    try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: source.path)
+    let client = AttachmentClient.live(base: base)
+
+    await #expect(throws: (any Error).self) { try await client.copy(source) }
+
+    expectNoDifference(try FileManager.default.contentsOfDirectory(atPath: base.path), [])
+  }
+
+  @Test func copyFollowsASymlinkToTheFile() async throws {
+    let base = makeBase()
+    let folder = makeBase()
+    defer {
+      try? FileManager.default.removeItem(at: base)
+      try? FileManager.default.removeItem(at: folder)
+    }
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try Data("hello".utf8).write(to: folder.appending(path: "original.txt"))
+    let link = folder.appending(path: "link.txt")
+    try FileManager.default.createSymbolicLink(atPath: link.path, withDestinationPath: "original.txt")
+    let client = AttachmentClient.live(base: base)
+
+    let copy = try await client.copy(link)
+
+    expectNoDifference(copy.lastPathComponent, "link.txt")
+    expectNoDifference(try copy.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, false)
+    expectNoDifference(try Data(contentsOf: copy), Data("hello".utf8))
+  }
+
   @Test func openOfMissingFileNamesThePath() {
     let file = makeBase().appending(path: "gone.md")
     let client = AttachmentClient.live(base: makeBase())

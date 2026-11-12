@@ -1438,8 +1438,6 @@ enum DesignTokens {
       static let height: CGFloat = 120
       static let contentHeight = height - topPadding - bottomPadding
       static let gap: CGFloat = 12
-      static let font = Paragraph.font
-      static let color = primary
       private static let dropTargetColor = Color(hex: 0x6CB6FF)
 
       static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.55 }

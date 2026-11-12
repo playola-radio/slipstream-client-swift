@@ -541,7 +541,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     attachmentAlert = nil
   }
 
-  /// `offset` is in UTF-16 units of `draft`; the user may have typed since, so it is clamped.
+  /// `offset` is in UTF-16 units of `draft`; the user may have typed since, so it is clamped to a
+  /// character boundary outside any marker.
   func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async {
     var markers: [String] = []
     var firstError: AttachError?
@@ -551,6 +552,7 @@ final class ChatTabModel: ViewModel, Identifiable {
           switch item {
           case .file(let url): try await attachments.copy(url)
           case .image(let data): try attachments.write(Self.pastedImageName, data)
+          case .unavailable(_, let detail): throw AttachmentError.unavailable(detail)
           }
         markers.append(AttachmentMarker.format(name: file.lastPathComponent, path: file.path))
       } catch {
@@ -559,9 +561,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     attachError = firstError
     guard !markers.isEmpty else { return }
-    let target = String.Index(utf16Offset: min(max(offset, 0), draft.utf16.count), in: draft)
-    let index = target == draft.endIndex ? target : draft.rangeOfComposedCharacterSequence(at: target).lowerBound
-    draft.insert(contentsOf: markers.joined(separator: " "), at: index)
+    draft.insert(contentsOf: markers.joined(separator: " "), at: insertionIndex(near: offset))
   }
 
   func attachErrorDismissed() {
@@ -613,10 +613,23 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   private static let pastedImageName = "image.png"
 
+  private func insertionIndex(near offset: Int) -> String.Index {
+    var target = min(max(offset, 0), draft.utf16.count)
+    var start = 0
+    for segment in AttachmentMarker.segments(draft) {
+      let end = start + AttachmentMarker.text([segment]).utf16.count
+      if case .attachment = segment, start < target, target < end { target = end }
+      start = end
+    }
+    let index = String.Index(utf16Offset: target, in: draft)
+    return index == draft.endIndex ? index : draft.rangeOfComposedCharacterSequence(at: index).lowerBound
+  }
+
   private static func name(of item: IncomingAttachment) -> String {
     switch item {
     case .file(let url): url.lastPathComponent
     case .image: pastedImageName
+    case .unavailable(let name, _): name
     }
   }
 

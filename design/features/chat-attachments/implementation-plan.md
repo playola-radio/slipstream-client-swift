@@ -209,7 +209,7 @@
   - Drag files from Finder into the chat message box, or paste or drag in images (screenshots,
     Messages, Safari). Each one shows as a small badge in your message, and the agent can open it.
   ```
-- [x] **Step 5: Manual gate.** (Interactive drag/paste checks could not be driven by the agent; they are listed in the PR body as hand checks.) Use a disposable daemon (`SLIPSTREAM_STORE`, `npm run qa:daemon` in the daemon repo) and record the results in the PR body (spec acceptance criteria 8–10):
+- [ ] **Step 5: Manual gate.** (Not yet run: the agent could not drive drag/paste; the checks are listed in the PR body for a hand run.) Use a disposable daemon (`SLIPSTREAM_STORE`, `npm run qa:daemon` in the daemon repo) and record the results in the PR body (spec acceptance criteria 8–10):
   - Each way to attach puts a token at the caret: Finder drag, Finder ⌘C then ⌘V, ⌘⌃⇧4 then ⌘V, a Safari image drag, and a Messages image drag.
   - A plain-text paste or drag stays text and doesn't highlight the box.
   - Dropping a folder shows the full error, and × clears it.
