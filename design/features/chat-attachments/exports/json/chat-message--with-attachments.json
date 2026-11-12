@@ -1,0 +1,191 @@
+{
+  "type": "frame",
+  "id": "t6JCze",
+  "name": "chat-attachments--sent-with-attachments",
+  "width": 920,
+  "fill": "#12171D",
+  "padding": [
+    20,
+    48
+  ],
+  "justifyContent": "end",
+  "children": [
+    {
+      "type": "frame",
+      "id": "K0TRh",
+      "name": "Bubble",
+      "fill": "#232C36",
+      "cornerRadius": 8,
+      "layout": "vertical",
+      "gap": 6,
+      "padding": [
+        10,
+        16
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "HqmsV",
+          "name": "Line",
+          "height": 24,
+          "gap": 6,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "fQeIh",
+              "name": "Paragraph",
+              "fill": "#E6EDF3",
+              "content": "Make the empty session list look like this",
+              "fontFamily": "Geist",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "i7Bss",
+              "name": "Inline token",
+              "height": 24,
+              "fill": "#1A2129",
+              "cornerRadius": 5,
+              "stroke": "#33404C",
+              "strokeWidth": 1,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "nRr7x",
+                  "name": "Icon cell",
+                  "width": 24,
+                  "height": "fill_container",
+                  "stroke": "#33404C",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "fJ89T",
+                      "name": "Kind icon",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "image",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "mnilV",
+                  "name": "Name cell",
+                  "height": "fill_container",
+                  "padding": [
+                    0,
+                    8
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Jf5aF",
+                      "name": "File name",
+                      "fill": "#B7C3CD",
+                      "content": "Screenshot 2026-11-12 at 9.41.07 AM.png",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "togfE",
+          "name": "Line",
+          "height": 24,
+          "gap": 6,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "iWtvY",
+              "name": "Paragraph",
+              "fill": "#E6EDF3",
+              "content": "and this is the crash when I click it",
+              "fontFamily": "Geist",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "HOkQI",
+              "name": "Inline token",
+              "height": 24,
+              "fill": "#1A2129",
+              "cornerRadius": 5,
+              "stroke": "#33404C",
+              "strokeWidth": 1,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ORYMA",
+                  "name": "Icon cell",
+                  "width": 24,
+                  "height": "fill_container",
+                  "stroke": "#33404C",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "HNvBB",
+                      "name": "Kind icon",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "file",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ivWEo",
+                  "name": "Name cell",
+                  "height": "fill_container",
+                  "padding": [
+                    0,
+                    8
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "o9Amzk",
+                      "name": "File name",
+                      "fill": "#B7C3CD",
+                      "content": "crash.log",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
