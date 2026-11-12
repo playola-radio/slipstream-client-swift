@@ -306,15 +306,15 @@ final class TokenNSTextView: NSTextView {
     return true
   }
 
-  /// Promised files arrive one by one; attach them together, in drag order, once each promise has
-  /// delivered, through the `onAttach` of the moment of the drop. A failed promise arrives as
+  /// Promised files arrive one by one; attach them together, in drag order, once every promised file has
+  /// arrived, through the `onAttach` of the moment of the drop. A failed promise arrives as
   /// `unavailable` with its error. A failure to make the folder surfaces as each promise's error.
   private func receive(_ receivers: [NSFilePromiseReceiver], at offset: Int) {
     let destination = FileManager.default.temporaryDirectory.appending(
       path: UUID().uuidString, directoryHint: .isDirectory)
     try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
     let onAttach = onAttach
-    let arrivals = PromiseArrivals(count: receivers.count) { items in onAttach(items, offset) }
+    let arrivals = PromiseArrivals(fileCounts: receivers.map { max($0.fileNames.count, 1) }) { items in onAttach(items, offset) }
     for (index, receiver) in receivers.enumerated() {
       receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: .main) { url, error in
         let item = error.map { IncomingAttachment.unavailable(name: url.lastPathComponent, detail: $0.localizedDescription) }
@@ -331,21 +331,26 @@ final class TokenNSTextView: NSTextView {
 }
 
 @MainActor
-private final class PromiseArrivals {
+final class PromiseArrivals {
   private var items: [[IncomingAttachment]]
+  private let fileCounts: [Int]
   private let done: ([IncomingAttachment]) -> Void
 
-  init(count: Int, done: @escaping ([IncomingAttachment]) -> Void) {
-    items = Array(repeating: [], count: count)
+  /// `fileCounts[i]` is how many files receiver `i` promised.
+  init(fileCounts: [Int], done: @escaping ([IncomingAttachment]) -> Void) {
+    items = Array(repeating: [], count: fileCounts.count)
+    self.fileCounts = fileCounts
     self.done = done
   }
 
+  private var isWaiting: Bool { zip(items, fileCounts).contains { $0.count < $1 } }
+
   func arrived(_ item: IncomingAttachment, from index: Int) {
-    let wasWaiting = items.contains(where: \.isEmpty)
+    let wasWaiting = isWaiting
     items[index].append(item)
     if !wasWaiting {
       done([item])
-    } else if !items.contains(where: \.isEmpty) {
+    } else if !isWaiting {
       done(items.flatMap(\.self))
     }
   }
