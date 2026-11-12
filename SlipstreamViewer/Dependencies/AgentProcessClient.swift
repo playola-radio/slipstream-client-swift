@@ -36,8 +36,15 @@ struct AgentProcessClient: Sendable {
 
 extension AgentProcessClient: DependencyKey {
   static var liveValue: Self {
-    Self(launch: { launch in
-      let process = try AgentProcess(launch)
+    let log = AppLogClient.liveValue
+    return Self(launch: { launch in
+      let process: AgentProcess
+      do {
+        process = try AgentProcess(launch, log: log)
+      } catch {
+        log.error("agent", "launch \(launch.executable) in \(launch.directory) failed: \(Self.launchFailure(error))")
+        throw error
+      }
       return AgentProcessHandle(
         events: process.events,
         write: { try await process.input.write($0) },
@@ -49,6 +56,11 @@ extension AgentProcessClient: DependencyKey {
 
   static var testValue: Self {
     Self(launch: unimplemented("AgentProcessClient.launch"))
+  }
+
+  private static func launchFailure(_ error: any Error) -> String {
+    guard case AgentProcessError.launchFailed(let code) = error else { return "\(error)" }
+    return "errno \(code) (\(String(cString: strerror(code))))"
   }
 }
 
@@ -75,6 +87,7 @@ private final class AgentProcess: Sendable {
   let events: AsyncStream<AgentProcessEvent>
   let input: AgentProcessInput
   private let pid: pid_t
+  private let log: AppLogClient
   private let continuation: AsyncStream<AgentProcessEvent>.Continuation
   private let stdout: FileHandle
   private let stderr: FileHandle
@@ -91,7 +104,8 @@ private final class AgentProcess: Sendable {
     var isFinished = false
   }
 
-  init(_ launch: AgentLaunch) throws {
+  init(_ launch: AgentLaunch, log: AppLogClient) throws {
+    self.log = log
     let pipes = try Self.makePipes(3)
     let (stdinPipe, stdoutPipe, stderrPipe) = (pipes[0], pipes[1], pipes[2])
     let parentEnds = [stdinPipe.write, stdoutPipe.read, stderrPipe.read]
@@ -105,6 +119,7 @@ private final class AgentProcess: Sendable {
       throw error
     }
 
+    log.info("agent", "pid \(pid) started \(launch.executable) in \(launch.directory)")
     _ = fcntl(stdinPipe.write, F_SETNOSIGPIPE, 1)
     input = AgentProcessInput(descriptor: stdinPipe.write)
     stdout = FileHandle(fileDescriptor: stdoutPipe.read, closeOnDealloc: true)
@@ -158,6 +173,7 @@ private final class AgentProcess: Sendable {
   }
 
   private func stderrReceived(_ chunk: Data) {
+    log.info("agent", "pid \(pid) stderr: \(String(decoding: chunk, as: UTF8.self))")
     output.withLock { output in
       output.stderrTail.append(chunk)
       if output.stderrTail.count > Self.stderrTailBytes {
@@ -180,6 +196,8 @@ private final class AgentProcess: Sendable {
     var info = siginfo_t()
     while waitid(P_PID, id_t(pid), &info, WEXITED | WNOWAIT) == -1 && errno == EINTR {}
     let exitStatus = info.si_code == CLD_EXITED ? info.si_status : 128 + info.si_status
+    let exitLine = "pid \(pid) exited status \(exitStatus)"
+    if exitStatus == 0 { log.info("agent", exitLine) } else { log.error("agent", exitLine) }
     output.withLock { output in
       output.status = exitStatus
       if output.openPipes == 0 { finish(&output) }

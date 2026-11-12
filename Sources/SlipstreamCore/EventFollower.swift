@@ -35,19 +35,22 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
   public var clock: C
   public var jitter: @Sendable () -> Double
   public var policy: FollowPolicy
+  public var problem: @Sendable (String) -> Void
 
   public init(
     discover: @escaping @Sendable () async throws -> DaemonDescriptor,
     open: @escaping @Sendable (DaemonDescriptor, Seq) -> AsyncThrowingStream<StreamItem, any Error>,
     clock: C,
     jitter: @escaping @Sendable () -> Double,
-    policy: FollowPolicy = FollowPolicy()
+    policy: FollowPolicy = FollowPolicy(),
+    problem: @escaping @Sendable (String) -> Void = { _ in }
   ) {
     self.discover = discover
     self.open = open
     self.clock = clock
     self.jitter = jitter
     self.policy = policy
+    self.problem = problem
   }
 
   public func run(
@@ -105,6 +108,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
     do {
       descriptor = try await discover()
     } catch {
+      if !Task.isCancelled { problem("daemon discovery failed: \(error)") }
       return .retry
     }
     let openedAt = clock.now
@@ -116,35 +120,48 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
           await status(.live)
         }
         if openedAt.duration(to: clock.now) >= policy.episodeBudget { resetBudget() }
-        if case .invalid = item { return .exit(.malformed(seq: nil, type: nil)) }
+        if case .invalid = item {
+          problem("invalid event stream item")
+          return .exit(.malformed(seq: nil, type: nil))
+        }
         guard case .frame(let frame) = item else { continue }
         let event: SlipstreamEvent
         do {
           event = try SlipstreamEvent.decode(Data(frame.data.utf8))
         } catch {
+          problem("undecodable event \(frame.id ?? "?"): \(error)")
           return .exit(.malformed(seq: error.seq ?? frame.id, type: error.type))
         }
         if let id = frame.id, id != event.seq.decimal {
+          problem("event id \(id) does not match seq \(event.seq.decimal)")
           return .exit(.malformed(seq: id, type: event.type))
         }
         if event.seq <= cursor { continue }
         guard event.seq == cursor.successor else {
+          problem("expected #\(cursor.successor.decimal) got #\(event.seq.decimal)")
           return .exit(.outOfOrder(expected: cursor.successor, received: event.seq))
         }
         guard await apply(event) else { return .exit(.cancelled) }
         cursor = event.seq
         resetBudget()
       }
+      if !Task.isCancelled { problem("event stream ended") }
       return .retry
-    } catch DaemonHTTPError.status(let code, let durableSeq, _) {
+    } catch DaemonHTTPError.status(let code, let durableSeq, let body) {
       switch code {
       case 409: return .exit(.cursorAhead(durableSeq: durableSeq))
       case 410: return .exit(.sessionRemoved)
       case 404: return .exit(.sessionNotFound)
       case 400: return .exit(.cursorRejected)
-      default: return .retry
+      default:
+        if !Task.isCancelled { problem("event stream HTTP \(code): \(body)") }
+        return .retry
       }
+    } catch is IdleTimeout {
+      problem("no event or heartbeat for \(sawActivity ? policy.idleTimeout : firstItemTimeout)")
+      return .retry
     } catch {
+      if !Task.isCancelled, !(error is CancellationError) { problem("event stream failed: \(error)") }
       return .retry
     }
   }
