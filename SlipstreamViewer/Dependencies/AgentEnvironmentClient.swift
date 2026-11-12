@@ -81,15 +81,15 @@ extension AgentEnvironmentClient {
   }
 }
 
-actor AgentEnvironmentCache {
-  private let load: @Sendable () async throws -> AgentEnvironment
-  private var current: Task<AgentEnvironment, any Error>?
+actor AgentEnvironmentCache<Value: Sendable> {
+  private let load: @Sendable () async throws -> Value
+  private var current: Task<Value, any Error>?
 
-  init(load: @escaping @Sendable () async throws -> AgentEnvironment) {
+  init(load: @escaping @Sendable () async throws -> Value) {
     self.load = load
   }
 
-  func resolve() async throws -> AgentEnvironment {
+  func resolve() async throws -> Value {
     let task = current ?? Task { try await load() }
     current = task
     do {
@@ -159,48 +159,98 @@ extension AgentEnvironmentClient: DependencyKey {
     try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global().async {
         continuation.resume(
-          with: Result { try captureOutputBlocking(executable, arguments, environment: environment, timeout: timeout) })
+          with: Result {
+            let capture = try runBlocking(
+              executable, arguments, environment: environment, directory: nil, capturesStandardError: false,
+              timeout: timeout)
+            return capture.didTimeOut ? nil : capture.standardOutput
+          })
       }
     }
   }
 
-  private static func captureOutputBlocking(
-    _ executable: String, _ arguments: [String], environment: [String: String]?, timeout: TimeInterval
-  ) throws -> Data? {
+  struct ProcessCapture {
+    var standardOutput = Data()
+    var standardError = Data()
+    var status: Int32 = 0
+    var didTimeOut = false
+  }
+
+  /// Drains stdout, and stderr when asked, while the command runs, so a command that fills a pipe
+  /// can't block. Kills it at the deadline and returns what it had printed.
+  static func runBlocking(
+    _ executable: String, _ arguments: [String], environment: [String: String]?, directory: URL?,
+    capturesStandardError: Bool, timeout: TimeInterval
+  ) throws -> ProcessCapture {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: executable)
     process.arguments = arguments
     if let environment { process.environment = environment }
+    if let directory { process.currentDirectoryURL = directory }
     process.standardInput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-    let pipe = Pipe()
-    process.standardOutput = pipe
+    let outputPipe = Pipe()
+    let errorPipe = Pipe()
+    process.standardOutput = outputPipe
+    process.standardError = capturesStandardError ? errorPipe : FileHandle.nullDevice
     try process.run()
-    defer { try? pipe.fileHandleForReading.close() }
+    defer {
+      try? outputPipe.fileHandleForReading.close()
+      if capturesStandardError { try? errorPipe.fileHandleForReading.close() }
+    }
 
-    let descriptor = pipe.fileHandleForReading.fileDescriptor
+    var capture = ProcessCapture()
+    var streams = [Stream(descriptor: outputPipe.fileHandleForReading.fileDescriptor, isStandardError: false)]
+    if capturesStandardError {
+      streams.append(Stream(descriptor: errorPipe.fileHandleForReading.fileDescriptor, isStandardError: true))
+    }
     let deadline = Date.now.addingTimeInterval(timeout)
-    var output = Data()
     var buffer = [UInt8](repeating: 0, count: 65_536)
-    while Date.now < deadline {
+    while !streams.isEmpty && Date.now < deadline {
       let hasExited = !process.isRunning
-      var request = pollfd(fd: descriptor, events: Int16(POLLIN), revents: 0)
-      let ready = poll(&request, 1, hasExited ? 0 : 100)
-      if ready > 0 {
-        let count = read(descriptor, &buffer, buffer.count)
-        if count < 0 && errno == EINTR { continue }
-        if count <= 0 { break }
-        output.append(contentsOf: buffer[..<count])
-      } else if ready == 0 && hasExited {
-        return output
+      var requests = streams.map { pollfd(fd: $0.descriptor, events: Int16(POLLIN), revents: 0) }
+      let ready = poll(&requests, nfds_t(requests.count), hasExited ? 0 : 100)
+      if ready == 0 && hasExited {
+        capture.status = process.terminationStatus
+        return capture
       }
+      guard ready > 0 else { continue }
+      var open: [Stream] = []
+      for (stream, request) in zip(streams, requests) {
+        guard request.revents != 0 else {
+          open.append(stream)
+          continue
+        }
+        let count = read(stream.descriptor, &buffer, buffer.count)
+        if count < 0 && errno == EINTR {
+          open.append(stream)
+        } else if count > 0 {
+          if stream.isStandardError {
+            capture.standardError.append(contentsOf: buffer[..<count])
+          } else {
+            capture.standardOutput.append(contentsOf: buffer[..<count])
+          }
+          open.append(stream)
+        }
+      }
+      streams = open
     }
     while process.isRunning && Date.now < deadline { usleep(10_000) }
-    if !process.isRunning { return output }
-    // An interactive shell ignores SIGTERM.
-    kill(process.processIdentifier, SIGKILL)
+    if !process.isRunning {
+      capture.status = process.terminationStatus
+      return capture
+    }
+    // An interactive shell ignores SIGTERM. The command leads its own process group, so killing
+    // the group also stops anything it started.
+    let pid = process.processIdentifier
+    if kill(-pid, SIGKILL) != 0 { kill(pid, SIGKILL) }
     process.waitUntilExit()
-    return nil
+    capture.didTimeOut = true
+    return capture
+  }
+
+  private struct Stream {
+    var descriptor: Int32
+    var isStandardError: Bool
   }
 }
 

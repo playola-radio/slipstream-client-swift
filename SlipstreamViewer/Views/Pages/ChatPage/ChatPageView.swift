@@ -216,7 +216,7 @@ private struct ChatTabView: View {
 }
 
 private struct TranscriptView: View {
-  let tab: ChatTabModel
+  @Bindable var tab: ChatTabModel
   let tryAgainText: String
   let tryAgainTapped: () -> Void
 
@@ -246,6 +246,11 @@ private struct TranscriptView: View {
     }
     .defaultScrollAnchor(.bottom)
     .defaultScrollAnchor(.bottom, for: .sizeChanges)
+    .alert(tab.attachmentAlertTitle, isPresented: $tab.isAttachmentAlertPresented) {
+      Button(tab.attachmentAlertDismissText, role: .cancel) {}
+    } message: {
+      Text(tab.attachmentAlert ?? "")
+    }
   }
 
   @ViewBuilder
@@ -318,17 +323,47 @@ private struct TranscriptView: View {
             .foregroundStyle(DesignTokens.Chat.Relay.tagColor)
         }
       }
-      Text(tab.rowText(for: item))
-        .font(DesignTokens.Chat.Paragraph.font)
-        .foregroundStyle(DesignTokens.Chat.Paragraph.color)
-        .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
-        .textSelection(.enabled)
+      if let attachment = tab.attachment(for: item) {
+        bubbleText(attachment.body)
+        attachmentChip(attachment.name, item: item)
+      } else {
+        bubbleText(tab.rowText(for: item))
+      }
     }
     .padding(.vertical, DesignTokens.Chat.Bubble.verticalPadding)
     .padding(.horizontal, DesignTokens.Chat.Bubble.horizontalPadding)
     .background(DesignTokens.Chat.Bubble.fill, in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Bubble.radius))
     .opacity(DesignTokens.Chat.Relay.opacity(tab.relayStatus(for: item)))
     .frame(maxWidth: DesignTokens.Chat.Bubble.maxWidth, alignment: .trailing)
+  }
+
+  private func bubbleText(_ text: String) -> some View {
+    Text(text)
+      .font(DesignTokens.Chat.Paragraph.font)
+      .foregroundStyle(DesignTokens.Chat.Paragraph.color)
+      .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
+      .textSelection(.enabled)
+  }
+
+  private func attachmentChip(_ name: String, item: TranscriptItem) -> some View {
+    Button { tab.attachmentTapped(item) } label: {
+      HStack(spacing: DesignTokens.Chat.Attachment.gap) {
+        IconView(icon: DesignTokens.Chat.Attachment.icon)
+        Text(name)
+          .font(DesignTokens.Chat.Attachment.nameFont)
+          .foregroundStyle(DesignTokens.Chat.Attachment.nameColor)
+      }
+      .padding(.horizontal, DesignTokens.Chat.Attachment.horizontalPadding)
+      .frame(height: DesignTokens.Chat.Attachment.height)
+      .background(
+        DesignTokens.Chat.Attachment.fill, in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Attachment.radius)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: DesignTokens.Chat.Attachment.radius)
+          .strokeBorder(DesignTokens.Chat.Attachment.stroke, lineWidth: DesignTokens.Chat.Attachment.strokeWidth)
+      }
+    }
+    .buttonStyle(.plain)
   }
 
   private func errorBox(_ errorText: String) -> some View {

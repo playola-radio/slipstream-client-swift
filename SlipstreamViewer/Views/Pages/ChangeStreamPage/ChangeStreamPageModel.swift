@@ -28,6 +28,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Shared(.isRightPaneHidden) var isRightPaneHidden
   @ObservationIgnored @Shared(.sidebarWidth) var sidebarWidth
   @ObservationIgnored @Shared(.chatWidth) var chatWidth
+  @ObservationIgnored @Shared(.sidebarRepositories) var sidebarRepositories
+  @ObservationIgnored @Shared(.openedFolders) var openedFolders
 
   // MARK: - Initialization
 
@@ -39,13 +41,22 @@ final class ChangeStreamPageModel: ViewModel {
     self.instantAsk = instantAsk
     self.terminals = terminals
     self.recorder = recorder
+    self.prStatusBar = PRStatusBarModel(chat: chat)
     self.isFunctionDemoVisible = isFunctionDemoVisible
     super.init()
+    prStatusBar.isArchivable = { [weak self] in
+      guard let self, let session = selectedSession else { return false }
+      return isArchivable(session)
+    }
+    prStatusBar.onArchive = { [weak self] in
+      guard let self, let session = selectedSession else { return }
+      archiveTapped(session)
+    }
     chat.onLinkChanged = { [weak self] in await self?.loadSessions() }
     chat.onReadinessChanged = { [weak self] in self?.askRouteChanged() }
     recording.onChanged = { [weak self] in await self?.loadSessions(preferring: $0) }
-    recording.onRecorded = { [weak chat] in chat?.recorded(folder: $0) }
-    recording.onRecordOutcomeUnknown = { [weak chat] in chat?.recordOutcomeUnknown(folder: $0) }
+    recording.onRecorded = { [weak self] in self?.folderRecorded($0) }
+    recording.onRecordOutcomeUnknown = { [weak self] in self?.recordOutcomeUnknown($0) }
     naming.onWriteFinished = { [weak self] in
       guard let self, isShown else { return }
       await reloadSessions()
@@ -63,6 +74,7 @@ final class ChangeStreamPageModel: ViewModel {
   let instantAsk: InstantAskModel
   let terminals: TerminalPageModel
   let recorder: RecorderModel
+  let prStatusBar: PRStatusBarModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
   let naming = WorkspaceNamingModel()
@@ -75,12 +87,20 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var isReplyBarVisible = false
   var isQuestionDismissConfirmationPresented = false
   private(set) var isWorkspaceBusy = false
-  private(set) var workspaceRoots: WorkspaceRoots? { didSet { sidebarInputsChanged() } }
+  private(set) var workspaceRoots: WorkspaceRoots? {
+    didSet {
+      sidebarInputsChanged()
+      chatWorkspaceMayHaveChanged()
+    }
+  }
   private(set) var creatingWorkspaces: IdentifiedArrayOf<CreatingWorkspace> = [] { didSet { sidebarInputsChanged() } }
   private(set) var selectedCreationID: CreatingWorkspace.ID?
   private(set) var archiveTarget: SessionOption?
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
+  private var currentCapturesByFolder: [String: CaptureSummary] = [:]
   private(set) var sidebarGroups: [SidebarGroup] = []
+  /// Workspace folders whose main checkout was already looked up this run, found or not.
+  @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -151,7 +171,8 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var isReloadQueued = false
   @ObservationIgnored private var sessionsGeneration = 0
   @ObservationIgnored private var pendingPreferredRoot: String?
-  @ObservationIgnored private var archivedSessionIDs: Set<String> = []
+  /// Archived or removed from the sidebar here, so never selected automatically.
+  @ObservationIgnored private var dismissedSessionIDs: Set<String> = []
   @ObservationIgnored private var workspaceRootsTask: Task<Void, Never>?
   @ObservationIgnored private var workspaceRootsGeneration = 0
   @ObservationIgnored private var refreshGeneration = 0
@@ -182,6 +203,7 @@ final class ChangeStreamPageModel: ViewModel {
   let renameMenuText = "Rename…"
   let useAgentNameMenuText = "Use agent's name"
   let archiveMenuText = "Archive"
+  let removeFromSidebarMenuText = "Remove from sidebar"
   let archiveConfirmationTitle = "Archive this workspace?"
   let archiveConfirmText = "Archive"
   let cancelText = "Cancel"
@@ -324,7 +346,8 @@ final class ChangeStreamPageModel: ViewModel {
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
       if captureAvailability == .failed { return "The capture list didn't load. Press ⌘R to check again." }
-      return sidebarGroups.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
+      return sidebarGroups.allSatisfy(\.rows.isEmpty)
+        ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
@@ -438,6 +461,17 @@ final class ChangeStreamPageModel: ViewModel {
 
   func isHighlighted(_ session: SessionOption) -> Bool {
     session.id == hoveredRowID || session.id == focusedRowID
+  }
+
+  /// Archive deletes the folder, so it is offered only for workspaces the app made.
+  func isRemoveFromSidebarAvailable(_ session: SessionOption) -> Bool {
+    guard workspaceRoots != nil, let folder = session.root, recording.operation(for: folder) == nil else { return false }
+    return isOpened(session) && !isArchivable(session)
+  }
+
+  /// A repo with workspaces would come straight back, so only an empty remembered repo can go.
+  func isRemoveFromSidebarAvailable(_ group: SidebarGroup) -> Bool {
+    group.repository != nil && group.rows.isEmpty
   }
 
   func isArchiveIconShown(for session: SessionOption) -> Bool {
@@ -748,6 +782,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func reloadShortcutPressed() async {
+    prStatusBar.reloadRequested()
     await reloadSessions()
   }
 
@@ -844,6 +879,28 @@ final class ChangeStreamPageModel: ViewModel {
     pasteboard.copy(workspaceFailureDetail)
   }
 
+  /// Pauses first, so a folder off the sidebar never holds a recording slot. The folder stays on disk.
+  func removeFromSidebarTapped(_ session: SessionOption) async {
+    guard isRemoveFromSidebarAvailable(session), let folder = session.root else { return }
+    if mayRecord(folder) {
+      guard await recording.pauseTapped(folder: folder) else { return }
+    }
+    $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
+    dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id))
+    if selectedFolder == folder {
+      chat.workspaceChanged(folder: nil, emptyText: nil)
+      await terminals.workspaceChanged(folder: nil)
+      deselect()
+    }
+    sidebarInputsChanged()
+  }
+
+  func removeFromSidebarTapped(_ group: SidebarGroup) {
+    guard isRemoveFromSidebarAvailable(group), let name = group.repository else { return }
+    $sidebarRepositories.withLock { _ = $0.removeValue(forKey: name) }
+    sidebarInputsChanged()
+  }
+
   func archiveTapped(_ session: SessionOption) {
     archiveTarget = session
     isArchiveConfirmationPresented = true
@@ -876,12 +933,9 @@ final class ChangeStreamPageModel: ViewModel {
     }
     chat.forgetTabs(in: folder)
     await terminals.forgetTabs(in: folder)
-    archivedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
-    if selectedFolder == folder {
-      selectedSession = nil
-      resetFeed()
-      startWatching()
-    }
+    $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
+    dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
+    if selectedFolder == folder { deselect() }
     await loadSessions()
   }
 
@@ -1229,7 +1283,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func isRestorable(_ id: String) -> Bool {
-    guard let session = sessions[id: id], !archivedSessionIDs.contains(id) else { return false }
+    guard let session = sessions[id: id], !dismissedSessionIDs.contains(id) else { return false }
     return session.root != archivingFolder && isListed(session)
   }
 
@@ -1354,7 +1408,7 @@ final class ChangeStreamPageModel: ViewModel {
           route: askRoute(composer.sessionID))
       }
       if selectedSession == nil, !isCreatingWorkspaceSelected, sessions.count == 1,
-        !Self.isArchived(sessions[0]), !archivedSessionIDs.contains(sessions[0].id) {
+        !Self.isArchived(sessions[0]), !dismissedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
       if selectedSession == nil, !isCreatingWorkspaceSelected, let folder = chat.folder,
@@ -1432,15 +1486,18 @@ final class ChangeStreamPageModel: ViewModel {
     switch captureReply.result {
     case .success(let list?):
       captureAvailability = .available(checkedAt: captureReply.checkedAt)
+      currentCapturesByFolder = captureReply.currentByFolder
       listedCaptureSessionIDs = captureReply.listedSessionIDs
       chat.capturesArrived(captureReply.currentByFolder)
       return list.captures
     case .success(nil):
       captureAvailability = .unavailableFromReader
+      currentCapturesByFolder = [:]
       chat.capturesArrived(nil)
       return []
     case .failure:
       captureAvailability = .failed
+      currentCapturesByFolder = [:]
       chat.capturesArrived(nil)
       return []
     }
@@ -1689,23 +1746,74 @@ final class ChangeStreamPageModel: ViewModel {
     CaptureStatus(availability: captureAvailability, capture: session.capture)
   }
 
-  /// One row per folder, so a recreated folder's old capture is hidden. A row waits for its folder,
-  /// so it never shows under its id. Unknown capture state hides nothing else.
-  /// Only workspaces `slipstream workspace create` made keep a row while paused.
+  /// Only workspaces `slipstream workspace create` made and folders recorded here are listed, so chats
+  /// the daemon captures elsewhere (Conductor, a plain checkout) stay out of the sidebar unless
+  /// selected. A row waits for its folder, so it never shows under its id. One row per folder, so a
+  /// recreated folder's old capture is hidden. Unknown capture state hides nothing else.
   private func isListed(_ session: SessionOption) -> Bool {
     if session.id == selectedSession?.id { return true }
-    guard session.root != nil else { return false }
+    guard isArchivable(session) || isOpened(session) else { return false }
     let status = captureStatus(of: session)
     guard case .available = status.availability else { return true }
-    guard !status.isPaused || isArchivable(session) else { return false }
     return !status.isInactive && listedCaptureSessionIDs.contains(session.id)
+  }
+
+  private func isOpened(_ session: SessionOption) -> Bool {
+    session.root.map { openedFolders.contains(OpenedFolder(storeID: daemon.storeID, folder: $0)) } ?? false
+  }
+
+  /// Unknown state might be recording; so might a capture stopped for maintenance, which resumes on its own.
+  private func mayRecord(_ folder: String) -> Bool {
+    guard case .available = captureAvailability else { return true }
+    guard let capture = currentCapturesByFolder[folder] else { return false }
+    return capture.state != .stopped || capture.reason == "maintenance"
+  }
+
+  private func folderRecorded(_ folder: String) {
+    chat.recorded(folder: folder)
+    folderOpened(folder)
+  }
+
+  /// The Record may have landed, and the user asked for the folder either way.
+  private func recordOutcomeUnknown(_ folder: String) {
+    chat.recordOutcomeUnknown(folder: folder)
+    folderOpened(folder)
+  }
+
+  private func folderOpened(_ folder: String) {
+    $openedFolders.withLock { _ = $0.insert(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
+    sidebarInputsChanged()
+  }
+
+  private func deselect() {
+    selectedSession = nil
+    resetFeed()
+    startWatching()
   }
 
   private func sidebarInputsChanged() {
     var rows = sessions.filter(isListed)
     rows.append(contentsOf: creatingWorkspaces.map(\.row))
-    let groups = SidebarGroup.groups(rows, roots: workspaceRoots)
+    let groups = SidebarGroup.groups(rows, roots: workspaceRoots, repositories: sidebarRepositories)
     if groups != sidebarGroups { sidebarGroups = groups }
+    rememberRepositories(in: groups)
+  }
+
+  /// Looks up each repo group's main checkout once a run, so the group outlives its last workspace
+  /// and a moved checkout is followed while the repo still has one.
+  private func rememberRepositories(in groups: [SidebarGroup]) {
+    for group in groups {
+      guard let name = group.repository else { continue }
+      for row in group.rows {
+        guard let folder = row.root, lookedUpRepositoryFolders.insert(folder).inserted else { continue }
+        let workspace = workspace
+        Task { [weak self] in
+          guard let repository = await workspace.repository(URL(filePath: folder)), let self else { return }
+          $sidebarRepositories.withLock { $0[name] = Self.normalizedFolder(repository.path) }
+          sidebarInputsChanged()
+        }
+      }
+    }
   }
 
   /// A capture list with everything that touches the disk already worked out off the main actor.

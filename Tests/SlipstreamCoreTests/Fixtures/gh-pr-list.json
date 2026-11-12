@@ -1,0 +1,53 @@
+[
+  {
+    "baseRefName": "develop",
+    "headRefOid": "007da331c3b6f973700e4a35cb7eeb131dd20620",
+    "isCrossRepository": false,
+    "isDraft": false,
+    "mergeStateStatus": "UNKNOWN",
+    "mergeable": "UNKNOWN",
+    "number": 80,
+    "reviewDecision": "CHANGES_REQUESTED",
+    "state": "MERGED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-11T19:11:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/playola-radio/slipstream-client-swift/actions/runs/43083706363/job/130742532911",
+        "name": "test",
+        "startedAt": "2026-11-11T19:04:16Z",
+        "status": "COMPLETED",
+        "workflowName": "swift test"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-11T19:04:42Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/playola-radio/slipstream-client-swift/actions/runs/43083706363/job/130742533233",
+        "name": "release-tooling",
+        "startedAt": "2026-11-11T19:04:16Z",
+        "status": "COMPLETED",
+        "workflowName": "swift test"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-11T19:14:16Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://app.coderabbit.ai/change-stack/playola-radio/slipstream-client-swift/pull/80?scope=ghh_OusAJGA4HG8ljoOV0wJvVx8NmnZIjc2DdjmxOu0xZWA",
+        "name": "CodeRabbit",
+        "startedAt": "2026-11-11T19:12:08Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      },
+      {
+        "__typename": "StatusContext",
+        "context": "ci/legacy",
+        "state": "PENDING",
+        "targetUrl": "https://ci.example.com/builds/80",
+        "startedAt": "2026-11-11T19:12:08Z"
+      }
+    ],
+    "url": "https://github.com/playola-radio/slipstream-client-swift/pull/80"
+  }
+]

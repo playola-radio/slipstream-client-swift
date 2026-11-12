@@ -7,6 +7,10 @@ import Synchronization
 import Testing
 
 struct RuntimeInstallTests {
+  @Test func shellQuoteEscapesApostrophes() {
+    expectNoDifference(RuntimeInstall.shellQuoted("feature/it's-broken"), #"'feature/it'\''s-broken'"#)
+  }
+
   @Test func prepareCopiesAndCompares() throws {
     let sandbox = try Sandbox()
 

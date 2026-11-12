@@ -573,6 +573,139 @@ enum DesignTokens {
     }
   }
 
+  enum PRStatusBar {
+    static let height: CGFloat = 40
+    static let gap: CGFloat = 10
+    static let horizontalPadding: CGFloat = 16
+    static let stroke = Color(hex: 0x2A3640)
+    static let detailColor = Color(hex: 0x8B9AA6)
+
+    static func fill(_ tone: PRStatusTone) -> Color {
+      tone == .merged ? Color(hex: 0x1A1724) : Color(hex: 0x191F27)
+    }
+
+    enum Chip {
+      static let height: CGFloat = 22
+      static let cornerRadius: CGFloat = 4
+      static let gap: CGFloat = 5
+      static let horizontalPadding: CGFloat = 7
+      static let font = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+      static let arrowSize: CGFloat = 11
+
+      static func stroke(_ tone: PRStatusTone) -> Color {
+        tone == .merged ? Color(hex: 0x4B3A70) : Color(hex: 0x2A3640)
+      }
+
+      static func color(_ tone: PRStatusTone) -> Color {
+        tone == .merged ? Color(hex: 0xBC8CFF) : Color(hex: 0x8B9AA6)
+      }
+
+      static func arrow(_ tone: PRStatusTone) -> Icons.Icon {
+        Icons.Icon(assetName: "ArrowUpRight", size: arrowSize, color: color(tone))
+      }
+    }
+
+    enum Status {
+      static let gap: CGFloat = 6
+      static let iconSize: CGFloat = 13
+      static let labelFont = variableFont(family: geistFamily, size: 12.5, weight: 500)
+      static let detailFont = variableFont(family: geistFamily, size: 12.5, weight: 400)
+
+      static func color(_ tone: PRStatusTone) -> Color {
+        switch tone {
+        case .neutral: Color(hex: 0xE6EDF3)
+        case .muted: Color(hex: 0x8B9AA6)
+        case .success: Color(hex: 0x7EE787)
+        case .warning: Color(hex: 0xE4C282)
+        case .danger: Color(hex: 0xF0A4AB)
+        case .merged: Color(hex: 0xBC8CFF)
+        }
+      }
+
+      static func icon(named assetName: String, tone: PRStatusTone) -> Icons.Icon {
+        Icons.Icon(assetName: assetName, size: iconSize, color: color(tone))
+      }
+    }
+
+    enum Button {
+      struct Appearance {
+        let fill: Color
+        let stroke: Color?
+        let foreground: Color
+        let shortcut: Color
+
+        func icon(named assetName: String) -> Icons.Icon {
+          Icons.Icon(assetName: assetName, size: iconSize, color: foreground)
+        }
+      }
+
+      static let height: CGFloat = 24
+      static let cornerRadius: CGFloat = 5
+      static let horizontalPadding: CGFloat = 9
+      static let gap: CGFloat = 6
+      static let iconSize: CGFloat = 13
+      static let labelFont = variableFont(family: geistFamily, size: 12, weight: 500)
+      static let shortcutFont = variableFont(family: geistFamily, size: 11.5, weight: 400)
+      static let continueIconName = "GitBranchPlus"
+      static let archiveIconName = "Archive"
+      static let detailsIconName = "ChevronDown"
+
+      static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.5 }
+
+      static func appearance(_ button: PRBarButton) -> Appearance {
+        switch button {
+        case .createPR, .commitAndPush:
+          Appearance(
+            fill: Color(hex: 0x2B3540), stroke: nil, foreground: Color(hex: 0xE6EDF3), shortcut: Color(hex: 0x8B9AA6))
+        case .resolveConflicts:
+          Appearance(
+            fill: Color(hex: 0x3A3020), stroke: nil, foreground: Color(hex: 0xE4C282), shortcut: Color(hex: 0xE4C282))
+        case .fixErrors:
+          Appearance(
+            fill: Color(hex: 0x3A2226), stroke: nil, foreground: Color(hex: 0xF0A4AB), shortcut: Color(hex: 0xC98A90))
+        case .merge:
+          Appearance(
+            fill: Color(hex: 0x1E3A2A), stroke: Color(hex: 0x2F6B45), foreground: Color(hex: 0x8FE3A5),
+            shortcut: Color(hex: 0x6FB585))
+        }
+      }
+
+      static let continueAppearance = Appearance(
+        fill: Color(hex: 0x1E1A2B), stroke: Color(hex: 0x5B4690), foreground: Color(hex: 0xBC8CFF),
+        shortcut: Color(hex: 0xBC8CFF))
+      static let archiveAppearance = Appearance(
+        fill: Color(hex: 0x7C4FD6), stroke: nil, foreground: Color(hex: 0xFFFFFF), shortcut: Color(hex: 0xFFFFFF))
+      static let detailsAppearance = Appearance(
+        fill: Color(hex: 0x191F27), stroke: Color(hex: 0x2A3640), foreground: Color(hex: 0xB7C3CD),
+        shortcut: Color(hex: 0xB7C3CD))
+    }
+
+    enum Details {
+      static let width: CGFloat = 560
+      static let fill = Color(hex: 0x1C232B)
+      static let padding: CGFloat = 12
+      static let gap: CGFloat = 10
+      static let headerGap: CGFloat = 8
+      static let commandFont = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+      static let commandColor = Color(hex: 0x8B9AA6)
+      static let outputFont = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+      static let outputColor = Color(hex: 0xE6EDF3)
+      static let outputLineSpacing: CGFloat = 3
+      static let outputMaxHeight: CGFloat = 320
+
+      enum Copy {
+        static let height: CGFloat = 22
+        static let cornerRadius: CGFloat = 4
+        static let gap: CGFloat = 5
+        static let horizontalPadding: CGFloat = 7
+        static let stroke = Color(hex: 0x2F3B47)
+        static let font = variableFont(family: geistFamily, size: 11.5, weight: 400)
+        static let color = Color(hex: 0xB7C3CD)
+        static let icon = Icons.Icon(assetName: "Copy", size: 12, color: color)
+      }
+    }
+  }
+
   enum FileViewer {
     static let fill = Color(hex: 0x11171D)
     static let padding: CGFloat = 12
@@ -1075,6 +1208,19 @@ enum DesignTokens {
       static let horizontalPadding: CGFloat = 16
       static let radius: CGFloat = 8
       static let maxWidth: CGFloat = 520
+    }
+
+    enum Attachment {
+      static let height: CGFloat = 26
+      static let fill = Color(hex: 0x1A2129)
+      static let radius: CGFloat = 5
+      static let stroke = Color(hex: 0x33404C)
+      static let strokeWidth: CGFloat = 1
+      static let gap: CGFloat = 6
+      static let horizontalPadding: CGFloat = 9
+      static let icon = Icons.Icon(assetName: "FileText", size: 13, color: Color(hex: 0x8B9AA6))
+      static let nameFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let nameColor = Color(hex: 0xB7C3CD)
     }
 
     enum Relay {

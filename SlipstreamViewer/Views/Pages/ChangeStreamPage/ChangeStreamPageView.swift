@@ -179,6 +179,7 @@ struct ChangeStreamPageView: View {
 
   private var rightPane: some View {
     VStack(spacing: 0) {
+      PRStatusBarView(model: model.prStatusBar)
       rightPaneStrip
       if model.isStreamShown {
         feedPane

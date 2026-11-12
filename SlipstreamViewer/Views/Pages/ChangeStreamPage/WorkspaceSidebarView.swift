@@ -69,6 +69,11 @@ struct WorkspaceSidebarView: View {
     .padding(.leading, DesignTokens.Sidebar.groupHeaderLeadingPadding)
     .padding(.trailing, DesignTokens.Sidebar.groupHeaderTrailingPadding)
     .frame(height: DesignTokens.Sidebar.groupHeaderHeight)
+    .contextMenu {
+      if model.isRemoveFromSidebarAvailable(group) {
+        Button(model.removeFromSidebarMenuText, systemImage: "minus.circle") { model.removeFromSidebarTapped(group) }
+      }
+    }
   }
 
   private var footer: some View {
@@ -207,6 +212,12 @@ private struct WorkspaceRowView: View {
         Divider()
         Button(model.archiveMenuText, systemImage: "archivebox") { model.archiveTapped(session) }
           .disabled(model.isWorkspaceBusy)
+      }
+      if model.isRemoveFromSidebarAvailable(session) {
+        Divider()
+        Button(model.removeFromSidebarMenuText, systemImage: "minus.circle") {
+          Task { await model.removeFromSidebarTapped(session) }
+        }
       }
     }
   }
