@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.10] - 2026-11-12
+
+- New workspaces now name themselves within seconds of your first message, instead of
+  waiting for the agent to pick a name. Requires an up-to-date Slipstream daemon.
+
 ## [0.4.9] - 2026-11-12
 
 - A repository stays in the sidebar after its last workspace is archived, so its **+**
