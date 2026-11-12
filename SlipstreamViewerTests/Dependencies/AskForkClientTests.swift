@@ -29,11 +29,13 @@ struct AskForkClientTests {
 
   let agent = AgentFake()
   let clock = TestClock()
+  let logged = LockIsolated<[String]>([])
 
   func start(_ request: AskForkRequest = request) async -> Task<Result<AskForkResult, AskForkError>, Never> {
     let task = withDependencies {
       $0.agentProcess = agent.processClient
       $0.continuousClock = clock
+      $0.appLog.write = { [logged] level, category, message in logged.withValue { $0.append("\(level) [\(category)] \(message)") } }
     } operation: {
       Task { () -> Result<AskForkResult, AskForkError> in
         do throws(AskForkError) {
@@ -163,6 +165,40 @@ struct AskForkClientTests {
 
     let outcome = await run.value
     expectNoDifference(outcome, .failure(.unavailable("Claude Code exited with status 3.")))
+  }
+
+  @Test func failureIsLoggedInFull() async {
+    let run = await start()
+
+    await line(Self.isolatedInit)
+    await line(#"{"type":"result","subtype":"success","is_error":false,"num_turns":1,"session_id":"fork-1","result":"Hi."}"#)
+
+    _ = await run.value
+    expectNoDifference(
+      logged.value,
+      [
+        #"error [agent] question about chat 4bad416c-1d04-4063-9e76-61ebb936ae06 in /w failed: badReply("The reply had no structured answer (subtype success, turns 1). It said: Hi.")"#
+      ]
+    )
+  }
+
+  @Test func answerIsNotLogged() async {
+    let run = await start()
+
+    await line(Self.isolatedInit)
+    await line(Self.result)
+
+    _ = await run.value
+    expectNoDifference(logged.value, [])
+  }
+
+  @Test func cancellationIsNotLogged() async {
+    let run = await start()
+
+    run.cancel()
+
+    _ = await run.value
+    expectNoDifference(logged.value, [])
   }
 
   @Test func cleanExitBeforeResultIsBadReply() async {

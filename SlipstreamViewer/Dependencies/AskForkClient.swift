@@ -24,55 +24,68 @@ extension AskForkClient: DependencyKey {
 
   static var liveValue: Self {
     Self(run: { request throws(AskForkError) in
-      @Dependency(\.agentProcess) var agentProcess
-      @Dependency(\.continuousClock) var clock
-
-      let schema: String
-      switch request.kind {
-      case .answer(let allowsChangeRequests):
-        schema = AskPrompt.answerSchema(allowsChangeRequests: allowsChangeRequests)
-      case .report:
-        schema = AskPrompt.reportSchema
-      }
-      let credentials = try userCredentials(request.environment.configDirectory)
-      let handle: AgentProcessHandle
-      do {
-        handle = try await agentProcess.launch(
-          AgentLaunch(
-            executable: request.environment.claudePath,
-            arguments: ClaudeInvocation.forkArguments(
-              parentSessionID: request.parentSessionID, model: request.model,
-              effort: request.effort.rawValue, schema: schema, settings: credentials.settings),
-            environment: request.environment.variables.merging(credentials.environment) { $1 },
-            directory: request.folder
-          )
-        )
+      @Dependency(\.appLog) var log
+      do throws(AskForkError) {
+        return try await ask(request)
       } catch {
-        throw .unavailable(DiagnosticText.line("Claude Code couldn't start: \(reason(error))"))
-      }
-
-      let lastAPIError = LastAPIError()
-      let outcome = await withTaskGroup(of: Result<AskForkResult, AskForkError>.self) { group in
-        group.addTask { await converse(handle, request, lastAPIError) }
-        group.addTask { [clock] in
-          do {
-            try await clock.sleep(for: timeLimit)
-            return .failure(lastAPIError.timedOut)
-          } catch {
-            return .failure(.unavailable(cancelledDetail))
-          }
+        if error != .unavailable(cancelledDetail) {
+          log.error(
+            "agent", "question about chat \(request.parentSessionID.uuidString.lowercased()) in \(request.folder) failed: \(error)")
         }
-        let first = await group.next() ?? .failure(.unavailable(cancelledDetail))
-        // Before the group waits for the other task: a prompt write blocked on a full pipe only
-        // returns once the process is gone.
-        await handle.shutdown()
-        group.cancelAll()
-        return first
+        throw error
       }
-      // Cancelling also ends the event stream, so the reader can win the race with a misleading reason.
-      if Task.isCancelled { throw .unavailable(cancelledDetail) }
-      return try outcome.get()
     })
+  }
+
+  private static func ask(_ request: AskForkRequest) async throws(AskForkError) -> AskForkResult {
+    @Dependency(\.agentProcess) var agentProcess
+    @Dependency(\.continuousClock) var clock
+
+    let schema: String
+    switch request.kind {
+    case .answer(let allowsChangeRequests):
+      schema = AskPrompt.answerSchema(allowsChangeRequests: allowsChangeRequests)
+    case .report:
+      schema = AskPrompt.reportSchema
+    }
+    let credentials = try userCredentials(request.environment.configDirectory)
+    let handle: AgentProcessHandle
+    do {
+      handle = try await agentProcess.launch(
+        AgentLaunch(
+          executable: request.environment.claudePath,
+          arguments: ClaudeInvocation.forkArguments(
+            parentSessionID: request.parentSessionID, model: request.model,
+            effort: request.effort.rawValue, schema: schema, settings: credentials.settings),
+          environment: request.environment.variables.merging(credentials.environment) { $1 },
+          directory: request.folder
+        )
+      )
+    } catch {
+      throw .unavailable(DiagnosticText.line("Claude Code couldn't start: \(reason(error))"))
+    }
+
+    let lastAPIError = LastAPIError()
+    let outcome = await withTaskGroup(of: Result<AskForkResult, AskForkError>.self) { group in
+      group.addTask { await converse(handle, request, lastAPIError) }
+      group.addTask { [clock] in
+        do {
+          try await clock.sleep(for: timeLimit)
+          return .failure(lastAPIError.timedOut)
+        } catch {
+          return .failure(.unavailable(cancelledDetail))
+        }
+      }
+      let first = await group.next() ?? .failure(.unavailable(cancelledDetail))
+      // Before the group waits for the other task: a prompt write blocked on a full pipe only
+      // returns once the process is gone.
+      await handle.shutdown()
+      group.cancelAll()
+      return first
+    }
+    // Cancelling also ends the event stream, so the reader can win the race with a misleading reason.
+    if Task.isCancelled { throw .unavailable(cancelledDetail) }
+    return try outcome.get()
   }
 
   static var testValue: Self {
