@@ -80,8 +80,8 @@ The content above sits in a pill in the toolbar. Open In ends 12pt left of the r
 divider, or 12pt left of the pill when the pill reaches further left or the right panel is hidden
 (spec D17). As the
 window narrows the pill gives up room so the breadcrumb and Open In never go into the toolbar's
-"»" overflow menu: first the grey detail goes, then the buttons lose their titles and shortcuts
-(tooltips and VoiceOver labels stay). The PR number chip and the status label always stay. With no
+"»" overflow menu: first the grey detail goes, then the buttons hide their titles and displayed shortcut
+indicators (the shortcuts, tooltips, and VoiceOver labels stay). The PR number chip and the status label always stay. With no
 workspace selected, or when the feature doesn't apply (Nothing to submit, not a repo, fork), the
 pill is not shown. The pill looks the same with the right panel open or hidden.
 

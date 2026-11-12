@@ -468,23 +468,16 @@ struct ChangeStreamPageView: View {
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     ToolbarItem(placement: .navigation) {
-      Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") {
-        withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.sidebarToggleTapped() }
+      HStack(spacing: DesignTokens.WindowHeader.Breadcrumb.gap) {
+        sidebarToggle
+        breadcrumb
+        if model.isWorkspaceBusy {
+          ProgressView().controlSize(.small)
+        }
       }
-        .labelStyle(.iconOnly)
-        .font(.system(size: DesignTokens.WindowHeader.toggleSize))
-        .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
-        .help(model.sidebarToggleHelpText)
+      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.prStatusBar.navigationMeasured(width: $0) }
     }
     .withoutGlass()
-    ToolbarItem(placement: .navigation) { breadcrumb }
-      .withoutGlass()
-    if model.isWorkspaceBusy {
-      ToolbarItem(placement: .navigation) {
-        ProgressView().controlSize(.small)
-      }
-      .withoutGlass()
-    }
     if #available(macOS 26, *) {
       ToolbarSpacer(.flexible)
     }
@@ -533,6 +526,16 @@ struct ChangeStreamPageView: View {
     }
     .lineLimit(1)
     .accessibilityElement(children: .combine)
+  }
+
+  private var sidebarToggle: some View {
+    Button(model.sidebarToggleHelpText, systemImage: "sidebar.left") {
+      withAnimation(DesignTokens.Workspace.paneToggleAnimation) { model.sidebarToggleTapped() }
+    }
+    .labelStyle(.iconOnly)
+    .font(.system(size: DesignTokens.WindowHeader.toggleSize))
+    .foregroundStyle(DesignTokens.WindowHeader.toggleColor)
+    .help(model.sidebarToggleHelpText)
   }
 }
 

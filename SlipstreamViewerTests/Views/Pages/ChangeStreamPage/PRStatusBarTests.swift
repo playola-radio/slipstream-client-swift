@@ -816,6 +816,19 @@ struct PRStatusBarTests {
     expectNoDifference(model.layout, .withoutDetail)
   }
 
+  @Test func longNavigationLeavesLessRoom() {
+    let model = makeModel()
+    model.windowResized(width: Self.windowWidth(room: 400, openIn: 60))
+    model.openInMeasured(width: 60)
+    model.layoutMeasured(.full, width: 400)
+    model.layoutMeasured(.withoutDetail, width: 300)
+    expectNoDifference(model.layout, .full)
+
+    model.navigationMeasured(width: 500)
+
+    expectNoDifference(model.layout, .withoutDetail)
+  }
+
   func measureToolbar(_ model: PRStatusBarModel, room: CGFloat) {
     model.windowResized(width: Self.windowWidth(room: room, openIn: 60))
     model.openInMeasured(width: 60)

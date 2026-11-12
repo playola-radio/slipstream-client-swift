@@ -109,6 +109,7 @@ final class PRStatusBarModel: ViewModel {
   private var failedAction: FailedAction?
   private var refreshCount = 0
   private var windowWidth: CGFloat = 0
+  private var navigationWidth: CGFloat = 0
   private var openInWidth: CGFloat = 0
   private var layoutWidths: [Layout: CGFloat] = [:]
   /// Set by the owner: whether the selected workspace can be archived.
@@ -321,6 +322,10 @@ final class PRStatusBarModel: ViewModel {
     windowWidth = width
   }
 
+  func navigationMeasured(width: CGFloat) {
+    navigationWidth = width
+  }
+
   func openInMeasured(width: CGFloat) {
     openInWidth = width
   }
@@ -338,7 +343,9 @@ final class PRStatusBarModel: ViewModel {
 
   private var room: CGFloat {
     let header = DesignTokens.WindowHeader.self
-    return (windowWidth - openInWidth) / 2 - header.trailingChromeWidth - header.openInMargin
+    let centeredRoom = (windowWidth - openInWidth) / 2 - header.trailingChromeWidth - header.openInMargin
+    let availableRoom = windowWidth - navigationWidth - openInWidth - header.trailingChromeWidth - header.openInMargin
+    return min(centeredRoom, availableRoom)
   }
 
   private var appearance: (label: String, detail: String?, iconName: String?, tone: PRStatusTone) {
