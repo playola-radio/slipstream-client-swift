@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.18] - 2026-11-12
+
+- Questions asked in a chat's question thread now get answered when Claude Code signs in
+  through its settings file, such as a company gateway or a credential helper. When Claude Code
+  can't reach its API, the error now names the failure instead of only saying no reply came.
+
 ## [0.4.17] - 2026-11-12
 
 - Slipstream now keeps its own log at `~/Library/Logs/slipstream/app.log`, next to the
