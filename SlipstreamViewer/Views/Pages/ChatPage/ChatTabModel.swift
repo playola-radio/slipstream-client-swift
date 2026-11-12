@@ -53,6 +53,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
   @ObservationIgnored var onReadinessChanged: () -> Void = {}
+  /// Called with the user's own text after each message the agent accepted, never for slash commands.
+  @ObservationIgnored var onMessageSent: (String) -> Void = { _ in }
   /// Called once per relay, when the agent reads it or its process ends first.
   @ObservationIgnored var onRelayDelivery: (RelayDelivery) -> Void = { _ in }
   /// Whether the folder's stream is linked to this chat, as the last capture read saw it.
@@ -612,6 +614,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       projection.removeUserMessage(id: id.uuidString)
       throw error
     }
+    if !text.hasPrefix("/") { onMessageSent(text) }
   }
 
   /// Tracked, so a shutdown can wait for a launch that is still on its way. The generation is

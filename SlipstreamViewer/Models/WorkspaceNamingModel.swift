@@ -2,8 +2,9 @@ import Dependencies
 import Foundation
 import SlipstreamCore
 
-/// Owns every workspace-name write: the Rename dialog and "Use agent's name". One write runs at a
-/// time, every write refreshes the list (a lost reply may still have saved), and none is resent.
+/// Owns every workspace-name write: the Rename dialog, "Use agent's name", and the first-message
+/// suggestion. One dialog write runs at a time, every write refreshes the list (a lost reply may
+/// still have saved), and none is resent.
 @MainActor
 @Observable
 final class WorkspaceNamingModel: ViewModel {
@@ -33,6 +34,8 @@ final class WorkspaceNamingModel: ViewModel {
 
   @ObservationIgnored @Dependency(\.workspaceName) var workspaceName
   @ObservationIgnored @Dependency(\.pasteboard) var pasteboard
+  @ObservationIgnored @Dependency(\.workspaceNameSuggestion) var workspaceNameSuggestion
+  @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
 
   // MARK: - Properties
 
@@ -45,6 +48,7 @@ final class WorkspaceNamingModel: ViewModel {
 
   private(set) var dialog: Dialog?
   private(set) var activeMutation: Mutation?
+  @ObservationIgnored private var attemptedSessionIDs: Set<String> = []
 
   // MARK: - Display Text
 
@@ -177,6 +181,17 @@ final class WorkspaceNamingModel: ViewModel {
     }
     await onWriteFinished()
     if activeMutation == mutation { activeMutation = nil }
+  }
+
+  /// Suggests a name for a session whose first message just went out, once per session for the
+  /// life of the app. It never shows a failure or retries, and leaves the Rename dialog alone.
+  func messageSent(sessionID: String, text: String) async {
+    guard attemptedSessionIDs.insert(sessionID).inserted else { return }
+    guard let environment = try? await agentEnvironment.resolve(),
+      let name = try? await workspaceNameSuggestion.suggest(text, environment)
+    else { return }
+    _ = try? await workspaceName.setAgentName(sessionID, name)
+    await onWriteFinished()
   }
 
   func copyErrorTapped() {

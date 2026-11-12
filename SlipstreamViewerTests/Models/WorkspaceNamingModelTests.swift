@@ -15,6 +15,8 @@ struct WorkspaceNamingModelTests {
   nonisolated static let otherSession = "1b2c3d4e-2222-4c55-9a7e-2f4b8c9d0e1b"
 
   let nameFake = WorkspaceNameFake()
+  let suggestionFake = WorkspaceNameSuggestionFake()
+  let agent = AgentFake()
   let refreshes = LockIsolated(0)
   let clearFailures = LockIsolated<[String]>([])
   let copied = LockIsolated<[String]>([])
@@ -22,6 +24,8 @@ struct WorkspaceNamingModelTests {
   func makeModel() -> WorkspaceNamingModel {
     withDependencies {
       $0.workspaceName = nameFake.client
+      $0.workspaceNameSuggestion = suggestionFake.client
+      $0.agentEnvironment = agent.environmentClient
       $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
     } operation: {
       let model = WorkspaceNamingModel()
@@ -291,5 +295,107 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(
       nameFake.calls, [.init(sessionID: Self.session, name: nil), .init(sessionID: Self.otherSession, name: "Other")])
+  }
+
+  @Test func firstMessageStoresTheSuggestedNameAsTheAgentsNameAndRefreshes() async {
+    let model = makeModel()
+
+    await model.messageSent(sessionID: Self.session, text: "Slow down the sidebar polling")
+
+    expectNoDifference(suggestionFake.messages, ["Slow down the sidebar polling"])
+    expectNoDifference(
+      nameFake.calls, [.init(sessionID: Self.session, name: "Sidebar Polling Backoff", isAgentName: true)])
+    expectNoDifference(refreshes.value, 1)
+    expectNoDifference(clearFailures.value, [])
+  }
+
+  @Test func eachSessionIsSuggestedForOnlyOnce() async {
+    let model = makeModel()
+
+    await model.messageSent(sessionID: Self.session, text: "First")
+    await model.messageSent(sessionID: Self.session, text: "Second")
+    await model.messageSent(sessionID: Self.otherSession, text: "Third")
+
+    expectNoDifference(suggestionFake.messages, ["First", "Third"])
+    expectNoDifference(nameFake.calls.map(\.sessionID), [Self.session, Self.otherSession])
+  }
+
+  @Test func aMessageWhileTheSuggestionIsRunningDoesNotStartAnother() async {
+    let model = makeModel()
+    agent.hold(.environment)
+
+    let first = Task { await model.messageSent(sessionID: Self.session, text: "First") }
+    await Task.megaYield()
+    await model.messageSent(sessionID: Self.session, text: "Second")
+    agent.release(.environment)
+    await first.value
+
+    expectNoDifference(suggestionFake.messages, ["First"])
+  }
+
+  @Test func failedSuggestionWritesNothingAndDoesNotRefresh() async {
+    let model = makeModel()
+    suggestionFake.setFails()
+
+    await model.messageSent(sessionID: Self.session, text: "First")
+
+    expectNoDifference(nameFake.calls, [])
+    expectNoDifference(refreshes.value, 0)
+    expectNoDifference(clearFailures.value, [])
+  }
+
+  @Test func failedSuggestionIsNotRetriedOnTheNextMessage() async {
+    let model = makeModel()
+    suggestionFake.setFails()
+    await model.messageSent(sessionID: Self.session, text: "First")
+
+    await model.messageSent(sessionID: Self.session, text: "Second")
+
+    expectNoDifference(suggestionFake.messages, ["First"])
+  }
+
+  @Test func unresolvedEnvironmentSuggestsNothing() async {
+    let model = makeModel()
+    agent.setEnvironmentError(.claudeNotFound)
+
+    await model.messageSent(sessionID: Self.session, text: "First")
+
+    expectNoDifference(suggestionFake.messages, [])
+    expectNoDifference(nameFake.calls, [])
+    expectNoDifference(refreshes.value, 0)
+  }
+
+  @Test(arguments: [
+    QuestionError.outcomeUnknown, .unavailable, .rejected(code: "PROTOCOL", message: "unknown verb: name_session"),
+  ])
+  func failedWriteStillRefreshesAndShowsNothing(error: QuestionError) async {
+    let model = makeModel()
+    nameFake.setFailure(error)
+
+    await model.messageSent(sessionID: Self.session, text: "First")
+
+    expectNoDifference(nameFake.calls.count, 1)
+    expectNoDifference(refreshes.value, 1)
+    expectNoDifference(clearFailures.value, [])
+    expectNoDifference(model.dialog, nil)
+  }
+
+  @Test func suggestionWriteLeavesAnOpenRenameDialogAlone() async {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
+    model.draftChanged("My own name")
+    nameFake.hold()
+
+    let suggestion = Task { await model.messageSent(sessionID: Self.session, text: "First") }
+    await Task.megaYield()
+
+    expectNoDifference(
+      model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "My own name", phase: .editing))
+    expectNoDifference([model.isMutationInFlight, model.isRenameEnabled], [false, true])
+
+    nameFake.release()
+    await suggestion.value
+    expectNoDifference(
+      model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "My own name", phase: .editing))
   }
 }
