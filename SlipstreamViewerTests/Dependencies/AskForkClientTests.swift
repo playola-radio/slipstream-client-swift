@@ -30,14 +30,14 @@ struct AskForkClientTests {
   let agent = AgentFake()
   let clock = TestClock()
 
-  func start() async -> Task<Result<AskForkResult, AskForkError>, Never> {
+  func start(_ request: AskForkRequest = request) async -> Task<Result<AskForkResult, AskForkError>, Never> {
     let task = withDependencies {
       $0.agentProcess = agent.processClient
       $0.continuousClock = clock
     } operation: {
       Task { () -> Result<AskForkResult, AskForkError> in
         do throws(AskForkError) {
-          return .success(try await AskForkClient.liveValue.run(Self.request))
+          return .success(try await AskForkClient.liveValue.run(request))
         } catch {
           return .failure(error)
         }
@@ -256,6 +256,70 @@ struct AskForkClientTests {
     let outcome = await run.value
     expectNoDifference(outcome, .failure(.timedOut))
     #expect(agent.shutdowns(0) == 1)
+  }
+
+  @Test func overTimeLimitAfterAPIRetriesNamesTheLastError() async {
+    let run = await start()
+    await line(Self.isolatedInit)
+    await line(#"{"type":"system","subtype":"api_retry","attempt":1,"error_status":401,"error":"authentication_failed"}"#)
+
+    await clock.advance(by: .seconds(120))
+
+    let outcome = await run.value
+    expectNoDifference(
+      outcome,
+      .failure(
+        .unavailable("Claude Code didn't answer within 120 seconds. Its last API call failed: 401 authentication_failed."))
+    )
+  }
+
+  @Test func launchesWithCredentialsFromUserSettings() async throws {
+    let directory = try Self.configDirectory(
+      #"{"env":{"CLAUDE_CODE_USE_BEDROCK":"1","PATH":"/corp/bin","HOME":"/corp"},"apiKeyHelper":"/opt/bin/key","hooks":{}}"#)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    var environment = AgentFake.environment
+    environment.configDirectory = directory
+    let run = await start(Self.request(environment))
+
+    expectNoDifference(
+      agent.launches.first?.environment, ["PATH": "/opt/claude/bin:/usr/bin", "CLAUDE_CODE_USE_BEDROCK": "1"])
+    expectNoDifference(
+      agent.launches.first?.arguments.suffix(2),
+      ["--settings", #"{"apiKeyHelper":"/opt/bin/key","env":{"HOME":"/corp","PATH":"/corp/bin"}}"#]
+    )
+    run.cancel()
+    _ = await run.value
+  }
+
+  @Test func malformedUserSettingsDoesNotLaunch() async throws {
+    let directory = try Self.configDirectory(#"{"apiKeyHelper":true}"#)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    var environment = AgentFake.environment
+    environment.configDirectory = directory
+    let run = await start(Self.request(environment))
+
+    let outcome = await run.value
+    expectNoDifference(
+      outcome,
+      .failure(
+        .unavailable(
+          "Claude Code's settings file \(directory.appending(path: "settings.json").path) couldn't be used: its apiKeyHelper isn't text."
+        ))
+    )
+    expectNoDifference(agent.launches, [])
+  }
+
+  nonisolated static func request(_ environment: AgentEnvironment) -> AskForkRequest {
+    AskForkRequest(
+      parentSessionID: parent, folder: "/w", environment: environment, model: "claude-opus-5-5", effort: .high,
+      prompt: "What does this do?", kind: .answer(allowsChangeRequests: false))
+  }
+
+  static func configDirectory(_ settings: String) throws -> URL {
+    let directory = FileManager.default.temporaryDirectory.appending(path: "AskForkClientTests-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data(settings.utf8).write(to: directory.appending(path: "settings.json"))
+    return directory
   }
 
   @Test func blockedPromptWriteStillShutsDownAtTimeLimit() async {
