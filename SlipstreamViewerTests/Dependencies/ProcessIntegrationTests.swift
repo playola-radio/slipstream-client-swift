@@ -1,6 +1,7 @@
 import ConcurrencyExtras
 import CustomDump
 import Darwin
+import Dependencies
 import Foundation
 import Testing
 
@@ -53,6 +54,53 @@ struct ProcessIntegrationTests {
     #expect(status == 3)
     #expect(stderrTail.utf8.count == 4096)
     #expect(stderrTail.hasSuffix("filler line 099, enough of them to push stderr past four kilobytes\nlast words\n"))
+  }
+
+  @Test func stderrIsLoggedOneWholeLineAtATime() async throws {
+    let logged = LockIsolated<[String]>([])
+    let handle = try await withDependencies {
+      $0.appLog.write = { _, _, message in logged.withValue { $0.append(message) } }
+    } operation: {
+      try await launchFake("stderr-then-exit")
+    }
+
+    _ = try await collect(handle.events, until: \.isExit)
+    await handle.shutdown()
+
+    let stderr = logged.value.filter { $0.contains(" stderr: ") }
+    #expect(!stderr.isEmpty)
+    #expect(stderr.allSatisfy { $0.hasSuffix("\n") })
+    #expect(stderr.last?.hasSuffix("last words\n") == true)
+  }
+
+  @Test func stderrSplitAcrossExitIsNotLogged() async throws {
+    let logged = LockIsolated<[String]>([])
+    let handle = try await withDependencies {
+      $0.appLog.write = { _, _, message in logged.withValue { $0.append(message) } }
+    } operation: {
+      try await launchFake("split-token-after-exit")
+    }
+
+    _ = try await collect(handle.events, until: \.isExit)
+    await handle.shutdown()
+
+    #expect(!logged.value.contains { $0.contains("abcdefghijklmnopqrstuvwxyz012345") })
+  }
+
+  @Test func dropsAnOverlongCompletedStderrLine() async throws {
+    let logged = LockIsolated<[String]>([])
+    let handle = try await withDependencies {
+      $0.appLog.write = { _, _, message in logged.withValue { $0.append(message) } }
+    } operation: {
+      try await launchFake("overlong-stderr-line")
+    }
+
+    _ = try await collect(handle.events, until: \.isExit)
+    await handle.shutdown()
+
+    #expect(logged.value.contains { $0.contains("<dropped a line longer than") })
+    #expect(logged.value.contains { $0.hasSuffix("valid line\n") })
+    #expect(!logged.value.contains { $0.contains(String(repeating: "x", count: 100)) })
   }
 
   @Test func shutdownEscalatesToKill() async throws {

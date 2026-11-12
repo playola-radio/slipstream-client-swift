@@ -8,25 +8,9 @@ struct Evidence: Equatable, Sendable {
   let text: String
 
   init(source: String, text: String) {
-    self.source = Self.redacted(source)
-    self.text = Self.redacted(text)
+    self.source = Redaction.redacted(source)
+    self.text = Redaction.redacted(text)
   }
-
-  private static func redacted(_ text: String) -> String {
-    redactions.reduce(text) { text, redaction in
-      redaction.pattern.stringByReplacingMatches(
-        in: text, range: NSRange(text.startIndex..., in: text), withTemplate: redaction.template)
-    }
-  }
-
-  private static let redactions: [(pattern: NSRegularExpression, template: String)] = [
-    (try! NSRegularExpression(pattern: #"("token"\s*:\s*)"(?:[^"\\]|\\.)*""#), #"$1"<redacted>""#),
-    (
-      try! NSRegularExpression(
-        pattern: #"(token\\*["']?\s*[:=]?\s*\\*["']?|Bearer\s+)[A-Za-z0-9_\-]{32,}"#, options: .caseInsensitive),
-      "$1<redacted>"
-    ),
-  ]
 }
 
 enum RecorderState: Equatable {
@@ -70,6 +54,7 @@ final class RecorderModel: ViewModel {
   @ObservationIgnored @Dependency(\.daemon) var daemon
   @ObservationIgnored @Dependency(\.recorderService) var service
   @ObservationIgnored @Dependency(\.runtimeInstall) var runtimeInstall
+  @ObservationIgnored @Dependency(\.appLog) var appLog
 
   // MARK: - Initialization
 
@@ -174,7 +159,29 @@ final class RecorderModel: ViewModel {
   private func publish(_ state: RecorderState, _ mine: Int) {
     guard isCurrent(mine) else { return }
     replaceTarget = nil
+    if state != self.state { log(state) }
     self.state = state
+  }
+
+  private func log(_ state: RecorderState) {
+    switch state {
+    case .starting: appLog.info("recorder", "starting")
+    case .running: appLog.info("recorder", "running")
+    case .restarting: appLog.info("recorder", "restarting")
+    case .external: appLog.info("recorder", "external")
+    case .updateDidntFinish(_, _, let failure, let evidence):
+      logFailure("updateDidntFinish: \(failure)", evidence)
+    case .anotherRecorder(let pid, _, _, let evidence):
+      logFailure("anotherRecorder: pid \(pid)", evidence)
+    case .wontStart(_, let failure, let evidence):
+      logFailure("wontStart: \(failure)", evidence)
+    case .migrationIncomplete(_, let failure, let evidence):
+      logFailure("migrationIncomplete: \(failure)", evidence)
+    }
+  }
+
+  private func logFailure(_ summary: String, _ evidence: Evidence) {
+    appLog.error("recorder", "\(summary)\n\(evidence.source)\n\(evidence.text)")
   }
 
   private func launch(_ mine: Int) async {

@@ -94,6 +94,15 @@ variable fonts (`Resources/Fonts`, SIL OFL).
   disposable daemon (`npm run qa:daemon` in the daemon repo).
 - Never print or persist the daemon bearer token. No Keychain; credentials live in memory.
 
+## Logs
+
+- The app writes `~/Library/Logs/slipstream/app.log` (rotates to `app.log.1` at 10 MB); debug builds
+  write `app-debug.log` instead. The daemon's log is `~/Library/Logs/slipstream/daemon.log`. `tail -F`
+  or `grep` them to diagnose a problem after the fact.
+- Categories: `app`, `daemon`, `follow`, `agent`, `recorder`, `terminal`, `issue`.
+- Log through `@Dependency(\.appLog)`. Log full errors (`"\(error)"`, stderr, exit codes), never just
+  `localizedDescription`. Never log the daemon token, launch environments or agent argument arrays.
+
 ## Changelog
 
 Never edit `CHANGELOG.md` in a pull request. A user-visible change adds one new file,

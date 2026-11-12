@@ -24,19 +24,33 @@ extension DaemonClient: DependencyKey {
     return DaemonClient(
       storeID: store.standardizedFileURL.path,
       discover: { try DescriptorDiscovery.discover(store: store) },
-      sessions: { try await transport.sessions($0) },
-      listCaptures: { try await transport.captures($0) },
+      sessions: { descriptor in
+        try await logged("sessions") { try await transport.sessions(descriptor) }
+      },
+      listCaptures: { descriptor in
+        try await logged("listCaptures") { try await transport.captures(descriptor) }
+      },
       sessionStart: { descriptor, sessionID in
-        guard case .sessionStarted(let start) = try await transport.firstEvent(descriptor, sessionID: sessionID)?.payload
-        else { return nil }
-        return start
+        try await logged("sessionStart \(sessionID)") {
+          guard case .sessionStarted(let start) = try await transport.firstEvent(descriptor, sessionID: sessionID)?.payload
+          else { return nil }
+          return start
+        }
       },
       follow: { transport.follow($0, sessionID: $1, after: $2) },
-      clips: { try await transport.clips($0, sessionID: $1, seq: $2) },
-      interfaces: { try await transport.interfaces(
-        $0, sessionID: $1, before: $2, after: $3,
-        pathPrefix: $4, afterPath: $5, includeIdentical: $6) },
-      blob: { try await transport.blob($0, sha256: $1) }
+      clips: { descriptor, sessionID, seq in
+        try await logged("clips \(sessionID)") { try await transport.clips(descriptor, sessionID: sessionID, seq: seq) }
+      },
+      interfaces: { descriptor, sessionID, before, after, pathPrefix, afterPath, includeIdentical in
+        try await logged("interfaces \(sessionID)") {
+          try await transport.interfaces(
+            descriptor, sessionID: sessionID, before: before, after: after,
+            pathPrefix: pathPrefix, afterPath: afterPath, includeIdentical: includeIdentical)
+        }
+      },
+      blob: { descriptor, sha256 in
+        try await logged("blob \(sha256)") { try await transport.blob(descriptor, sha256: sha256) }
+      }
     )
   }
 
@@ -52,6 +66,18 @@ extension DaemonClient: DependencyKey {
       interfaces: unimplemented("DaemonClient.interfaces"),
       blob: unimplemented("DaemonClient.blob")
     )
+  }
+}
+
+private func logged<T: Sendable>(_ operation: String, _ body: () async throws -> T) async throws -> T {
+  do {
+    return try await body()
+  } catch {
+    if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
+      @Dependency(\.appLog) var appLog
+      appLog.error("daemon", "\(operation) failed: \(error)")
+    }
+    throw error
   }
 }
 

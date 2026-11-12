@@ -10,6 +10,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.agentProcess) var agentProcess
+  @ObservationIgnored @Dependency(\.appLog) var appLog
   @ObservationIgnored @Dependency(\.attachments) var attachments
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
@@ -829,6 +830,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     do {
       environment = try await agentEnvironment.resolve()
     } catch {
+      appLog.error("agent", "chat \(id) in \(record.folder): resolving the agent environment failed: \(error)")
       throw Failure(
         message: (error as? AgentEnvironmentError)?.message
           ?? "\(Self.cantStartText): \(String(describing: error))")
@@ -836,6 +838,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     do {
       return (environment, try await transcripts.load(environment.configDirectory, id))
     } catch {
+      appLog.error("agent", "chat \(id) in \(record.folder): reading the transcript failed: \(error)")
       throw Failure(message: Self.unreadableText)
     }
   }
@@ -889,7 +892,10 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .result(let durationMs, let isError, let text):
       guard let turn = activeTurn else { return }
       let ending: TurnEnding = turn.isStopPressed ? .stopped : isError ? .failed : .completed
-      if ending == .failed { errorText = text ?? Self.turnFailedText }
+      if ending == .failed {
+        errorText = text ?? Self.turnFailedText
+        appLog.error("agent", "chat \(id) in \(record.folder): turn failed: \(text ?? "no result text")")
+      }
       endTurn(ending, duration: .milliseconds(durationMs))
     case .controlRequest(let requestID, let subtype, let input):
       // Not awaited, so a full stdin pipe can't stall the lines behind this one.
@@ -915,6 +921,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     } else if let turn = activeTurn {
       let tail = stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
       errorText = tail.isEmpty ? Self.crashedText : "\(Self.crashedText)\n\(tail)"
+      appLog.error("agent", "chat \(id) in \(record.folder): agent exited mid-turn")
       endTurn(.failed, duration: duration(of: turn))
     }
   }

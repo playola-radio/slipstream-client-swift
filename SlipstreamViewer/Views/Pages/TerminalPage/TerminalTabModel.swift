@@ -12,6 +12,7 @@ final class TerminalTabModel: ViewModel, Identifiable {
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.terminalHistory) var history
   @ObservationIgnored @Dependency(\.terminalRuntime) var runtime
+  @ObservationIgnored @Dependency(\.appLog) var appLog
 
   // MARK: - Shared State
 
@@ -140,6 +141,7 @@ final class TerminalTabModel: ViewModel, Identifiable {
       }
     } catch {
       guard !isStopped else { return nil }
+      appLog.error("terminal", "setup could not start: \(error)")
       await setupCouldNotStart((error as? TerminalLaunchError)?.text ?? error.localizedDescription)
       return nil
     }
@@ -197,6 +199,7 @@ final class TerminalTabModel: ViewModel, Identifiable {
       follow(handle)
     } catch {
       guard !isStopped else { return }
+      appLog.error("terminal", "shell in \(folder) could not start: \(error)")
       write(note: (error as? TerminalLaunchError)?.text ?? error.localizedDescription)
     }
   }
@@ -253,6 +256,11 @@ final class TerminalTabModel: ViewModel, Identifiable {
       case .exited(let code): .failed(exitStatus: code)
       case .signalled(let signal): .failed(exitStatus: 128 + signal)
       }
+    if case .failed(let exitStatus) = status {
+      appLog.error(
+        "terminal",
+        "setup in \(state.tabs[id: id]?.folder ?? "?") failed: exit \(exitStatus.map(String.init) ?? "?")")
+    }
     await setupEnded(status)
   }
 

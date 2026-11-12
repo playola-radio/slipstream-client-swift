@@ -1,3 +1,4 @@
+import Dependencies
 import IssueReporting
 import SwiftUI
 
@@ -25,6 +26,8 @@ struct SlipstreamViewerApp: App {
     _terminals = State(initialValue: terminals)
     _recorder = State(initialValue: recorder)
     guard !isTesting else { return }
+    IssueReporters.current += [AppLogIssueReporter()]
+    Self.logLaunch()
     let functionChangesDemo = Self.functionChangesDemo()
     _functionChangesDemo = State(initialValue: functionChangesDemo)
     _page = State(initialValue: ChangeStreamPageModel(
@@ -69,6 +72,18 @@ struct SlipstreamViewerApp: App {
   }
 
   private static let windowID = "main"
+
+  private static func logLaunch() {
+    @Dependency(\.appLog) var appLog
+    @Dependency(\.daemon) var daemon
+    let info = Bundle.main.infoDictionary
+    let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+    let build = info?["CFBundleVersion"] as? String ?? "?"
+    let storeOverride = ProcessInfo.processInfo.environment["SLIPSTREAM_STORE"] != nil ? " (SLIPSTREAM_STORE override)" : ""
+    appLog.info(
+      "app",
+      "launched Slipstream \(version) (\(build)) pid \(ProcessInfo.processInfo.processIdentifier) store \(daemon.storeID)\(storeOverride)")
+  }
 
   private static func functionChangesDemo() -> FunctionChangesFixtureModel? {
     guard let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--function-changes-fixture=") })

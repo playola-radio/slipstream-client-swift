@@ -1,4 +1,5 @@
 import AppKit
+import Dependencies
 
 /// Quitting, or closing the window, stops every agent and terminal and the recorder's start-up work first, and asks only
 /// when an agent is mid-turn.
@@ -11,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var naming: WorkspaceNamingModel?
   var updater: UpdaterModel?
   var reopenWindow: () -> Void = {}
+  @Dependency(\.appLog) private var appLog
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     true
@@ -18,7 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     if updater?.quitRequested() == .updateRelaunches { return .terminateCancel }
-    guard let chat else { return .terminateNow }
+    guard let chat else {
+      appLog.info("app", "quitting")
+      appLog.drain()
+      return .terminateNow
+    }
     if let quitAlertText = chat.quitAlertText {
       let alert = NSAlert()
       alert.messageText = chat.quitAlertTitle
@@ -31,7 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateCancel
       }
     }
+    appLog.info("app", "quitting")
     recorder?.quitConfirmed()
+    let appLog = appLog
     let instantAsk = instantAsk
     let terminals = terminals
     let naming = naming
@@ -41,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       async let terminalsStopped: Void? = terminals?.quitConfirmed()
       async let namingStopped: Void? = naming?.quitConfirmed()
       _ = await (chatStopped, copiesStopped, terminalsStopped, namingStopped)
+      appLog.drain()
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater
