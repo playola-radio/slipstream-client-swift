@@ -86,22 +86,84 @@ struct ChatPageView: View {
   }
 
   private var messageBox: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      TextField(
-        "", text: $model.draft,
-        prompt: Text(model.placeholderText)
-          .foregroundStyle(DesignTokens.Chat.MessageBox.placeholderColor(isEnabled: model.isMessageBoxEnabled)),
-        axis: .vertical
-      )
-      .textFieldStyle(.plain)
-      .font(DesignTokens.Chat.MessageBox.font)
-      .foregroundStyle(DesignTokens.Chat.MessageBox.color)
-      .onSubmit { Task { await model.sendTapped() } }
-      .onKeyPress(.return, phases: .down) { press in
-        guard press.modifiers.contains(.shift) else { return .ignored }
-        NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
-        return .handled
+    VStack(alignment: .leading, spacing: DesignTokens.Chat.MessageBox.gap) {
+      if let attachErrorTitle = model.attachErrorTitle {
+        attachErrorBanner(attachErrorTitle)
       }
+      messageBoxContent
+    }
+    .padding(.top, DesignTokens.Chat.MessageBox.topPadding)
+    .padding(.horizontal, DesignTokens.Chat.MessageBox.horizontalPadding)
+    .padding(.bottom, DesignTokens.Chat.MessageBox.bottomPadding)
+    .background(DesignTokens.Chat.MessageBox.fill(isDropTargeted: model.isDropTargeted),
+      in: RoundedRectangle(cornerRadius: DesignTokens.Chat.MessageBox.radius))
+    .overlay {
+      RoundedRectangle(cornerRadius: DesignTokens.Chat.MessageBox.radius)
+        .strokeBorder(DesignTokens.Chat.MessageBox.stroke(isDropTargeted: model.isDropTargeted),
+          lineWidth: DesignTokens.Chat.MessageBox.strokeWidth(isDropTargeted: model.isDropTargeted))
+    }
+    .opacity(DesignTokens.Chat.MessageBox.opacity(isEnabled: model.isMessageBoxEnabled))
+    .disabled(!model.isMessageBoxEnabled)
+    .padding(.horizontal, DesignTokens.Chat.MessageBox.areaHorizontalPadding)
+    .padding(.bottom, DesignTokens.Chat.MessageBox.areaBottomPadding)
+  }
+
+  private func attachErrorBanner(_ title: String) -> some View {
+    HStack(alignment: .top, spacing: DesignTokens.Chat.MessageBox.AttachError.gap) {
+      IconView(icon: DesignTokens.Chat.MessageBox.AttachError.icon)
+      VStack(alignment: .leading, spacing: DesignTokens.Chat.MessageBox.AttachError.textGap) {
+        Text(title)
+          .font(DesignTokens.Chat.MessageBox.AttachError.titleFont)
+          .foregroundStyle(DesignTokens.Chat.MessageBox.AttachError.titleColor)
+        if let attachErrorDetail = model.attachErrorDetail {
+          Text(attachErrorDetail)
+            .font(DesignTokens.Chat.MessageBox.AttachError.detailFont)
+            .foregroundStyle(DesignTokens.Chat.MessageBox.AttachError.detailColor)
+            .lineSpacing(DesignTokens.Chat.MessageBox.AttachError.detailLineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+      .textSelection(.enabled)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      Button { model.attachErrorDismissed() } label: {
+        IconView(icon: DesignTokens.Chat.MessageBox.AttachError.dismissIcon)
+          .frame(
+            width: DesignTokens.Chat.MessageBox.AttachError.dismissSize,
+            height: DesignTokens.Chat.MessageBox.AttachError.dismissSize)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(model.attachErrorDismissText)
+    }
+    .padding(.vertical, DesignTokens.Chat.MessageBox.AttachError.verticalPadding)
+    .padding(.horizontal, DesignTokens.Chat.MessageBox.AttachError.horizontalPadding)
+    .background(DesignTokens.Chat.MessageBox.AttachError.fill,
+      in: RoundedRectangle(cornerRadius: DesignTokens.Chat.MessageBox.AttachError.radius))
+    .overlay {
+      RoundedRectangle(cornerRadius: DesignTokens.Chat.MessageBox.AttachError.radius)
+        .strokeBorder(DesignTokens.Chat.MessageBox.AttachError.stroke,
+          lineWidth: DesignTokens.Chat.MessageBox.AttachError.strokeWidth)
+    }
+  }
+
+  private var messageBoxContent: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      TokenTextView(
+        segments: model.draftSegments,
+        isEditable: true,
+        onTokenTap: { _ in },
+        placeholder: model.placeholderText,
+        placeholderColor: DesignTokens.Chat.MessageBox.placeholderColor(
+          isEnabled: model.isMessageBoxEnabled, isDropTargeted: model.isDropTargeted),
+        isEnabled: model.isMessageBoxEnabled,
+        onTextChange: { model.draft = $0 },
+        onSubmit: { Task { await model.sendTapped() } },
+        onDropTargetChange: model.dropTargetChanged,
+        draftID: model.selectedTab?.id,
+        onAttach: { [tabID = model.selectedTab?.id] items, offset, length in
+          Task { await model.attachmentsArrived(items, at: offset, replacing: length, tabID: tabID) }
+        }
+      )
       Spacer(minLength: 0)
       HStack {
         Menu {
@@ -149,20 +211,7 @@ struct ChatPageView: View {
         }
       }
     }
-    .padding(.top, DesignTokens.Chat.MessageBox.topPadding)
-    .padding(.horizontal, DesignTokens.Chat.MessageBox.horizontalPadding)
-    .padding(.bottom, DesignTokens.Chat.MessageBox.bottomPadding)
-    .frame(height: DesignTokens.Chat.MessageBox.height)
-    .background(DesignTokens.Chat.MessageBox.fill,
-      in: RoundedRectangle(cornerRadius: DesignTokens.Chat.MessageBox.radius))
-    .overlay {
-      RoundedRectangle(cornerRadius: DesignTokens.Chat.MessageBox.radius)
-        .strokeBorder(DesignTokens.Chat.MessageBox.stroke, lineWidth: DesignTokens.Chat.MessageBox.strokeWidth)
-    }
-    .opacity(DesignTokens.Chat.MessageBox.opacity(isEnabled: model.isMessageBoxEnabled))
-    .disabled(!model.isMessageBoxEnabled)
-    .padding(.horizontal, DesignTokens.Chat.MessageBox.areaHorizontalPadding)
-    .padding(.bottom, DesignTokens.Chat.MessageBox.areaBottomPadding)
+    .frame(height: DesignTokens.Chat.MessageBox.contentHeight)
   }
 }
 
@@ -326,9 +375,8 @@ private struct TranscriptView: View {
             .foregroundStyle(DesignTokens.Chat.Relay.tagColor)
         }
       }
-      if let attachment = tab.attachment(for: item) {
-        bubbleText(attachment.body)
-        attachmentChip(attachment.name, item: item)
+      if let segments = tab.attachmentSegments(for: item) {
+        TokenTextView(segments: segments, isEditable: false, onTokenTap: tab.attachmentTapped(path:))
       } else {
         bubbleText(tab.rowText(for: item))
       }
@@ -346,27 +394,6 @@ private struct TranscriptView: View {
       .foregroundStyle(DesignTokens.Chat.Paragraph.color)
       .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
       .textSelection(.enabled)
-  }
-
-  private func attachmentChip(_ name: String, item: TranscriptItem) -> some View {
-    Button { tab.attachmentTapped(item) } label: {
-      HStack(spacing: DesignTokens.Chat.Attachment.gap) {
-        IconView(icon: DesignTokens.Chat.Attachment.icon)
-        Text(name)
-          .font(DesignTokens.Chat.Attachment.nameFont)
-          .foregroundStyle(DesignTokens.Chat.Attachment.nameColor)
-      }
-      .padding(.horizontal, DesignTokens.Chat.Attachment.horizontalPadding)
-      .frame(height: DesignTokens.Chat.Attachment.height)
-      .background(
-        DesignTokens.Chat.Attachment.fill, in: RoundedRectangle(cornerRadius: DesignTokens.Chat.Attachment.radius)
-      )
-      .overlay {
-        RoundedRectangle(cornerRadius: DesignTokens.Chat.Attachment.radius)
-          .strokeBorder(DesignTokens.Chat.Attachment.stroke, lineWidth: DesignTokens.Chat.Attachment.strokeWidth)
-      }
-    }
-    .buttonStyle(.plain)
   }
 
   private func errorBox(_ errorText: String) -> some View {

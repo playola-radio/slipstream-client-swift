@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.16] - 2026-11-12
+
+- Drag files from Finder into the chat message box, or paste or drag in images (screenshots,
+  Messages, Safari). Each one shows as a small badge in your message, and the agent can open it.
+
 ## [0.4.15] - 2026-11-12
 
 - The pull request status now sits in the window's top bar, next to the right-panel button,

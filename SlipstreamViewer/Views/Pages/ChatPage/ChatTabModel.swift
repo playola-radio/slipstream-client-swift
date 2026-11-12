@@ -32,11 +32,18 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   // MARK: - Properties
 
+  struct AttachError: Equatable {
+    var name: String
+    var detail: String
+  }
+
   let id: UUID
   var title = ChatTabModel.newChatTitle
   var projection = TranscriptProjection()
   var draft = ""
   var errorText: String?
+  /// The first failure of the last attach, shown above the draft.
+  var attachError: AttachError?
   var attachmentAlert: String?
   var isAttachmentAlertPresented: Bool {
     get { attachmentAlert != nil }
@@ -91,6 +98,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Shutdowns still running, so quitting can wait for every process to be gone.
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
+  @ObservationIgnored private var attachmentGeneration = 0
 
   // MARK: - Display Text
 
@@ -144,9 +152,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  func attachment(for item: TranscriptItem) -> AttachmentMarker.Parsed? {
+  /// `nil` keeps the bubble's plain text: the row isn't a user message or carries no marker.
+  func attachmentSegments(for item: TranscriptItem) -> [AttachmentMarker.Segment]? {
     guard case .userMessage = item.kind else { return nil }
-    return AttachmentMarker.parse(rowText(for: item))
+    let segments = AttachmentMarker.segments(rowText(for: item))
+    let hasAttachment = segments.contains { if case .attachment = $0 { true } else { false } }
+    return hasAttachment ? segments : nil
   }
 
   func relayLabel(for item: TranscriptItem) -> String? {
@@ -524,10 +535,9 @@ final class ChatTabModel: ViewModel, Identifiable {
     pasteboard.copy(code)
   }
 
-  func attachmentTapped(_ item: TranscriptItem) {
-    guard let parsed = attachment(for: item) else { return }
+  func attachmentTapped(path: String) {
     do {
-      try attachments.open(URL(fileURLWithPath: parsed.path))
+      try attachments.open(URL(fileURLWithPath: path))
     } catch {
       attachmentAlert = error.localizedDescription
     }
@@ -535,6 +545,35 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   func attachmentAlertDismissed() {
     attachmentAlert = nil
+  }
+
+  /// `offset` is in UTF-16 units of `draft`; the user may have typed since, so it is clamped to a
+  /// character boundary outside any marker.
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int, replacing length: Int = 0) async {
+    attachmentGeneration += 1
+    let attachmentGeneration = attachmentGeneration
+    var markers: [String] = []
+    var firstError: AttachError?
+    for item in items {
+      do {
+        let file =
+          switch item {
+          case .file(let url): try await attachments.copy(url)
+          case .image(let data): try attachments.write(Self.pastedImageName, data)
+          case .unavailable(_, let detail): throw AttachmentError.unavailable(detail)
+          }
+        markers.append(AttachmentMarker.format(name: file.lastPathComponent, path: file.path))
+      } catch {
+        if firstError == nil { firstError = AttachError(name: Self.name(of: item), detail: error.localizedDescription) }
+      }
+    }
+    if attachmentGeneration == self.attachmentGeneration { attachError = firstError }
+    guard !markers.isEmpty else { return }
+    draft.replaceSubrange(insertionRange(near: offset, replacing: length), with: markers.joined(separator: " "))
+  }
+
+  func attachErrorDismissed() {
+    attachError = nil
   }
 
   func clockTicked() {
@@ -579,6 +618,34 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   // MARK: - Private Helpers
+
+  private static let pastedImageName = "image.png"
+
+  private func insertionIndex(near offset: Int) -> String.Index {
+    var target = min(max(offset, 0), draft.utf16.count)
+    var start = 0
+    for segment in AttachmentMarker.segments(draft) {
+      let end = start + AttachmentMarker.text([segment]).utf16.count
+      if case .attachment = segment, start < target, target < end { target = end }
+      start = end
+    }
+    let index = String.Index(utf16Offset: target, in: draft)
+    return index == draft.endIndex ? index : draft.rangeOfComposedCharacterSequence(at: index).lowerBound
+  }
+
+  private func insertionRange(near offset: Int, replacing length: Int) -> Range<String.Index> {
+    let start = insertionIndex(near: offset)
+    let end = insertionIndex(near: offset + max(length, 0))
+    return start..<end
+  }
+
+  private static func name(of item: IncomingAttachment) -> String {
+    switch item {
+    case .file(let url): url.lastPathComponent
+    case .image: pastedImageName
+    case .unavailable(let name, _): name
+    }
+  }
 
   private struct ActiveTurn {
     let id: UUID
