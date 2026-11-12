@@ -147,7 +147,11 @@ private struct WorkspaceRowView: View {
     return HStack(spacing: DesignTokens.Sidebar.rowGap) {
       Button { model.sessionSelected(session.id) } label: {
         HStack(spacing: DesignTokens.Sidebar.rowGap) {
-          IconView(icon: model.rowIcon(session))
+          if model.isSettingUp(session) {
+            DotSpinnerView(spinner: DesignTokens.Sidebar.settingUpSpinner)
+          } else {
+            IconView(icon: model.rowIcon(session))
+          }
           Text(model.rowName(session))
             .font(DesignTokens.Sidebar.rowNameFont(isBold: model.isBold(session)))
             .foregroundStyle(model.rowNameColor(session))

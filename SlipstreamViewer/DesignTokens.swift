@@ -574,9 +574,11 @@ enum DesignTokens {
   }
 
   enum PRStatusBar {
-    static let height: CGFloat = 40
+    static let height: CGFloat = 32
+    static let cornerRadius: CGFloat = 8
     static let gap: CGFloat = 10
-    static let horizontalPadding: CGFloat = 16
+    static let leadingPadding: CGFloat = 6
+    static let trailingPadding: CGFloat = 4
     static let stroke = Color(hex: 0x2A3640)
     static let detailColor = Color(hex: 0x8B9AA6)
 
@@ -641,7 +643,6 @@ enum DesignTokens {
 
       static let height: CGFloat = 24
       static let cornerRadius: CGFloat = 5
-      static let horizontalPadding: CGFloat = 9
       static let gap: CGFloat = 6
       static let iconSize: CGFloat = 13
       static let labelFont = variableFont(family: geistFamily, size: 12, weight: 500)
@@ -651,6 +652,8 @@ enum DesignTokens {
       static let detailsIconName = "ChevronDown"
 
       static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.5 }
+
+      static func horizontalPadding(isTitleShown: Bool) -> CGFloat { isTitleShown ? 9 : 6 }
 
       static func appearance(_ button: PRBarButton) -> Appearance {
         switch button {
@@ -723,6 +726,11 @@ enum DesignTokens {
 
     static let fill = Sidebar.fill
     static let toggleSize: CGFloat = 15
+    /// From the PR status's right edge to the window's: the right-panel toggle, toolbar item spacing and the
+    /// window inset. Measured on macOS 26.
+    static let trailingChromeWidth: CGFloat = 52
+    /// Between Open In and the right panel's divider or the PR status, whichever is further left.
+    static let openInMargin: CGFloat = 12
     static let toggleColor = secondary
 
     enum Breadcrumb {
@@ -811,6 +819,26 @@ enum DesignTokens {
     static let highlightedRowFill = Color(hex: 0x1A2129)
     static let archiveIcon = Icons.Icon(assetName: "Archive", size: 13, color: Color(hex: 0x8B9AA6))
     static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x6CB6FF))
+    static let settingUpSpinner = DotSpinner(size: 13, dotSize: 2.4, dotCount: 8, color: Color(hex: 0x6CB6FF))
+
+    struct DotSpinner {
+      let size: CGFloat
+      let dotSize: CGFloat
+      let dotCount: Int
+      let color: Color
+
+      static let secondsPerTurn: TimeInterval = 0.8
+      static let minimumOpacity = 0.15
+
+      /// The leading dot is solid; each dot behind it is fainter.
+      func opacity(ofDot index: Int) -> Double {
+        max(Self.minimumOpacity, Double(index + 1) / Double(dotCount))
+      }
+
+      func degrees(ofDot index: Int) -> Double {
+        Double(index) / Double(dotCount) * 360
+      }
+    }
 
     static func rowIcon(isSelected: Bool) -> Icons.Icon {
       Icons.Icon(assetName: "GitBranch", size: 13, color: isSelected ? Color(hex: 0xC9D6DF) : Color(hex: 0x6B7C89))
@@ -827,6 +855,8 @@ enum DesignTokens {
     static func pausedRowIcon(isHighlighted: Bool) -> Icons.Icon {
       Icons.Icon(assetName: "CirclePause", size: 13, color: isHighlighted ? Color(hex: 0x6B7C89) : Color(hex: 0x3F4C57))
     }
+
+    static let settingUpRowNameColor = pausedRowNameColor(isHighlighted: false)
 
     static func pausedRowNameColor(isHighlighted: Bool) -> Color {
       isHighlighted ? Color(hex: 0x8B9AA6) : Color(hex: 0x56646F)
@@ -1209,14 +1239,16 @@ enum DesignTokens {
     }
 
     enum Attachment {
-      static let height: CGFloat = 26
+      static let height: CGFloat = 24
       static let fill = Color(hex: 0x1A2129)
       static let radius: CGFloat = 5
       static let stroke = Color(hex: 0x33404C)
       static let strokeWidth: CGFloat = 1
-      static let gap: CGFloat = 6
-      static let horizontalPadding: CGFloat = 9
-      static let icon = Icons.Icon(assetName: "FileText", size: 13, color: Color(hex: 0x8B9AA6))
+      static let iconCellWidth: CGFloat = 24
+      static let icon = Icons.Icon(assetName: "File", size: 12, color: Color(hex: 0x8B9AA6))
+      static let imageIcon = Icons.Icon(assetName: "Image", size: 12, color: Color(hex: 0x8B9AA6))
+      static let namePadding: CGFloat = 8
+      static let maxNameWidth: CGFloat = 260
       static let nameFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
       static let nameColor = Color(hex: 0xB7C3CD)
     }
@@ -1404,13 +1436,37 @@ enum DesignTokens {
       static let bottomPadding: CGFloat = 12
       static let radius: CGFloat = 10
       static let height: CGFloat = 120
-      static let font = Paragraph.font
-      static let color = primary
+      static let contentHeight = height - topPadding - bottomPadding
+      static let gap: CGFloat = 12
+      private static let dropTargetColor = Color(hex: 0x6CB6FF)
 
       static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.55 }
 
-      static func placeholderColor(isEnabled: Bool) -> Color {
-        isEnabled ? muted : Color(hex: 0x3E4954)
+      static func placeholderColor(isEnabled: Bool, isDropTargeted: Bool) -> Color {
+        isDropTargeted ? dropTargetColor : isEnabled ? muted : Color(hex: 0x3E4954)
+      }
+
+      static func fill(isDropTargeted: Bool) -> Color { isDropTargeted ? Color(hex: 0x1A2633) : fill }
+      static func stroke(isDropTargeted: Bool) -> Color { isDropTargeted ? dropTargetColor : stroke }
+      static func strokeWidth(isDropTargeted: Bool) -> CGFloat { isDropTargeted ? 1.5 : strokeWidth }
+
+      enum AttachError {
+        static let fill = Color(hex: 0x2A2220)
+        static let radius: CGFloat = 6
+        static let stroke = Color(hex: 0x5C3B32)
+        static let strokeWidth: CGFloat = 1
+        static let gap: CGFloat = 8
+        static let verticalPadding: CGFloat = 8
+        static let horizontalPadding: CGFloat = 10
+        static let icon = Icons.Icon(assetName: "CircleAlert", size: 14, color: Color(hex: 0xF0A070))
+        static let textGap: CGFloat = 3
+        static let titleFont: FontToken = variableFont(family: geistFamily, size: 13, weight: 600)
+        static let titleColor = Color(hex: 0xE6EDF3)
+        static let detailFont: FontToken = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+        static let detailColor = Color(hex: 0xB7C3CD)
+        static let detailLineSpacing: CGFloat = 11.5 * (1.5 - 1)
+        static let dismissSize: CGFloat = 16
+        static let dismissIcon = Icons.Icon(assetName: "X", size: 11, color: Color(hex: 0x8B9AA6))
       }
     }
 

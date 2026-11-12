@@ -226,6 +226,41 @@ struct ChatPageTests {
     #expect(model.selectedTab?.draft == "hi")
   }
 
+  @Test func launchFailureSaysWhyAndWhatItTriedToRun() async {
+    agent.setLaunchError(AgentProcessError.launchFailed(errno: ENOENT))
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "hi")
+
+    expectNoDifference(
+      model.selectedTab?.errorText,
+      "Claude couldn't start: No such file or directory\n/opt/claude/bin/claude in /w")
+    #expect(agent.launches.isEmpty)
+  }
+
+  @Test func launchFailureOfAnotherKindUsesItsDescription() async {
+    agent.setLaunchError(WriteFailed())
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "hi")
+
+    expectNoDifference(
+      model.selectedTab?.errorText, "Claude couldn't start: WriteFailed()\n/opt/claude/bin/claude in /w")
+  }
+
+  @Test func unexpectedEnvironmentFailureSaysWhy() async {
+    agent.setEnvironmentFailure(TranscriptUnreadable())
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "hi")
+
+    expectNoDifference(model.selectedTab?.errorText, "Claude couldn't start: TranscriptUnreadable()")
+    #expect(agent.launches.isEmpty)
+  }
+
   @Test func environmentErrorShowsMessageAndLaunchesNothing() async {
     agent.setEnvironmentError(.tooOld(found: "2.1.200"))
     let model = makeModel()
@@ -311,6 +346,52 @@ struct ChatPageTests {
     #expect(tab.isWorking == false)
     #expect(tab.errorText == "Couldn't send your message to Claude")
     #expect(model.records[id: Self.saved]?.isWaiting == true)
+  }
+
+  @Test func sentMessageIsReportedWithTheFolderAndTheUsersOwnText() async throws {
+    let model = makeModel(records: [record(folder: "/w")])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[[String]]>([])
+    model.onMessageSent = { folder, text in reported.withValue { $0.append([folder, text]) } }
+
+    await send(model, "Hello")
+
+    expectNoDifference(reported.value, [["/w", "Hello"]])
+  }
+
+  @Test func failedWriteReportsNoSentMessage() async throws {
+    agent.setWriteError(WriteFailed())
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[String]>([])
+    model.onMessageSent = { _, text in reported.withValue { $0.append(text) } }
+
+    await send(model, "Hello")
+
+    expectNoDifference(reported.value, [])
+  }
+
+  @Test(arguments: ["/compact", "/model opus"])
+  func slashCommandsReportNoSentMessage(command: String) async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[String]>([])
+    model.onMessageSent = { _, text in reported.withValue { $0.append(text) } }
+
+    await send(model, command)
+
+    expectNoDifference(reported.value, [])
+  }
+
+  @Test func queuedMessageIsReported() async throws {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let reported = LockIsolated<[String]>([])
+    model.onMessageSent = { _, text in reported.withValue { $0.append(text) } }
+
+    try await #require(model.selectedTab).enqueueUserMessage("Also this")
+
+    expectNoDifference(reported.value, ["Also this"])
   }
 
   @Test func replyArrivingDuringWriteStaysAfterPromptAndClearsSentDraft() async throws {
@@ -1826,13 +1907,13 @@ struct ChatPageTests {
 
     let tab = try tab(model, Self.saved)
     #expect(model.linkIcon(for: tab) == .waiting)
-    #expect(model.linkHoverTitle(for: tab) == "Connected to Stream")
+    #expect(model.linkHoverTitle(for: tab) == "Linked to Stream")
     #expect(
       model.linkHoverText(for: tab)
         == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
     #expect(
       model.linkHelpText(for: tab)
-        == "Connected to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+        == "Linked to Stream\nWaiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
     #expect(model.askRoute(forFolder: "/w") == .app)
   }
 
@@ -1858,15 +1939,11 @@ struct ChatPageTests {
     #expect(link.calls.isEmpty)
   }
 
-  @Test func firstTabWaitsWhenNothingLinkedAndNoMessage() async throws {
+  @Test func nothingLinkedShowsNoIcon() async throws {
     let model = await openWindow(records: [record(), record(UUID(50))], withMessage: [], captures: captures(nil))
 
-    let first = try tab(model, Self.saved)
-    #expect(model.linkIcon(for: first) == .waiting)
-    #expect(model.linkHoverTitle(for: first) == "Connected to Stream")
-    #expect(
-      model.linkHoverText(for: first)
-        == "Waiting for it to confirm. It connects the next time the agent works — send it a message to connect now.")
+    #expect(model.linkIcon(for: try tab(model, Self.saved)) == nil)
+    #expect(model.linkHelpText(for: try tab(model, Self.saved)) == nil)
     #expect(model.linkIcon(for: try tab(model, UUID(50))) == nil)
     #expect(link.calls.isEmpty)
   }
@@ -1923,16 +2000,6 @@ struct ChatPageTests {
     _ = await openWindow(records: [record()], withMessage: [Self.saved], captures: captures(binding(.unlinked)))
 
     expectNoDifference(link.calls, [.link(folder: "/w", tabID: Self.saved, replacing: nil)])
-  }
-
-  @Test func turnEndingWhileNothingLinkedLinks() async {
-    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
-    #expect(link.calls.isEmpty)
-
-    await send(model, "hi")
-    await line(Line.result())
-
-    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(0), replacing: nil)])
   }
 
   @Test func turnEndingWhileLinkedDoesNothing() async {
@@ -2017,21 +2084,131 @@ struct ChatPageTests {
     #expect(link.calls.isEmpty)
   }
 
-  @Test func retryLaterWaitsForNextTurnEnd() async throws {
-    link.setOutcomes(.retryLater)
+  @Test func firstSendLinksWhileTheTurnRuns() async throws {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    refresh(model, to: captures(binding(.setupPending, chat: UUID(0))))
+
+    await send(model, "hi")
+
+    let tab = try tab(model, UUID(0))
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: UUID(0), replacing: nil)])
+    #expect(tab.isWorking)
+    #expect(model.linkIcon(for: tab) == .waiting)
+    #expect(model.askRoute(forFolder: "/w") == .app)
+  }
+
+  @Test func firstSendRetriesUntilTheTranscriptIsWritten() async {
+    link.setOutcomes(.retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+
+    await send(model, "hi")
+    #expect(link.calls.count == 1)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 2)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 3)
+    await clock.advance(by: .seconds(60))
+    #expect(link.calls.count == 3)
+  }
+
+  @Test func sendRetriesResumeAfterACaptureReadFailsThenRecovers() async {
+    link.setOutcomes(.retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+
+    await send(model, "hi")
+    model.capturesArrived(nil)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 1)
+
+    model.capturesArrived(captures(nil).currentByFolder())
+    await Task.megaYield()
+
+    #expect(link.calls.count == 2)
+  }
+
+  @Test func sendRetriesGiveUpAfterThirtySeconds() async {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater,
+      .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+
+    await send(model, "hi")
+    await clock.advance(by: .seconds(120))
+
+    #expect(link.calls.count == 15)
+  }
+
+  @Test func sendRetriesStopWhenTheTurnEndsAndItsEndTriesOnce() async {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    #expect(link.calls.count == 1)
+
+    await line(Line.result())
+    #expect(link.calls.count == 2)
+    await clock.advance(by: .seconds(60))
+    #expect(link.calls.count == 2)
+
+    await send(model, "again")
+    #expect(link.calls.count == 3)
+  }
+
+  @Test func aSendDuringAnEarlierTurnsRetriesJoinsThemInsteadOfStartingMore() async {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater, .retryLater)
     let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
     await send(model, "hi")
     await line(Line.result())
-    #expect(link.calls.count == 1)
-    #expect(model.linkIcon(for: try tab(model, UUID(0))) == nil)
-
-    model.capturesArrived(captures(nil).currentByFolder())
-    await clock.advance(by: .seconds(60))
-    #expect(link.calls.count == 1)
+    #expect(link.calls.count == 2)
 
     await send(model, "again")
-    await line(Line.result())
     #expect(link.calls.count == 2)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 3)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 4)
+  }
+
+  @Test func retriesMoveToAnotherWorkingTabWhenTheFirstOneStops() async throws {
+    link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    await send(model, "hi")
+    await line(Line.result(), to: 0)
+    await model.newTabTapped()
+    let second = try #require(model.selectedTab).id
+    await send(model, "hi")
+    #expect(link.calls.count == 2)
+
+    await clock.advance(by: .seconds(2))
+
+    expectNoDifference(link.calls.last, .link(folder: "/w", tabID: second, replacing: nil))
+  }
+
+  @Test func aMessageTheAppQueuesLinksTheChatLikeASend() async throws {
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    let tab = try #require(model.selectedTab)
+
+    try await tab.enqueueUserMessage("Fix the review comments.")
+    await Task.megaYield()
+
+    expectNoDifference(link.calls, [.link(folder: "/w", tabID: tab.id, replacing: nil)])
+    #expect(tab.hasSentMessage)
+  }
+
+  @Test func stopBeforeAnyMessageIsWrittenLeavesNothingToConnect() async throws {
+    agent.hold(.environment)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+    let tab = try #require(model.selectedTab)
+    tab.draft = "hi"
+    let sending = Task { await model.sendTapped() }
+    await Task.megaYield()
+
+    await model.stopTapped()
+    agent.release(.environment)
+    await sending.value
+    await Task.megaYield()
+
+    #expect(tab.hasSentMessage == false)
+    #expect(model.isConnectEnabled(tab) == false)
+    #expect(link.calls.isEmpty)
   }
 
   @Test func connectPassesSeenGeneration() async {
@@ -2195,6 +2372,32 @@ struct ChatPageTests {
     await Task.megaYield()
 
     expectNoDifference(link.calls.last, .link(folder: "/w", tabID: Self.saved, replacing: "g2"))
+  }
+
+  @Test func closingATabWhileItsNewLinkIsBeingReadMovesTheLinkOff() async {
+    let model = await openWindow(
+      records: [record(), record(UUID(50))], withMessage: [Self.saved, UUID(50)], captures: captures(binding(.connected)))
+    let next = captures(binding(.setupPending, chat: UUID(50), generation: "g2"))
+    let closing = LockIsolated(true)
+    model.onLinkChanged = { [weak model] in
+      guard closing.withValue({ value in
+        defer { value = false }
+        return value
+      }) else { return }
+      await model?.closeTabTapped(UUID(50))
+      model?.capturesArrived(next.currentByFolder())
+    }
+
+    await model.connectTapped(UUID(50))
+    await Task.megaYield()
+
+    expectNoDifference(
+      link.calls,
+      [
+        .link(folder: "/w", tabID: UUID(50), replacing: "g1"),
+        .link(folder: "/w", tabID: Self.saved, replacing: "g2"),
+      ]
+    )
   }
 
   @Test func closingUnlinkedTabChangesNothing() async {
@@ -3004,7 +3207,7 @@ struct ChatPageTests {
   }
 }
 
-// MARK: - Queued messages and attachment chips
+// MARK: - Queued messages and attachment tokens
 
 extension ChatPageTests {
   func idleTab(draft: String = "half typed") throws -> ChatTabModel {
@@ -3102,20 +3305,25 @@ extension ChatPageTests {
     TranscriptItem(id: "u", kind: .userMessage(text))
   }
 
-  @Test func markerRendersAsAttachment() throws {
+  @Test func oldEndMarkerSegments() throws {
     let tab = try idleTab()
 
     expectNoDifference(
-      tab.attachment(for: markedRow()),
-      AttachmentMarker.Parsed(body: "Create a PR", name: "PR instructions.md", path: "/tmp/x/PR instructions.md"))
-    #expect(tab.attachment(for: markedRow("Create a PR")) == nil)
-    #expect(tab.attachment(for: TranscriptItem(id: "r", kind: .reply(Self.marked))) == nil)
+      tab.attachmentSegments(for: markedRow()),
+      [.text("Create a PR "), .attachment(name: "PR instructions.md", path: "/tmp/x/PR instructions.md")])
+  }
+
+  @Test func plainOrReplyRowHasNoAttachmentSegments() throws {
+    let tab = try idleTab()
+
+    #expect(tab.attachmentSegments(for: markedRow("Create a PR")) == nil)
+    #expect(tab.attachmentSegments(for: TranscriptItem(id: "r", kind: .reply(Self.marked))) == nil)
   }
 
   @Test func attachmentTapOpensFile() throws {
     let tab = try idleTab()
 
-    tab.attachmentTapped(markedRow())
+    tab.attachmentTapped(path: "/tmp/x/PR instructions.md")
 
     expectNoDifference(opened.value, [URL(fileURLWithPath: "/tmp/x/PR instructions.md")])
     #expect(tab.attachmentAlert == nil)
@@ -3125,10 +3333,203 @@ extension ChatPageTests {
     let tab = try idleTab()
     openError.setValue(AttachmentError.missing("/tmp/x/PR instructions.md"))
 
-    tab.attachmentTapped(markedRow())
+    tab.attachmentTapped(path: "/tmp/x/PR instructions.md")
 
     #expect(tab.attachmentAlert?.contains("/tmp/x/PR instructions.md") == true)
     tab.attachmentAlertDismissed()
     #expect(tab.attachmentAlert == nil)
+  }
+}
+
+// MARK: - Attaching
+
+extension ChatPageTests {
+  func attachingModel(
+    draft: String,
+    copy: @escaping @Sendable (URL) async throws -> URL = { URL(fileURLWithPath: "/att/\($0.lastPathComponent)") },
+    write: @escaping @Sendable (String, Data) throws -> URL = { name, _ in URL(fileURLWithPath: "/att/\(name)") }
+  ) -> ChatPageModel {
+    let model = withDependencies {
+      $0.attachments.copy = copy
+      $0.attachments.write = write
+    } operation: {
+      makeModel(records: [record()])
+    }
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    model.draft = draft
+    return model
+  }
+
+  func marker(_ name: String) -> String {
+    AttachmentMarker.format(name: name, path: "/att/\(name)")
+  }
+
+  @Test func attachFileInsertsMarkerAtOffset() async {
+    let model = attachingModel(draft: "look  here")
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5, tabID: Self.saved)
+
+    expectNoDifference(model.draft, "look " + marker("a.png") + " here")
+  }
+
+  @Test func attachSeveralKeepsOrderSpaceSeparated() async {
+    let written = LockIsolated<[String]>([])
+    let model = attachingModel(
+      draft: "",
+      write: { name, _ in
+        written.withValue { $0.append(name) }
+        return URL(fileURLWithPath: "/att/\(name)")
+      })
+
+    await model.attachmentsArrived(
+      [.file(URL(fileURLWithPath: "/src/a.png")), .image(Data([1, 2])), .file(URL(fileURLWithPath: "/src/b.txt"))],
+      at: 0, tabID: Self.saved)
+
+    expectNoDifference(model.draft, [marker("a.png"), marker("image.png"), marker("b.txt")].joined(separator: " "))
+    expectNoDifference(written.value, ["image.png"])
+  }
+
+  @Test func attachFailureSetsFullErrorAndKeepsOthers() async {
+    let model = attachingModel(
+      draft: "",
+      copy: { url in
+        if url.path == "/src/dir" { throw AttachmentError.folder("/src/dir") }
+        return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
+      })
+
+    await model.attachmentsArrived(
+      [.file(URL(fileURLWithPath: "/src/dir")), .file(URL(fileURLWithPath: "/src/b.txt"))], at: 0, tabID: Self.saved)
+
+    expectNoDifference(model.attachErrorTitle, "Couldn't attach dir")
+    expectNoDifference(model.attachErrorDetail, "/src/dir is a folder; only files can be attached")
+    expectNoDifference(model.draft, marker("b.txt"))
+
+    model.attachErrorDismissed()
+
+    #expect(model.attachErrorTitle == nil)
+    #expect(model.attachErrorDetail == nil)
+  }
+
+  @Test func olderAttachCompletionKeepsNewerAttachError() async throws {
+    let pending = LockIsolated<CheckedContinuation<Void, Never>?>(nil)
+    let model = attachingModel(
+      draft: "",
+      copy: { url in
+        if url.lastPathComponent == "a.png" {
+          await withCheckedContinuation { continuation in pending.setValue(continuation) }
+        }
+        return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
+      })
+
+    let older = Task {
+      await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 0, tabID: Self.saved)
+    }
+    await Task.megaYield()
+    await model.attachmentsArrived([.unavailable(name: "b.png", detail: "The export failed")], at: 0, tabID: Self.saved)
+    try #require(pending.value).resume()
+    await older.value
+
+    expectNoDifference(model.attachErrorTitle, "Couldn't attach b.png")
+    expectNoDifference(model.attachErrorDetail, "The export failed")
+    expectNoDifference(model.draft, marker("a.png"))
+  }
+
+  @Test func attachReplacesSelectedDraftTextAfterCopySucceeds() async {
+    let model = attachingModel(draft: "hello")
+
+    await model.attachmentsArrived(
+      [.file(URL(fileURLWithPath: "/src/a.png"))], at: 1, replacing: 3, tabID: Self.saved)
+
+    expectNoDifference(model.draft, "h" + marker("a.png") + "o")
+  }
+
+  @Test func attachKeepsTypingDoneDuringCopy() async throws {
+    let pending = LockIsolated<CheckedContinuation<Void, Never>?>(nil)
+    let model = attachingModel(
+      draft: "hello",
+      copy: { url in
+        await withCheckedContinuation { continuation in pending.setValue(continuation) }
+        return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
+      })
+
+    let attaching = Task { await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5, tabID: Self.saved) }
+    await Task.megaYield()
+    model.draft = "ab"
+    try #require(pending.value).resume()
+    await attaching.value
+
+    expectNoDifference(model.draft, "ab" + marker("a.png"))
+  }
+
+  @Test func attachClampsOffsetToCharacterBoundary() async {
+    let model = attachingModel(draft: "é😀x")
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 2, tabID: Self.saved)
+
+    expectNoDifference(model.draft, "é" + marker("a.png") + "😀x")
+  }
+
+  @Test func attachMovesOffsetOutOfAnExistingMarker() async {
+    let model = attachingModel(draft: "c" + marker("x.md"))
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 3, tabID: Self.saved)
+
+    expectNoDifference(model.draft, "c" + marker("x.md") + marker("a.png"))
+  }
+
+  @Test func attachUnavailableShowsItsErrorAndAttachesNothing() async {
+    let model = attachingModel(draft: "hi")
+
+    await model.attachmentsArrived([.unavailable(name: "photo.heic", detail: "The export failed")], at: 2, tabID: Self.saved)
+
+    expectNoDifference(model.attachErrorTitle, "Couldn't attach photo.heic")
+    expectNoDifference(model.attachErrorDetail, "The export failed")
+    expectNoDifference(model.draft, "hi")
+  }
+
+  @Test func attachmentsLandInTheTabTheyWereDroppedIn() async {
+    let other = UUID(1)
+    let model = withDependencies {
+      $0.attachments.copy = { URL(fileURLWithPath: "/att/\($0.lastPathComponent)") }
+    } operation: {
+      makeModel(records: [record(), record(other)])
+    }
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.tabSelected(other)
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 0, tabID: Self.saved)
+
+    expectNoDifference(model.tabs[id: Self.saved]?.draft, marker("a.png"))
+    expectNoDifference(model.draft, "")
+  }
+
+  @Test func placeholderReadsDropToAttachWhileTargeted() {
+    let model = makeModel(records: [record()])
+    let resting = model.placeholderText
+
+    model.dropTargetChanged(true)
+    expectNoDifference(model.placeholderText, "Drop to attach")
+
+    model.dropTargetChanged(false)
+    expectNoDifference(model.placeholderText, resting)
+  }
+
+  @Test func draftSegmentsShowMarkersAsAttachments() {
+    let model = attachingModel(draft: "see " + marker("a.png"))
+
+    expectNoDifference(
+      model.draftSegments,
+      [.text("see "), .attachment(name: "a.png", path: "/att/a.png")]
+    )
+  }
+
+  @Test func markerOnlyDraftSends() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.viewAppeared()
+
+    await send(model, marker("a.png"))
+
+    expectNoDifference(agent.writes(0), [firstMessage(marker("a.png"))])
   }
 }

@@ -1,0 +1,917 @@
+{
+  "type": "frame",
+  "id": "y7HVvN",
+  "name": "chat-attachments--composer-with-attachments",
+  "clip": true,
+  "width": 920,
+  "height": 948,
+  "fill": "#12171D",
+  "stroke": "#2A3640",
+  "strokeWidth": {
+    "left": 1
+  },
+  "layout": "vertical",
+  "children": [
+    {
+      "type": "frame",
+      "id": "e3G4p",
+      "name": "Tab strip",
+      "width": "fill_container",
+      "height": 40,
+      "stroke": "#2A3640",
+      "strokeWidth": {
+        "bottom": 1
+      },
+      "gap": 4,
+      "padding": [
+        0,
+        16
+      ],
+      "alignItems": "end",
+      "children": [
+        {
+          "type": "frame",
+          "id": "MhBKJ",
+          "name": "Tab · Add retry to sessions load",
+          "height": 40,
+          "stroke": "#6CB6FF",
+          "strokeWidth": {
+            "bottom": 2
+          },
+          "gap": 8,
+          "padding": [
+            0,
+            14
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "kUH48",
+              "name": "Tab title",
+              "fill": "#E6EDF3",
+              "content": "Add retry to sessions load",
+              "fontFamily": "Geist",
+              "fontSize": 12.5,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "icon",
+              "id": "FX9Ow",
+              "name": "Linked for Ask",
+              "width": 12,
+              "height": 12,
+              "icon": "link",
+              "library": "lucide",
+              "fill": "#6CB6FF"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "eZQJL",
+          "name": "Tab · Fix feed scroll",
+          "height": 40,
+          "gap": 8,
+          "padding": [
+            0,
+            14
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "JidWN",
+              "name": "Tab title",
+              "fill": "#8B9AA6",
+              "content": "Fix feed scroll",
+              "fontFamily": "Geist",
+              "fontSize": 12.5,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "pDPSM",
+          "name": "New tab",
+          "height": 40,
+          "padding": [
+            0,
+            10
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "r8dpuj",
+              "name": "Plus",
+              "width": 14,
+              "height": 14,
+              "icon": "plus",
+              "library": "lucide",
+              "fill": "#8B9AA6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "dhU7O",
+      "name": "Transcript",
+      "clip": true,
+      "width": "fill_container",
+      "height": "fill_container",
+      "layout": "vertical",
+      "gap": 14,
+      "padding": [
+        20,
+        48,
+        12,
+        48
+      ],
+      "justifyContent": "end",
+      "children": [
+        {
+          "type": "frame",
+          "id": "m6mQq",
+          "name": "User message",
+          "width": "fill_container",
+          "justifyContent": "end",
+          "children": [
+            {
+              "type": "frame",
+              "id": "nEJvV",
+              "name": "Bubble",
+              "width": 520,
+              "fill": "#232C36",
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "padding": [
+                10,
+                16
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ZmfNO",
+                  "name": "Paragraph",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "When the daemon isn't up yet the session list just shows an error. Make it retry first.",
+                  "lineHeight": 1.65,
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "G6ioLr",
+          "name": "Paragraph",
+          "fill": "#E6EDF3",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "Done. The session list now retries twice before showing the error, and a slow earlier attempt can't overwrite a newer one.",
+          "lineHeight": 1.65,
+          "fontFamily": "Geist",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "frame",
+          "id": "E4r5yG",
+          "name": "Turn footer",
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "kmt5e",
+              "name": "Duration and time",
+              "fill": "#5E6C78",
+              "content": "12s · 3:04 PM",
+              "fontFamily": "Geist",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "icon",
+              "id": "zvm9V",
+              "name": "Copy",
+              "width": 13,
+              "height": 13,
+              "icon": "copy",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            },
+            {
+              "type": "icon",
+              "id": "AD3x9",
+              "name": "More",
+              "width": 13,
+              "height": 13,
+              "icon": "ellipsis",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "YdBUa",
+          "name": "User message",
+          "width": "fill_container",
+          "justifyContent": "end",
+          "children": [
+            {
+              "type": "frame",
+              "id": "QyK43",
+              "name": "Bubble",
+              "width": 520,
+              "fill": "#232C36",
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "padding": [
+                10,
+                16
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "M5yjch",
+                  "name": "Paragraph",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Can the retry wait a bit longer between tries? It gives up before the daemon has finished starting.",
+                  "lineHeight": 1.65,
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "tAINI",
+          "name": "Thinking",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "MAi2s",
+              "name": "Thinking header",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "gJj9w",
+                  "name": "Thinking icon",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "brain",
+                  "library": "lucide",
+                  "fill": "#8B9AA6"
+                },
+                {
+                  "type": "text",
+                  "id": "sQpG5",
+                  "name": "Thinking label",
+                  "fill": "#8B9AA6",
+                  "content": "Thinking",
+                  "fontFamily": "Geist",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "icon",
+                  "id": "KDP8Z",
+                  "name": "Collapse",
+                  "width": 12,
+                  "height": 12,
+                  "icon": "chevron-down",
+                  "library": "lucide",
+                  "fill": "#5E6C78"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "pBSzu",
+              "name": "Paragraph",
+              "fill": "#5E6C78",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "The retry uses a fixed 200 ms pause. The daemon's own start-up takes about a second, so I'll switch to a growing pause and keep the test clock driving it.",
+              "lineHeight": 1.65,
+              "fontFamily": "Geist",
+              "fontSize": 13.5,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "oI5NJ",
+          "name": "Tool call",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "jjR2p",
+              "name": "Tool icon",
+              "width": 13,
+              "height": 13,
+              "icon": "pencil",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            },
+            {
+              "type": "text",
+              "id": "SQ1rE",
+              "name": "Tool verb",
+              "fill": "#5E6C78",
+              "content": "Edited",
+              "fontFamily": "Geist",
+              "fontSize": 12.5,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "yrvE4",
+              "name": "Tool target",
+              "fill": "#8B9AA6",
+              "content": "ChangeStreamPageModel.swift",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "icon",
+              "id": "WcoX2",
+              "name": "Expand",
+              "width": 12,
+              "height": 12,
+              "icon": "chevron-right",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "I4B59s",
+          "name": "Tool call",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "MTUmt",
+              "name": "Tool icon",
+              "width": 13,
+              "height": 13,
+              "icon": "pencil",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            },
+            {
+              "type": "text",
+              "id": "l6q6V",
+              "name": "Tool verb",
+              "fill": "#5E6C78",
+              "content": "Edited",
+              "fontFamily": "Geist",
+              "fontSize": 12.5,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "jKOS1",
+              "name": "Tool target",
+              "fill": "#8B9AA6",
+              "content": "ChangeStreamPageTests.swift",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "icon",
+              "id": "ooxsx",
+              "name": "Expand",
+              "width": 12,
+              "height": 12,
+              "icon": "chevron-right",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "WkfCs",
+          "name": "Tool call",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "AiPcD",
+              "name": "Tool icon",
+              "width": 13,
+              "height": 13,
+              "icon": "terminal",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            },
+            {
+              "type": "text",
+              "id": "RGuPQ",
+              "name": "Tool verb",
+              "fill": "#5E6C78",
+              "content": "Ran",
+              "fontFamily": "Geist",
+              "fontSize": 12.5,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "l9DD27",
+              "name": "Tool target",
+              "fill": "#8B9AA6",
+              "content": "swift test --filter ChangeStreamPage",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "icon",
+              "id": "W3w5Fx",
+              "name": "Expand",
+              "width": 12,
+              "height": 12,
+              "icon": "chevron-right",
+              "library": "lucide",
+              "fill": "#5E6C78"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "diOaa",
+          "name": "Relayed request",
+          "width": "fill_container",
+          "justifyContent": "end",
+          "children": [
+            {
+              "type": "frame",
+              "id": "ekEG6",
+              "name": "Bubble",
+              "opacity": 0.55,
+              "width": 520,
+              "fill": "#232C36",
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "zS9HD",
+                  "name": "From Ask tag",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "N6hAc9",
+                      "name": "Ask icon",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "message-circle",
+                      "library": "lucide",
+                      "fill": "#A4D5F1"
+                    },
+                    {
+                      "type": "text",
+                      "id": "f5GxL",
+                      "name": "Tag",
+                      "fill": "#A4D5F1",
+                      "content": "From Ask · src/auth/access.ts:12–14",
+                      "fontFamily": "Geist Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Xre0p",
+                  "name": "Quoted exchange",
+                  "width": "fill_container",
+                  "stroke": "#516579",
+                  "strokeWidth": {
+                    "left": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": [
+                    2,
+                    0,
+                    2,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RgCNy",
+                      "name": "Quoted question",
+                      "fill": "#9EB7CB",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Does canAccess let suspended users in?",
+                      "lineHeight": 1.5,
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "550"
+                    },
+                    {
+                      "type": "text",
+                      "id": "m3jkf",
+                      "name": "Quoted answer",
+                      "fill": "#9EB7CB",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "No. canAccess only lets Active users through, so suspended users are refused. Want me to add a comment saying so?",
+                      "lineHeight": 1.5,
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "dwAdv",
+                  "name": "Paragraph",
+                  "fill": "#E6EDF3",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "yes, and mention it in the README",
+                  "lineHeight": 1.65,
+                  "fontFamily": "Geist",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "vF6k0",
+          "name": "Request status",
+          "width": "fill_container",
+          "gap": 6,
+          "justifyContent": "end",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "jlaVU",
+              "name": "Mark",
+              "width": 12,
+              "height": 12,
+              "icon": "hourglass",
+              "library": "lucide",
+              "fill": "#E4C282"
+            },
+            {
+              "type": "text",
+              "id": "seGWL",
+              "name": "Label",
+              "fill": "#E4C282",
+              "content": "Waiting",
+              "fontFamily": "Geist Mono",
+              "fontSize": 10,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "kRoAj",
+              "name": "Detail",
+              "fill": "#91A8B9",
+              "content": "the agent will read this after its current step",
+              "fontFamily": "Geist Mono",
+              "fontSize": 10,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "Y6JIHx",
+      "name": "Message box area",
+      "width": "fill_container",
+      "padding": [
+        0,
+        24,
+        20,
+        24
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "lYfO9",
+          "name": "Message box",
+          "width": "fill_container",
+          "height": 120,
+          "fill": "#191F27",
+          "cornerRadius": 10,
+          "stroke": "#2A3640",
+          "strokeWidth": 1,
+          "layout": "vertical",
+          "gap": 12,
+          "padding": [
+            14,
+            16,
+            12,
+            16
+          ],
+          "justifyContent": "space_between",
+          "children": [
+            {
+              "type": "frame",
+              "id": "SF5b2",
+              "name": "Draft",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "CoYdW",
+                  "name": "Draft line",
+                  "height": 24,
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "z78lJ1",
+                      "name": "Draft text",
+                      "fill": "#E6EDF3",
+                      "content": "Make the empty session list look like this",
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n1IrG",
+                      "name": "Inline token",
+                      "height": 24,
+                      "fill": "#1A2129",
+                      "cornerRadius": 5,
+                      "stroke": "#33404C",
+                      "strokeWidth": 1,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "fCr4u",
+                          "name": "Icon cell",
+                          "width": 24,
+                          "height": "fill_container",
+                          "stroke": "#33404C",
+                          "strokeWidth": {
+                            "right": 1
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "RBwdO",
+                              "name": "Kind icon",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "image",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "pvlYX",
+                          "name": "Name cell",
+                          "height": "fill_container",
+                          "padding": [
+                            0,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ryJR5",
+                              "name": "File name",
+                              "fill": "#B7C3CD",
+                              "content": "Screenshot 2026-11-12 at 9.41.07 AM.png",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "k3GIqj",
+                  "name": "Draft line",
+                  "height": 24,
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "j6QyDR",
+                      "name": "Draft text",
+                      "fill": "#E6EDF3",
+                      "content": "and this is the crash when I click it",
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OggpC",
+                      "name": "Inline token",
+                      "height": 24,
+                      "fill": "#1A2129",
+                      "cornerRadius": 5,
+                      "stroke": "#33404C",
+                      "strokeWidth": 1,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KmgI7",
+                          "name": "Icon cell",
+                          "width": 24,
+                          "height": "fill_container",
+                          "stroke": "#33404C",
+                          "strokeWidth": {
+                            "right": 1
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "TiEMe",
+                              "name": "Kind icon",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "file",
+                              "library": "lucide",
+                              "fill": "#8B9AA6"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "oIYja",
+                          "name": "Name cell",
+                          "height": "fill_container",
+                          "padding": [
+                            0,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oscPz",
+                              "name": "File name",
+                              "fill": "#B7C3CD",
+                              "content": "crash.log",
+                              "fontFamily": "Geist",
+                              "fontSize": 12.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "C8zq9p",
+                      "name": "Caret",
+                      "fill": "#E6EDF3",
+                      "width": 1.5,
+                      "height": 17
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yKnO0",
+              "name": "Box controls",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "o5BjSz",
+                  "name": "Agent picker",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "i7TIuh",
+                      "name": "Model",
+                      "fill": "#E6EDF3",
+                      "content": "Opus 5.5",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "rZq5h",
+                      "name": "Effort",
+                      "fill": "#8B9AA6",
+                      "content": "High",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "D2fEa6",
+                      "name": "Chevron",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "chevron-down",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "UVlNZ",
+                  "name": "Send",
+                  "width": 26,
+                  "height": 26,
+                  "fill": "#2F3A45",
+                  "cornerRadius": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "EDPAC",
+                      "name": "Arrow up",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "arrow-up",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

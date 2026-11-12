@@ -29,6 +29,7 @@ final class ChatPageModel: ViewModel {
   var tabs: IdentifiedArrayOf<ChatTabModel> = []
   var folder: String?
   private var emptyText: String?
+  private(set) var isCreatingWorkspace = false
   private var selectedTabIDs: [String: UUID] = [:]
   private(set) var isQuitting = false
   private(set) var isComparisonShown = false
@@ -43,15 +44,20 @@ final class ChatPageModel: ViewModel {
   private var linkFailures: [UUID: LinkRefusal] = [:]
   /// The folder just shown: its next capture read is the moment its window opens.
   private var openingFolder: String?
-  /// Tabs closed while they were connecting, by folder: if the next capture read shows one linked,
-  /// its link moves off. Any outcome counts, since a refused attach can still have linked.
+  /// Tabs closed while not known to be linked, by folder: if the next capture read shows one linked,
+  /// its link moves off. An attach can land before the read that would show it.
   private var strandedLinks: [UUID: String] = [:]
+  /// Folders with a send's link retries running: one at a time, however many sends or turns.
+  private var sendLinkingFolders: Set<String> = []
+  @ObservationIgnored private var sendLinkingTasks: [String: Task<Void, Never>] = [:]
+  @ObservationIgnored private var sendLinkingGenerations: [String: Int] = [:]
 
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
   @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
   @ObservationIgnored var onReadinessChanged: @MainActor () -> Void = {}
   /// Called once each time a tab's turn ends, with the tab's id.
   @ObservationIgnored var onTabTurnEnded: (UUID) -> Void = { _ in }
+  @ObservationIgnored var onMessageSent: (_ folder: String, _ text: String) -> Void = { _, _ in }
   /// Called once per relay a tab was sent, with the tab's id.
   @ObservationIgnored var onRelayDelivery: (UUID, RelayDelivery) -> Void = { _, _ in }
 
@@ -74,7 +80,10 @@ final class ChatPageModel: ViewModel {
     get { selectedTab?.draft ?? "" }
     set { selectedTab?.draft = newValue }
   }
+  var draftSegments: [AttachmentMarker.Segment] { AttachmentMarker.segments(draft) }
 
+  /// The window has one message box, so its drop highlight lives here rather than on a tab.
+  var isDropTargeted = false
   var isMessageBoxEnabled: Bool { selectedTab != nil && !isQuitting }
   var isPickerEnabled: Bool { isMessageBoxEnabled && selectedTab?.isPickerEnabled == true }
   var showsStop: Bool { selectedTab?.showsStop ?? false }
@@ -82,7 +91,12 @@ final class ChatPageModel: ViewModel {
 
   // MARK: - Display Text
 
-  let placeholderText = "Ask to make changes, @mention files, run /commands"
+  var placeholderText: String {
+    isDropTargeted ? "Drop to attach" : "Ask to make changes, @mention files, run /commands"
+  }
+  var attachErrorTitle: String? { selectedTab?.attachError.map { "Couldn't attach \($0.name)" } }
+  var attachErrorDetail: String? { selectedTab?.attachError?.detail }
+  let attachErrorDismissText = "Dismiss"
   let tryAgainText = "Try again"
   let newTabAccessibilityLabel = "New chat"
   let sendAccessibilityLabel = "Send message"
@@ -95,6 +109,7 @@ final class ChatPageModel: ViewModel {
   let closeTabText = "Close Tab"
 
   var noWorkspaceText: String? { folder == nil ? emptyText : nil }
+  var isNoWorkspaceSpinnerShown: Bool { folder == nil && isCreatingWorkspace }
 
   var outsideChatText: String? {
     guard let folder, let binding = bindings?[folder], binding.isLive,
@@ -105,7 +120,8 @@ final class ChatPageModel: ViewModel {
 
   func linkHoverTitle(for tab: ChatTabModel) -> String? {
     switch linkIcon(for: tab) {
-    case .connected, .waiting: "Connected to Stream"
+    case .connected: "Connected to Stream"
+    case .waiting: "Linked to Stream"
     case .failed: "Couldn't connect to Stream"
     case nil: nil
     }
@@ -155,17 +171,11 @@ final class ChatPageModel: ViewModel {
 
   func isConnectEnabled(_ tab: ChatTabModel) -> Bool { tab.hasSentMessage }
 
-  /// Blue when connected, amber while it confirms. While nothing is linked and no chat has sent
-  /// a message, the first tab waits: auto-link will pick it.
+  /// Blue when connected, amber while it confirms. Only a tab the binding names shows either.
   func linkIcon(for tab: ChatTabModel) -> ChatLinkIcon? {
     if linkFailures[tab.id] != nil { return .failed }
-    let folder = tab.record.folder
-    if let binding = bindings?[folder], binding.isLinked(toChat: tab.id) {
-      return binding.state == .connected ? .connected : .waiting
-    }
-    let strip = tabs(in: folder)
-    guard isUnlinked(folder), strip.first?.id == tab.id, !strip.contains(where: \.hasSentMessage) else { return nil }
-    return .waiting
+    guard let binding = bindings?[tab.record.folder], binding.isLinked(toChat: tab.id) else { return nil }
+    return binding.state == .connected ? .connected : .waiting
   }
 
   /// A linked app tab answers once it has sent a message; anything else keeps the outside chat's checks.
@@ -203,9 +213,10 @@ final class ChatPageModel: ViewModel {
     isComparisonShown = isShown
   }
 
-  func workspaceChanged(folder: String?, emptyText: String?) {
+  func workspaceChanged(folder: String?, emptyText: String?, isCreating: Bool = false) {
     self.folder = folder
     self.emptyText = emptyText
+    isCreatingWorkspace = isCreating
     openingFolder = folder
     if let folder {
       for record in records where record.folder == folder && tabs[id: record.id] == nil {
@@ -263,6 +274,7 @@ final class ChatPageModel: ViewModel {
     }
     windowOpenedIfReady()
     recordedFoldersLinkIfReady()
+    for folder in sendLinkingFolders { startSendLinking(in: folder) }
   }
 
   /// Record succeeded for this folder: try the usual auto-link once.
@@ -301,7 +313,7 @@ final class ChatPageModel: ViewModel {
     tabs[id: id] = nil
     if let linked {
       await linkedTabClosed(in: folder, generation: linked.generation)
-    } else if bindings == nil {
+    } else {
       strandedLinks[id] = folder
     }
   }
@@ -314,6 +326,20 @@ final class ChatPageModel: ViewModel {
   func sendTapped() async {
     guard !isQuitting else { return }
     await selectedTab?.send()
+  }
+
+  func dropTargetChanged(_ isTargeted: Bool) {
+    isDropTargeted = isTargeted
+  }
+
+  /// `tabID` is the tab shown when the items were dropped; promised files can arrive after a switch.
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int, replacing length: Int = 0, tabID: UUID?) async {
+    guard let tabID else { return }
+    await tabs[id: tabID]?.attachmentsArrived(items, at: offset, replacing: length)
+  }
+
+  func attachErrorDismissed() {
+    selectedTab?.attachErrorDismissed()
   }
 
   func stopTapped() async {
@@ -352,6 +378,7 @@ final class ChatPageModel: ViewModel {
   /// Stops every agent in `folder` and returns once they have all exited. The
   /// conversations are kept: showing the folder again reopens them.
   func stopTabs(in folder: String) async -> [UUID: String] {
+    cancelSendLinking(in: folder)
     let stopping = records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
     let drafts = Dictionary(uniqueKeysWithValues: stopping.map { ($0.id, $0.draft) })
     await withTaskGroup { group in
@@ -407,6 +434,25 @@ final class ChatPageModel: ViewModel {
     else { return }
     await linkFinished(await chatLink.link(folder, tab.id, nil), for: tab.id, in: folder)
   }
+
+  /// A first message's transcript takes a moment to be written, so attach retries while a chat in
+  /// the folder works. A turn's end tries once more.
+  private func linkWhileWorking(in folder: String) async {
+    let generation = sendLinkingGenerations[folder]
+    for _ in 0..<Self.sendLinkAttempts {
+      guard generation == sendLinkingGenerations[folder] else { return }
+      guard let tab = tabs(in: folder).first(where: { $0.isWorking && $0.hasSentMessage }), isUnlinked(folder),
+        !pausedFolders.contains(folder)
+      else { return }
+      let outcome = await chatLink.link(folder, tab.id, nil)
+      guard generation == sendLinkingGenerations[folder] else { return }
+      await linkFinished(outcome, for: tab.id, in: folder)
+      guard outcome == .retryLater, (try? await clock.sleep(for: Self.sendLinkRetryDelay)) != nil else { return }
+    }
+  }
+
+  private static let sendLinkAttempts = 15
+  private static let sendLinkRetryDelay = Duration.seconds(2)
 
   private func linkedTabClosed(in folder: String, generation: String) async {
     if let next = await firstTabWithMessage(in: folder) {
@@ -470,9 +516,42 @@ final class ChatPageModel: ViewModel {
     }
     tab.onTurnEnded = { [weak self] in self?.turnEnded(id) }
     tab.onReadinessChanged = { [weak self] in self?.onReadinessChanged() }
+    tab.onMessageReachedProcess = { [weak self] in self?.messageReachedProcess(id) }
+    let folder = record.wrappedValue.folder
+    tab.onMessageSent = { [weak self] text in self?.onMessageSent(folder, text) }
     tab.onRelayDelivery = { [weak self] delivery in self?.onRelayDelivery(id, delivery) }
     tab.isStreamLinked = { [weak self] in self?.isLinked(id) ?? false }
     tabs.append(tab)
+  }
+
+  private func messageReachedProcess(_ id: UUID) {
+    guard let folder = records[id: id]?.folder, isUnlinked(folder), !sendLinkingFolders.contains(folder) else { return }
+    sendLinkingFolders.insert(folder)
+    startSendLinking(in: folder)
+  }
+
+  private func startSendLinking(in folder: String) {
+    guard bindings != nil, sendLinkingTasks[folder] == nil else { return }
+    let generation = (sendLinkingGenerations[folder] ?? 0) + 1
+    sendLinkingGenerations[folder] = generation
+    sendLinkingTasks[folder] = Task { [weak self] in
+      guard let self else { return }
+      if self.tabs(in: folder).contains(where: { $0.isWorking && $0.hasSentMessage }) {
+        await self.linkWhileWorking(in: folder)
+      } else {
+        await self.autoLink(in: folder)
+      }
+      guard generation == self.sendLinkingGenerations[folder] else { return }
+      self.sendLinkingTasks[folder] = nil
+      if self.bindings != nil { self.sendLinkingFolders.remove(folder) }
+    }
+  }
+
+  private func cancelSendLinking(in folder: String) {
+    sendLinkingGenerations[folder, default: 0] += 1
+    sendLinkingTasks[folder]?.cancel()
+    sendLinkingTasks[folder] = nil
+    sendLinkingFolders.remove(folder)
   }
 
   /// A turn that ends while its tab isn't on screen leaves the tab waiting. While nothing is

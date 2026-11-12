@@ -90,6 +90,13 @@ final class PRStatusBarModel: ViewModel {
     case merging, continuing, sending
   }
 
+  /// How much of the section fits in the toolbar, widest first.
+  enum Layout: CaseIterable, Hashable, Sendable {
+    case full, withoutDetail, iconsOnly
+
+    var isButtonTitleShown: Bool { self != .iconsOnly }
+  }
+
   private struct FailedAction {
     var folder: String
     var failure: PRBarFailure
@@ -101,6 +108,10 @@ final class PRStatusBarModel: ViewModel {
   private(set) var isDetailsPresented = false
   private var failedAction: FailedAction?
   private var refreshCount = 0
+  private var windowWidth: CGFloat = 0
+  private var navigationWidth: CGFloat = 0
+  private var openInWidth: CGFloat = 0
+  private var layoutWidths: [Layout: CGFloat] = [:]
   /// Set by the owner: whether the selected workspace can be archived.
   @ObservationIgnored var isArchivable: @MainActor () -> Bool = { false }
   @ObservationIgnored var onArchive: @MainActor () -> Void = {}
@@ -156,12 +167,32 @@ final class PRStatusBarModel: ViewModel {
 
   var statusDetail: String? { appearance.detail }
 
+  func statusDetail(in layout: Layout) -> String? {
+    layout == .full ? statusDetail : nil
+  }
+
   // MARK: - View Helpers
 
-  var isRowContentShown: Bool {
+  var isShown: Bool {
     if failure != nil || isCheckingShown { return true }
     guard let status else { return false }
     return status != .nothingToSubmit
+  }
+
+  /// The widest layout that fits; Open In and the section stay within the right half, plus half of Open In.
+  var layout: Layout {
+    Layout.allCases.first { layoutWidths[$0].map { $0 <= room } ?? false } ?? .iconsOnly
+  }
+
+  /// The space between Open In and this section, so Open In ends a margin left of the right panel's divider,
+  /// or of this section when that reaches further left. `dividerInset` is the divider's distance from the
+  /// window's right edge, 0 when the right panel is hidden.
+  func openInTrailingGap(dividerInset: CGFloat) -> CGFloat {
+    let header = DesignTokens.WindowHeader.self
+    let sectionWidth = isShown ? layoutWidths[layout] ?? 0 : 0
+    let besideDivider = dividerInset + header.openInMargin - header.trailingChromeWidth - sectionWidth
+    let widest = room + header.openInMargin - sectionWidth
+    return max(header.openInMargin, min(besideDivider, widest))
   }
 
   var statusIconName: String? { appearance.iconName }
@@ -287,12 +318,35 @@ final class PRStatusBarModel: ViewModel {
     failedAction = nil
   }
 
+  func windowResized(width: CGFloat) {
+    windowWidth = width
+  }
+
+  func navigationMeasured(width: CGFloat) {
+    navigationWidth = width
+  }
+
+  func openInMeasured(width: CGFloat) {
+    openInWidth = width
+  }
+
+  func layoutMeasured(_ layout: Layout, width: CGFloat) {
+    layoutWidths[layout] = width
+  }
+
   func copyTapped() {
     guard let failure else { return }
     pasteboard.copy("\(failure.title)\n\n\(failure.details)")
   }
 
   // MARK: - Private Helpers
+
+  private var room: CGFloat {
+    let header = DesignTokens.WindowHeader.self
+    let centeredRoom = (windowWidth - openInWidth) / 2 - header.trailingChromeWidth - header.openInMargin
+    let availableRoom = windowWidth - navigationWidth - openInWidth - header.trailingChromeWidth - header.openInMargin
+    return min(centeredRoom, availableRoom)
+  }
 
   private var appearance: (label: String, detail: String?, iconName: String?, tone: PRStatusTone) {
     if let failure { return (failure.title, nil, "CircleAlert", .danger) }
@@ -421,7 +475,7 @@ final class PRStatusBarModel: ViewModel {
     throws(PRBarFailure) -> String
   {
     do {
-      let file = try attachments.write(name, contents)
+      let file = try attachments.write(name, Data(contents.utf8))
       return "\(message) \(AttachmentMarker.format(name: name, path: file.path))"
     } catch {
       throw PRBarFailure(title: title, details: "Folder: \(folder)\nCouldn't write \(name): \(error)")

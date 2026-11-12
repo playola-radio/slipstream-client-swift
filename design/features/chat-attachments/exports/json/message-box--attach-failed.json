@@ -1,0 +1,287 @@
+{
+  "type": "frame",
+  "id": "Hvvd6",
+  "name": "chat-attachments--attach-failed",
+  "width": 920,
+  "fill": "#12171D",
+  "padding": [
+    16,
+    24,
+    20,
+    24
+  ],
+  "children": [
+    {
+      "type": "frame",
+      "id": "pB4Os",
+      "name": "Message box",
+      "width": "fill_container",
+      "fill": "#191F27",
+      "cornerRadius": 10,
+      "stroke": "#2A3640",
+      "strokeWidth": 1,
+      "layout": "vertical",
+      "gap": 12,
+      "padding": [
+        14,
+        16,
+        12,
+        16
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "ECgFe",
+          "name": "Attach error",
+          "width": "fill_container",
+          "fill": "#2A2220",
+          "cornerRadius": 6,
+          "stroke": "#5C3B32",
+          "strokeWidth": 1,
+          "gap": 8,
+          "padding": [
+            8,
+            10
+          ],
+          "children": [
+            {
+              "type": "icon",
+              "id": "rHKol",
+              "name": "Alert",
+              "width": 14,
+              "height": 14,
+              "icon": "circle-alert",
+              "library": "lucide",
+              "fill": "#F0A070"
+            },
+            {
+              "type": "frame",
+              "id": "fK45F",
+              "name": "Error text",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 3,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ijy0F",
+                  "name": "Title",
+                  "fill": "#E6EDF3",
+                  "content": "Couldn't attach IMG_5870.PNG",
+                  "fontFamily": "Geist",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "cSEeq",
+                  "name": "Detail",
+                  "fill": "#B7C3CD",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "“IMG_5870.PNG” couldn’t be copied to “attachments” because there isn’t enough space. (NSCocoaErrorDomain 640)",
+                  "lineHeight": 1.5,
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 11.5,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "f9vcmH",
+              "name": "Dismiss",
+              "width": 16,
+              "height": 16,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "DkA8D",
+                  "name": "X",
+                  "width": 11,
+                  "height": 11,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "#8B9AA6"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "mIgMO",
+          "name": "Draft line",
+          "height": 24,
+          "gap": 6,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "O7io7H",
+              "name": "Draft text",
+              "fill": "#E6EDF3",
+              "content": "Here's the log",
+              "fontFamily": "Geist",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "v3Xlc",
+              "name": "Inline token",
+              "height": 24,
+              "fill": "#1A2129",
+              "cornerRadius": 5,
+              "stroke": "#33404C",
+              "strokeWidth": 1,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "VmujZ",
+                  "name": "Icon cell",
+                  "width": 24,
+                  "height": "fill_container",
+                  "stroke": "#33404C",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "LTk1Q",
+                      "name": "Kind icon",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "file",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tCQ21",
+                  "name": "Name cell",
+                  "height": "fill_container",
+                  "padding": [
+                    0,
+                    8
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "duTjM",
+                      "name": "File name",
+                      "fill": "#B7C3CD",
+                      "content": "crash.log",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "fyYO8",
+              "name": "Draft text",
+              "fill": "#E6EDF3",
+              "content": "and what it looks like on my phone",
+              "fontFamily": "Geist",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "rectangle",
+              "id": "e4IWll",
+              "name": "Caret",
+              "fill": "#E6EDF3",
+              "width": 1.5,
+              "height": 17
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "v5Mwz8",
+          "name": "Box controls",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "heroN",
+              "name": "Agent picker",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "qsVLW",
+                  "name": "Model",
+                  "fill": "#E6EDF3",
+                  "content": "Opus 5.5",
+                  "fontFamily": "Geist",
+                  "fontSize": 12.5,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "VP75h",
+                  "name": "Effort",
+                  "fill": "#8B9AA6",
+                  "content": "High",
+                  "fontFamily": "Geist",
+                  "fontSize": 12.5,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "icon",
+                  "id": "QntoQ",
+                  "name": "Chevron",
+                  "width": 12,
+                  "height": 12,
+                  "icon": "chevron-down",
+                  "library": "lucide",
+                  "fill": "#8B9AA6"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "aXaDA",
+              "name": "Send",
+              "width": 26,
+              "height": 26,
+              "fill": "#2F3A45",
+              "cornerRadius": 6,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "TPA5S",
+                  "name": "Arrow up",
+                  "width": 14,
+                  "height": 14,
+                  "icon": "arrow-up",
+                  "library": "lucide",
+                  "fill": "#8B9AA6"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -16,7 +16,7 @@ final class AgentFake: Sendable {
   )
 
   private struct State {
-    var environmentError: AgentEnvironmentError?
+    var environmentError: (any Error)?
     var transcripts: [UUID: TranscriptLookup] = [:]
     var unreadable: Set<UUID> = []
     var loads: [UUID] = []
@@ -45,6 +45,7 @@ final class AgentFake: Sendable {
   func shutdowns(_ launch: Int) -> Int { state.withLock { $0.shutdowns[launch] } }
 
   func setEnvironmentError(_ error: AgentEnvironmentError?) { state.withLock { $0.environmentError = error } }
+  func setEnvironmentFailure(_ error: any Error) { state.withLock { $0.environmentError = error } }
   func setTranscript(_ id: UUID, _ lookup: TranscriptLookup) { state.withLock { $0.transcripts[id] = lookup } }
   func setUnreadable(_ id: UUID) { state.withLock { _ = $0.unreadable.insert(id) } }
   func setWriteError(_ error: (any Error)?) { state.withLock { $0.writeError = error } }

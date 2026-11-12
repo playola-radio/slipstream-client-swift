@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   var instantAsk: InstantAskModel?
   var terminals: TerminalPageModel?
   var recorder: RecorderModel?
+  var naming: WorkspaceNamingModel?
   var updater: UpdaterModel?
   var reopenWindow: () -> Void = {}
 
@@ -33,11 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     recorder?.quitConfirmed()
     let instantAsk = instantAsk
     let terminals = terminals
+    let naming = naming
     Task {
       async let chatStopped: Void = chat.quitConfirmed()
       async let copiesStopped: Void? = instantAsk?.quitConfirmed()
       async let terminalsStopped: Void? = terminals?.quitConfirmed()
-      _ = await (chatStopped, copiesStopped, terminalsStopped)
+      async let namingStopped: Void? = naming?.quitConfirmed()
+      _ = await (chatStopped, copiesStopped, terminalsStopped, namingStopped)
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater

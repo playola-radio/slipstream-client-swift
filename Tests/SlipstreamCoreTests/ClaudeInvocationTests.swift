@@ -43,6 +43,16 @@ struct ClaudeInvocationTests {
     )
   }
 
+  @Test func workspaceNameArgumentsExact() {
+    expectNoDifference(
+      ClaudeInvocation.workspaceNameArguments(schema: "{}"),
+      [
+        "-p", "--model=haiku", "--no-session-persistence", "--max-turns=3", "--tools", "", "--strict-mcp-config",
+        "--setting-sources", "", "--output-format", "stream-json", "--verbose", "--json-schema", "{}",
+      ]
+    )
+  }
+
   @Test func argumentsIncludeReplay() {
     #expect(
       ClaudeInvocation.arguments(model: "claude-opus-5-5", effort: "high", session: .new(sessionID))

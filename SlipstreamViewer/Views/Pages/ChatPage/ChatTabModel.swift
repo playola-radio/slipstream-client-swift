@@ -32,11 +32,18 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   // MARK: - Properties
 
+  struct AttachError: Equatable {
+    var name: String
+    var detail: String
+  }
+
   let id: UUID
   var title = ChatTabModel.newChatTitle
   var projection = TranscriptProjection()
   var draft = ""
   var errorText: String?
+  /// The first failure of the last attach, shown above the draft.
+  var attachError: AttachError?
   var attachmentAlert: String?
   var isAttachmentAlertPresented: Bool {
     get { attachmentAlert != nil }
@@ -53,6 +60,10 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Called once each time a turn ends, so the page can mark the tab waiting.
   @ObservationIgnored var onTurnEnded: () -> Void = {}
   @ObservationIgnored var onReadinessChanged: () -> Void = {}
+  /// Called each time any message reaches the process, so the page can link the chat while it works.
+  @ObservationIgnored var onMessageReachedProcess: () -> Void = {}
+  /// Called with the user's own text after each message the agent accepted, never for slash commands.
+  @ObservationIgnored var onMessageSent: (String) -> Void = { _ in }
   /// Called once per relay, when the agent reads it or its process ends first.
   @ObservationIgnored var onRelayDelivery: (RelayDelivery) -> Void = { _ in }
   /// Whether the folder's stream is linked to this chat, as the last capture read saw it.
@@ -87,6 +98,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Shutdowns still running, so quitting can wait for every process to be gone.
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
+  @ObservationIgnored private var attachmentGeneration = 0
 
   // MARK: - Display Text
 
@@ -139,9 +151,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  func attachment(for item: TranscriptItem) -> AttachmentMarker.Parsed? {
+  /// `nil` keeps the bubble's plain text: the row isn't a user message or carries no marker.
+  func attachmentSegments(for item: TranscriptItem) -> [AttachmentMarker.Segment]? {
     guard case .userMessage = item.kind else { return nil }
-    return AttachmentMarker.parse(rowText(for: item))
+    let segments = AttachmentMarker.segments(rowText(for: item))
+    let hasAttachment = segments.contains { if case .attachment = $0 { true } else { false } }
+    return hasAttachment ? segments : nil
   }
 
   func relayLabel(for item: TranscriptItem) -> String? {
@@ -391,6 +406,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     if activeTurn?.id == turn {
       $record.withLock { $0.isWaiting = false }
     }
+    messageReachedProcess()
   }
 
   /// Writes straight away, even mid-turn: the agent reads it after its current step. The draft
@@ -429,6 +445,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
     }
+    messageReachedProcess()
   }
 
   /// Writes like `send()` but also mid-turn, and never reads or clears the draft. Throws when
@@ -455,6 +472,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
     }
+    messageReachedProcess()
   }
 
   /// Asks Claude to stop, and gives up on it after the deadline.
@@ -512,10 +530,9 @@ final class ChatTabModel: ViewModel, Identifiable {
     pasteboard.copy(projection.replyText(endingAt: footer.id))
   }
 
-  func attachmentTapped(_ item: TranscriptItem) {
-    guard let parsed = attachment(for: item) else { return }
+  func attachmentTapped(path: String) {
     do {
-      try attachments.open(URL(fileURLWithPath: parsed.path))
+      try attachments.open(URL(fileURLWithPath: path))
     } catch {
       attachmentAlert = error.localizedDescription
     }
@@ -523,6 +540,35 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   func attachmentAlertDismissed() {
     attachmentAlert = nil
+  }
+
+  /// `offset` is in UTF-16 units of `draft`; the user may have typed since, so it is clamped to a
+  /// character boundary outside any marker.
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int, replacing length: Int = 0) async {
+    attachmentGeneration += 1
+    let attachmentGeneration = attachmentGeneration
+    var markers: [String] = []
+    var firstError: AttachError?
+    for item in items {
+      do {
+        let file =
+          switch item {
+          case .file(let url): try await attachments.copy(url)
+          case .image(let data): try attachments.write(Self.pastedImageName, data)
+          case .unavailable(_, let detail): throw AttachmentError.unavailable(detail)
+          }
+        markers.append(AttachmentMarker.format(name: file.lastPathComponent, path: file.path))
+      } catch {
+        if firstError == nil { firstError = AttachError(name: Self.name(of: item), detail: error.localizedDescription) }
+      }
+    }
+    if attachmentGeneration == self.attachmentGeneration { attachError = firstError }
+    guard !markers.isEmpty else { return }
+    draft.replaceSubrange(insertionRange(near: offset, replacing: length), with: markers.joined(separator: " "))
+  }
+
+  func attachErrorDismissed() {
+    attachError = nil
   }
 
   func clockTicked() {
@@ -568,6 +614,34 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   // MARK: - Private Helpers
 
+  private static let pastedImageName = "image.png"
+
+  private func insertionIndex(near offset: Int) -> String.Index {
+    var target = min(max(offset, 0), draft.utf16.count)
+    var start = 0
+    for segment in AttachmentMarker.segments(draft) {
+      let end = start + AttachmentMarker.text([segment]).utf16.count
+      if case .attachment = segment, start < target, target < end { target = end }
+      start = end
+    }
+    let index = String.Index(utf16Offset: target, in: draft)
+    return index == draft.endIndex ? index : draft.rangeOfComposedCharacterSequence(at: index).lowerBound
+  }
+
+  private func insertionRange(near offset: Int, replacing length: Int) -> Range<String.Index> {
+    let start = insertionIndex(near: offset)
+    let end = insertionIndex(near: offset + max(length, 0))
+    return start..<end
+  }
+
+  private static func name(of item: IncomingAttachment) -> String {
+    switch item {
+    case .file(let url): url.lastPathComponent
+    case .image: pastedImageName
+    case .unavailable(let name, _): name
+    }
+  }
+
   private struct ActiveTurn {
     let id: UUID
     let startedAt: Date
@@ -612,6 +686,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       projection.removeUserMessage(id: id.uuidString)
       throw error
     }
+    if !text.hasPrefix("/") { onMessageSent(text) }
   }
 
   /// Tracked, so a shutdown can wait for a launch that is still on its way. The generation is
@@ -642,7 +717,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       do {
         handle = try await agentProcess.launch(launch)
       } catch {
-        throw Failure(message: Self.cantStartText)
+        let reason = (error as? AgentProcessError)?.message ?? String(describing: error)
+        throw Failure(message: "\(Self.cantStartText): \(reason)\n\(launch.executable) in \(launch.directory)")
       }
       guard generation == self.generation else {
         retire(handle)
@@ -753,7 +829,9 @@ final class ChatTabModel: ViewModel, Identifiable {
     do {
       environment = try await agentEnvironment.resolve()
     } catch {
-      throw Failure(message: (error as? AgentEnvironmentError)?.message ?? Self.cantStartText)
+      throw Failure(
+        message: (error as? AgentEnvironmentError)?.message
+          ?? "\(Self.cantStartText): \(String(describing: error))")
     }
     do {
       return (environment, try await transcripts.load(environment.configDirectory, id))
@@ -819,6 +897,7 @@ final class ChatTabModel: ViewModel, Identifiable {
       Task { try? await handle.write(reply) }
     case .echo(let uuid):
       guard echoes.insert(uuid).inserted else { return }
+      messageReachedProcess()
       let isEnqueued = UUID(uuidString: uuid).map { unreadEnqueues.remove($0) != nil } ?? false
       if !isPickup && !isEnqueued { queuedSends = max(0, queuedSends - 1) }
       // A message queued behind a finished or stopped turn starts a turn of its own.
@@ -840,6 +919,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
+  private func messageReachedProcess() {
+    hasSentMessage = true
+    onReadinessChanged()
+    onMessageReachedProcess()
+  }
+
   @discardableResult
   private func beginTurn() -> UUID {
     errorText = nil
@@ -852,8 +937,6 @@ final class ChatTabModel: ViewModel, Identifiable {
   private func endTurn(_ ending: TurnEnding, duration: Duration) {
     guard let turn = activeTurn else { return }
     activeTurn = nil
-    hasSentMessage = true
-    onReadinessChanged()
     projection.endTurn(ending, duration: duration, at: date.now, id: turn.id.uuidString)
     onTurnEnded()
     if reloadWhenIdle, !hasUnreadInput { retireProcess() }

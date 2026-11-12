@@ -486,6 +486,20 @@ extension TerminalPageTests {
     #expect(setupTab(model)?.statusIcon == .finished)
   }
 
+  @Test func setupInAFolderEndsWhenItsCommandFinishes() async {
+    let (model, setup) = await startedSetup()
+    fake.send("workspace_path: \(created)\r\n")
+    _ = await setup.value
+    #expect(model.state.isSettingUp(created))
+    #expect(!model.state.isSettingUp(a))
+
+    let ended = Task { await model.setupEnded(in: created) }
+    fake.finish(.exited(0), launch: 1)
+    await ended.value
+
+    #expect(!model.state.isSettingUp(created))
+  }
+
   @Test func failureWithFolder() async {
     let (model, setup) = await startedSetup()
     fake.send("workspace_path: \(created)\r\n")

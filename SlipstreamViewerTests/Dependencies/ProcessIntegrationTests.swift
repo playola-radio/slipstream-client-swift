@@ -105,6 +105,13 @@ struct ProcessIntegrationTests {
   }
 }
 
+@Suite struct AgentProcessErrorTests {
+  @Test func messageIsTheSystemReasonForTheCode() {
+    expectNoDifference(AgentProcessError.launchFailed(errno: ENOENT).message, "No such file or directory")
+    expectNoDifference(AgentProcessError.writeFailed(errno: EPIPE).message, "Broken pipe")
+  }
+}
+
 private final class BundleToken {}
 
 struct TimedOut: Error {}
