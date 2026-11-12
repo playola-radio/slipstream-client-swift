@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.9] - 2026-11-12
+
+- A repository stays in the sidebar after its last workspace is archived, so its **+**
+  button can start a new workspace without adding the repository again. Right-click an empty
+  repository and choose **Remove from sidebar** to drop it.
+
 ## [0.4.8] - 2026-11-12
 
 - A bar above the right column shows the workspace's pull request status, with one button for the next step (create, push, fix, merge, continue).
