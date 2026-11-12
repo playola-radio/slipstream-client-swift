@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.13] - 2026-11-12
+
+- A new workspace shows up in the sidebar the moment you create it, selected, with a
+  spinner, and the chat says it's being created. The row stays greyed with its spinner
+  until the workspace's setup script finishes.
+
 ## [0.4.12] - 2026-11-12
 
 - A new chat now connects to its workspace's stream as soon as you send its first message,
