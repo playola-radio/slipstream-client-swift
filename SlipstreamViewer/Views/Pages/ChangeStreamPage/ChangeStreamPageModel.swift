@@ -1418,11 +1418,12 @@ final class ChangeStreamPageModel: ViewModel {
     } else {
       isReadinessEvent = false
     }
-    let shouldRefreshCaptureSnapshot = event.seq > (selectedSession?.readinessSeq ?? .zero)
-      && ((selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
+    let shouldRefreshCaptureSnapshot = !isReplaying && (
+      (selectedSession?.agentConnection == .disconnected(reason: "capture_not_live") && !isReadinessEvent)
         || event.payload == .sessionResumed
         || event.payload == .agentConnection(.disconnected(reason: "capture_not_live"))
-        || Self.captureLifecycleTypes.contains(event.type))
+        || Self.captureLifecycleTypes.contains(event.type)
+    )
     let bindingMoved = event.seq > (selectedSession?.readinessSeq ?? .zero)
       && (Self.changesBinding(event.payload, selectedSession?.capture?.binding)
         || event.type == "slipstream.agent.binding.v1")

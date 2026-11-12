@@ -1872,6 +1872,21 @@ struct ChatPageTests {
     #expect(link.calls.count == 3)
   }
 
+  @Test func sendRetriesResumeAfterACaptureReadFailsThenRecovers() async {
+    link.setOutcomes(.retryLater, .retryLater)
+    let model = await openWindow(records: [], withMessage: [], captures: captures(nil))
+
+    await send(model, "hi")
+    model.capturesArrived(nil)
+    await clock.advance(by: .seconds(2))
+    #expect(link.calls.count == 1)
+
+    model.capturesArrived(captures(nil))
+    await Task.megaYield()
+
+    #expect(link.calls.count == 2)
+  }
+
   @Test func sendRetriesGiveUpAfterThirtySeconds() async {
     link.setOutcomes(.retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater,
       .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater, .retryLater)
@@ -2115,7 +2130,10 @@ struct ChatPageTests {
     let next = captures(binding(.setupPending, chat: UUID(50), generation: "g2"))
     let closing = LockIsolated(true)
     model.onLinkChanged = { [weak model] in
-      guard closing.withValue({ defer { $0 = false }; return $0 }) else { return }
+      guard closing.withValue({ value in
+        defer { value = false }
+        return value
+      }) else { return }
       await model?.closeTabTapped(UUID(50))
       model?.capturesArrived(next)
     }

@@ -48,6 +48,8 @@ final class ChatPageModel: ViewModel {
   private var strandedLinks: [UUID: String] = [:]
   /// Folders with a send's link retries running: one at a time, however many sends or turns.
   private var sendLinkingFolders: Set<String> = []
+  @ObservationIgnored private var sendLinkingTasks: [String: Task<Void, Never>] = [:]
+  @ObservationIgnored private var sendLinkingGenerations: [String: Int] = [:]
 
   /// Set by the window: re-reads the captures, which arrive back through `capturesArrived`.
   @ObservationIgnored var onLinkChanged: @MainActor () async -> Void = {}
@@ -262,6 +264,7 @@ final class ChatPageModel: ViewModel {
     }
     windowOpenedIfReady()
     recordedFoldersLinkIfReady()
+    for folder in sendLinkingFolders { startSendLinking(in: folder) }
   }
 
   /// Record succeeded for this folder: try the usual auto-link once.
@@ -351,6 +354,7 @@ final class ChatPageModel: ViewModel {
   /// Stops every agent in `folder` and returns once they have all exited. The
   /// conversations are kept: showing the folder again reopens them.
   func stopTabs(in folder: String) async -> [UUID: String] {
+    cancelSendLinking(in: folder)
     let stopping = records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
     let drafts = Dictionary(uniqueKeysWithValues: stopping.map { ($0.id, $0.draft) })
     await withTaskGroup { group in
@@ -405,11 +409,14 @@ final class ChatPageModel: ViewModel {
   /// A first message's transcript takes a moment to be written, so attach retries while a chat in
   /// the folder works. A turn's end tries once more.
   private func linkWhileWorking(in folder: String) async {
+    let generation = sendLinkingGenerations[folder]
     for _ in 0..<Self.sendLinkAttempts {
+      guard generation == sendLinkingGenerations[folder] else { return }
       guard let tab = tabs(in: folder).first(where: { $0.isWorking && $0.hasSentMessage }), isUnlinked(folder),
         !pausedFolders.contains(folder)
       else { return }
       let outcome = await chatLink.link(folder, tab.id, nil)
+      guard generation == sendLinkingGenerations[folder] else { return }
       await linkFinished(outcome, for: tab.id, in: folder)
       guard outcome == .retryLater, (try? await clock.sleep(for: Self.sendLinkRetryDelay)) != nil else { return }
     }
@@ -488,10 +495,31 @@ final class ChatPageModel: ViewModel {
   private func messageSent(_ id: UUID) {
     guard let folder = records[id: id]?.folder, isUnlinked(folder), !sendLinkingFolders.contains(folder) else { return }
     sendLinkingFolders.insert(folder)
-    Task { [weak self] in
-      await self?.linkWhileWorking(in: folder)
-      self?.sendLinkingFolders.remove(folder)
+    startSendLinking(in: folder)
+  }
+
+  private func startSendLinking(in folder: String) {
+    guard bindings != nil, sendLinkingTasks[folder] == nil else { return }
+    let generation = (sendLinkingGenerations[folder] ?? 0) + 1
+    sendLinkingGenerations[folder] = generation
+    sendLinkingTasks[folder] = Task { [weak self] in
+      guard let self else { return }
+      if self.tabs(in: folder).contains(where: { $0.isWorking && $0.hasSentMessage }) {
+        await self.linkWhileWorking(in: folder)
+      } else {
+        await self.autoLink(in: folder)
+      }
+      guard generation == self.sendLinkingGenerations[folder] else { return }
+      self.sendLinkingTasks[folder] = nil
+      if self.bindings != nil { self.sendLinkingFolders.remove(folder) }
     }
+  }
+
+  private func cancelSendLinking(in folder: String) {
+    sendLinkingGenerations[folder, default: 0] += 1
+    sendLinkingTasks[folder]?.cancel()
+    sendLinkingTasks[folder] = nil
+    sendLinkingFolders.remove(folder)
   }
 
   /// A turn that ends while its tab isn't on screen leaves the tab waiting. While nothing is
