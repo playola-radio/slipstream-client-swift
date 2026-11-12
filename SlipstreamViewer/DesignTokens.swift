@@ -812,7 +812,6 @@ enum DesignTokens {
     static let archiveIcon = Icons.Icon(assetName: "Archive", size: 13, color: Color(hex: 0x8B9AA6))
     static let spinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x6CB6FF))
     static let settingUpSpinner = DotSpinner(size: 13, dotSize: 2.4, dotCount: 8, color: Color(hex: 0x6CB6FF))
-    static let creatingRowNameColor = Color(hex: 0x8B9AA6)
 
     struct DotSpinner {
       let size: CGFloat
@@ -848,6 +847,8 @@ enum DesignTokens {
     static func pausedRowIcon(isHighlighted: Bool) -> Icons.Icon {
       Icons.Icon(assetName: "CirclePause", size: 13, color: isHighlighted ? Color(hex: 0x6B7C89) : Color(hex: 0x3F4C57))
     }
+
+    static let settingUpRowNameColor = pausedRowNameColor(isHighlighted: false)
 
     static func pausedRowNameColor(isHighlighted: Bool) -> Color {
       isHighlighted ? Color(hex: 0x8B9AA6) : Color(hex: 0x56646F)

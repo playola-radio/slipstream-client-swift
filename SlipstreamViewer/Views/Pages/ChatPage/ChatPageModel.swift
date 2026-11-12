@@ -29,6 +29,7 @@ final class ChatPageModel: ViewModel {
   var tabs: IdentifiedArrayOf<ChatTabModel> = []
   var folder: String?
   private var emptyText: String?
+  private(set) var isCreatingWorkspace = false
   private var selectedTabIDs: [String: UUID] = [:]
   private(set) var isQuitting = false
   private(set) var isComparisonShown = false
@@ -100,6 +101,7 @@ final class ChatPageModel: ViewModel {
   let closeTabText = "Close Tab"
 
   var noWorkspaceText: String? { folder == nil ? emptyText : nil }
+  var isNoWorkspaceSpinnerShown: Bool { folder == nil && isCreatingWorkspace }
 
   var outsideChatText: String? {
     guard let folder, let binding = bindings?[folder], binding.isLive,
@@ -203,9 +205,10 @@ final class ChatPageModel: ViewModel {
     isComparisonShown = isShown
   }
 
-  func workspaceChanged(folder: String?, emptyText: String?) {
+  func workspaceChanged(folder: String?, emptyText: String?, isCreating: Bool = false) {
     self.folder = folder
     self.emptyText = emptyText
+    isCreatingWorkspace = isCreating
     openingFolder = folder
     if let folder {
       for record in records where record.folder == folder && tabs[id: record.id] == nil {

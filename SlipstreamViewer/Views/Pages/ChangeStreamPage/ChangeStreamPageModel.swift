@@ -94,15 +94,14 @@ final class ChangeStreamPageModel: ViewModel {
       chatWorkspaceMayHaveChanged()
     }
   }
+  private(set) var creatingWorkspaces: IdentifiedArrayOf<CreatingWorkspace> = [] { didSet { sidebarInputsChanged() } }
+  private(set) var selectedCreationID: CreatingWorkspace.ID?
   private(set) var archiveTarget: SessionOption?
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
   private var currentCapturesByFolder: [String: CaptureSummary] = [:]
   private(set) var sidebarGroups: [SidebarGroup] = []
   /// Workspace folders whose main checkout was already looked up this run, found or not.
   @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
-  /// The repo a new workspace is being created in, until the workspace's row can show.
-  @ObservationIgnored private var creatingWorkspaceRepository: String?
-  @ObservationIgnored private var workspaceCreationGeneration = 0
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -191,6 +190,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var taskHeadingHeight: CGFloat = 0
   @ObservationIgnored private var fileHeaderHeight: CGFloat = 0
   @ObservationIgnored private var chatWorkspace: ChatWorkspace?
+  @ObservationIgnored private var creationCount = 0
 
   // MARK: - Display Text
 
@@ -252,7 +252,6 @@ final class ChangeStreamPageModel: ViewModel {
   let sidebarTitleText = "Workspaces"
   let addRepositoryText = "Add repository…"
   let recordFolderText = "Record a folder…"
-  let creatingWorkspaceText = "Creating workspace…"
 
   /// Counts rows recording now, not slots in use.
   var recordingCountText: String? {
@@ -359,6 +358,7 @@ final class ChangeStreamPageModel: ViewModel {
   /// start record, so until then the feed's own text doesn't apply.
   var chatEmptyText: String? {
     if selectedFolder != nil { return nil }
+    if let selectedCreation { return "Creating \(selectedCreation.name)…" }
     if selectedSession == nil { return emptyStateText }
     return "Finding this stream's folder…"
   }
@@ -432,7 +432,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func isSelected(_ session: SessionOption) -> Bool {
-    session.id == selectedSession?.id
+    isCreatingRow(session) ? session.id == selectedCreation?.row.id : session.id == selectedSession?.id
   }
 
   func isBold(_ session: SessionOption) -> Bool {
@@ -445,12 +445,16 @@ final class ChangeStreamPageModel: ViewModel {
 
   /// The workspace's Setup tab is still running its setup script.
   func isSettingUp(_ session: SessionOption) -> Bool {
-    session.root.map(terminals.state.isSettingUp) ?? false
+    if let creation = creatingWorkspaces.first(where: { $0.row.id == session.id }) {
+      return !creation.isSetupEnded
+    }
+    return session.root.map(terminals.state.isSettingUp) ?? false
   }
 
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
   func isArchivable(_ session: SessionOption) -> Bool {
-    session.root.map { workspaceRoots?.isArchivable($0) ?? false } ?? false
+    guard !isCreatingRow(session) else { return false }
+    return session.root.map { workspaceRoots?.isArchivable($0) ?? false } ?? false
   }
 
   func isHighlighted(_ session: SessionOption) -> Bool {
@@ -483,7 +487,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func rowNameColor(_ session: SessionOption) -> Color {
-    isPaused(session)
+    if isSettingUp(session) { return DesignTokens.Sidebar.settingUpRowNameColor }
+    return isPaused(session)
       ? DesignTokens.Sidebar.pausedRowNameColor(isHighlighted: isLit(session))
       : DesignTokens.Sidebar.rowNameColor(isBold: isBold(session), isSelected: isSelected(session))
   }
@@ -802,6 +807,10 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func sessionSelected(_ id: String) {
+    if let creation = creatingWorkspaces.first(where: { $0.row.id == id }) {
+      creatingWorkspaceSelected(creation)
+      return
+    }
     guard archivingFolder == nil || sessions[id: id]?.root != archivingFolder, select(id) else { return }
     userSessionSelectionGeneration += 1
     pendingPreferredRoot = nil
@@ -1104,15 +1113,19 @@ final class ChangeStreamPageModel: ViewModel {
   private struct ChatWorkspace: Equatable {
     var folder: String?
     var emptyText: String?
+    var isCreating: Bool
+    var terminalFolder: String?
   }
 
   private func chatWorkspaceMayHaveChanged() {
-    guard selectedSession != nil || chat.folder == nil else { return }
-    let workspace = ChatWorkspace(folder: selectedFolder, emptyText: chatEmptyText)
+    guard selectedSession != nil || chat.folder == nil || isCreatingWorkspaceSelected else { return }
+    let workspace = ChatWorkspace(
+      folder: selectedFolder, emptyText: chatEmptyText, isCreating: isCreatingWorkspaceSelected,
+      terminalFolder: selectedFolder ?? selectedCreation.flatMap { $0.isFolderKnown ? $0.folder : nil })
     guard workspace != chatWorkspace else { return }
     chatWorkspace = workspace
-    chat.workspaceChanged(folder: workspace.folder, emptyText: workspace.emptyText)
-    Task { [terminals] in await terminals.workspaceChanged(folder: workspace.folder) }
+    chat.workspaceChanged(folder: workspace.folder, emptyText: workspace.emptyText, isCreating: workspace.isCreating)
+    Task { [terminals] in await terminals.workspaceChanged(folder: workspace.terminalFolder) }
   }
 
   private func recalculateFileHeaderOffsets() {
@@ -1148,6 +1161,13 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func select(_ id: String) -> Bool {
     guard let session = sessions[id: id], session.id != selectedSession?.id else { return false }
+    selectedCreationID = nil
+    show(session)
+    return true
+  }
+
+  private func show(_ session: SessionOption?) {
+    guard session?.id != selectedSession?.id else { return }
     if let outgoing = selectedSession {
       instantAsk.captureDeselected(outgoing.id)
       if let composer = askAgent, composer.sessionID == outgoing.id {
@@ -1160,7 +1180,6 @@ final class ChangeStreamPageModel: ViewModel {
     bindingMovedWhileAwaitingSnapshot = false
     resetFeed()
     startWatching()
-    return true
   }
 
   private func loadWorkspaceRoots() {
@@ -1176,8 +1195,8 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   /// Busy only until the Setup tab names the new workspace (or its command ends): the setup
-  /// script keeps running in that tab while the window switches to it. The placeholder row stays
-  /// until the sessions that include the new workspace have loaded, so the sidebar never goes blank.
+  /// script keeps running in that tab while the window switches to it. Until its session is
+  /// listed, a placeholder row stands in for it, named after the folder the daemon will likely pick.
   private func createWorkspace(in repository: URL, group: String? = nil) async {
     isWorkspaceBusy = true
     $isRightPaneHidden.withLock { $0 = false }
@@ -1185,20 +1204,97 @@ final class ChangeStreamPageModel: ViewModel {
     let selectionGeneration = userSessionSelectionGeneration
     let roots: WorkspaceRoots
     if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
-    workspaceCreationGeneration += 1
-    let creation = workspaceCreationGeneration
-    creatingWorkspaceRepository = group ?? roots.repository(of: Self.normalizedFolder(repository.path))
+    if workspaceRoots == nil { workspaceRoots = roots }
+    let repositoryName = group ?? roots.repository(of: Self.normalizedFolder(repository.path))
       ?? repository.lastPathComponent
-    sidebarInputsChanged()
-    let folder = await terminals.newWorkspaceStarted(
+    creationCount += 1
+    let creation = CreatingWorkspace(
+      id: creationCount, folder: workspace.nextFolder(repositoryName, roots.managed),
+      previousRowID: selectedCreation?.row.id ?? selectedSession?.id)
+    creatingWorkspaces.append(creation)
+    if userSessionSelectionGeneration == selectionGeneration {
+      creatingWorkspaceSelected(creation)
+    }
+    let printed = await terminals.newWorkspaceStarted(
       repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
     isWorkspaceBusy = false
-    if let folder {
-      await loadSessions(preferring: userSessionSelectionGeneration == selectionGeneration ? folder : nil)
+    guard let printed else {
+      creationFailed(creation.id)
+      return
     }
-    guard creation == workspaceCreationGeneration else { return }
-    creatingWorkspaceRepository = nil
-    sidebarInputsChanged()
+    let folder = Self.normalizedFolder(printed)
+    creatingWorkspaces[id: creation.id]?.folder = folder
+    creatingWorkspaces[id: creation.id]?.isFolderKnown = true
+    chatWorkspaceMayHaveChanged()
+    await loadSessions(preferring: selectedCreationID == creation.id ? folder : nil)
+    guard creatingWorkspaces[id: creation.id] != nil else { return }
+    await terminals.setupEnded(in: folder)
+    guard creatingWorkspaces[id: creation.id] != nil else { return }
+    creatingWorkspaces[id: creation.id]?.isSetupEnded = true
+    guard isShown else { return }
+    await loadSessions()
+  }
+
+  private func creatingWorkspaceSelected(_ creation: CreatingWorkspace) {
+    userSessionSelectionGeneration += 1
+    pendingPreferredRoot = creation.isFolderKnown ? creation.folder : nil
+    selectedCreationID = creation.id
+    show(nil)
+    chatWorkspaceMayHaveChanged()
+  }
+
+  /// Hands each created workspace whose session is now listed over to it, and drops the ones
+  /// whose setup ended without one.
+  private func creationsListed() {
+    for creation in creatingWorkspaces where creation.isFolderKnown {
+      if let session = sessions.first(where: { $0.root == creation.folder && isListed($0) }) {
+        let wasSelected = selectedCreationID == creation.id
+        creationRemoved(creation, replacedBy: session.id)
+        if wasSelected, !select(session.id) { selectedCreationID = nil }
+      } else if creation.isSetupEnded {
+        creationFailed(creation.id)
+      }
+    }
+  }
+
+  /// Goes back to the row that was selected, unless another one was picked meanwhile.
+  private func creationFailed(_ id: CreatingWorkspace.ID) {
+    guard let creation = creatingWorkspaces[id: id] else { return }
+    creationRemoved(creation, replacedBy: creation.previousRowID)
+    guard selectedCreationID == id else { return }
+    selectedCreationID = nil
+    pendingPreferredRoot = nil
+    if let previous = creation.previousRowID {
+      if let earlier = creatingWorkspaces.first(where: { $0.row.id == previous }) {
+        creatingWorkspaceSelected(earlier)
+        return
+      }
+      if isRestorable(previous) { _ = select(previous) }
+    }
+    chatWorkspaceMayHaveChanged()
+  }
+
+  /// Rows that would go back to `creation` go back to what replaced it instead.
+  private func creationRemoved(_ creation: CreatingWorkspace, replacedBy rowID: String?) {
+    creatingWorkspaces.remove(id: creation.id)
+    for other in creatingWorkspaces where other.previousRowID == creation.row.id {
+      creatingWorkspaces[id: other.id]?.previousRowID = rowID
+    }
+  }
+
+  private func isRestorable(_ id: String) -> Bool {
+    guard let session = sessions[id: id], !dismissedSessionIDs.contains(id) else { return false }
+    return session.root != archivingFolder && isListed(session)
+  }
+
+  private var selectedCreation: CreatingWorkspace? {
+    selectedCreationID.flatMap { creatingWorkspaces[id: $0] }
+  }
+
+  private var isCreatingWorkspaceSelected: Bool { selectedCreationID != nil }
+
+  private func isCreatingRow(_ session: SessionOption) -> Bool {
+    creatingWorkspaces.contains { $0.row.id == session.id }
   }
 
   private func workspaceFailed(title: String, text: String, detail: String? = nil) {
@@ -1311,11 +1407,11 @@ final class ChangeStreamPageModel: ViewModel {
           CaptureStatus(availability: captureAvailability, capture: sessions[id: composer.sessionID]?.capture),
           route: askRoute(composer.sessionID))
       }
-      if selectedSession == nil, sessions.count == 1,
+      if selectedSession == nil, !isCreatingWorkspaceSelected, sessions.count == 1,
         !Self.isArchived(sessions[0]), !dismissedSessionIDs.contains(sessions[0].id) {
         _ = select(sessions[0].id)
       }
-      if selectedSession == nil, let folder = chat.folder,
+      if selectedSession == nil, !isCreatingWorkspaceSelected, let folder = chat.folder,
         let session = sessions.first(where: { $0.root == folder }) {
         _ = select(session.id)
       }
@@ -1326,6 +1422,7 @@ final class ChangeStreamPageModel: ViewModel {
         _ = select(session.id)
         self.pendingPreferredRoot = nil
       }
+      if generation == sessionsGeneration { creationsListed() }
     } catch {
       guard generation == sessionsGeneration else {
         if refresh == refreshGeneration { captureRefreshFailed() }
@@ -1704,9 +1801,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func sidebarInputsChanged() {
-    let groups = SidebarGroup.groups(
-      sessions.filter(isListed), roots: workspaceRoots, repositories: sidebarRepositories,
-      creatingIn: creatingWorkspaceRepository)
+    var rows = sessions.filter(isListed)
+    rows.append(contentsOf: creatingWorkspaces.map(\.row))
+    let groups = SidebarGroup.groups(rows, roots: workspaceRoots, repositories: sidebarRepositories)
     if groups != sidebarGroups { sidebarGroups = groups }
     rememberRepositories(in: groups)
   }

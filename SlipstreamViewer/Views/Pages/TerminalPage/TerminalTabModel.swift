@@ -145,6 +145,11 @@ final class TerminalTabModel: ViewModel, Identifiable {
     }
   }
 
+  /// Returns once its command has ended and its output is handled.
+  func ended() async {
+    await events?.value
+  }
+
   /// Ends the process within `TerminalProcess.hangupGrace`, saves the output it was still
   /// sending, and flushes the history.
   func stop() async {

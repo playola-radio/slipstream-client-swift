@@ -147,24 +147,6 @@ struct WorkspaceSidebarTests {
     expectNoDifference(Self.names(groups), [["r", "aaa first by name", "workspace-1"]])
   }
 
-  @Test func creatingMarksOnlyThatRepositorysGroup() {
-    let groups = SidebarGroup.groups(
-      [Self.session("/u/slipstream/workspaces/q/workspace-1"), Self.session("/u/slipstream/workspaces/r/workspace-1")],
-      roots: Self.roots, creatingIn: "r")
-
-    expectNoDifference(groups.map(\.isCreatingWorkspace), [false, true])
-  }
-
-  @Test func creatingInARepositoryWithNoRowsAddsItsGroupInOrder() {
-    let groups = SidebarGroup.groups(
-      [Self.session("/u/slipstream/workspaces/a/workspace-1"), Self.session("/x/solo")],
-      roots: Self.roots, creatingIn: "m")
-
-    expectNoDifference(Self.names(groups), [["a", "workspace-1"], ["m"], ["solo", "solo"]])
-    expectNoDifference(groups[1].isCreatingWorkspace, true)
-    expectNoDifference(groups[1].newWorkspaceFolder, nil)
-  }
-
   @Test func aRememberedRepoKeepsItsGroupWithoutWorkspaces() {
     let groups = SidebarGroup.groups(
       [Self.session("/u/slipstream/workspaces/zeta/w")], roots: Self.roots,

@@ -11,9 +11,6 @@ struct WorkspaceSidebarView: View {
           ForEach(model.sidebarGroups) { group in
             VStack(alignment: .leading, spacing: DesignTokens.Sidebar.groupGap) {
               groupHeader(group)
-              if group.isCreatingWorkspace {
-                creatingWorkspaceRow
-              }
               ForEach(group.rows) { session in
                 WorkspaceRowView(model: model, session: session)
               }
@@ -77,20 +74,6 @@ struct WorkspaceSidebarView: View {
         Button(model.removeFromSidebarMenuText, systemImage: "minus.circle") { model.removeFromSidebarTapped(group) }
       }
     }
-  }
-
-  private var creatingWorkspaceRow: some View {
-    HStack(spacing: DesignTokens.Sidebar.rowGap) {
-      DotSpinnerView(spinner: DesignTokens.Sidebar.settingUpSpinner)
-      Text(model.creatingWorkspaceText)
-        .font(DesignTokens.Sidebar.rowNameFont(isBold: false))
-        .foregroundStyle(DesignTokens.Sidebar.creatingRowNameColor)
-        .lineLimit(1)
-      Spacer()
-    }
-    .padding(.leading, DesignTokens.Sidebar.rowLeadingPadding)
-    .padding(.trailing, DesignTokens.Sidebar.rowTrailingPadding)
-    .frame(height: DesignTokens.Sidebar.rowHeight)
   }
 
   private var footer: some View {

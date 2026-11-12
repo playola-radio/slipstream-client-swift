@@ -164,6 +164,12 @@ final class TerminalPageModel: ViewModel {
     }
   }
 
+  /// Returns once no Setup is running in the folder: its command ended, or the tab stopped.
+  func setupEnded(in folder: String) async {
+    let running = state.tabs.filter { $0.folder == folder && $0.kind == .setup(.running) }
+    for tab in running.compactMap({ tabs[id: $0.id] }) { await tab.ended() }
+  }
+
   /// Stops the folder's tabs before it is archived; a Setup still running there is interrupted. Its records and logs are kept until
   /// `forgetTabs(in:)`; `restoreTabs(in:)` starts them again.
   func stopTabs(in folder: String) async {

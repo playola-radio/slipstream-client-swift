@@ -24,12 +24,25 @@ struct WorkspaceRoots: Equatable, Sendable {
   }
 }
 
+/// A workspace `slipstream workspace create` is making, shown as a row until its session is
+/// listed. Its folder is a guess until the command prints the real one; `previousRowID` is the
+/// row to go back to if it fails.
+struct CreatingWorkspace: Identifiable, Equatable, Sendable {
+  var id: Int
+  var folder: String
+  var isFolderKnown = false
+  var isSetupEnded = false
+  var previousRowID: String?
+
+  var name: String { URL(filePath: folder).lastPathComponent }
+  var row: SessionOption { SessionOption(id: "creating-workspace-\(id)", label: name, root: folder) }
+}
+
 struct SidebarGroup: Identifiable, Equatable, Sendable {
   var repository: String?
   var rows: [SessionOption]
   /// The repo's main checkout, remembered so the group outlives its last workspace.
   var repositoryFolder: String?
-  var isCreatingWorkspace = false
 
   var id: String { repository ?? rows[0].id }
   /// The group names a folder, so it never takes a workspace's name.
@@ -39,11 +52,9 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   /// Repos A→Z, including remembered repos with no workspaces, then folders outside the
   /// workspace roots. A repo's rows come newest first, in reverse natural folder order
   /// (`workspace-10` above `workspace-9`). The order never depends on input order or on a
-  /// workspace's name, so rows never jump. The repo `creatingIn` names gets a group even before
-  /// it has a row.
+  /// workspace's name, so rows never jump.
   static func groups(
-    _ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?, repositories: [String: String] = [:],
-    creatingIn creatingRepository: String? = nil
+    _ sessions: some Sequence<SessionOption>, roots: WorkspaceRoots?, repositories: [String: String] = [:]
   ) -> [SidebarGroup] {
     var rowsByRepository: [String: [SessionOption]] = roots == nil ? [:] : repositories.mapValues { _ in [] }
     var folders: [SidebarGroup] = []
@@ -54,12 +65,11 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
         folders.append(SidebarGroup(repository: nil, rows: [session]))
       }
     }
-    if let creatingRepository { rowsByRepository[creatingRepository, default: []] += [] }
     let repositories = rowsByRepository
       .map { repository, rows in
         SidebarGroup(
           repository: repository, rows: rows.sorted { isInFolderOrder($1, $0) },
-          repositoryFolder: repositories[repository], isCreatingWorkspace: repository == creatingRepository)
+          repositoryFolder: repositories[repository])
       }
       .sorted { precedes(($0.name, $0.id), ($1.name, $1.id)) }
     return repositories + folders.sorted { isInFolderOrder($0.rows[0], $1.rows[0]) }
