@@ -226,6 +226,41 @@ struct ChatPageTests {
     #expect(model.selectedTab?.draft == "hi")
   }
 
+  @Test func launchFailureSaysWhyAndWhatItTriedToRun() async {
+    agent.setLaunchError(AgentProcessError.launchFailed(errno: ENOENT))
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "hi")
+
+    expectNoDifference(
+      model.selectedTab?.errorText,
+      "Claude couldn't start: No such file or directory\n/opt/claude/bin/claude in /w")
+    #expect(agent.launches.isEmpty)
+  }
+
+  @Test func launchFailureOfAnotherKindUsesItsDescription() async {
+    agent.setLaunchError(WriteFailed())
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "hi")
+
+    expectNoDifference(
+      model.selectedTab?.errorText, "Claude couldn't start: WriteFailed()\n/opt/claude/bin/claude in /w")
+  }
+
+  @Test func unexpectedEnvironmentFailureSaysWhy() async {
+    agent.setEnvironmentFailure(TranscriptUnreadable())
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+
+    await send(model, "hi")
+
+    expectNoDifference(model.selectedTab?.errorText, "Claude couldn't start: TranscriptUnreadable()")
+    #expect(agent.launches.isEmpty)
+  }
+
   @Test func environmentErrorShowsMessageAndLaunchesNothing() async {
     agent.setEnvironmentError(.tooOld(found: "2.1.200"))
     let model = makeModel()

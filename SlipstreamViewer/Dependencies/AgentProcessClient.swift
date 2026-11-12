@@ -21,6 +21,12 @@ enum AgentProcessEvent: Equatable, Sendable {
 enum AgentProcessError: Error, Equatable {
   case launchFailed(errno: Int32)
   case writeFailed(errno: Int32)
+
+  var message: String {
+    switch self {
+    case .launchFailed(let code), .writeFailed(let code): String(cString: strerror(code))
+    }
+  }
 }
 
 struct AgentProcessHandle: Sendable {

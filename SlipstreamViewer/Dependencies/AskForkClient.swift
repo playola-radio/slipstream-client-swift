@@ -116,8 +116,8 @@ extension AskForkClient: DependencyKey {
 
   private static func reason(_ error: any Error) -> String {
     switch error {
-    case AgentProcessError.launchFailed(let code), AgentProcessError.writeFailed(let code):
-      String(cString: strerror(code))
+    case let error as AgentProcessError:
+      error.message
     default:
       error.localizedDescription
     }
