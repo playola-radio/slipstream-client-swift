@@ -742,7 +742,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(copied.value, ["STORAGE_UNAVAILABLE: store lock lost"])
   }
 
-  @Test func namingMenuActionsAreDisabledWhileAMutationRuns() async {
+  func namedSessionModel() async -> ChangeStreamPageModel {
     fake.setSessions(
       [
         SessionSummary(
@@ -752,13 +752,64 @@ struct ChangeStreamPageTests {
       starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
     let model = makeModel()
     await model.viewAppeared()
+    return model
+  }
+
+  @Test func renamingShowsTheNewNameInTheRowBeforeTheDaemonAnswers() async throws {
+    let model = await namedSessionModel()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    model.renameMenuTapped(model.sessions[0])
+    model.naming.draftChanged("New name")
+    nameFake.hold()
+
+    let save = Task { await model.naming.renameConfirmed() }
+    await Task.megaYield()
+
+    expectNoDifference([model.rowName(model.sessions[0]), model.breadcrumbWorkspaceText], ["New name", "New name"])
+    expectNoDifference(
+      [model.isRenameEnabled(model.sessions[0]), model.isUseAgentNameEnabled(model.sessions[0])], [true, true])
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "New name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    nameFake.release()
+    await save.value
+
+    expectNoDifference(model.rowName(model.sessions[0]), "New name")
+    expectNoDifference(model.naming.pendingNames, [:])
+  }
+
+  @Test func refusedRenamePutsTheOldNameBackAndReopensTheDialog() async throws {
+    let model = await namedSessionModel()
+    defer { model.viewDisappeared() }
+    model.renameMenuTapped(model.sessions[0])
+    model.naming.draftChanged("New name")
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+
+    await model.naming.renameConfirmed()
+
+    expectNoDifference(model.rowName(model.sessions[0]), "My name")
+    expectNoDifference(
+      model.naming.dialog,
+      WorkspaceNamingModel.Dialog(
+        id: Fixture.session, draft: "New name",
+        phase: .saveFailed(headline: "Slipstream refused the rename.", detail: "STORAGE_UNAVAILABLE: store lock lost")))
+  }
+
+  @Test func useAgentNameShowsTheAgentsNameBeforeTheDaemonAnswers() async throws {
+    let model = await namedSessionModel()
+    defer { model.viewDisappeared() }
     nameFake.hold()
 
     let clear = Task { await model.useAgentNameMenuTapped(model.sessions[0]) }
     await Task.megaYield()
 
-    expectNoDifference(
-      [model.isRenameEnabled(model.sessions[0]), model.isUseAgentNameEnabled(model.sessions[0])], [false, false])
+    expectNoDifference(model.rowName(model.sessions[0]), "Agent's name")
+    #expect(!model.isUseAgentNameEnabled(model.sessions[0]))
     nameFake.release()
     await clear.value
   }

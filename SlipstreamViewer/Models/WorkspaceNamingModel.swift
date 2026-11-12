@@ -1,10 +1,12 @@
 import Dependencies
 import Foundation
+import IdentifiedCollections
 import SlipstreamCore
 
 /// Owns every workspace-name write: the Rename dialog, "Use agent's name", and the first-message
-/// suggestion. One dialog write runs at a time, every write refreshes the list (a lost reply may
-/// still have saved), and none is resent.
+/// suggestion. A rename shows at once and is sent after any earlier one for the same session, so
+/// the last one wins. Every write refreshes the list (a lost reply may still have saved), and none
+/// is resent.
 @MainActor
 @Observable
 final class WorkspaceNamingModel: ViewModel {
@@ -17,17 +19,15 @@ final class WorkspaceNamingModel: ViewModel {
 
   enum Phase: Equatable {
     case editing
-    case saving
     case saveFailed(headline: String, detail: String)
     case gone
     case rejected(String)
   }
 
-  struct Mutation: Equatable {
-    enum Kind { case rename, clear }
-
-    let sessionID: String
-    let kind: Kind
+  /// A name shown before the daemon lists it; `userName` nil means the agent's name.
+  struct PendingName: Equatable {
+    let write: Int
+    let userName: String?
   }
 
   // MARK: - Dependencies
@@ -43,11 +43,13 @@ final class WorkspaceNamingModel: ViewModel {
 
   /// Refreshes the session list after every write.
   @ObservationIgnored var onWriteFinished: @MainActor () async -> Void = {}
-  /// Shows a failed "Use agent's name" with its raw error.
-  @ObservationIgnored var onClearFailed: @MainActor (_ detail: String) -> Void = { _ in }
+  /// Shows a failed write the dialog can't show, with its raw error.
+  @ObservationIgnored var onWriteFailed: @MainActor (_ title: String, _ detail: String) -> Void = { _, _ in }
 
   private(set) var dialog: Dialog?
-  private(set) var activeMutation: Mutation?
+  private(set) var pendingNames: [String: PendingName] = [:]
+  @ObservationIgnored private var writeCount = 0
+  @ObservationIgnored private var writes: [String: Task<(any Error)?, Never>] = [:]
   @ObservationIgnored private var attemptedSessionIDs: Set<String> = []
   @ObservationIgnored private var suggestions: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var isQuitting = false
@@ -82,7 +84,6 @@ final class WorkspaceNamingModel: ViewModel {
 
   var primaryButtonTitle: String {
     switch dialog?.phase {
-    case .saving: "Saving…"
     case .saveFailed: "Try again"
     default: "Rename"
     }
@@ -94,27 +95,22 @@ final class WorkspaceNamingModel: ViewModel {
   // MARK: - View Helpers
 
   var isRenameEnabled: Bool {
-    guard let dialog, activeMutation == nil else { return false }
+    guard let dialog else { return false }
     switch dialog.phase {
     case .editing, .saveFailed: return Self.validate(dialog.draft).name != nil
-    case .saving, .gone, .rejected: return false
+    case .gone, .rejected: return false
     }
   }
-
-  var isSaving: Bool { dialog?.phase == .saving }
-
-  var isMutationInFlight: Bool { activeMutation != nil }
 
   var isCloseOnly: Bool { dialog?.phase == .gone }
 
   var isFieldInvalid: Bool { validationMessage != nil }
 
-  var isFieldDisabled: Bool { isSaving || isCloseOnly }
+  var isFieldDisabled: Bool { isCloseOnly }
 
   var isHelperShown: Bool { !isCloseOnly }
 
-  /// Saving keeps the primary button lit behind its spinner.
-  var isPrimaryDimmed: Bool { !isRenameEnabled && !isSaving }
+  var isPrimaryDimmed: Bool { !isRenameEnabled }
 
   var draft: String {
     get { dialog?.draft ?? "" }
@@ -126,63 +122,64 @@ final class WorkspaceNamingModel: ViewModel {
     set { if !newValue { cancelTapped() } }
   }
 
+  /// The user's name for the session, counting one not yet listed.
+  func userName(_ session: SessionOption) -> String? {
+    guard let pending = pendingNames[session.id] else { return session.naming?.userName }
+    return pending.userName
+  }
+
   // MARK: - User Actions
 
   func renameTapped(sessionID: String, currentName: String) {
-    guard activeMutation == nil else { return }
     dialog = Dialog(id: sessionID, draft: currentName, phase: .editing)
   }
 
   func draftChanged(_ draft: String) {
-    guard var dialog, dialog.phase != .saving, dialog.phase != .gone else { return }
+    guard var dialog, dialog.phase != .gone else { return }
     dialog.draft = draft
     switch dialog.phase {
     case .rejected, .saveFailed: dialog.phase = .editing
-    case .editing, .saving, .gone: break
+    case .editing, .gone: break
     }
     self.dialog = dialog
   }
 
+  /// Closes the dialog and shows the name at once. If the daemon refuses it, the old name comes
+  /// back and the dialog reopens with the draft and the error.
   func renameConfirmed() async {
     guard isRenameEnabled, let dialog, let name = Self.validate(dialog.draft).name else { return }
-    let mutation = Mutation(sessionID: dialog.id, kind: .rename)
-    activeMutation = mutation
-    self.dialog?.phase = .saving
-    let phase: Phase?
-    do {
-      try await workspaceName.rename(dialog.id, name)
-      phase = nil
-    } catch {
-      phase = Self.failurePhase(error)
-    }
-    if self.dialog?.id == dialog.id {
-      if let phase { self.dialog?.phase = phase } else { self.dialog = nil }
+    self.dialog = nil
+    if let error = await write(name, to: dialog.id) {
+      if self.dialog == nil {
+        self.dialog = Dialog(id: dialog.id, draft: dialog.draft, phase: Self.failurePhase(error))
+      } else {
+        onWriteFailed("Couldn't rename the workspace", Self.errorDetail(error))
+      }
     }
     await onWriteFinished()
-    if activeMutation == mutation { activeMutation = nil }
   }
 
   func cancelTapped() {
-    guard !isSaving else { return }
     dialog = nil
   }
 
   func closeTapped() {
-    guard !isSaving else { return }
     dialog = nil
   }
 
   func useAgentNameTapped(sessionID: String) async {
-    guard activeMutation == nil else { return }
-    let mutation = Mutation(sessionID: sessionID, kind: .clear)
-    activeMutation = mutation
-    do {
-      try await workspaceName.rename(sessionID, nil)
-    } catch {
-      onClearFailed(Self.errorDetail(error))
+    if let error = await write(nil, to: sessionID) {
+      onWriteFailed("Couldn't switch back to the agent's name", Self.errorDetail(error))
     }
     await onWriteFinished()
-    if activeMutation == mutation { activeMutation = nil }
+  }
+
+  /// Stops showing each pending name the daemon now lists, once no write for it is on its way.
+  func sessionsListed(_ sessions: IdentifiedArrayOf<SessionOption>) {
+    for (id, pending) in pendingNames where writes[id] == nil {
+      if let session = sessions[id: id], session.naming?.userName != pending.userName { continue }
+      pendingNames[id] = nil
+    }
   }
 
   /// Suggests a name for a session whose first message just went out, once per session for the
@@ -227,6 +224,30 @@ final class WorkspaceNamingModel: ViewModel {
     case 0x00...0x1F, 0x7F...0x9F, 0x2028, 0x2029: true
     default: false
     }
+  }
+
+  /// Shows the name at once and sends it after any earlier write for the session. Returns the
+  /// error, and puts the listed name back, only if no later write has replaced this one.
+  private func write(_ userName: String?, to sessionID: String) async -> (any Error)? {
+    writeCount += 1
+    let write = writeCount
+    pendingNames[sessionID] = PendingName(write: write, userName: userName)
+    let earlier = writes[sessionID]
+    let task = Task { [workspaceName] () -> (any Error)? in
+      _ = await earlier?.value
+      do {
+        try await workspaceName.rename(sessionID, userName)
+        return nil
+      } catch {
+        return error
+      }
+    }
+    writes[sessionID] = task
+    let error = await task.value
+    if writes[sessionID] == task { writes[sessionID] = nil }
+    guard pendingNames[sessionID]?.write == write else { return nil }
+    if error != nil { pendingNames[sessionID] = nil }
+    return error
   }
 
   private func suggestName(sessionID: String, text: String) async {

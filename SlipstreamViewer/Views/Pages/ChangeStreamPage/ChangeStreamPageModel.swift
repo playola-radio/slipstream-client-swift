@@ -62,8 +62,8 @@ final class ChangeStreamPageModel: ViewModel {
       guard let self, isShown else { return }
       await reloadSessions()
     }
-    naming.onClearFailed = { [weak self] detail in
-      self?.workspaceFailed(title: "Couldn't switch back to the agent's name", text: detail, detail: detail)
+    naming.onWriteFailed = { [weak self] title, detail in
+      self?.workspaceFailed(title: title, text: detail, detail: detail)
     }
   }
 
@@ -413,7 +413,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func rowName(_ session: SessionOption) -> String {
-    SidebarGroup.rowName(session)
+    var shown = session
+    shown.naming?.userName = naming.userName(session)
+    return SidebarGroup.rowName(shown)
   }
 
   func renameDisabledReason(_ session: SessionOption) -> String? {
@@ -427,11 +429,11 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func isRenameEnabled(_ session: SessionOption) -> Bool {
-    renameDisabledReason(session) == nil && !naming.isMutationInFlight
+    renameDisabledReason(session) == nil
   }
 
   func isUseAgentNameEnabled(_ session: SessionOption) -> Bool {
-    session.naming?.userName != nil && !naming.isMutationInFlight
+    naming.userName(session) != nil
   }
 
   func isSelected(_ session: SessionOption) -> Bool {
@@ -1392,6 +1394,7 @@ final class ChangeStreamPageModel: ViewModel {
       )
       Self.appendCaptureOnly(snapshot, roots: captureReply.roots, to: &next)
       sessions = next
+      naming.sessionsListed(next)
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
