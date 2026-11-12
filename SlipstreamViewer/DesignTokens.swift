@@ -1374,6 +1374,35 @@ enum DesignTokens {
       static let radius: CGFloat = 6
     }
 
+    /// Not drawn in the mockups; framed like a code block.
+    enum Table {
+      static let headerFont = Paragraph.font.bold
+      static let font = Paragraph.font
+      static let color = Paragraph.color
+      static let gridColor = stroke
+      static let gridWidth: CGFloat = 1
+      static let headerFill = CodeBlock.fill
+      static let radius = CodeBlock.radius
+      static let cellHorizontalPadding: CGFloat = 12
+      static let cellVerticalPadding: CGFloat = 7
+
+      static func cellAlignment(_ alignment: ChatTabModel.MarkdownTable.Alignment) -> Alignment {
+        switch alignment {
+        case .leading: .topLeading
+        case .center: .top
+        case .trailing: .topTrailing
+        }
+      }
+
+      static func textAlignment(_ alignment: ChatTabModel.MarkdownTable.Alignment) -> TextAlignment {
+        switch alignment {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
+      }
+    }
+
     enum TurnFooter {
       static let gap: CGFloat = 12
       static let font: FontToken = variableFont(family: geistFamily, size: 12, weight: 400)
