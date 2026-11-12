@@ -43,7 +43,7 @@ public struct ForkOutput: Sendable {
       isIsolated = true
       return nil
     case (.string("system"), .string("api_retry")):
-      lastAPIError = Self.retryError(object)
+      if let error = Self.retryError(object) { lastAPIError = error }
       return nil
     case (.string("result"), _):
       guard object["is_error"] != .bool(true) else { throw .unavailable(Self.errorDetail(object)) }
@@ -78,7 +78,7 @@ public struct ForkOutput: Sendable {
 
   private static func retryError(_ object: [String: JSONValue]) -> String? {
     var parts: [String] = []
-    if case .number(let status)? = object["error_status"] { parts.append(String(Int(status))) }
+    if case .number(let status)? = object["error_status"], let code = Int(exactly: status) { parts.append(String(code)) }
     if case .string(let error)? = object["error"], !DiagnosticText.line(error).isEmpty {
       parts.append(DiagnosticText.line(error))
     }

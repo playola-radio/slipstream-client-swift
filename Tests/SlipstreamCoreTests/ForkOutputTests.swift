@@ -196,6 +196,15 @@ struct ForkOutputTests {
       ForkLines.line(
         #"{"type":"system","subtype":"api_retry","attempt":2,"error_status":401,"error":"authentication_failed"}"#))
     expectNoDifference(output.lastAPIError, "401 authentication_failed")
+    _ = try output.read(ForkLines.line(#"{"type":"system","subtype":"api_retry","attempt":3,"error_status":null}"#))
+    expectNoDifference(output.lastAPIError, "401 authentication_failed")
+  }
+
+  @Test func apiRetryStatusOutOfRangeIsLeftOut() throws {
+    var output = ForkOutput(kind: .answer(allowsChangeRequests: false))
+    _ = try output.read(
+      ForkLines.line(#"{"type":"system","subtype":"api_retry","attempt":1,"error_status":1e100,"error":"failure"}"#))
+    expectNoDifference(output.lastAPIError, "failure")
   }
 
   @Test func whitespaceReplyIsBadReply() {

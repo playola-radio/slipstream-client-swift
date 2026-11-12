@@ -9,7 +9,7 @@ public struct ForkCredentials: Equatable, Sendable {
   public var settings: String?
 
   public static let none = Self(environment: [:], settings: nil)
-  static let helperKeys = ["apiKeyHelper", "awsAuthRefresh", "awsCredentialExport", "gcpAuthRefresh", "otelHeadersHelper"]
+  static let helperKeys = ["apiKeyHelper", "awsAuthRefresh", "awsCredentialExport", "gcpAuthRefresh"]
 
   public init(environment: [String: String], settings: String?) {
     self.environment = environment

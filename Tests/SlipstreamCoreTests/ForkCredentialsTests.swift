@@ -18,18 +18,18 @@ struct ForkCredentialsTests {
       try credentials(settings),
       ForkCredentials(
         environment: ["CLAUDE_CODE_USE_BEDROCK": "1", "NODE_EXTRA_CA_CERTS": "/certs/corp.pem"],
-        settings: #"{"apiKeyHelper":"/opt/bin/key","awsAuthRefresh":"aws sso login","otelHeadersHelper":"/opt/bin/otel"}"#
+        settings: #"{"apiKeyHelper":"/opt/bin/key","awsAuthRefresh":"aws sso login"}"#
       )
     )
   }
 
   @Test func keepsEveryCredentialHelper() throws {
     let settings = """
-      {"apiKeyHelper":"a","awsAuthRefresh":"b","awsCredentialExport":"c","gcpAuthRefresh":"d","otelHeadersHelper":"e"}
+      {"apiKeyHelper":"a","awsAuthRefresh":"b","awsCredentialExport":"c","gcpAuthRefresh":"d"}
       """
     expectNoDifference(
       try credentials(settings).settings,
-      #"{"apiKeyHelper":"a","awsAuthRefresh":"b","awsCredentialExport":"c","gcpAuthRefresh":"d","otelHeadersHelper":"e"}"#
+      #"{"apiKeyHelper":"a","awsAuthRefresh":"b","awsCredentialExport":"c","gcpAuthRefresh":"d"}"#
     )
   }
 

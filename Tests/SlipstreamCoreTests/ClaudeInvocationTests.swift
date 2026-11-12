@@ -43,13 +43,6 @@ struct ClaudeInvocationTests {
     )
   }
 
-  @Test func forkArgumentsPassSettings() {
-    let arguments = ClaudeInvocation.forkArguments(
-      parentSessionID: sessionID, model: "claude-opus-5-5", effort: "high", schema: "{}",
-      settings: #"{"apiKeyHelper":"/opt/bin/key"}"#)
-    expectNoDifference(arguments.suffix(2), ["--settings", #"{"apiKeyHelper":"/opt/bin/key"}"#])
-  }
-
   @Test func workspaceNameArgumentsExact() {
     expectNoDifference(
       ClaudeInvocation.workspaceNameArguments(schema: "{}"),

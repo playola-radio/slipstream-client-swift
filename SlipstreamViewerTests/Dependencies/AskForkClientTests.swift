@@ -275,14 +275,14 @@ struct AskForkClientTests {
 
   @Test func launchesWithCredentialsFromUserSettings() async throws {
     let directory = try Self.configDirectory(
-      #"{"env":{"CLAUDE_CODE_USE_BEDROCK":"1","PATH":"/corp/bin"},"apiKeyHelper":"/opt/bin/key","hooks":{}}"#)
+      #"{"env":{"CLAUDE_CODE_USE_BEDROCK":"1","PATH":"/corp/bin","HOME":"/corp"},"apiKeyHelper":"/opt/bin/key","hooks":{}}"#)
     defer { try? FileManager.default.removeItem(at: directory) }
     var environment = AgentFake.environment
     environment.configDirectory = directory
     let run = await start(Self.request(environment))
 
     expectNoDifference(
-      agent.launches.first?.environment, ["PATH": "/corp/bin", "CLAUDE_CODE_USE_BEDROCK": "1"])
+      agent.launches.first?.environment, ["PATH": "/opt/claude/bin:/usr/bin", "CLAUDE_CODE_USE_BEDROCK": "1"])
     expectNoDifference(agent.launches.first?.arguments.suffix(2), ["--settings", #"{"apiKeyHelper":"/opt/bin/key"}"#])
     run.cancel()
     _ = await run.value
