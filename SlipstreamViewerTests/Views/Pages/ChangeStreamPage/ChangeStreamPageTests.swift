@@ -35,10 +35,11 @@ struct ChangeStreamPageTests {
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil, files: LockIsolated<[URL: Data]>? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
-    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil,
+    chat: ChatPageModel? = nil, workspace: WorkspaceClient? = nil, instantAsk: InstantAskModel? = nil,
     terminals: TerminalPageModel? = nil, recorder: RecorderModel? = nil, fileStorage: FileStorage? = nil
   ) -> ChangeStreamPageModel {
     let terminals = terminals ?? makeTerminals()
+    let workspace = workspace ?? Self.testRootsWorkspace
     return withDependencies {
       $0.workspace = workspace
       $0.defaultInMemoryStorage = storage ?? self.storage
@@ -4414,7 +4415,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
+      chooseFolder: workspace.chooseFolder, archive: workspace.archive, repository: workspace.repository))
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
@@ -5971,7 +5972,7 @@ extension ChangeStreamPageTests {
           for await _ in roots.stream {}
           return WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces"))
         },
-        chooseFolder: { _, _ in nil }, archive: { _, _ in nil }))
+        chooseFolder: { _, _ in nil }, archive: { _, _ in nil }, repository: { _ in nil }))
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
