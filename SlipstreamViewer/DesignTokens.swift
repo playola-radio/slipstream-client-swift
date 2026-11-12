@@ -880,6 +880,11 @@ enum DesignTokens {
 
     static let recordingDotSize: CGFloat = 6
     static let recordingDotColor = Color(hex: 0x83BDA4)
+    static let disabledIconButtonOpacity: Double = 0.5
+
+    static func iconButtonOpacity(isEnabled: Bool) -> Double {
+      isEnabled ? 1 : disabledIconButtonOpacity
+    }
 
     struct RowAction {
       let fill: Color

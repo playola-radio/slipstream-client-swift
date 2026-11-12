@@ -270,6 +270,7 @@ private struct SidebarIconButton: View {
   var body: some View {
     let fill = DesignTokens.Sidebar.iconButtonFill(isHovered: isHovered && isEnabled, isPressed: configuration.isPressed)
     configuration.label
+      .opacity(DesignTokens.Sidebar.iconButtonOpacity(isEnabled: isEnabled))
       .background {
         RoundedRectangle(cornerRadius: DesignTokens.Sidebar.iconButtonRadius).fill(fill)
           .animation(DesignTokens.Sidebar.hoverAnimation, value: fill)
