@@ -37,7 +37,6 @@ struct PRStatusBarView: View {
       }
     }
     .hidden()
-    .allowsHitTesting(false)
     .accessibilityHidden(true)
   }
 
