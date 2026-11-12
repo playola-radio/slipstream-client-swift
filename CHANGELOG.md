@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.19] - 2026-11-12
+
+- Long code blocks in chat replies now stop at a fixed height and scroll inside, and every code
+  block has a copy button in its top-right corner.
+
 ## [0.4.18] - 2026-11-12
 
 - Questions asked in a chat's question thread now get answered when Claude Code signs in
