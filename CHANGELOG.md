@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.14] - 2026-11-12
+
+- When a chat can't start Claude, the error now says why (for example a missing
+  folder) instead of only "Claude couldn't start".
+
 ## [0.4.13] - 2026-11-12
 
 - A new workspace shows up in the sidebar the moment you create it, selected, with a
