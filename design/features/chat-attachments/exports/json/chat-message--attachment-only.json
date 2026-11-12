@@ -1,0 +1,100 @@
+{
+  "type": "frame",
+  "id": "u79AU6",
+  "name": "chat-attachments--sent-attachments-only",
+  "width": 920,
+  "fill": "#12171D",
+  "padding": [
+    20,
+    48
+  ],
+  "justifyContent": "end",
+  "children": [
+    {
+      "type": "frame",
+      "id": "YrhW9",
+      "name": "Bubble",
+      "fill": "#232C36",
+      "cornerRadius": 8,
+      "layout": "vertical",
+      "gap": 6,
+      "padding": [
+        10,
+        16
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "q2rpP0",
+          "name": "Line",
+          "height": 24,
+          "gap": 6,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "hwT9X",
+              "name": "Inline token",
+              "height": 24,
+              "fill": "#1A2129",
+              "cornerRadius": 5,
+              "stroke": "#33404C",
+              "strokeWidth": 1,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Rtf9L",
+                  "name": "Icon cell",
+                  "width": 24,
+                  "height": "fill_container",
+                  "stroke": "#33404C",
+                  "strokeWidth": {
+                    "right": 1
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "YY21Z",
+                      "name": "Kind icon",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "image",
+                      "library": "lucide",
+                      "fill": "#8B9AA6"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "XLlKj",
+                  "name": "Name cell",
+                  "height": "fill_container",
+                  "padding": [
+                    0,
+                    8
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bRdLB",
+                      "name": "File name",
+                      "fill": "#B7C3CD",
+                      "content": "IMG_5870.PNG",
+                      "fontFamily": "Geist",
+                      "fontSize": 12.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
