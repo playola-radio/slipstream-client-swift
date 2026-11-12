@@ -4721,6 +4721,40 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.emptyStateText, "No capture sessions yet")
   }
 
+  @Test func removeFromSidebarIsOfferedOnlyForARepoWithoutWorkspaces() async throws {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/code/r", "s": "/code/s"] }
+    }
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(), fileStorage: fileStorage)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    expectNoDifference(model.sidebarGroups.map(model.isRemoveFromSidebarAvailable), [false, true])
+  }
+
+  @Test func removingARepoWithoutWorkspacesForgetsIt() async throws {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/code/r", "s": "/code/s"] }
+    }
+    fake.setSessions([])
+    fake.setCaptures([])
+    let model = makeModel(workspace: workspaceClient(), fileStorage: fileStorage)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    model.removeFromSidebarTapped(try #require(model.sidebarGroups.first))
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["s"]])
+    expectNoDifference(model.sidebarRepositories, ["s": "/code/s"])
+  }
+
   @Test func archiveIconShowsOnHoverOrFocusForManagedRowsOnly() async throws {
     let conductorRoot = "/work/conductor/workspaces/r/lisbon"
     fake.setSessions(

@@ -443,6 +443,11 @@ final class ChangeStreamPageModel: ViewModel {
     return isOpened(session) && !isArchivable(session)
   }
 
+  /// A repo with workspaces would come straight back, so only an empty remembered repo can go.
+  func isRemoveFromSidebarAvailable(_ group: SidebarGroup) -> Bool {
+    group.repository != nil && group.rows.isEmpty
+  }
+
   func isArchiveIconShown(for session: SessionOption) -> Bool {
     isArchivable(session) && isHighlighted(session)
   }
@@ -855,6 +860,12 @@ final class ChangeStreamPageModel: ViewModel {
       await terminals.workspaceChanged(folder: nil)
       deselect()
     }
+    sidebarInputsChanged()
+  }
+
+  func removeFromSidebarTapped(_ group: SidebarGroup) {
+    guard isRemoveFromSidebarAvailable(group), let name = group.repository else { return }
+    $sidebarRepositories.withLock { _ = $0.removeValue(forKey: name) }
     sidebarInputsChanged()
   }
 
