@@ -1,3 +1,4 @@
+import AppKit
 import CustomDump
 import Foundation
 import SlipstreamCore
@@ -52,4 +53,49 @@ struct TokenTextViewTests {
     arrivals.arrived(.file(a), from: 0)
     expectNoDifference(delivered, [[.unavailable(name: "b.png", detail: "failed"), .file(a), .file(c)]])
   }
+
+  @MainActor @Test func droppingAFinderFileAttachesIt() {
+    let file = URL(filePath: "/tmp/my note (1).txt")
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name(UUID().uuidString))
+    defer { pasteboard.releaseGlobally() }
+    pasteboard.clearContents()
+    pasteboard.writeObjects([file as NSURL])
+    let drag = FakeDrag(pasteboard: pasteboard)
+    let text = TokenNSTextView(usingTextLayoutManager: false)
+    text.importsGraphics = false
+    var attached: [IncomingAttachment] = []
+    text.onAttach = { items, _ in attached += items }
+
+    _ = text.draggingEntered(drag)
+    _ = text.draggingUpdated(drag)
+    let accepted = text.prepareForDragOperation(drag) && text.performDragOperation(drag)
+
+    #expect(accepted)
+    expectNoDifference(attached, [.file(file)])
+  }
+}
+
+@MainActor
+private final class FakeDrag: NSObject, @MainActor NSDraggingInfo {
+  let draggingPasteboard: NSPasteboard
+  init(pasteboard: NSPasteboard) { draggingPasteboard = pasteboard }
+
+  var draggingDestinationWindow: NSWindow? { nil }
+  var draggingSourceOperationMask: NSDragOperation { .copy }
+  var draggingLocation: NSPoint { .zero }
+  var draggedImageLocation: NSPoint { .zero }
+  var draggedImage: NSImage? { nil }
+  var draggingSource: Any? { nil }
+  var draggingSequenceNumber: Int { 1 }
+  func slideDraggedImage(to screenPoint: NSPoint) {}
+  var draggingFormation: NSDraggingFormation = .default
+  var animatesToDestination = false
+  var numberOfValidItemsForDrop = 1
+  func enumerateDraggingItems(
+    options enumOpts: NSDraggingItemEnumerationOptions = [], for view: NSView?,
+    classes classArray: [AnyClass], searchOptions: [NSPasteboard.ReadingOptionKey: Any] = [:],
+    using block: (NSDraggingItem, Int, UnsafeMutablePointer<ObjCBool>) -> Void
+  ) {}
+  var springLoadingHighlight: NSSpringLoadingHighlight { .none }
+  func resetSpringLoading() {}
 }

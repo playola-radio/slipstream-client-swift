@@ -276,6 +276,12 @@ final class TokenNSTextView: NSTextView {
     super.draggingEnded(sender)
   }
 
+  /// A plain-text view refuses file drops here, which would snap the drag back before `performDragOperation`.
+  override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    guard isEditable, Self.canAttach(from: sender.draggingPasteboard) else { return super.prepareForDragOperation(sender) }
+    return true
+  }
+
   override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
     onDropTargetChange(false)
     let location = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
