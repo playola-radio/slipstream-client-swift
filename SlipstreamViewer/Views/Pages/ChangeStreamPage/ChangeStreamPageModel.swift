@@ -28,6 +28,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored @Shared(.isRightPaneHidden) var isRightPaneHidden
   @ObservationIgnored @Shared(.sidebarWidth) var sidebarWidth
   @ObservationIgnored @Shared(.chatWidth) var chatWidth
+  @ObservationIgnored @Shared(.sidebarRepositories) var sidebarRepositories
   @ObservationIgnored @Shared(.openedFolders) var openedFolders
 
   // MARK: - Initialization
@@ -96,6 +97,8 @@ final class ChangeStreamPageModel: ViewModel {
   private var listedCaptureSessionIDs: Set<String> = [] { didSet { sidebarInputsChanged() } }
   private var currentCapturesByFolder: [String: CaptureSummary] = [:]
   private(set) var sidebarGroups: [SidebarGroup] = []
+  /// Workspace folders whose main checkout was already looked up this run, found or not.
+  @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -340,7 +343,8 @@ final class ChangeStreamPageModel: ViewModel {
     guard hasLoadedSessions || selectedSession != nil else { return "Looking for capture sessions…" }
     if selectedSession == nil {
       if captureAvailability == .failed { return "The capture list didn't load. Press ⌘R to check again." }
-      return sidebarGroups.isEmpty ? "No capture sessions yet" : "Choose a capture session to watch its changes"
+      return sidebarGroups.allSatisfy(\.rows.isEmpty)
+        ? "No capture sessions yet" : "Choose a capture session to watch its changes"
     }
     if selectedSession?.hasHistory == false { return "No change history is available yet. Press ⌘R to check again." }
     return sections.isEmpty ? "Waiting for changes…" : nil
@@ -447,6 +451,11 @@ final class ChangeStreamPageModel: ViewModel {
   func isRemoveFromSidebarAvailable(_ session: SessionOption) -> Bool {
     guard workspaceRoots != nil, let folder = session.root, recording.operation(for: folder) == nil else { return false }
     return isOpened(session) && !isArchivable(session)
+  }
+
+  /// A repo with workspaces would come straight back, so only an empty remembered repo can go.
+  func isRemoveFromSidebarAvailable(_ group: SidebarGroup) -> Bool {
+    group.repository != nil && group.rows.isEmpty
   }
 
   func isArchiveIconShown(for session: SessionOption) -> Bool {
@@ -862,6 +871,12 @@ final class ChangeStreamPageModel: ViewModel {
       await terminals.workspaceChanged(folder: nil)
       deselect()
     }
+    sidebarInputsChanged()
+  }
+
+  func removeFromSidebarTapped(_ group: SidebarGroup) {
+    guard isRemoveFromSidebarAvailable(group), let name = group.repository else { return }
+    $sidebarRepositories.withLock { _ = $0.removeValue(forKey: name) }
     sidebarInputsChanged()
   }
 
@@ -1661,8 +1676,27 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func sidebarInputsChanged() {
-    let groups = SidebarGroup.groups(sessions.filter(isListed), roots: workspaceRoots)
+    let groups = SidebarGroup.groups(
+      sessions.filter(isListed), roots: workspaceRoots, repositories: sidebarRepositories)
     if groups != sidebarGroups { sidebarGroups = groups }
+    rememberRepositories(in: groups)
+  }
+
+  /// Looks up each repo group's main checkout once a run, so the group outlives its last workspace
+  /// and a moved checkout is followed while the repo still has one.
+  private func rememberRepositories(in groups: [SidebarGroup]) {
+    for group in groups {
+      guard let name = group.repository else { continue }
+      for row in group.rows {
+        guard let folder = row.root, lookedUpRepositoryFolders.insert(folder).inserted else { continue }
+        let workspace = workspace
+        Task { [weak self] in
+          guard let repository = await workspace.repository(URL(filePath: folder)), let self else { return }
+          $sidebarRepositories.withLock { $0[name] = Self.normalizedFolder(repository.path) }
+          sidebarInputsChanged()
+        }
+      }
+    }
   }
 
   /// A capture list with everything that touches the disk already worked out off the main actor.

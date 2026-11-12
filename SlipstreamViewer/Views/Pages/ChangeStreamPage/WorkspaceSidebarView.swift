@@ -69,6 +69,11 @@ struct WorkspaceSidebarView: View {
     .padding(.leading, DesignTokens.Sidebar.groupHeaderLeadingPadding)
     .padding(.trailing, DesignTokens.Sidebar.groupHeaderTrailingPadding)
     .frame(height: DesignTokens.Sidebar.groupHeaderHeight)
+    .contextMenu {
+      if model.isRemoveFromSidebarAvailable(group) {
+        Button(model.removeFromSidebarMenuText, systemImage: "minus.circle") { model.removeFromSidebarTapped(group) }
+      }
+    }
   }
 
   private var footer: some View {

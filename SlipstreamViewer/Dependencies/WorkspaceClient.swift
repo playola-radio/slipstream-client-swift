@@ -10,6 +10,8 @@ struct WorkspaceClient: Sendable {
   var chooseFolder: @MainActor @Sendable (_ message: String, _ prompt: String) async -> URL?
   /// Returns why the command failed, or nil once the workspace is archived.
   var archive: @Sendable (_ workspace: URL, _ store: String) async -> String?
+  /// The main checkout of the git repository holding `folder`, or nil when it isn't in one.
+  var repository: @Sendable (_ folder: URL) async -> URL?
 }
 
 extension WorkspaceClient {
@@ -19,6 +21,22 @@ extension WorkspaceClient {
   static func managedRoot(environment: [String: String]) -> URL {
     URL(filePath: environment["HOME"] ?? NSHomeDirectory())
       .appending(path: "slipstream/workspaces").resolvingSymlinksInPath()
+  }
+
+  /// Resolves a worktree to its main checkout the way `slipstream workspace create` does.
+  static func repository(of folder: URL) async -> URL? {
+    let arguments = [
+      "-C", folder.path, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir",
+    ]
+    guard
+      let (output, status) = try? await runInBackground(
+        "/usr/bin/git", arguments, environment: ProcessInfo.processInfo.environment),
+      status == 0
+    else { return nil }
+    let lines = output.split(whereSeparator: \.isNewline).map(String.init)
+    guard lines.count == 3 else { return nil }
+    let (top, gitDir, commonDir) = (lines[0], lines[1], lines[2])
+    return gitDir == commonDir ? URL(filePath: top) : URL(filePath: commonDir).deletingLastPathComponent()
   }
 
   static func failureText(output: String, status: Int32) -> String? {
@@ -60,7 +78,8 @@ extension WorkspaceClient: DependencyKey {
         }
         return await runShim(
           shim, ["workspace", "archive", workspace.path, "--store", store], environment: environment)
-      }
+      },
+      repository: { await repository(of: $0) }
     )
   }
 
@@ -72,7 +91,8 @@ extension WorkspaceClient: DependencyKey {
           conductor: URL(filePath: "/tmp/conductor-test/workspaces"))
       },
       chooseFolder: unimplemented("WorkspaceClient.chooseFolder", placeholder: nil),
-      archive: unimplemented("WorkspaceClient.archive", placeholder: nil)
+      archive: unimplemented("WorkspaceClient.archive", placeholder: nil),
+      repository: unimplemented("WorkspaceClient.repository", placeholder: nil)
     )
   }
 

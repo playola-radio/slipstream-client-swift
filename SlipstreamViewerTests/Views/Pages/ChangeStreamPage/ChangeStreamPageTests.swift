@@ -35,14 +35,15 @@ struct ChangeStreamPageTests {
   func makeModel(
     daemon: DaemonFake? = nil, storage: InMemoryStorage? = nil, files: LockIsolated<[URL: Data]>? = nil,
     isFunctionDemoVisible: Bool = false, now: (@Sendable () -> Date)? = nil,
-    chat: ChatPageModel? = nil, workspace: WorkspaceClient = .testValue, instantAsk: InstantAskModel? = nil,
-    terminals: TerminalPageModel? = nil, recorder: RecorderModel? = nil
+    chat: ChatPageModel? = nil, workspace: WorkspaceClient? = nil, instantAsk: InstantAskModel? = nil,
+    terminals: TerminalPageModel? = nil, recorder: RecorderModel? = nil, fileStorage: FileStorage? = nil
   ) -> ChangeStreamPageModel {
     let terminals = terminals ?? makeTerminals()
+    let workspace = workspace ?? Self.testRootsWorkspace
     return withDependencies {
       $0.workspace = workspace
       $0.defaultInMemoryStorage = storage ?? self.storage
-      $0.defaultFileStorage = .inMemory(fileSystem: files ?? self.files)
+      $0.defaultFileStorage = fileStorage ?? .inMemory(fileSystem: files ?? self.files)
       $0.daemon = (daemon ?? fake).client
       $0.continuousClock = clock
       $0.withRandomNumberGenerator = WithRandomNumberGenerator(ConstantGenerator())
@@ -2852,6 +2853,13 @@ extension ChangeStreamPageTests {
     fake.setCaptures(captures)
   }
 
+  /// `WorkspaceClient.testValue`'s roots, whose repo groups get looked up.
+  static var testRootsWorkspace: WorkspaceClient {
+    var workspace = WorkspaceClient.testValue
+    workspace.repository = { _ in nil }
+    return workspace
+  }
+
   func sidebarRowIDs(_ model: ChangeStreamPageModel) -> [String] {
     model.sidebarGroups.flatMap(\.rows).map(\.id)
   }
@@ -2861,7 +2869,7 @@ extension ChangeStreamPageTests {
       Fixture.capture(.stopped, reason: "detached", session: "deleted", root: "/tmp/slipstream-test/workspaces/r/deleted", binding: nil),
       Fixture.capture(.stopped, reason: "detached", session: "kept", root: "/tmp/slipstream-test/workspaces/r/kept", binding: nil))
     terminal.setMissing("/tmp/slipstream-test/workspaces/r/deleted")
-    let model = makeModel()
+    let model = makeModel(workspace: Self.testRootsWorkspace)
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
@@ -2880,7 +2888,7 @@ extension ChangeStreamPageTests {
         .stopped, reason: "detached", session: "managed", root: "/tmp/slipstream-test/workspaces/r/workspace-1",
         binding: nil),
       Fixture.capture(session: "recording", root: "/tmp/conductor-test/workspaces/r/brisbane", binding: nil))
-    let model = makeModel()
+    let model = makeModel(workspace: Self.testRootsWorkspace)
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
@@ -3978,11 +3986,12 @@ extension ChangeStreamPageTests {
 
   func workspaceClient(
     choose: URL? = URL(filePath: "/r"),
-    archive: @escaping @Sendable (URL, String) async -> String? = { _, _ in nil }
+    archive: @escaping @Sendable (URL, String) async -> String? = { _, _ in nil },
+    repository: @escaping @Sendable (URL) async -> URL? = { _ in nil }
   ) -> WorkspaceClient {
     WorkspaceClient(
       roots: { WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces")) },
-      chooseFolder: { _, _ in choose }, archive: archive)
+      chooseFolder: { _, _ in choose }, archive: archive, repository: repository)
   }
 
   /// The launch running `slipstream workspace create` in the Setup tab.
@@ -4424,7 +4433,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
+      chooseFolder: workspace.chooseFolder, archive: workspace.archive, repository: workspace.repository))
     let appeared = Task { await model.viewAppeared() }
     defer { model.viewDisappeared() }
     await appeared.value
@@ -4449,7 +4458,7 @@ extension ChangeStreamPageTests {
         for await _ in gate { break }
         return await workspace.roots()
       },
-      chooseFolder: workspace.chooseFolder, archive: workspace.archive))
+      chooseFolder: workspace.chooseFolder, archive: workspace.archive, repository: workspace.repository))
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
@@ -4496,7 +4505,8 @@ extension ChangeStreamPageTests {
         return await workspace.roots()
       },
       chooseFolder: workspace.chooseFolder,
-      archive: workspace.archive
+      archive: workspace.archive,
+      repository: workspace.repository
     )
     let model = makeModel(workspace: slowWorkspace)
     let appeared = Task { await model.viewAppeared() }
@@ -4674,6 +4684,119 @@ extension ChangeStreamPageTests {
     #expect(!model.isWorkspaceBusy)
   }
 
+
+  @Test func aRepoStaysListedAfterItsLastWorkspaceGoes() async throws {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/moved-from/r"] }
+    }
+    listWorkspace()
+    let lookedUp = LockIsolated<[String]>([])
+    let model = makeModel(
+      workspace: workspaceClient(repository: { folder in
+        lookedUp.withValue { $0.append(folder.path) }
+        return URL(filePath: "/code/r")
+      }),
+      fileStorage: fileStorage)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    fake.setSessions([])
+    fake.setCaptures([])
+    await model.reloadShortcutPressed()
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["r"]])
+    expectNoDifference(lookedUp.value, [Self.workspaceRoot])
+    let group = try #require(model.sidebarGroups.first)
+    let creating = Task { await model.newWorkspaceTapped(in: group) }
+    await Task.megaYield()
+    expectNoDifference(
+      setupLaunch.map { terminal.launches[$0].arguments }, ["workspace", "create", "/code/r", "--store", "store-a"])
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
+  @Test func aLiveWorkspaceRemembersItsRepoWhenAnArchivedWorkspaceSortsFirst() async {
+    let archivedRoot = "/work/slipstream/workspaces/r/archived"
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: archivedRoot, startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: Self.workspaceRoot, startedAtMs: 0),
+      ])
+    fake.setCaptures(.failure(.status(500, durableSeq: nil)))
+    let lookedUp = LockIsolated<[String]>([])
+    let model = makeModel(workspace: workspaceClient(repository: { folder in
+      lookedUp.withValue { $0.append(folder.path) }
+      return folder.path == Self.workspaceRoot ? URL(filePath: "/code/r") : nil
+    }))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    fake.setSessions([])
+    fake.setCaptures([])
+    await model.reloadShortcutPressed()
+
+    expectNoDifference(lookedUp.value, [archivedRoot, Self.workspaceRoot])
+    expectNoDifference(Self.names(model.sidebarGroups), [["r"]])
+  }
+
+  @Test func aRememberedRepoShowsWithoutWorkspacesOnLaunch() async {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/code/r"] }
+    }
+    fake.setSessions([])
+    fake.setCaptures([])
+    let model = makeModel(workspace: workspaceClient(), fileStorage: fileStorage)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["r"]])
+    expectNoDifference(model.emptyStateText, "No capture sessions yet")
+  }
+
+  @Test func removeFromSidebarIsOfferedOnlyForARepoWithoutWorkspaces() async throws {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/code/r", "s": "/code/s"] }
+    }
+    listWorkspace()
+    let model = makeModel(workspace: workspaceClient(), fileStorage: fileStorage)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    expectNoDifference(model.sidebarGroups.map(model.isRemoveFromSidebarAvailable), [false, true])
+  }
+
+  @Test func removingARepoWithoutWorkspacesForgetsIt() async throws {
+    let fileStorage = FileStorage.inMemory
+    withDependencies { $0.defaultFileStorage = fileStorage } operation: {
+      @Shared(.sidebarRepositories) var repositories
+      $repositories.withLock { $0 = ["r": "/code/r", "s": "/code/s"] }
+    }
+    fake.setSessions([])
+    fake.setCaptures([])
+    let model = makeModel(workspace: workspaceClient(), fileStorage: fileStorage)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    await Task.megaYield()
+
+    model.removeFromSidebarTapped(try #require(model.sidebarGroups.first))
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["s"]])
+    expectNoDifference(model.sidebarRepositories, ["s": "/code/s"])
+  }
 
   @Test func archiveIconShowsOnHoverOrFocusForManagedRowsOnly() async throws {
     let conductorRoot = "/work/conductor/workspaces/r/lisbon"
@@ -5926,7 +6049,7 @@ extension ChangeStreamPageTests {
           for await _ in roots.stream {}
           return WorkspaceRoots(managed: Self.managedRoot, conductor: URL(filePath: "/work/conductor/workspaces"))
         },
-        chooseFolder: { _, _ in nil }, archive: { _, _ in nil }))
+        chooseFolder: { _, _ in nil }, archive: { _, _ in nil }, repository: { _ in nil }))
     await model.viewAppeared()
     defer { model.viewDisappeared() }
 
