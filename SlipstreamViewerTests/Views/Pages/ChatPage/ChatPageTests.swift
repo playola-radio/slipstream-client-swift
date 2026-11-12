@@ -3410,6 +3410,39 @@ extension ChatPageTests {
     #expect(model.attachErrorDetail == nil)
   }
 
+  @Test func olderAttachCompletionKeepsNewerAttachError() async throws {
+    let pending = LockIsolated<CheckedContinuation<Void, Never>?>(nil)
+    let model = attachingModel(
+      draft: "",
+      copy: { url in
+        if url.lastPathComponent == "a.png" {
+          await withCheckedContinuation { continuation in pending.setValue(continuation) }
+        }
+        return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
+      })
+
+    let older = Task {
+      await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 0, tabID: Self.saved)
+    }
+    await Task.megaYield()
+    await model.attachmentsArrived([.unavailable(name: "b.png", detail: "The export failed")], at: 0, tabID: Self.saved)
+    try #require(pending.value).resume()
+    await older.value
+
+    expectNoDifference(model.attachErrorTitle, "Couldn't attach b.png")
+    expectNoDifference(model.attachErrorDetail, "The export failed")
+    expectNoDifference(model.draft, marker("a.png"))
+  }
+
+  @Test func attachReplacesSelectedDraftTextAfterCopySucceeds() async {
+    let model = attachingModel(draft: "hello")
+
+    await model.attachmentsArrived(
+      [.file(URL(fileURLWithPath: "/src/a.png"))], at: 1, replacing: 3, tabID: Self.saved)
+
+    expectNoDifference(model.draft, "h" + marker("a.png") + "o")
+  }
+
   @Test func attachKeepsTypingDoneDuringCopy() async throws {
     let pending = LockIsolated<CheckedContinuation<Void, Never>?>(nil)
     let model = attachingModel(

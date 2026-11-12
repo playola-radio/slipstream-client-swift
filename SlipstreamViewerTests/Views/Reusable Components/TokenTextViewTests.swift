@@ -7,7 +7,7 @@ import Testing
 @testable import SlipstreamViewer
 
 struct TokenTextViewTests {
-  @Test func typedAttachmentMarkerRequiresStorageUpdate() {
+  @MainActor @Test func typedAttachmentMarkerRequiresStorageUpdate() {
     let marker = "@⟦a.md⟧(/tmp/a.md)"
 
     expectNoDifference(
@@ -64,7 +64,7 @@ struct TokenTextViewTests {
     let text = TokenNSTextView(usingTextLayoutManager: false)
     text.importsGraphics = false
     var attached: [IncomingAttachment] = []
-    text.onAttach = { items, _ in attached += items }
+    text.onAttach = { items, _, _ in attached += items }
 
     _ = text.draggingEntered(drag)
     _ = text.draggingUpdated(drag)

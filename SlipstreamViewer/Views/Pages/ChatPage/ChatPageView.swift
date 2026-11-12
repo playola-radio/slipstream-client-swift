@@ -160,8 +160,8 @@ struct ChatPageView: View {
         onSubmit: { Task { await model.sendTapped() } },
         onDropTargetChange: model.dropTargetChanged,
         draftID: model.selectedTab?.id,
-        onAttach: { [tabID = model.selectedTab?.id] items, offset in
-          Task { await model.attachmentsArrived(items, at: offset, tabID: tabID) }
+        onAttach: { [tabID = model.selectedTab?.id] items, offset, length in
+          Task { await model.attachmentsArrived(items, at: offset, replacing: length, tabID: tabID) }
         }
       )
       Spacer(minLength: 0)

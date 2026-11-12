@@ -98,6 +98,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// Shutdowns still running, so quitting can wait for every process to be gone.
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
+  @ObservationIgnored private var attachmentGeneration = 0
 
   // MARK: - Display Text
 
@@ -543,7 +544,9 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   /// `offset` is in UTF-16 units of `draft`; the user may have typed since, so it is clamped to a
   /// character boundary outside any marker.
-  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async {
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int, replacing length: Int = 0) async {
+    attachmentGeneration += 1
+    let attachmentGeneration = attachmentGeneration
     var markers: [String] = []
     var firstError: AttachError?
     for item in items {
@@ -559,9 +562,9 @@ final class ChatTabModel: ViewModel, Identifiable {
         if firstError == nil { firstError = AttachError(name: Self.name(of: item), detail: error.localizedDescription) }
       }
     }
-    attachError = firstError
+    if attachmentGeneration == self.attachmentGeneration { attachError = firstError }
     guard !markers.isEmpty else { return }
-    draft.insert(contentsOf: markers.joined(separator: " "), at: insertionIndex(near: offset))
+    draft.replaceSubrange(insertionRange(near: offset, replacing: length), with: markers.joined(separator: " "))
   }
 
   func attachErrorDismissed() {
@@ -623,6 +626,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     let index = String.Index(utf16Offset: target, in: draft)
     return index == draft.endIndex ? index : draft.rangeOfComposedCharacterSequence(at: index).lowerBound
+  }
+
+  private func insertionRange(near offset: Int, replacing length: Int) -> Range<String.Index> {
+    let start = insertionIndex(near: offset)
+    let end = insertionIndex(near: offset + max(length, 0))
+    return start..<end
   }
 
   private static func name(of item: IncomingAttachment) -> String {

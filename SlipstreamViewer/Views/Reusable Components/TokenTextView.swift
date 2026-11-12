@@ -16,7 +16,7 @@ struct TokenTextView: NSViewRepresentable {
   var onDropTargetChange: (Bool) -> Void = { _ in }
   /// Identifies whose draft is shown; undo history never carries across a change.
   var draftID: UUID?
-  var onAttach: ([IncomingAttachment], Int) -> Void = { _, _ in }
+  var onAttach: ([IncomingAttachment], Int, Int) -> Void = { _, _, _ in }
   @Environment(\.fontScale) private var fontScale
 
   func makeCoordinator() -> Coordinator { Coordinator() }
@@ -126,7 +126,7 @@ final class TokenNSTextView: NSTextView {
   var fontScale: CGFloat = 1
   var placeholder = ""
   var placeholderColor = NSColor.clear
-  var onAttach: ([IncomingAttachment], Int) -> Void = { _, _ in }
+  var onAttach: ([IncomingAttachment], Int, Int) -> Void = { _, _, _ in }
   var onDropTargetChange: (Bool) -> Void = { _ in }
 
   var segments: [AttachmentMarker.Segment] {
@@ -247,7 +247,7 @@ final class TokenNSTextView: NSTextView {
   }
 
   override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
-    if attach(from: pboard, at: rangeForUserTextChange.location) { return true }
+    if attach(from: pboard, at: rangeForUserTextChange.location, replacing: rangeForUserTextChange.length) { return true }
     guard let string = pboard.string(forType: .string) else { return super.readSelection(from: pboard, type: type) }
     insertText(attributedString(for: AttachmentMarker.segments(string)), replacementRange: rangeForUserTextChange)
     return true
@@ -287,7 +287,7 @@ final class TokenNSTextView: NSTextView {
     let location = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
     guard isEditable, Self.canAttach(from: sender.draggingPasteboard) else { return super.performDragOperation(sender) }
     setSelectedRange(NSRange(location: location, length: 0))
-    return attach(from: sender.draggingPasteboard, at: location)
+    return attach(from: sender.draggingPasteboard, at: location, replacing: 0)
   }
 
   override func draw(_ dirtyRect: NSRect) {
@@ -305,37 +305,38 @@ final class TokenNSTextView: NSTextView {
   }
 
   /// models.md's precedence: file URLs, then promised files, then image data with no text.
-  private func attach(from pboard: NSPasteboard, at location: Int) -> Bool {
+  private func attach(from pboard: NSPasteboard, at location: Int, replacing length: Int) -> Bool {
     let offset = draftOffset(at: location)
     if let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
       !urls.isEmpty
     {
-      onAttach(urls.map(IncomingAttachment.file), offset)
+      onAttach(urls.map(IncomingAttachment.file), offset, length)
       return true
     }
     if let receivers = pboard.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
       !receivers.isEmpty
     {
-      receive(receivers, at: offset)
+      receive(receivers, at: offset, replacing: length)
       return true
     }
     guard pboard.availableType(from: [.string]) == nil, let png = Self.pngData(from: pboard) else { return false }
-    onAttach([.image(png)], offset)
+    onAttach([.image(png)], offset, length)
     return true
   }
 
   /// Promised files arrive one by one; attach them together, in drag order, once every promised file has
   /// arrived, through the `onAttach` of the moment of the drop. A failed promise arrives as
   /// `unavailable` with its error. A failure to make the folder surfaces as each promise's error.
-  private func receive(_ receivers: [NSFilePromiseReceiver], at offset: Int) {
+  private func receive(_ receivers: [NSFilePromiseReceiver], at offset: Int, replacing length: Int) {
     let destination = FileManager.default.temporaryDirectory.appending(
       path: UUID().uuidString, directoryHint: .isDirectory)
     try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
     let onAttach = onAttach
-    let arrivals = PromiseArrivals(fileCounts: receivers.map { max($0.fileNames.count, 1) }) { items in onAttach(items, offset) }
+    let arrivals = PromiseArrivals(fileCounts: receivers.map { max($0.fileNames.count, 1) }) { items in onAttach(items, offset, length) }
     for (index, receiver) in receivers.enumerated() {
       receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: .main) { url, error in
-        let item = error.map { IncomingAttachment.unavailable(name: url.lastPathComponent, detail: $0.localizedDescription) }
+        let name = receiver.fileNames.count == 1 ? receiver.fileNames[0] : "file"
+        let item = error.map { IncomingAttachment.unavailable(name: name, detail: $0.localizedDescription) }
         MainActor.assumeIsolated { arrivals.arrived(item ?? .file(url), from: index) }
       }
     }
