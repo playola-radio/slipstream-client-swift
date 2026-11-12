@@ -81,6 +81,8 @@ final class ChatPageModel: ViewModel {
     set { selectedTab?.draft = newValue }
   }
 
+  /// The window has one message box, so its drop highlight lives here rather than on a tab.
+  var isDropTargeted = false
   var isMessageBoxEnabled: Bool { selectedTab != nil && !isQuitting }
   var isPickerEnabled: Bool { isMessageBoxEnabled && selectedTab?.isPickerEnabled == true }
   var showsStop: Bool { selectedTab?.showsStop ?? false }
@@ -88,7 +90,12 @@ final class ChatPageModel: ViewModel {
 
   // MARK: - Display Text
 
-  let placeholderText = "Ask to make changes, @mention files, run /commands"
+  var placeholderText: String {
+    isDropTargeted ? "Drop to attach" : "Ask to make changes, @mention files, run /commands"
+  }
+  var attachErrorTitle: String? { selectedTab?.attachError.map { "Couldn't attach \($0.name)" } }
+  var attachErrorDetail: String? { selectedTab?.attachError?.detail }
+  let attachErrorDismissText = "Dismiss"
   let tryAgainText = "Try again"
   let newTabAccessibilityLabel = "New chat"
   let sendAccessibilityLabel = "Send message"
@@ -318,6 +325,18 @@ final class ChatPageModel: ViewModel {
   func sendTapped() async {
     guard !isQuitting else { return }
     await selectedTab?.send()
+  }
+
+  func dropTargetChanged(_ isTargeted: Bool) {
+    isDropTargeted = isTargeted
+  }
+
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async {
+    await selectedTab?.attachmentsArrived(items, at: offset)
+  }
+
+  func attachErrorDismissed() {
+    selectedTab?.attachErrorDismissed()
   }
 
   func stopTapped() async {

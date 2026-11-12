@@ -3335,3 +3335,120 @@ extension ChatPageTests {
     #expect(tab.attachmentAlert == nil)
   }
 }
+
+// MARK: - Attaching
+
+extension ChatPageTests {
+  func attachingModel(
+    draft: String,
+    copy: @escaping @Sendable (URL) async throws -> URL = { URL(fileURLWithPath: "/att/\($0.lastPathComponent)") },
+    write: @escaping @Sendable (String, Data) throws -> URL = { name, _ in URL(fileURLWithPath: "/att/\(name)") }
+  ) -> ChatPageModel {
+    let model = withDependencies {
+      $0.attachments.copy = copy
+      $0.attachments.write = write
+    } operation: {
+      makeModel(records: [record()])
+    }
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    model.draft = draft
+    return model
+  }
+
+  func marker(_ name: String) -> String {
+    AttachmentMarker.format(name: name, path: "/att/\(name)")
+  }
+
+  @Test func attachFileInsertsMarkerAtOffset() async {
+    let model = attachingModel(draft: "look  here")
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5)
+
+    expectNoDifference(model.draft, "look " + marker("a.png") + " here")
+  }
+
+  @Test func attachSeveralKeepsOrderSpaceSeparated() async {
+    let written = LockIsolated<[String]>([])
+    let model = attachingModel(
+      draft: "",
+      write: { name, _ in
+        written.withValue { $0.append(name) }
+        return URL(fileURLWithPath: "/att/\(name)")
+      })
+
+    await model.attachmentsArrived(
+      [.file(URL(fileURLWithPath: "/src/a.png")), .image(Data([1, 2])), .file(URL(fileURLWithPath: "/src/b.txt"))],
+      at: 0)
+
+    expectNoDifference(model.draft, [marker("a.png"), marker("image.png"), marker("b.txt")].joined(separator: " "))
+    expectNoDifference(written.value, ["image.png"])
+  }
+
+  @Test func attachFailureSetsFullErrorAndKeepsOthers() async {
+    let model = attachingModel(
+      draft: "",
+      copy: { url in
+        if url.path == "/src/dir" { throw AttachmentError.folder("/src/dir") }
+        return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
+      })
+
+    await model.attachmentsArrived(
+      [.file(URL(fileURLWithPath: "/src/dir")), .file(URL(fileURLWithPath: "/src/b.txt"))], at: 0)
+
+    expectNoDifference(model.attachErrorTitle, "Couldn't attach dir")
+    expectNoDifference(model.attachErrorDetail, "/src/dir is a folder; only files can be attached")
+    expectNoDifference(model.draft, marker("b.txt"))
+
+    model.attachErrorDismissed()
+
+    #expect(model.attachErrorTitle == nil)
+    #expect(model.attachErrorDetail == nil)
+  }
+
+  @Test func attachKeepsTypingDoneDuringCopy() async throws {
+    let pending = LockIsolated<CheckedContinuation<Void, Never>?>(nil)
+    let model = attachingModel(
+      draft: "hello",
+      copy: { url in
+        await withCheckedContinuation { continuation in pending.setValue(continuation) }
+        return URL(fileURLWithPath: "/att/\(url.lastPathComponent)")
+      })
+
+    let attaching = Task { await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 5) }
+    await Task.megaYield()
+    model.draft = "ab"
+    try #require(pending.value).resume()
+    await attaching.value
+
+    expectNoDifference(model.draft, "ab" + marker("a.png"))
+  }
+
+  @Test func attachClampsOffsetToCharacterBoundary() async {
+    let model = attachingModel(draft: "é😀x")
+
+    await model.attachmentsArrived([.file(URL(fileURLWithPath: "/src/a.png"))], at: 2)
+
+    expectNoDifference(model.draft, "é" + marker("a.png") + "😀x")
+  }
+
+  @Test func placeholderReadsDropToAttachWhileTargeted() {
+    let model = makeModel(records: [record()])
+    let resting = model.placeholderText
+
+    model.dropTargetChanged(true)
+    expectNoDifference(model.placeholderText, "Drop to attach")
+
+    model.dropTargetChanged(false)
+    expectNoDifference(model.placeholderText, resting)
+  }
+
+  @Test func markerOnlyDraftSends() async {
+    let model = makeModel(records: [record()])
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    await model.viewAppeared()
+
+    await send(model, marker("a.png"))
+
+    expectNoDifference(agent.writes(0), [firstMessage(marker("a.png"))])
+  }
+}

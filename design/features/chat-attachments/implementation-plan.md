@@ -114,7 +114,7 @@
     - Pass-throughs mirroring `draft`: `attachErrorDismissed()` and `attachmentsArrived(_:at:) async` forward to `selectedTab` (the optional chain fixes the receiving tab before the await).
     - `attachErrorDismissText = "Dismiss"` is the × accessibility label.
 
-- [ ] **Step 1: Write failing tests:**
+- [x] **Step 1: Write failing tests:**
   - `attachFileInsertsMarkerAtOffset`: with draft `"look  here"`, attaching `[.file(/src/a.png)]` at offset 5 gives `"look " + format("a.png", "/att/a.png") + " here"`.
   - `attachSeveralKeepsOrderSpaceSeparated`: two files plus one image give three markers joined by `" "` in item order. The image is written as `"image.png"`.
   - `attachFailureSetsFullErrorAndKeepsOthers`: the first item (`.file(/src/dir)`) throws `AttachmentError.folder("/src/dir")`. Then `attachErrorTitle == "Couldn't attach dir"`, `attachErrorDetail == "/src/dir is a folder; only files can be attached"`, the second item's marker is inserted, and `attachErrorDismissed()` makes both `nil`.
@@ -122,14 +122,14 @@
   - `attachClampsOffsetToCharacterBoundary`: with draft `"é😀x"` and an offset that lands inside the emoji's UTF-16 pair, the insert goes before the emoji (round down to a `Character` boundary), and the draft's other characters are unchanged.
   - `placeholderReadsDropToAttachWhileTargeted`: `dropTargetChanged(true)` makes `placeholderText == "Drop to attach"`; `dropTargetChanged(false)` restores it.
   - `markerOnlyDraftSends`: with a draft that is just one marker, `send()` writes a user message whose text equals the marker (assert with the existing `agent.writes` / `firstMessage` helpers).
-- [ ] **Step 2:** Run `-only-testing:SlipstreamViewerTests/ChatPageTests`. Expect the new tests to FAIL.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2:** Run `-only-testing:SlipstreamViewerTests/ChatPageTests`. Expect the new tests to FAIL.
+- [x] **Step 3: Implement.**
   - For each item in order: `.file(url)` → `try await attachments.copy(url)`; `.image(data)` → `try attachments.write("image.png", data)`.
   - Format each success with the copy's `lastPathComponent` and `path`.
   - Record the first failure as `AttachError(name:detail:)`: the name is the dropped URL's `lastPathComponent` (or `"image.png"`), the detail its error's `localizedDescription` (an `AttachmentError`'s text, or a `CocoaError`'s, which names the path).
   - Then clamp `offset` to `draft.utf16.count`, convert with `String.Index(utf16Offset:in:)`, round down via `draft.rangeOfComposedCharacterSequence`, and insert the markers joined by `" "`.
-- [ ] **Step 4:** Run `ChatPageTests`. Expect a PASS.
-- [ ] **Step 5:** Commit `Attach dropped and pasted files into the chat draft`.
+- [x] **Step 4:** Run `ChatPageTests`. Expect a PASS.
+- [x] **Step 5:** Commit `Attach dropped and pasted files into the chat draft`.
 
 ### Task 4: Tokens in the sent bubble
 

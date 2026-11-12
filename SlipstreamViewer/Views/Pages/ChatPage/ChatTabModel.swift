@@ -32,11 +32,18 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   // MARK: - Properties
 
+  struct AttachError: Equatable {
+    var name: String
+    var detail: String
+  }
+
   let id: UUID
   var title = ChatTabModel.newChatTitle
   var projection = TranscriptProjection()
   var draft = ""
   var errorText: String?
+  /// The first failure of the last attach, shown above the draft.
+  var attachError: AttachError?
   var attachmentAlert: String?
   var isAttachmentAlertPresented: Bool {
     get { attachmentAlert != nil }
@@ -532,6 +539,33 @@ final class ChatTabModel: ViewModel, Identifiable {
     attachmentAlert = nil
   }
 
+  /// `offset` is in UTF-16 units of `draft`; the user may have typed since, so it is clamped.
+  func attachmentsArrived(_ items: [IncomingAttachment], at offset: Int) async {
+    var markers: [String] = []
+    var firstError: AttachError?
+    for item in items {
+      do {
+        let file =
+          switch item {
+          case .file(let url): try await attachments.copy(url)
+          case .image(let data): try attachments.write(Self.pastedImageName, data)
+          }
+        markers.append(AttachmentMarker.format(name: file.lastPathComponent, path: file.path))
+      } catch {
+        if firstError == nil { firstError = AttachError(name: Self.name(of: item), detail: error.localizedDescription) }
+      }
+    }
+    attachError = firstError
+    guard !markers.isEmpty else { return }
+    let target = String.Index(utf16Offset: min(max(offset, 0), draft.utf16.count), in: draft)
+    let index = target == draft.endIndex ? target : draft.rangeOfComposedCharacterSequence(at: target).lowerBound
+    draft.insert(contentsOf: markers.joined(separator: " "), at: index)
+  }
+
+  func attachErrorDismissed() {
+    attachError = nil
+  }
+
   func clockTicked() {
     guard isWorking else { return }
     now = date.now
@@ -574,6 +608,15 @@ final class ChatTabModel: ViewModel, Identifiable {
   }
 
   // MARK: - Private Helpers
+
+  private static let pastedImageName = "image.png"
+
+  private static func name(of item: IncomingAttachment) -> String {
+    switch item {
+    case .file(let url): url.lastPathComponent
+    case .image: pastedImageName
+    }
+  }
 
   private struct ActiveTurn {
     let id: UUID
