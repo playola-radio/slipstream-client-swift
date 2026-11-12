@@ -48,11 +48,22 @@ Found in Conductor's local database (`session_messages`, `attachments`) and its 
 
 ## Scope
 
-1. **Where.** A new 40pt row at the top of the right column, above the Change stream / Terminals
-   strip (`rightPaneStrip`), inside `ChangeStreamPageView.rightPane`. The window's system
-   toolbar is unchanged. The row is present whenever a workspace is selected and the right column
-   is open; it is empty when the feature doesn't apply (see "How the status is derived", step 1).
-   This resolves Q1 (Brian, 2026-11-11).
+1. **Where.** In the window toolbar (`ChangeStreamPageView.toolbar`), at the trailing end, just
+   before the right-panel toggle. Open In moves to the centre of the window
+   (`ToolbarItem(placement: .principal)`). The section is a tinted rounded pill
+   (`DesignTokens.PRStatusBar.fill(tone)` with its stroke), because the toolbar has one
+   background. It shows whenever a workspace is selected, whether the right panel is open or
+   hidden; it is hidden when the feature doesn't apply (see "How the status is derived", step 1).
+   The right column no longer has a PR row. This reverses the 2026-11-11 placement (Q1, "a row at
+   the top of the right column, toolbar unchanged"): Brian, 2026-11-12, D16.
+   - **Narrow windows.** The pill never pushes the breadcrumb or Open In into the toolbar's "»"
+     overflow menu. As room shrinks it first drops the grey status detail, then shows the action
+     buttons as icons only (help text and accessibility labels stay). The PR number chip and the
+     status label always stay. `PRStatusBarModel` decides the layout from the window width, the
+     measured Open In width and the measured pill widths; the view only reports widths. Room for
+     the pill is half of what's left after Open In, minus the trailing chrome (the right-panel
+     toggle and toolbar insets), because Open In is centred on the whole window. This is
+     best-effort: at the smallest window widths even the icon-only pill may not fit.
 2. **States.** The states in [`screens.md`](screens.md). Exactly one shows at a time. The status
    is computed as a domain value (models.md `PRStatus`); presentation flags (Details open, an
    operation in flight) sit on top of it, not in the same ordered list.
@@ -362,6 +373,10 @@ the message is still sent.
   frame with its own reason.
 - **D13 — CANCELLED checks don't count as failed** (step 8).
 - **D14 — Forks unsupported.** A fork `origin` hides the row rather than risk picking the wrong PR.
+- **D16 — Brian (2026-11-12). The PR status moves into the window toolbar.** It reverses the
+  2026-11-11 placement in scope 1: the row lived in the right column, so it vanished when the
+  right panel was hidden. Now it is a pill before the right-panel toggle and Open In is centred
+  on the whole window (not over the chat column). Mockups: screen C in screens.md.
 - **D15 — Agent buttons wait for the chat.** They are disabled while any chat tab in the
   workspace is working, not only the turn the bar started. This replaces a per-tab turn-end
   observer list; the spec's premise for it was wrong (Instant Ask hooks
@@ -379,11 +394,13 @@ Client only; no daemon contract is touched. Paths are at `a8fb46b`.
   - Open in;
   - the right-pane toggle.
 
-  Unchanged. The `conductor-top-bar` work (#62, #63) restyled this toolbar; it did not add a
-  content row, so the PR bar adds one (scope 1).
+  Changed by D16 (2026-11-12): Open in moves to the centre (`.principal`), and the PR pill
+  is added between the flexible spacer and the right-pane toggle. The `conductor-top-bar` work
+  (#62, #63) restyled this toolbar.
 - **Right column.** `rightPane` (`ChangeStreamPageView.swift:180`) is a `VStack` of
   `rightPaneStrip` (line 195, the Change stream / Terminals tabs and Compare functions) and the
-  pane. The PR bar row is inserted first.
+  pane. Since D16 it has no PR row; the poll task (`.task(id: pollKey)`) moves to the page root
+  so polling runs whether or not the pill or the right panel is shown.
 - **Chat send.**
   - `ChatTabModel.send()` (`ChatTabModel.swift:230`) returns early when a turn is active.
   - `ChatTabModel.relay(_:)` (`:266`) writes mid-turn but carries Instant Ask's relay bookkeeping.
@@ -524,8 +541,15 @@ Model tests (Swift Testing, fake `RepoCommandClient`, `TestClock`) unless marked
 - Manual: ⌘⇧P / ⌘⇧X / ⌘⇧M fire only while their button is shown and enabled (they are attached
   to the button).
 
+**Toolbar layout (D16)**
+- The pill shows everything when the full layout fits; drops the detail when only that fits;
+  shows icon-only buttons otherwise, including before anything is measured. Exact boundaries
+  count as fitting.
+- The section stays shown while the right panel is hidden.
+
 **Manual**
-- The row lines up with the right column at several window widths and in full screen.
+- At several window widths and in full screen, the breadcrumb and Open In never go into the
+  "»" overflow menu, Open In stays centred, and the pill collapses detail first, then titles.
 - VoiceOver reads the status and button labels.
 
 ## Approvals
@@ -537,6 +561,7 @@ Model tests (Swift Testing, fake `RepoCommandClient`, `TestClock`) unless marked
 | 2026-11-11 | Full feature here, not just Create PR: "Why not just do it all here?" | Scope |
 | 2026-11-11 | Screens A and B mockups: "PERFECT I fucking love it all let's do it." | Pen zone `o1YFJQ` (frames `g4p4Cf`, `N9K28`) as exported then |
 | 2026-11-11 | After the Codex review: row above the tabs, cut Create draft PR, add Waiting: "ok love it." | Scope 1, D7, D12; frames `uhPcs` (Draft) and `dGTED` (Waiting); Create PR without chevron |
+| 2026-11-12 | Move the PR status out of the right column into the window toolbar, Open In centred on the whole window | Scope 1, D16, screen C |
 
 ## Design deliverables
 
