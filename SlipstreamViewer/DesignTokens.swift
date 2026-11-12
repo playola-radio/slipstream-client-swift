@@ -1354,6 +1354,8 @@ enum DesignTokens {
       static let maxHeight: CGFloat = 320
       static let copy = Icons.Icon(assetName: "Copy", size: 13, color: muted)
       static let copyPadding: CGFloat = 8
+      static let copyButtonSize = copy.size + copyPadding * 2
+      static let copyClearance = copyButtonSize - padding
     }
 
     enum TurnFooter {

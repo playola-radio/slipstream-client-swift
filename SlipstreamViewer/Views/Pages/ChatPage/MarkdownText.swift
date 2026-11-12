@@ -51,6 +51,7 @@ struct MarkdownText: View {
                 .font(DesignTokens.Chat.CodeBlock.font)
                 .foregroundStyle(DesignTokens.Chat.CodeBlock.color)
                 .padding(DesignTokens.Chat.CodeBlock.padding)
+                .padding(.top, DesignTokens.Chat.CodeBlock.copyClearance)
             }
             .scrollIndicators(.hidden, axes: .horizontal)
             .defaultScrollAnchor(.topLeading)
