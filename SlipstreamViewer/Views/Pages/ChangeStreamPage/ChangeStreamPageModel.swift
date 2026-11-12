@@ -420,7 +420,10 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func isSettingUp(_ session: SessionOption) -> Bool {
-    isCreatingRow(session) || (session.root.map(terminals.isSettingUp(folder:)) ?? false)
+    if let creation = creatingWorkspaces.first(where: { $0.row.id == session.id }) {
+      return !creation.isSetupEnded
+    }
+    return session.root.map(terminals.isSettingUp(folder:)) ?? false
   }
 
   func isSpinnerShown(_ session: SessionOption) -> Bool {
@@ -1146,6 +1149,7 @@ final class ChangeStreamPageModel: ViewModel {
     isWorkspaceBusy = true
     $isRightPaneHidden.withLock { $0 = false }
     rightPaneSelected(.terminals)
+    let selectionGeneration = userSessionSelectionGeneration
     let roots: WorkspaceRoots
     if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
     if workspaceRoots == nil { workspaceRoots = roots }
@@ -1154,7 +1158,9 @@ final class ChangeStreamPageModel: ViewModel {
       id: creationCount, folder: workspace.nextFolder(repositoryName, roots.managed),
       previousRowID: selectedCreation?.row.id ?? selectedSession?.id)
     creatingWorkspaces.append(creation)
-    creatingWorkspaceSelected(creation)
+    if userSessionSelectionGeneration == selectionGeneration {
+      creatingWorkspaceSelected(creation)
+    }
     let printed = await terminals.newWorkspaceStarted(
       repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
     isWorkspaceBusy = false

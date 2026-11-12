@@ -4209,6 +4209,41 @@ extension ChangeStreamPageTests {
     #expect(model.selectedSession?.id == Fixture.session)
   }
 
+  @Test func creatingAWorkspaceDoesNotOverrideASelectionChangedWhileRootsLoad() async {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let workspace = workspaceClient()
+    let slowWorkspace = WorkspaceClient(
+      roots: {
+        for await _ in gate { break }
+        return await workspace.roots()
+      },
+      chooseFolder: workspace.chooseFolder, nextFolder: workspace.nextFolder, archive: workspace.archive)
+    let model = makeModel(workspace: slowWorkspace)
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+
+    let creating = Task { await model.newWorkspaceTapped() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    release.yield()
+    await Task.megaYield()
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
   func newRows(_ model: ChangeStreamPageModel) -> [SessionOption] {
     model.sidebarGroups.first { $0.repository == "r" }?.rows ?? []
   }
@@ -4426,7 +4461,7 @@ extension ChangeStreamPageTests {
     #expect(fake.sessionsCallCount == calls)
   }
 
-  @Test func aFailedRefreshAfterSetupKeepsTheNewRow() async {
+  @Test func aFailedRefreshAfterSetupKeepsTheNewRow() async throws {
     let model = makeModel(workspace: workspaceClient())
     await model.viewAppeared()
     defer { model.viewDisappeared() }
@@ -4439,6 +4474,7 @@ extension ChangeStreamPageTests {
     setupFinishes(.exited(0))
     await creating.value
     expectNoDifference(newRows(model).map(\.id), ["creating-workspace-1"])
+    #expect(!model.isSpinnerShown(try #require(newRows(model).first)))
 
     fake.setSessionsError(nil)
     listWorkspace()
