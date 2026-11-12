@@ -369,9 +369,11 @@ final class ChatPageModel: ViewModel {
   }
 
   func restoreTabs(in folder: String, drafts: [UUID: String]) {
-    for record in records where record.folder == folder && tabs[id: record.id] == nil {
-      addModel(for: record.id, needsHistory: true)
-      if let draft = drafts[record.id] { tabs[id: record.id]?.draft = draft }
+    for record in records where record.folder == folder {
+      if tabs[id: record.id] == nil { addModel(for: record.id, needsHistory: true) }
+      if let draft = drafts[record.id], tabs[id: record.id]?.draft.isEmpty == true {
+        tabs[id: record.id]?.draft = draft
+      }
     }
   }
 

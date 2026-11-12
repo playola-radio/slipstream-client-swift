@@ -5627,6 +5627,27 @@ extension ChangeStreamPageTests {
     expectNoDifference(model.terminals.shownTabs.map(\.title), ["Terminal 1"])
   }
 
+  @Test func refusedArchiveOfAReopenedFolderRestoresItsSavedDraft() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await workspaceModel(archive: { _, _ in
+      for await _ in gate { break }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+    model.chat.selectedTab?.draft = "saved"
+    model.archiveTapped(try #require(model.selectedSession))
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    await model.recording.recordTapped(folder: Self.workspaceRoot)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    release.yield()
+    await archiving.value
+
+    expectNoDifference(model.chat.selectedTab?.draft, "saved")
+  }
+
   @Test func anEarlierArchivesRefusalDoesNotShowTheRowALaterArchiveHid() async throws {
     let gates = LockIsolated<[CheckedContinuation<Void, Never>]>([])
     let model = try await threeWorkspacesModel(selecting: "d3", archive: { _, _ in

@@ -196,6 +196,8 @@ final class WorkspaceNamingModel: ViewModel {
     let running = Array(suggestions.values)
     for task in running { task.cancel() }
     for task in running { await task.value }
+    let pendingWrites = Array(writes.values)
+    for task in pendingWrites { _ = await task.value }
   }
 
   func copyErrorTapped() {

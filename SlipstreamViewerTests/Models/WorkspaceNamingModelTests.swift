@@ -530,6 +530,38 @@ struct WorkspaceNamingModelTests {
     expectNoDifference(refreshes.value, 0)
   }
 
+  @Test func quitWaitsForAQueuedRename() async {
+    let model = makeModel()
+    nameFake.hold()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("First name")
+    let first = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    model.renameTapped(sessionID: Self.session, currentName: "First name")
+    model.draftChanged("Second name")
+    let second = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    let didQuit = LockIsolated(false)
+    let quit = Task {
+      await model.quitConfirmed()
+      didQuit.setValue(true)
+    }
+    await Task.megaYield()
+
+    #expect(!didQuit.value)
+    nameFake.release()
+    await quit.value
+    await first.value
+    await second.value
+
+    expectNoDifference(
+      nameFake.calls,
+      [
+        .init(sessionID: Self.session, name: "First name"),
+        .init(sessionID: Self.session, name: "Second name"),
+      ])
+  }
+
   @Test func nothingIsSuggestedAfterQuit() async {
     let model = makeModel()
     await model.quitConfirmed()
