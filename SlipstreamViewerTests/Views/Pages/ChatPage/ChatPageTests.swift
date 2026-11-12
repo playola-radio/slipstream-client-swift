@@ -1636,6 +1636,32 @@ struct ChatPageTests {
     expectNoDifference(copied.value, ["First\n\nSecond"])
   }
 
+  @Test func copyingACodeBlockCopiesOnlyItsCode() async throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let reply = """
+      Here are two options:
+      ```swift
+      let first = 1
+      ```
+      Use the second one instead:
+      ```swift
+      let second = 2
+      ```
+      """
+    let blocks = ChatTabModel.markdownBlocks(reply)
+    let codeBlocks: [String] = blocks.compactMap { block -> String? in
+      guard case let .code(code) = block else { return nil }
+      return code
+    }
+    let secondCode = try #require(codeBlocks.dropFirst().first)
+
+    tab.codeCopyTapped(secondCode)
+
+    expectNoDifference(copied.value, ["let second = 2"])
+  }
+
   @Test func fencedCodeSplitsFromProse() throws {
     let text = """
       Run **this**:

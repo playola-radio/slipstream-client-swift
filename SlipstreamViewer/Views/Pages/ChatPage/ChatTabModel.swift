@@ -113,6 +113,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   let thinkingText = "Thinking"
   let closeAccessibilityLabel = "Close chat"
   let copyAccessibilityLabel = "Copy reply"
+  let codeCopyAccessibilityLabel = "Copy code"
   let attachmentAlertTitle = "Couldn't open the file"
   let attachmentAlertDismissText = "OK"
 
@@ -633,6 +634,10 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   func copyTapped(_ footer: TranscriptItem) {
     pasteboard.copy(projection.replyText(endingAt: footer.id))
+  }
+
+  func codeCopyTapped(_ code: String) {
+    pasteboard.copy(code)
   }
 
   func attachmentTapped(path: String) {

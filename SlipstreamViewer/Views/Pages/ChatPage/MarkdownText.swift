@@ -3,6 +3,8 @@ import SwiftUI
 /// A reply: headings, lists, quotes, tables and paragraphs with inline markdown, and fenced code in Geist Mono.
 struct MarkdownText: View {
   let text: String
+  let codeCopyAccessibilityLabel: String
+  let codeCopyTapped: (String) -> Void
   @Environment(\.fontScale) private var fontScale
 
   var body: some View {
@@ -43,16 +45,31 @@ struct MarkdownText: View {
             .fill(DesignTokens.Chat.Rule.color)
             .frame(height: DesignTokens.Chat.Rule.height)
         case .code(let code):
-          ScrollView(.horizontal) {
-            Text(code)
-              .font(DesignTokens.Chat.CodeBlock.font)
-              .foregroundStyle(DesignTokens.Chat.CodeBlock.color)
-              .padding(DesignTokens.Chat.CodeBlock.padding)
+          CappedHeight(maxHeight: DesignTokens.Chat.CodeBlock.maxHeight) {
+            ScrollView([.horizontal, .vertical]) {
+              Text(code)
+                .font(DesignTokens.Chat.CodeBlock.font)
+                .foregroundStyle(DesignTokens.Chat.CodeBlock.color)
+                .padding(DesignTokens.Chat.CodeBlock.padding)
+                .padding(.top, DesignTokens.Chat.CodeBlock.copyClearance)
+            }
+            .scrollIndicators(.hidden, axes: .horizontal)
+            .defaultScrollAnchor(.topLeading)
           }
-          .scrollIndicators(.hidden)
           .frame(maxWidth: .infinity, alignment: .leading)
           .background(DesignTokens.Chat.CodeBlock.fill,
             in: RoundedRectangle(cornerRadius: DesignTokens.Chat.CodeBlock.radius))
+          .overlay(alignment: .topTrailing) {
+            Button { codeCopyTapped(code) } label: {
+              IconView(icon: DesignTokens.Chat.CodeBlock.copy)
+                .padding(DesignTokens.Chat.CodeBlock.copyPadding)
+                .background(DesignTokens.Chat.CodeBlock.fill,
+                  in: RoundedRectangle(cornerRadius: DesignTokens.Chat.CodeBlock.radius))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(codeCopyAccessibilityLabel)
+          }
         case .table(let table):
           tableBlock(table)
         }
@@ -107,6 +124,21 @@ struct MarkdownText: View {
       .lineSpacing(DesignTokens.Chat.Paragraph.lineSpacing)
       .fixedSize(horizontal: false, vertical: true)
       .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+/// Hugs its scroll view's content until `maxHeight`, past which the scroll view scrolls.
+private struct CappedHeight: Layout {
+  let maxHeight: CGFloat
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    guard let content = subviews.first else { return .zero }
+    let natural = content.sizeThatFits(ProposedViewSize(width: proposal.width, height: nil))
+    return CGSize(width: natural.width, height: min(natural.height, maxHeight))
+  }
+
+  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
   }
 }
 
