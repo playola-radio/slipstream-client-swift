@@ -99,6 +99,9 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var sidebarGroups: [SidebarGroup] = []
   /// Workspace folders whose main checkout was already looked up this run, found or not.
   @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
+  /// The repo a new workspace is being created in, until the workspace's row can show.
+  @ObservationIgnored private var creatingWorkspaceRepository: String?
+  @ObservationIgnored private var workspaceCreationGeneration = 0
   private var archivingFolder: String?
   private var hoveredRowID: String?
   private var focusedRowID: String?
@@ -248,6 +251,7 @@ final class ChangeStreamPageModel: ViewModel {
   let sidebarTitleText = "Workspaces"
   let addRepositoryText = "Add repository…"
   let recordFolderText = "Record a folder…"
+  let creatingWorkspaceText = "Creating workspace…"
 
   /// Counts rows recording now, not slots in use.
   var recordingCountText: String? {
@@ -436,6 +440,11 @@ final class ChangeStreamPageModel: ViewModel {
 
   func isWorking(_ session: SessionOption) -> Bool {
     session.root.map(chat.hasWorkingTab(in:)) ?? false
+  }
+
+  /// The workspace's Setup tab is still running its setup script.
+  func isSettingUp(_ session: SessionOption) -> Bool {
+    session.root.map(terminals.state.isSettingUp) ?? false
   }
 
   /// Only the workspaces `slipstream workspace create` makes, `<managedRoot>/<repo>/<name>`, can be archived.
@@ -810,7 +819,7 @@ final class ChangeStreamPageModel: ViewModel {
 
   func newWorkspaceTapped(in group: SidebarGroup) async {
     guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
-    await createWorkspace(in: URL(filePath: folder))
+    await createWorkspace(in: URL(filePath: folder), group: group.repository)
   }
 
   func rowActionTapped(_ session: SessionOption) async {
@@ -1166,20 +1175,29 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   /// Busy only until the Setup tab names the new workspace (or its command ends): the setup
-  /// script keeps running in that tab while the window switches to it.
-  private func createWorkspace(in repository: URL) async {
+  /// script keeps running in that tab while the window switches to it. The placeholder row stays
+  /// until the sessions that include the new workspace have loaded, so the sidebar never goes blank.
+  private func createWorkspace(in repository: URL, group: String? = nil) async {
     isWorkspaceBusy = true
     $isRightPaneHidden.withLock { $0 = false }
     rightPaneSelected(.terminals)
     let selectionGeneration = userSessionSelectionGeneration
     let roots: WorkspaceRoots
     if let workspaceRoots { roots = workspaceRoots } else { roots = await workspace.roots() }
+    workspaceCreationGeneration += 1
+    let creation = workspaceCreationGeneration
+    creatingWorkspaceRepository = group ?? roots.repository(of: Self.normalizedFolder(repository.path))
+      ?? repository.lastPathComponent
+    sidebarInputsChanged()
     let folder = await terminals.newWorkspaceStarted(
       repository: repository, store: daemon.storeID, managedRoot: URL(filePath: roots.managed))
     isWorkspaceBusy = false
     if let folder {
       await loadSessions(preferring: userSessionSelectionGeneration == selectionGeneration ? folder : nil)
     }
+    guard creation == workspaceCreationGeneration else { return }
+    creatingWorkspaceRepository = nil
+    sidebarInputsChanged()
   }
 
   private func workspaceFailed(title: String, text: String, detail: String? = nil) {
@@ -1677,7 +1695,8 @@ final class ChangeStreamPageModel: ViewModel {
 
   private func sidebarInputsChanged() {
     let groups = SidebarGroup.groups(
-      sessions.filter(isListed), roots: workspaceRoots, repositories: sidebarRepositories)
+      sessions.filter(isListed), roots: workspaceRoots, repositories: sidebarRepositories,
+      creatingIn: creatingWorkspaceRepository)
     if groups != sidebarGroups { sidebarGroups = groups }
     rememberRepositories(in: groups)
   }

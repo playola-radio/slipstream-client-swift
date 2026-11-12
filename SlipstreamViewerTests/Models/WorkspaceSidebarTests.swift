@@ -21,8 +21,8 @@ struct WorkspaceSidebarTests {
       [Self.session("/u/slipstream/workspaces/playola/workspace-9"), Self.session("/u/conductor/workspaces/playola/lisbon-v2")],
       roots: Self.roots)
 
-    expectNoDifference(Self.names(groups), [["playola", "lisbon-v2", "workspace-9"]])
-    expectNoDifference(groups.first?.newWorkspaceFolder, "/u/conductor/workspaces/playola/lisbon-v2")
+    expectNoDifference(Self.names(groups), [["playola", "workspace-9", "lisbon-v2"]])
+    expectNoDifference(groups.first?.newWorkspaceFolder, "/u/slipstream/workspaces/playola/workspace-9")
   }
 
   @Test func aFolderOutsideTheRootsIsItsOwnGroup() {
@@ -96,7 +96,7 @@ struct WorkspaceSidebarTests {
     expectNoDifference(groups.map(\.name), ["alpha", "Beta", "zeta", "standalone-a", "standalone-b"])
   }
 
-  @Test func rowsComeInNaturalFolderOrder() {
+  @Test func rowsComeNewestFirstInReverseNaturalFolderOrder() {
     let groups = SidebarGroup.groups(
       [
         Self.session("/u/slipstream/workspaces/r/workspace-10"),
@@ -106,10 +106,10 @@ struct WorkspaceSidebarTests {
       ],
       roots: Self.roots)
 
-    expectNoDifference(Self.names(groups), [["r", "Lisbon", "workspace-1", "workspace-2", "workspace-10"]])
+    expectNoDifference(Self.names(groups), [["r", "workspace-10", "workspace-2", "workspace-1", "Lisbon"]])
   }
 
-  @Test func rowsInTheSameFolderComeInIDOrder() {
+  @Test func rowsInTheSameFolderComeInReverseIDOrder() {
     let groups = SidebarGroup.groups(
       [
         SessionOption(id: "b", label: "b", root: "/u/slipstream/workspaces/r/w"),
@@ -117,7 +117,7 @@ struct WorkspaceSidebarTests {
       ],
       roots: Self.roots)
 
-    expectNoDifference(groups.first?.rows.map(\.id), ["a", "b"])
+    expectNoDifference(groups.first?.rows.map(\.id), ["b", "a"])
   }
 
   @Test func inputOrderDoesNotChangeTheOrder() {
@@ -144,7 +144,25 @@ struct WorkspaceSidebarTests {
     let groups = SidebarGroup.groups(
       [named, Self.session("/u/slipstream/workspaces/r/workspace-1")], roots: Self.roots)
 
-    expectNoDifference(Self.names(groups), [["r", "workspace-1", "aaa first by name"]])
+    expectNoDifference(Self.names(groups), [["r", "aaa first by name", "workspace-1"]])
+  }
+
+  @Test func creatingMarksOnlyThatRepositorysGroup() {
+    let groups = SidebarGroup.groups(
+      [Self.session("/u/slipstream/workspaces/q/workspace-1"), Self.session("/u/slipstream/workspaces/r/workspace-1")],
+      roots: Self.roots, creatingIn: "r")
+
+    expectNoDifference(groups.map(\.isCreatingWorkspace), [false, true])
+  }
+
+  @Test func creatingInARepositoryWithNoRowsAddsItsGroupInOrder() {
+    let groups = SidebarGroup.groups(
+      [Self.session("/u/slipstream/workspaces/a/workspace-1"), Self.session("/x/solo")],
+      roots: Self.roots, creatingIn: "m")
+
+    expectNoDifference(Self.names(groups), [["a", "workspace-1"], ["m"], ["solo", "solo"]])
+    expectNoDifference(groups[1].isCreatingWorkspace, true)
+    expectNoDifference(groups[1].newWorkspaceFolder, nil)
   }
 
   @Test func aRememberedRepoKeepsItsGroupWithoutWorkspaces() {
