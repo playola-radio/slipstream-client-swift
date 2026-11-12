@@ -49,8 +49,9 @@ Found in Conductor's local database (`session_messages`, `attachments`) and its 
 ## Scope
 
 1. **Where.** In the window toolbar (`ChangeStreamPageView.toolbar`), at the trailing end, just
-   before the right-panel toggle. Open In moves to the centre of the window
-   (`ToolbarItem(placement: .principal)`). The section is a tinted rounded pill
+   before the right-panel toggle. Open In shares the pill's toolbar item and sits just left of
+   the chat column's right edge: 12pt left of the right panel's divider, or 12pt left of the pill
+   when the pill reaches further left or the right panel is hidden (D17). The section is a tinted rounded pill
    (`DesignTokens.PRStatusBar.fill(tone)` with its stroke), because the toolbar has one
    background. It shows whenever a workspace is selected, whether the right panel is open or
    hidden; it is hidden when the feature doesn't apply (see "How the status is derived", step 1).
@@ -59,11 +60,13 @@ Found in Conductor's local database (`session_messages`, `attachments`) and its 
    - **Narrow windows.** The pill never pushes the breadcrumb or Open In into the toolbar's "»"
      overflow menu. As room shrinks it first drops the grey status detail, then shows the action
      buttons as icons only (help text and accessibility labels stay). The PR number chip and the
-     status label always stay. `PRStatusBarModel` decides the layout from the window width, the
-     measured Open In width and the measured pill widths; the view only reports widths. Room for
-     the pill is half of what's left after Open In, minus the trailing chrome (the right-panel
-     toggle and toolbar insets), because Open In is centred on the whole window. This is
-     best-effort: at the smallest window widths even the icon-only pill may not fit.
+     status label always stay. `PRStatusBarModel` decides the layout and the gap between Open In
+     and the pill from the window width, the right panel's divider position, the measured Open In
+     width and the measured pill widths; the view only reports widths. Open In and the pill keep
+     to the space they had when Open In was centred: half of what's left after Open In, minus the
+     trailing chrome (the right-panel toggle and toolbar insets, 52pt measured on macOS 26) and
+     the 12pt margin. So in narrow windows Open In can sit left of the divider by more than 12pt.
+     This is best-effort: at the smallest window widths even the icon-only pill may not fit.
 2. **States.** The states in [`screens.md`](screens.md). Exactly one shows at a time. The status
    is computed as a domain value (models.md `PRStatus`); presentation flags (Details open, an
    operation in flight) sit on top of it, not in the same ordered list.
@@ -376,7 +379,12 @@ the message is still sent.
 - **D16 — Brian (2026-11-12). The PR status moves into the window toolbar.** It reverses the
   2026-11-11 placement in scope 1: the row lived in the right column, so it vanished when the
   right panel was hidden. Now it is a pill before the right-panel toggle and Open In is centred
-  on the whole window (not over the chat column). Mockups: screen C in screens.md.
+  on the whole window (not over the chat column). Mockups: screen C in screens.md. Open In's
+  placement is changed by D17.
+- **D17 — Brian (2026-11-12). Open In sits at the chat column's right edge.** After seeing D16
+  running: "a small margin to the left of the right-most divider or the pr status bar if the
+  divider is too far to the right." Open In moves out of `.principal` into the pill's toolbar
+  item, with a model-computed gap so it ends 12pt left of the divider, or of the pill.
 - **D15 — Agent buttons wait for the chat.** They are disabled while any chat tab in the
   workspace is working, not only the turn the bar started. This replaces a per-tab turn-end
   observer list; the spec's premise for it was wrong (Instant Ask hooks
@@ -394,8 +402,8 @@ Client only; no daemon contract is touched. Paths are at `a8fb46b`.
   - Open in;
   - the right-pane toggle.
 
-  Changed by D16 (2026-11-12): Open in moves to the centre (`.principal`), and the PR pill
-  is added between the flexible spacer and the right-pane toggle. The `conductor-top-bar` work
+  Changed by D16 and D17 (2026-11-12): Open in and the PR pill share one toolbar item between
+  the flexible spacer and the right-pane toggle, with a model-computed gap between them. The `conductor-top-bar` work
   (#62, #63) restyled this toolbar.
 - **Right column.** `rightPane` (`ChangeStreamPageView.swift:180`) is a `VStack` of
   `rightPaneStrip` (line 195, the Change stream / Terminals tabs and Compare functions) and the
@@ -546,10 +554,14 @@ Model tests (Swift Testing, fake `RepoCommandClient`, `TestClock`) unless marked
   shows icon-only buttons otherwise, including before anything is measured. Exact boundaries
   count as fitting.
 - The section stays shown while the right panel is hidden.
+- Open In ends 12pt left of the divider, or 12pt left of the pill when the pill reaches further
+  left or the right panel is hidden, but never left of where it sat when centred.
 
 **Manual**
 - At several window widths and in full screen, the breadcrumb and Open In never go into the
-  "»" overflow menu, Open In stays centred, and the pill collapses detail first, then titles.
+  "»" overflow menu, Open In follows the divider as it is dragged, and the pill collapses detail
+  first, then titles. Check the 12pt margin on macOS 15 too (the trailing chrome was measured on
+  macOS 26).
 - VoiceOver reads the status and button labels.
 
 ## Approvals
@@ -562,6 +574,7 @@ Model tests (Swift Testing, fake `RepoCommandClient`, `TestClock`) unless marked
 | 2026-11-11 | Screens A and B mockups: "PERFECT I fucking love it all let's do it." | Pen zone `o1YFJQ` (frames `g4p4Cf`, `N9K28`) as exported then |
 | 2026-11-11 | After the Codex review: row above the tabs, cut Create draft PR, add Waiting: "ok love it." | Scope 1, D7, D12; frames `uhPcs` (Draft) and `dGTED` (Waiting); Create PR without chevron |
 | 2026-11-12 | Move the PR status out of the right column into the window toolbar, Open In centred on the whole window | Scope 1, D16, screen C |
+| 2026-11-12 | Open In just left of the right panel's divider, or of the pill, after seeing it running: "that's it looks good!" | Scope 1, D17, screen C |
 
 ## Design deliverables
 

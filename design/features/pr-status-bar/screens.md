@@ -16,7 +16,7 @@ are in [`exports/pr-status-bar.json`](exports/pr-status-bar.json); the HTML expo
 - **Status:** Changed
 - **Surface:** client
 - **Address:** n/a (native). A tinted rounded pill at the trailing end of the window toolbar, just
-  before the right-panel toggle. Open In moves to the centre of the window. Until 2026-11-12 this
+  before the right-panel toggle. Open In sits 12pt left of the right panel's divider (spec D17). Until 2026-11-12 this
   was a 40pt row at the top of the right column; it moved so it shows while the right panel is
   hidden (spec D16).
 - **Access:** anyone using the app on this Mac. It shows only when a workspace is selected.
@@ -76,7 +76,9 @@ the same content.
 
 ### Toolbar placement and narrow windows (screen C, 2026-11-12)
 
-The content above sits in a pill in the toolbar. Open In is centred on the whole window. As the
+The content above sits in a pill in the toolbar. Open In ends 12pt left of the right panel's
+divider, or 12pt left of the pill when the pill reaches further left or the right panel is hidden
+(spec D17). As the
 window narrows the pill gives up room so the breadcrumb and Open In never go into the toolbar's
 "»" overflow menu: first the grey detail goes, then the buttons lose their titles and shortcuts
 (tooltips and VoiceOver labels stay). The PR number chip and the status label always stay. With no

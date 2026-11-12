@@ -481289,6 +481289,17 @@
                           "alignItems": "center",
                           "children": [
                             {
+                              "type": "rectangle",
+                              "id": "eBqKr",
+                              "layoutPosition": "absolute",
+                              "x": 800,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
+                            {
                               "type": "frame",
                               "id": "jIVxa",
                               "name": "Leading",
@@ -481402,80 +481413,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "xEyfk",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "fRCsW",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "pBvSk",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "btve5",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "RNWpP",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "g4aHYq",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "GgIsM",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "xEyfk",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "fRCsW",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "pBvSk",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "btve5",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "RNWpP",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "g4aHYq",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "nYQs2",
+                                  "name": "Gap · Open in",
+                                  "width": 112,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "z5laYk",
@@ -481572,6 +481588,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "YTSx1",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "pSf1A",
                                   "name": "Right panel toggle",
@@ -481624,6 +481647,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "hd4vG",
+                              "layoutPosition": "absolute",
+                              "x": 520,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "dGWyG",
@@ -481738,80 +481772,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "rBS66",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "aGi3X",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "M8AXaV",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "GTqtT",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "tGHaC",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "thCpw",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "vlFNY",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "rBS66",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "aGi3X",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "M8AXaV",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "GTqtT",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "tGHaC",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "thCpw",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Z7eLPk",
+                                  "name": "Gap · Open in",
+                                  "width": 125,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "Uk60f",
@@ -481898,6 +481937,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "s0PEZp",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "aidDu",
                                   "name": "Right panel toggle",
@@ -481950,6 +481996,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "zJvck",
+                              "layoutPosition": "absolute",
+                              "x": 540,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "p52jk0",
@@ -482064,80 +482121,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "JPc3G",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "x5yYgG",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "Uzejw",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "pV5r4",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "ncknI",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "rlNyQ",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "uNPmt",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "JPc3G",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "x5yYgG",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "Uzejw",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "pV5r4",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "ncknI",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "rlNyQ",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "SHM2t",
+                                  "name": "Gap · Open in",
+                                  "width": 12,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "j9Lha",
@@ -482202,6 +482264,13 @@
                                       ]
                                     }
                                   ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "vfQ2p",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
                                 },
                                 {
                                   "type": "icon",
@@ -482275,6 +482344,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "A9aP4O",
+                              "layoutPosition": "absolute",
+                              "x": 800,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "OXheZ",
@@ -482389,80 +482469,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "PUtYB",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "es2it",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "F1m3aC",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "Bmdx9",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "T3dq04",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "m0NSO",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "pYtET",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "PUtYB",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "es2it",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "F1m3aC",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "Bmdx9",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "T3dq04",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "m0NSO",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "DJkX5",
+                                  "name": "Gap · Open in",
+                                  "width": 188,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "sVwZI",
@@ -482606,6 +482691,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "JoNrB",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "ol8SZ",
                                   "name": "Right panel toggle",
@@ -482658,6 +482750,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "PAWhu",
+                              "layoutPosition": "absolute",
+                              "x": 520,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "WrD4i",
@@ -482772,80 +482875,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "rGBQ6",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "OFMQA",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "GeWz9",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "wNRwk",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "Zt5qq",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "s88q3",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "SC2fQ",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "rGBQ6",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "OFMQA",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "GeWz9",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "wNRwk",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Zt5qq",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "s88q3",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "M1m64",
+                                  "name": "Gap · Open in",
+                                  "width": 109,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "lO6hX",
@@ -482979,6 +483087,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "jeDhl",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "sRBq2",
                                   "name": "Right panel toggle",
@@ -483031,6 +483146,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "pjpLF",
+                              "layoutPosition": "absolute",
+                              "x": 540,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "atSae",
@@ -483145,80 +483271,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "b2W4ht",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "joQIR",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "X36hp",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "YFTUO",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "JpzQS",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "v0uqIj",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "tvHOo",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "b2W4ht",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "joQIR",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "X36hp",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "YFTUO",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "JpzQS",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "v0uqIj",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "QQ4Dd",
+                                  "name": "Gap · Open in",
+                                  "width": 12,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "B7MoQ4",
@@ -483332,6 +483463,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "Z6PQO",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "OJoQg",
                                   "name": "Right panel toggle",
@@ -483403,6 +483541,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "v8PjF",
+                              "layoutPosition": "absolute",
+                              "x": 800,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "BQCc2",
@@ -483517,80 +483666,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "MsiPS",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "Hm1c5",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "poQd2",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "M7CeWH",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "leoKs",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "Dgsrg",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "vODsA",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "MsiPS",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Hm1c5",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "poQd2",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "M7CeWH",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "leoKs",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "Dgsrg",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "qTC8Z",
+                                  "name": "Gap · Open in",
+                                  "width": 270,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "VFVwx",
@@ -483726,6 +483880,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "rqAYd",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "QlU90",
                                   "name": "Right panel toggle",
@@ -483778,6 +483939,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "n5wC58",
+                              "layoutPosition": "absolute",
+                              "x": 520,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "PHXMA",
@@ -483892,80 +484064,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "xFe9W",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "w2pMba",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "e847uE",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "XOYQG",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "f28kLo",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "fFUQW",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "w6Cp7c",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "xFe9W",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "w2pMba",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "e847uE",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "XOYQG",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "f28kLo",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "fFUQW",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "QCBzS",
+                                  "name": "Gap · Open in",
+                                  "width": 110,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "n6aDU",
@@ -484101,6 +484278,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "KtPl5",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "ZAmyh",
                                   "name": "Right panel toggle",
@@ -484153,6 +484337,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "W6nx6g",
+                              "layoutPosition": "absolute",
+                              "x": 540,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "BO18F",
@@ -484267,80 +484462,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "S0FJk",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "NbQOk",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "fmCRF",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "DCZCB",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "PAI4g",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "GJDov",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "kIMNS",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "S0FJk",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "NbQOk",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "fmCRF",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "DCZCB",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "PAI4g",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "GJDov",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "drE8n",
+                                  "name": "Gap · Open in",
+                                  "width": 12,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "c1DYy",
@@ -484456,6 +484656,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "TaIbU",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "EMbi8",
                                   "name": "Right panel toggle",
@@ -484527,6 +484734,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "B3fQ0",
+                              "layoutPosition": "absolute",
+                              "x": 800,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "afKjk",
@@ -484641,80 +484859,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "B6Kse",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "YX8yq",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "tgBlr",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "X1crDf",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "wmWPX",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "fyt2L",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "Ti4gL",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "B6Kse",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "YX8yq",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "tgBlr",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "X1crDf",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "wmWPX",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "fyt2L",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "AImMy",
+                                  "name": "Gap · Open in",
+                                  "width": 248,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "Kyp4f",
@@ -484876,6 +485099,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "ZfMt0",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "O8wzT",
                                   "name": "Right panel toggle",
@@ -484928,6 +485158,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "u6Nq2g",
+                              "layoutPosition": "absolute",
+                              "x": 520,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "FQz6I",
@@ -485042,80 +485283,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "l554M",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "CqAaa",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "iI4Tc",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "K657Ze",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "SwIxV",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "UhdTT",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "phx0T",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "l554M",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "CqAaa",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "iI4Tc",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "K657Ze",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "SwIxV",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "UhdTT",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "OjZHw",
+                                  "name": "Gap · Open in",
+                                  "width": 88,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "eNABn",
@@ -485277,6 +485523,13 @@
                                   ]
                                 },
                                 {
+                                  "type": "frame",
+                                  "id": "ggAS5",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
+                                },
+                                {
                                   "type": "icon",
                                   "id": "St15z",
                                   "name": "Right panel toggle",
@@ -485329,6 +485582,17 @@
                           ],
                           "alignItems": "center",
                           "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "M7YlcQ",
+                              "layoutPosition": "absolute",
+                              "x": 540,
+                              "y": 0,
+                              "name": "Right panel divider",
+                              "fill": "#2A3640",
+                              "width": 1,
+                              "height": 52
+                            },
                             {
                               "type": "frame",
                               "id": "zk49B",
@@ -485443,80 +485707,85 @@
                             },
                             {
                               "type": "frame",
-                              "id": "F4ijk",
-                              "name": "Open in (centred)",
-                              "clip": true,
-                              "height": 24,
-                              "cornerRadius": 5,
-                              "stroke": "#2A3640",
-                              "strokeWidth": 1,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "xWiU0",
-                                  "name": "Open in · app",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    6
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "QkiqB",
-                                      "name": "App icon (Finder)",
-                                      "width": 14,
-                                      "height": 14,
-                                      "icon": "folder",
-                                      "library": "lucide",
-                                      "fill": "#5AA9F7"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "rectangle",
-                                  "id": "x6W5f9",
-                                  "name": "Divider",
-                                  "fill": "#2A3640",
-                                  "width": 1,
-                                  "height": "fill_container"
-                                },
-                                {
-                                  "type": "frame",
-                                  "id": "x0lui",
-                                  "name": "Open in · menu",
-                                  "height": "fill_container",
-                                  "padding": [
-                                    0,
-                                    5
-                                  ],
-                                  "alignItems": "center",
-                                  "children": [
-                                    {
-                                      "type": "icon",
-                                      "id": "GlRVz",
-                                      "name": "Chevron",
-                                      "width": 12,
-                                      "height": 12,
-                                      "icon": "chevron-down",
-                                      "library": "lucide",
-                                      "fill": "#8B9AA6"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
                               "id": "A3bph",
                               "name": "Trailing",
-                              "width": "fill_container",
-                              "gap": 12,
                               "justifyContent": "end",
                               "alignItems": "center",
                               "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "F4ijk",
+                                  "name": "Open in",
+                                  "clip": true,
+                                  "height": 24,
+                                  "cornerRadius": 5,
+                                  "stroke": "#2A3640",
+                                  "strokeWidth": 1,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "xWiU0",
+                                      "name": "Open in · app",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        6
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "QkiqB",
+                                          "name": "App icon (Finder)",
+                                          "width": 14,
+                                          "height": 14,
+                                          "icon": "folder",
+                                          "library": "lucide",
+                                          "fill": "#5AA9F7"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "x6W5f9",
+                                      "name": "Divider",
+                                      "fill": "#2A3640",
+                                      "width": 1,
+                                      "height": "fill_container"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "x0lui",
+                                      "name": "Open in · menu",
+                                      "height": "fill_container",
+                                      "padding": [
+                                        0,
+                                        5
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "icon",
+                                          "id": "GlRVz",
+                                          "name": "Chevron",
+                                          "width": 12,
+                                          "height": 12,
+                                          "icon": "chevron-down",
+                                          "library": "lucide",
+                                          "fill": "#8B9AA6"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "MaOkP",
+                                  "name": "Gap · Open in",
+                                  "width": 12,
+                                  "height": 1
+                                },
                                 {
                                   "type": "frame",
                                   "id": "ouHpg",
@@ -485656,6 +485925,13 @@
                                       ]
                                     }
                                   ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "iCOS4",
+                                  "name": "Gap · toggle",
+                                  "width": 12,
+                                  "height": 1
                                 },
                                 {
                                   "type": "icon",
