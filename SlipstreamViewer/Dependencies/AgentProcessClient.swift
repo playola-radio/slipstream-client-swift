@@ -102,6 +102,8 @@ private final class AgentProcess: Sendable {
     var stderrTail = Data()
     /// Logged a whole line at a time so redaction never sees half a token.
     var stderrLine = Data()
+    /// Set while skipping the rest of an over-long line, so no fragment of it is logged.
+    var isDroppingStderrLine = false
     var openPipes = 2
     var status: Int32?
     var isFinished = false
@@ -177,17 +179,28 @@ private final class AgentProcess: Sendable {
 
   private func stderrReceived(_ chunk: Data) {
     output.withLock { output in
+      output.stderrTail.append(chunk)
+      if output.stderrTail.count > Self.stderrTailBytes {
+        output.stderrTail = Data(output.stderrTail.suffix(Self.stderrTailBytes))
+      }
       output.stderrLine.append(chunk)
-      if output.stderrLine.count > Self.stderrLineBytes {
-        logStderr(&output.stderrLine)
-      } else if let end = output.stderrLine.lastIndex(of: UInt8(ascii: "\n")) {
+      if output.isDroppingStderrLine {
+        guard let end = output.stderrLine.firstIndex(of: UInt8(ascii: "\n")) else {
+          output.stderrLine = Data()
+          return
+        }
+        output.stderrLine = Data(output.stderrLine[(end + 1)...])
+        output.isDroppingStderrLine = false
+      }
+      if let end = output.stderrLine.lastIndex(of: UInt8(ascii: "\n")) {
         var lines = Data(output.stderrLine[...end])
         output.stderrLine = Data(output.stderrLine[(end + 1)...])
         logStderr(&lines)
       }
-      output.stderrTail.append(chunk)
-      if output.stderrTail.count > Self.stderrTailBytes {
-        output.stderrTail = Data(output.stderrTail.suffix(Self.stderrTailBytes))
+      if output.stderrLine.count > Self.stderrLineBytes {
+        log.info("agent", "pid \(pid) stderr: <dropped a line longer than \(Self.stderrLineBytes) bytes>")
+        output.stderrLine = Data()
+        output.isDroppingStderrLine = true
       }
     }
   }

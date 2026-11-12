@@ -851,7 +851,7 @@ final class ChatTabModel: ViewModel, Identifiable {
     } else if let turn = activeTurn {
       let tail = stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
       errorText = tail.isEmpty ? Self.crashedText : "\(Self.crashedText)\n\(tail)"
-      appLog.error("agent", "chat \(id) in \(record.folder): agent exited mid-turn\n\(tail)")
+      appLog.error("agent", "chat \(id) in \(record.folder): agent exited mid-turn")
       endTurn(.failed, duration: duration(of: turn))
     }
   }
