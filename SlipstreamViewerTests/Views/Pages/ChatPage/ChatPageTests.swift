@@ -1916,6 +1916,20 @@ struct ChatPageTests {
       ])
   }
 
+  @Test func otherBlocksWithPipesEndATableAndCannotHeadOne() throws {
+    let text = "| a |\n|---|\n| 1 |\n# Results | Summary\n- keep | this\n> note | warning\n- x | y\n--|--"
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks(text),
+      [
+        .table(.init(alignments: [.leading], header: [try inline("a")], rows: [[try inline("1")]])),
+        .heading(level: 1, text: try inline("Results | Summary")),
+        .list([.init(marker: "•", depth: 0, text: try inline("keep | this"))]),
+        .quote(try inline("note | warning")),
+        .list([.init(marker: "•", depth: 0, text: try inline("x | y\n--|--"))]),
+      ])
+  }
+
   @Test func almostTablesStayProse() throws {
     let noSeparator = "| a | b |\n| 1 | 2 |"
     let wrongCount = "| a | b |\n|---|---|---|\n| 1 | 2 |"

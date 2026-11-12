@@ -319,10 +319,6 @@ final class ChatTabModel: ViewModel, Identifiable {
       {
         if !quote.isEmpty { closeAll() }
         paragraph.append(line)
-      } else if let (table, end) = table(lines, at: index) {
-        closeAll()
-        blocks.append(.table(table))
-        tableEnd = end
       } else if isRule(trimmed) {
         closeAll()
         blocks.append(.rule)
@@ -337,6 +333,10 @@ final class ChatTabModel: ViewModel, Identifiable {
           closeAll()
           quote = [trimmed.dropFirst().drop { $0 == " " }]
         }
+      } else if let (table, end) = table(lines, at: index) {
+        closeAll()
+        blocks.append(.table(table))
+        tableEnd = end
       } else if let owner = afterBlank
         ? items.lastIndex(where: { $0.indent < indent }) : items.indices.last
       {
@@ -362,7 +362,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     return marks.count >= 3 && marks.allSatisfy { $0 == mark }
   }
 
-  /// A header row, a separator row with as many cells, then every following line with a pipe.
+  /// A header row, a separator row with as many cells, then every following line with a pipe
+  /// that doesn't start another block.
   private static func table(_ lines: [Substring], at start: Int) -> (MarkdownTable, end: Int)? {
     guard start + 1 < lines.count, lines[start].contains("|"), lines[start + 1].contains("|") else { return nil }
     let header = tableCells(lines[start])
@@ -370,12 +371,18 @@ final class ChatTabModel: ViewModel, Identifiable {
     let alignments = separator.compactMap(columnAlignment)
     guard !header.isEmpty, separator.count == header.count, alignments.count == header.count else { return nil }
     var end = start + 2
-    while end < lines.count, lines[end].contains("|") { end += 1 }
+    while end < lines.count, lines[end].contains("|"), !startsBlock(lines[end].drop { $0 == " " || $0 == "\t" }) {
+      end += 1
+    }
     let rows = lines[start + 2..<end].map { line in
       let cells = tableCells(line)
       return header.indices.map { cells.indices.contains($0) ? inlineMarkdown(cells[$0]) : AttributedString() }
     }
     return (MarkdownTable(alignments: alignments, header: header.map(inlineMarkdown), rows: rows), end)
+  }
+
+  private static func startsBlock(_ line: Substring) -> Bool {
+    isRule(line) || heading(line) != nil || listItem(line) != nil || line.first == ">"
   }
 
   /// Splits on pipes that aren't escaped or inside inline code. The outer pipes are optional.
