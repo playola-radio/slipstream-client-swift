@@ -129,10 +129,10 @@ directory and a second pipe. `git` and `gh` are found on the login `PATH`. Timeo
    - otherwise there is **no PR** (the branch has new work since that PR).
 5. **Target branch.** The PR's `baseRefName`, else the repository's `defaultBranchRef.name`. The
    remote is always `origin` (forks are out of scope).
-6. **Ahead of target** (no PR): `git rev-list --count origin/<target>..HEAD`. This uses the local
-   remote-tracking ref, which is only as fresh as the last fetch; the check never fetches. That is
-   accepted: the question is whether this branch has local work, which a stale target ref doesn't
-   hide.
+6. **Ahead of target** (no PR and a clean worktree): ensure `origin/<target>` exists, fetching that
+   one remote-tracking ref when a single-branch clone does not have it, then run `git rev-list
+   --count origin/<target>..HEAD`. An existing ref is not refreshed. A dirty worktree skips both
+   operations because uncommitted changes already determine the status.
 7. **Push state** (open PR): local `HEAD` against the PR's live `headRefOid`.
    - Equal → in sync.
    - `git merge-base --is-ancestor <headRefOid> HEAD` succeeds → **local ahead** (unpushed).
@@ -219,6 +219,8 @@ is while merging) while an operation is in flight or any chat tab in the workspa
 - Projects the message as a plain user message straight away. No Instant Ask relay mark, label or
   delivery state.
 - If the write fails, removes the projected message, ends any turn it started, and throws.
+- If the process exits before echoing a mid-turn enqueue, shows a delivery failure even if the
+  preceding turn already ended.
 - Round-trips through history like any user message (prompt lines and `queued_command`
   attachments, `ClaudeLines.swift:58`).
 

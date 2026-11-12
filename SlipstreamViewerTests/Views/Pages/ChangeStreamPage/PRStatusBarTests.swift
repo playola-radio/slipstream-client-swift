@@ -26,6 +26,7 @@ enum PRFixture {
   static let statusCommand = ["git", "status", "--porcelain=v1"]
   static let upstreamCommand = ["git", "rev-parse", "--abbrev-ref", "@{upstream}"]
   static let unpushedCommand = ["git", "rev-list", "--count", "@{upstream}..HEAD"]
+  static let targetRefCommand = ["git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/develop"]
   static let fetchCommand = ["git", "fetch", "origin", "+refs/heads/develop:refs/remotes/origin/develop"]
   static let localBranchesCommand = ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"]
   static let remoteBranchesCommand = ["git", "ls-remote", "--heads", "origin"]
@@ -93,6 +94,7 @@ enum PRFixture {
     repo.set(repositoryCommand(), stdout: repositoryJSON())
     repo.set(statusCommand)
     repo.set(pullRequestsCommand(branch), stdout: "[]")
+    repo.set(targetRefCommand)
     repo.set(aheadCommand(), stdout: "3\n")
   }
 
@@ -110,7 +112,7 @@ enum PRFixture {
     uncommitted: Int = 0, pullRequest: GitHubPullRequest? = nil, push: PushState? = nil, ahead: Int? = 3
   ) -> RepoSnapshot {
     RepoSnapshot(
-      branch: "b", uncommittedCount: uncommitted, defaultBranch: "develop", mergeMethod: "MERGE",
+      branch: "b", uncommittedCount: uncommitted, repository: "o/r", defaultBranch: "develop", mergeMethod: "MERGE",
       pullRequest: pullRequest, pushState: push, aheadOfTarget: ahead)
   }
 }
@@ -145,7 +147,7 @@ struct ReadCase: Sendable, CustomTestStringConvertible {
     ReadCase(
       testDescription: "uncommitted lines are counted",
       script: { $0.set(PRFixture.statusCommand, stdout: " M a.swift\n?? b.swift\n") },
-      expected: .snapshot(PRFixture.snapshot(uncommitted: 2))),
+      expected: .snapshot(PRFixture.snapshot(uncommitted: 2, ahead: nil))),
     ReadCase(
       testDescription: "open pull request in sync",
       script: { $0.set(PRFixture.pullRequestsCommand(), stdout: "[\(PRFixture.pullRequestJSON())]") },
@@ -281,7 +283,7 @@ struct DisplayCase: Sendable, CustomTestStringConvertible {
         $0.set(PRFixture.isAncestorCommand(), ending: .exit(0))
       },
       expected: Display(
-        prNumberText: "#61", statusLabel: "Uncommitted changes", tone: .neutral, primaryButton: .commitAndPush)),
+        prNumberText: "#61", statusLabel: "Unpushed commits", tone: .neutral, primaryButton: .commitAndPush)),
     open(
       "open, conflicts", PRFixture.pullRequestJSON(mergeable: "CONFLICTING", mergeState: "DIRTY"),
       Display(
@@ -481,10 +483,37 @@ struct PRStatusBarTests {
         .init(arguments: PRFixture.repositoryCommand(), folder: "/w", timeout: .seconds(20)),
         .init(arguments: PRFixture.statusCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.pullRequestsCommand(), folder: "/w", timeout: .seconds(20)),
+        .init(arguments: PRFixture.targetRefCommand, folder: "/w", timeout: .seconds(10)),
         .init(arguments: PRFixture.aheadCommand(), folder: "/w", timeout: .seconds(10)),
       ])
     poll.cancel()
     await poll.value
+  }
+
+  @Test func dirtyBranchWithoutPRSkipsTargetRefAndAheadReads() async {
+    PRFixture.scriptRepository(repo)
+    repo.set(PRFixture.statusCommand, stdout: " M a.swift\n")
+    let model = makeModel()
+
+    await load(model)
+
+    expectNoDifference(model.status, .noPRUncommitted)
+    expectNoDifference(repo.calls(PRFixture.targetRefCommand), [])
+    expectNoDifference(repo.calls(PRFixture.aheadCommand()), [])
+  }
+
+  @Test func missingTargetRefIsFetchedBeforeAheadRead() async {
+    PRFixture.scriptRepository(repo)
+    repo.set(PRFixture.targetRefCommand, ending: .exit(1))
+    repo.set(PRFixture.fetchCommand)
+    let model = makeModel()
+
+    await load(model)
+
+    expectNoDifference(model.status, .noPRCommitted(ahead: 3, target: "develop"))
+    expectNoDifference(
+      repo.calls(PRFixture.fetchCommand),
+      [.init(arguments: PRFixture.fetchCommand, folder: "/w", timeout: .seconds(60))])
   }
 
   // MARK: - Ownership
@@ -824,7 +853,7 @@ struct PRStatusBarTests {
       written.value,
       [
         "PR instructions.md": PRInstructions.createPR(
-          uncommitted: 2, branch: "b", target: "develop", upstream: upstreamCase.expected)
+          uncommitted: 2, branch: "b", target: "develop", repository: "o/r", upstream: upstreamCase.expected)
       ])
     expectNoDifference(
       tab.projection.items.map(\.kind),

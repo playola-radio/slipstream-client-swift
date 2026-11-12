@@ -8,6 +8,7 @@ public enum PushState: Equatable, Sendable {
 public struct RepoSnapshot: Equatable, Sendable {
   public var branch: String
   public var uncommittedCount: Int
+  public var repository: String
   public var defaultBranch: String
   public var mergeMethod: String
   public var pullRequest: GitHubPullRequest?
@@ -19,6 +20,7 @@ public struct RepoSnapshot: Equatable, Sendable {
   public init(
     branch: String,
     uncommittedCount: Int,
+    repository: String,
     defaultBranch: String,
     mergeMethod: String,
     pullRequest: GitHubPullRequest?,
@@ -27,6 +29,7 @@ public struct RepoSnapshot: Equatable, Sendable {
   ) {
     self.branch = branch
     self.uncommittedCount = uncommittedCount
+    self.repository = repository
     self.defaultBranch = defaultBranch
     self.mergeMethod = mergeMethod
     self.pullRequest = pullRequest

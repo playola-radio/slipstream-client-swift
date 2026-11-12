@@ -301,8 +301,10 @@ final class PRStatusBarModel: ViewModel {
     switch status {
     case nil, .nothingToSubmit?:
       return ("", nil, nil, .muted)
-    case .noPRUncommitted?, .commitAndPush?:
+    case .noPRUncommitted?:
       return ("Uncommitted changes", nil, nil, .neutral)
+    case .commitAndPush?:
+      return (snapshot?.uncommittedCount == 0 ? "Unpushed commits" : "Uncommitted changes", nil, nil, .neutral)
     case .noPRCommitted(let ahead, let target)?:
       let commits = ahead == 1 ? "1 commit" : "\(ahead) commits"
       return ("Ready for a pull request", "· \(commits) ahead of \(target)", nil, .neutral)
@@ -372,7 +374,8 @@ final class PRStatusBarModel: ViewModel {
     let uncommitted = try await uncommittedCount(in: folder, title: title)
     let upstream = try await upstream(in: folder, title: title)
     let instructions = PRInstructions.createPR(
-      uncommitted: uncommitted, branch: branch, target: Self.target(of: snapshot), upstream: upstream)
+      uncommitted: uncommitted, branch: branch, target: Self.target(of: snapshot), repository: snapshot.repository,
+      upstream: upstream)
     return try attach(
       PRInstructions.createPRMessage, name: "PR instructions.md", contents: instructions, in: folder, title: title)
   }
@@ -512,10 +515,13 @@ final class PRStatusBarModel: ViewModel {
     let pullRequest = PRStatus.selectPullRequest(pullRequests, head: head, uncommitted: uncommitted)
 
     var snapshot = RepoSnapshot(
-      branch: branch, uncommittedCount: uncommitted, defaultBranch: repository.defaultBranch,
+      branch: branch, uncommittedCount: uncommitted, repository: repository.nameWithOwner,
+      defaultBranch: repository.defaultBranch,
       mergeMethod: repository.mergeMethod, pullRequest: pullRequest, pushState: nil, aheadOfTarget: nil)
     switch pullRequest?.state {
     case nil:
+      guard uncommitted == 0 else { break }
+      try await ensureTargetRef(repository.defaultBranch, in: folder, title: title)
       let ahead = try await output(
         ["git", "rev-list", "--count", "origin/\(repository.defaultBranch)..HEAD"], in: folder,
         timeout: Self.gitTimeout, title: title)
@@ -526,6 +532,16 @@ final class PRStatusBarModel: ViewModel {
       break
     }
     return snapshot
+  }
+
+  private func ensureTargetRef(_ target: String, in folder: String, title: String) async throws(PRBarFailure) {
+    let ref = "refs/remotes/origin/\(target)"
+    let exists = await run(["git", "show-ref", "--verify", "--quiet", ref], in: folder, timeout: Self.gitTimeout)
+    if exists.succeeded { return }
+    if exists.ending != .exit(1) { throw PRBarFailure(title: title, result: exists) }
+    let fetch = await run(
+      ["git", "fetch", "origin", "+refs/heads/\(target):\(ref)"], in: folder, timeout: Self.longTimeout)
+    guard fetch.succeeded else { throw PRBarFailure(title: title, result: fetch) }
   }
 
   private func pushState(head: String, pullRequestHead: String, in folder: String) async throws(PRBarFailure)

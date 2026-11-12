@@ -3063,6 +3063,18 @@ extension ChatPageTests {
     #expect(agent.shutdowns(0) == 1)
   }
 
+  @Test func processExitReportsMessageEnqueuedMidTurnWasNotRead() async throws {
+    let tab = try idleTab(draft: "hi")
+    await tab.send()
+    try await tab.enqueueUserMessage("Commit and push all changes")
+    await line(Line.result())
+
+    agent.exit(status: 0)
+    await Task.megaYield()
+
+    expectNoDifference(tab.errorText, "Claude stopped before reading the enqueued message")
+  }
+
   @Test func enqueueWriteFailureRemovesRowAndThrows() async throws {
     let tab = try idleTab()
     agent.setWriteError(WriteFailed())

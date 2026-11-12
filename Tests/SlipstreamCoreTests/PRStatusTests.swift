@@ -49,6 +49,7 @@ private func snapshot(
   RepoSnapshot(
     branch: "b/x",
     uncommittedCount: uncommitted,
+    repository: "o/r",
     defaultBranch: "develop",
     mergeMethod: "MERGE",
     pullRequest: pr,

@@ -588,6 +588,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let sendFailedText = "Couldn't send your message to Claude"
   private static let turnFailedText = "Claude couldn't finish this turn"
   private static let crashedText = "Claude stopped unexpectedly"
+  private static let unreadEnqueueText = "Claude stopped before reading the enqueued message"
   private static let gapText = "Part of this conversation couldn't be shown"
 
   /// Projects the message and writes it, taking the row back out when the write fails. A
@@ -793,6 +794,10 @@ final class ChatTabModel: ViewModel, Identifiable {
     for relayID in unreadRelays.removeValue(forKey: launch) ?? [] {
       projection.markRelay(id: relayID.uuidString, delivery: .notDelivered)
       onRelayDelivery(.exitedUnread(relayID: relayID))
+    }
+    if launch == handleGeneration, !unreadEnqueues.isEmpty {
+      unreadEnqueues.removeAll()
+      errorText = Self.unreadEnqueueText
     }
   }
 

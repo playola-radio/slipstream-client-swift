@@ -55,6 +55,7 @@ Decoded by `__typename` (`CheckRun` / `StatusContext`, spec step 8) into one sha
 |---|---|---|
 | `branch` | `String` | |
 | `uncommittedCount` | `Int` | `git status --porcelain=v1` lines |
+| `repository` | `String` | Origin repository's `nameWithOwner`; passed to `gh` actions and agent instructions |
 | `defaultBranch` | `String` | From `gh repo view` (`GitHubRepository`: `isFork`, `defaultBranch`, `mergeMethod`); target when there is no PR |
 | `mergeMethod` | `String` | `viewerDefaultMergeMethod`; used by Merge |
 | `pullRequest` | `GitHubPullRequest?` | The selected PR after spec step 4 |
