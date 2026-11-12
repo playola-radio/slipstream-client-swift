@@ -151,7 +151,7 @@ struct WorkspaceNamingModelTests {
 
     model.sessionsListed([Self.listed(userName: "New name")])
 
-    expectNoDifference(model.pendingNames, [Self.session: .init(write: 1, userName: "New name")])
+    expectNoDifference(model.pendingNames, [Self.session: .init(userName: "New name")])
     nameFake.release()
     await save.value
   }

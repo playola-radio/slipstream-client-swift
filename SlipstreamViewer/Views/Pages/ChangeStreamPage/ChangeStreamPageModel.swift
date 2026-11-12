@@ -825,7 +825,10 @@ final class ChangeStreamPageModel: ViewModel {
       creatingWorkspaceSelected(creation)
       return
     }
-    guard select(id) else { return }
+    guard select(id) else {
+      if id == selectedSession?.id { userSessionSelectionGeneration += 1 }
+      return
+    }
     userSessionSelectionGeneration += 1
     pendingPreferredRoot = nil
     Task { [weak self] in
@@ -951,6 +954,8 @@ final class ChangeStreamPageModel: ViewModel {
       }
       if isCurrent, let selectedID, userSessionSelectionGeneration == selectionGeneration {
         _ = select(selectedID)
+      } else if selectedFolder == folder {
+        await terminals.workspaceChanged(folder: folder)
       }
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return

@@ -5585,6 +5585,48 @@ extension ChangeStreamPageTests {
     #expect(model.chat.folder == "/work/slipstream/workspaces/zeta/workspace-1")
   }
 
+  @Test func clickingTheRowAnArchiveMovedToKeepsItWhenTheArchiveIsRefused() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await twoWorkspacesModel(archive: { _, _ in
+      for await _ in gate { break }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+    model.archiveTapped(try #require(model.selectedSession))
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected(Fixture.otherSession)
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == Fixture.otherSession)
+    #expect(model.chat.folder == Self.secondWorkspaceRoot)
+  }
+
+  @Test func refusedArchiveOfAReopenedFolderKeepsItsNewDraftAndStartsItsTerminals() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await workspaceModel(archive: { _, _ in
+      for await _ in gate { break }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+    model.chat.selectedTab?.draft = "old"
+    model.archiveTapped(try #require(model.selectedSession))
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    await model.recording.recordTapped(folder: Self.workspaceRoot)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    model.chat.selectedTab?.draft = "new"
+    release.yield()
+    await archiving.value
+
+    expectNoDifference(model.chat.selectedTab?.draft, "new")
+    expectNoDifference(model.terminals.shownTabs.map(\.title), ["Terminal 1"])
+  }
+
   @Test func anEarlierArchivesRefusalDoesNotShowTheRowALaterArchiveHid() async throws {
     let gates = LockIsolated<[CheckedContinuation<Void, Never>]>([])
     let model = try await threeWorkspacesModel(selecting: "d3", archive: { _, _ in

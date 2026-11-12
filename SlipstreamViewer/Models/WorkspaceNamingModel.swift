@@ -26,7 +26,6 @@ final class WorkspaceNamingModel: ViewModel {
 
   /// A name shown before the daemon lists it; `userName` nil means the agent's name.
   struct PendingName: Equatable {
-    let write: Int
     let userName: String?
   }
 
@@ -48,7 +47,6 @@ final class WorkspaceNamingModel: ViewModel {
 
   private(set) var dialog: Dialog?
   private(set) var pendingNames: [String: PendingName] = [:]
-  @ObservationIgnored private var writeCount = 0
   @ObservationIgnored private var writes: [String: Task<(any Error)?, Never>] = [:]
   @ObservationIgnored private var attemptedSessionIDs: Set<String> = []
   @ObservationIgnored private var suggestions: [String: Task<Void, Never>] = [:]
@@ -229,9 +227,7 @@ final class WorkspaceNamingModel: ViewModel {
   /// Shows the name at once and sends it after any earlier write for the session. Returns the
   /// error, and puts the listed name back, only if no later write has replaced this one.
   private func write(_ userName: String?, to sessionID: String) async -> (any Error)? {
-    writeCount += 1
-    let write = writeCount
-    pendingNames[sessionID] = PendingName(write: write, userName: userName)
+    pendingNames[sessionID] = PendingName(userName: userName)
     let earlier = writes[sessionID]
     let task = Task { [workspaceName] () -> (any Error)? in
       _ = await earlier?.value
@@ -244,8 +240,8 @@ final class WorkspaceNamingModel: ViewModel {
     }
     writes[sessionID] = task
     let error = await task.value
-    if writes[sessionID] == task { writes[sessionID] = nil }
-    guard pendingNames[sessionID]?.write == write else { return nil }
+    guard writes[sessionID] == task else { return nil }
+    writes[sessionID] = nil
     if error != nil { pendingNames[sessionID] = nil }
     return error
   }
