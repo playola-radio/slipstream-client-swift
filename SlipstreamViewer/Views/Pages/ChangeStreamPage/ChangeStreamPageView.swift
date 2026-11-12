@@ -2,20 +2,10 @@ import SlipstreamCore
 import SwiftUI
 
 struct ChangeStreamPageView: View {
-  @State var model: ChangeStreamPageModel
-  @State private var functionChangesDemo: FunctionChangesFixtureModel?
+  @Bindable var model: ChangeStreamPageModel
+  let functionChangesDemo: FunctionChangesFixtureModel?
 
   private let bottomID = "feed-bottom"
-
-  init(
-    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel, recorder: RecorderModel,
-    naming: WorkspaceNamingModel, functionChangesDemo: FunctionChangesFixtureModel? = nil
-  ) {
-    _model = State(initialValue: ChangeStreamPageModel(
-      chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder,
-      naming: naming, isFunctionDemoVisible: functionChangesDemo != nil))
-    _functionChangesDemo = State(initialValue: functionChangesDemo)
-  }
 
   var body: some View {
     HStack(spacing: 0) {

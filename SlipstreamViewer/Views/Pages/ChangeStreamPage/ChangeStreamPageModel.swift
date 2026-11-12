@@ -34,10 +34,9 @@ final class ChangeStreamPageModel: ViewModel {
 
   init(
     chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel, recorder: RecorderModel,
-    naming: WorkspaceNamingModel = WorkspaceNamingModel(), isFunctionDemoVisible: Bool = false
+    isFunctionDemoVisible: Bool = false
   ) {
     self.chat = chat
-    self.naming = naming
     self.instantAsk = instantAsk
     self.terminals = terminals
     self.recorder = recorder
@@ -78,7 +77,7 @@ final class ChangeStreamPageModel: ViewModel {
   let prStatusBar: PRStatusBarModel
   let openIn = OpenInModel()
   let recording = RecordingControlsModel()
-  let naming: WorkspaceNamingModel
+  let naming = WorkspaceNamingModel()
 
   var askAgent: AskAgentPageModel?
   private(set) var reply: QuestionThreadPageModel?
