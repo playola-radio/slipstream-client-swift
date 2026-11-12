@@ -298,3 +298,27 @@ extension ControlTransportTests {
     }
   }
 }
+
+extension ControlTransportTests {
+  func status(reply: String) async throws -> DaemonBuild {
+    let server = try SocketFixture()
+    let serving = server.serve { fd in
+      var request = Data()
+      var byte: UInt8 = 0
+      while Darwin.read(fd, &byte, 1) == 1, byte != 10 { request.append(byte) }
+      expectNoDifference(try QuestionsTests.json(request), try QuestionsTests.json(Data(#"{"v":1,"verb":"status"}"#.utf8)))
+      let bytes = Array((reply + "\n").utf8)
+      _ = bytes.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+    }
+    let build = try await ControlTransport(store: server.store).status()
+    try await serving.value
+    return build
+  }
+
+  @Test func statusReportsDaemonBuild() async throws {
+    let current = try await status(reply: #"{"v":1,"ok":true,"daemon_version":"0.3.2","daemon_build":"7f3c9a1e-1","captures":[]}"#)
+    let older = try await status(reply: #"{"v":1,"ok":true,"daemon_version":"0.3.0","daemon_build":null}"#)
+    expectNoDifference(current, DaemonBuild(version: "0.3.2", build: "7f3c9a1e-1"))
+    expectNoDifference(older, DaemonBuild(version: "0.3.0", build: nil))
+  }
+}

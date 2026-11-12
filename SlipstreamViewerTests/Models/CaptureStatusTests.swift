@@ -56,7 +56,7 @@ struct CaptureStatusTests {
       "Capture state unavailable from this reader")
     expectNoDifference(
       CaptureStatus(availability: .failed, capture: nil).captureText,
-      "Capture state unknown — couldn't reach Slipstream")
+      "Capture state unknown — the capture list didn't load")
     expectNoDifference(
       CaptureStatus(availability: .available(checkedAt: Self.checkedAt), capture: nil).captureText,
       "Not captured — Slipstream has no capture for this workspace")

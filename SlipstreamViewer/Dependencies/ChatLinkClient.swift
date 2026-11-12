@@ -19,11 +19,8 @@ extension ChatLinkClient: DependencyKey {
       environment: { try await agentEnvironment.resolve() },
       captures: { try await daemon.listCaptures(daemon.discover())?.captures ?? [] },
       run: { arguments, environment in
-        guard let slipstream = WorkspaceClient.slipstreamExecutable(in: environment) else {
-          throw SlipstreamNotFound()
-        }
         let (output, status) = try await WorkspaceClient.runInBackground(
-          slipstream, arguments, environment: environment)
+          try RuntimeInstallClient.installedShim(), arguments, environment: environment)
         return (status, output)
       }
     )
@@ -46,10 +43,6 @@ extension DependencyValues {
     get { self[ChatLinkClient.self] }
     set { self[ChatLinkClient.self] = newValue }
   }
-}
-
-private struct SlipstreamNotFound: LocalizedError {
-  var errorDescription: String? { WorkspaceClient.slipstreamNotFoundText }
 }
 
 actor ChatLinkOperations {
@@ -155,9 +148,18 @@ extension [CaptureSummary] {
   /// A folder recorded again keeps its old captures, so the live one speaks for it. A retrying
   /// capture still holds a slot, so it outranks a stopped one.
   func current(in folder: String) -> CaptureSummary? {
-    let matching = filter { ChangeStreamPageModel.normalizedFolder($0.root) == folder }
-    return matching.first { $0.binding?.isLive == true }
-      ?? matching.first { [.queued, .baselining, .recording, .notRecording].contains($0.state) }
-      ?? matching.first
+    filter { ChangeStreamPageModel.normalizedFolder($0.root) == folder }.mostCurrent
+  }
+
+  /// `current(in:)` for every folder, keyed by normalized folder. Resolving folders touches the
+  /// disk, so call it off the main actor.
+  func currentByFolder() -> [String: CaptureSummary] {
+    Dictionary(grouping: self) { ChangeStreamPageModel.normalizedFolder($0.root) }.compactMapValues(\.mostCurrent)
+  }
+
+  private var mostCurrent: CaptureSummary? {
+    first { $0.binding?.isLive == true }
+      ?? first { [.queued, .baselining, .recording, .notRecording].contains($0.state) }
+      ?? first
   }
 }

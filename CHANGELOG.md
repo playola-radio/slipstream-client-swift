@@ -10,6 +10,58 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.9] - 2026-11-12
+
+- A repository stays in the sidebar after its last workspace is archived, so its **+**
+  button can start a new workspace without adding the repository again. Right-click an empty
+  repository and choose **Remove from sidebar** to drop it.
+
+## [0.4.8] - 2026-11-12
+
+- A bar above the right column shows the workspace's pull request status, with one button for the next step (create, push, fix, merge, continue).
+
+## [0.4.7] - 2026-11-12
+
+- Folders you record with **Record a folder…** stay in the sidebar after you select something
+  else, and still appear after the app restarts. To take one out, right-click it and choose
+  **Remove from sidebar**. This pauses its recording and leaves the folder on disk.
+
+## [0.4.6] - 2026-11-11
+
+- The sidebar lists only workspaces created in Slipstream. Chats Slipstream records in
+  other folders, such as Conductor workspaces, no longer fill it up.
+- Chats now name their workspace and start a task on their own once they are linked to the
+  stream, so workspaces no longer stay "workspace-n" until you rename them. The name appears
+  after your second message in a new chat. Slipstream's guidance to the chat is hidden from
+  the conversation.
+
+## [0.4.5] - 2026-11-11
+
+- Chat replies now show headings, numbered and bulleted lists, quotes, dividers and
+  bold text, instead of the raw markdown symbols.
+
+## [0.4.4] - 2026-11-11
+
+- The workspace sidebar keeps a steady order: repositories A to Z, and workspaces by
+  folder name (`workspace-2` before `workspace-10`). Creating, archiving, pausing or
+  renaming a workspace no longer shuffles the others, and a new workspace appears in
+  its repository instead of briefly showing up under a long ID.
+
+## [0.4.3] - 2026-11-11
+
+- Slipstream now bundles recorder 0.3.2, so it can take over again from a recorder
+  installed with npm. When a newer recorder is running, the recorder message says to
+  update Slipstream instead of showing "Couldn't find …/runtime/bin/slipstream" when
+  you link a chat, archive a workspace or run setup.
+
+## [0.4.2] - 2026-11-11
+
+- Slipstream now includes its own recorder, so one app update moves both and there is no
+  separate npm install. Existing setups move over automatically the first time the new
+  version opens.
+- When the recorder can't start, update or connect, Slipstream shows exactly what went wrong,
+  with the full error and a Copy button.
+
 ## [0.4.1] - 2026-11-11
 
 - Workspaces in the sidebar now show a short name for what they're about. The agent names each

@@ -241,18 +241,16 @@ final class ChatPageModel: ViewModel {
     await tab.shown()
   }
 
-  /// Called with every capture read; `nil` when the read failed or lists no captures.
-  func capturesArrived(_ captures: [CaptureSummary]?) {
-    guard let captures else {
+  /// Called with every capture read, as `currentByFolder()`; `nil` when the read failed.
+  func capturesArrived(_ currentByFolder: [String: CaptureSummary]?) {
+    guard let currentByFolder else {
       bindings = nil
       return
     }
-    let folders = Set(captures.map { ChangeStreamPageModel.normalizedFolder($0.root) })
-    let bindings = Dictionary(uniqueKeysWithValues: folders.compactMap { folder in
-      captures.current(in: folder)?.binding.map { (folder, $0) }
-    })
+    let bindings = currentByFolder.compactMapValues(\.binding)
     self.bindings = bindings
-    pausedFolders = folders.filter { captures.current(in: $0)?.isPaused == true }
+    for tab in tabs where isLinked(tab.id) { tab.linkSeen() }
+    pausedFolders = Set(currentByFolder.filter(\.value.isPaused).keys)
     for (id, folder) in strandedLinks {
       strandedLinks[id] = nil
       guard let binding = bindings[folder], binding.isLive, binding.isLinked(toChat: id) else { continue }
@@ -386,6 +384,11 @@ final class ChatPageModel: ViewModel {
     records.filter { $0.folder == folder }.compactMap { tabs[id: $0.id] }
   }
 
+  private func isLinked(_ id: UUID) -> Bool {
+    guard let folder = records[id: id]?.folder else { return false }
+    return bindings?[folder]?.isLinked(toChat: id) == true
+  }
+
   /// Unknown, `unavailable` and unrecognised bindings are never linked over.
   private func isUnlinked(_ folder: String) -> Bool {
     guard let bindings else { return false }
@@ -489,6 +492,7 @@ final class ChatPageModel: ViewModel {
     tab.onReadinessChanged = { [weak self] in self?.onReadinessChanged() }
     tab.onMessageSent = { [weak self] in self?.messageSent(id) }
     tab.onRelayDelivery = { [weak self] delivery in self?.onRelayDelivery(id, delivery) }
+    tab.isStreamLinked = { [weak self] in self?.isLinked(id) ?? false }
     tabs.append(tab)
   }
 

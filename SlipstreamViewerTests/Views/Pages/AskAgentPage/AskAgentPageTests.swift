@@ -531,7 +531,7 @@ extension AskAgentPageTests {
         CaptureSummary(
           sessionID: Self.session, root: "/work/nairobi", state: .recording,
           binding: CaptureBinding(generation: "7", state: .connected, harnessSessionID: Self.tab.uuidString.lowercased()))
-      ])
+      ].currentByFolder())
       return InstantAskModel(chat: chat)
     }
     let sent = LockIsolated(0)

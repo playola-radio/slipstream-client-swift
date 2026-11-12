@@ -1,11 +1,14 @@
 import AppKit
 
-/// Quitting, or closing the window, stops every agent and terminal first and asks only when an agent is mid-turn.
+/// Quitting, or closing the window, stops every agent and terminal and the recorder's start-up work first, and asks only
+/// when an agent is mid-turn.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   var chat: ChatPageModel?
   var instantAsk: InstantAskModel?
   var terminals: TerminalPageModel?
+  var recorder: RecorderModel?
+  var updater: UpdaterModel?
   var reopenWindow: () -> Void = {}
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -13,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    if updater?.quitRequested() == .updateRelaunches { return .terminateCancel }
     guard let chat else { return .terminateNow }
     if let quitAlertText = chat.quitAlertText {
       let alert = NSAlert()
@@ -26,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateCancel
       }
     }
+    recorder?.quitConfirmed()
     let instantAsk = instantAsk
     let terminals = terminals
     Task {

@@ -54,6 +54,17 @@ Helpers, User Actions, Private Helpers.
   a generation check before it publishes. Switching session discards stale completions.
   One event follower per window.
 
+## Ownership: daemon facts vs client state
+
+- The daemon owns durable facts that more than the app needs: store identity, canonical roots,
+  session identity, capture lifecycle, workspace lifecycle capabilities, names, and chat bindings.
+- The client owns presentation and app-local user intent: selection, sidebar membership, window
+  layout, chat-tab records, terminal records, drafts, and transient operation state.
+- The client may derive presentation from daemon facts, but must not derive daemon capabilities
+  or durable identity from paths.
+
+For example, whether the user opened a folder in the app is client state (`.openedFolders`).
+
 ## Dependencies
 
 Every side effect is a `Sendable` struct-of-closures client with `liveValue` and

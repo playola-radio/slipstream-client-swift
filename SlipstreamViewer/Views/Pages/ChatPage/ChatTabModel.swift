@@ -10,6 +10,7 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   @ObservationIgnored @Dependency(\.agentEnvironment) var agentEnvironment
   @ObservationIgnored @Dependency(\.agentProcess) var agentProcess
+  @ObservationIgnored @Dependency(\.attachments) var attachments
   @ObservationIgnored @Dependency(\.continuousClock) var clock
   @ObservationIgnored @Dependency(\.transcripts) var transcripts
   @ObservationIgnored @Dependency(\.date) var date
@@ -36,6 +37,11 @@ final class ChatTabModel: ViewModel, Identifiable {
   var projection = TranscriptProjection()
   var draft = ""
   var errorText: String?
+  var attachmentAlert: String?
+  var isAttachmentAlertPresented: Bool {
+    get { attachmentAlert != nil }
+    set { if !newValue { attachmentAlertDismissed() } }
+  }
   var isWorking: Bool { activeTurn != nil }
   var isTitleBold: Bool { record.isWaiting }
   var showsSpinner: Bool { isWorking }
@@ -51,14 +57,20 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored var onMessageSent: () -> Void = {}
   /// Called once per relay, when the agent reads it or its process ends first.
   @ObservationIgnored var onRelayDelivery: (RelayDelivery) -> Void = { _ in }
+  /// Whether the folder's stream is linked to this chat, as the last capture read saw it.
+  @ObservationIgnored var isStreamLinked: () -> Bool = { false }
 
   private var activeTurn: ActiveTurn?
   private var toggledItemIDs: Set<String> = []
-  private var isClosed = false
+  private(set) var isClosed = false
   private var now = Date.distantPast
   private var needsHistory: Bool
   /// The process predates this chat's link, so it is dropped when the running turn ends.
   @ObservationIgnored private var reloadWhenIdle = false
+  /// Whether the current process launched after its link was seen.
+  @ObservationIgnored private var launchedLinked = false
+  /// A link made since the last launch, which the last capture read may not show yet.
+  @ObservationIgnored private var linkedSinceLaunch = false
   @ObservationIgnored private var handle: AgentProcessHandle?
   @ObservationIgnored private var handleGeneration = 0
   /// Relays written to each launch that it hasn't echoed yet, in the order they were sent.
@@ -67,6 +79,10 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var echoes: Set<String> = []
   /// Sends written behind an unread relay of the current launch and not yet read.
   @ObservationIgnored private var queuedSends = 0
+  /// Messages of the current launch enqueued mid-turn and not yet echoed.
+  @ObservationIgnored private var unreadEnqueues: Set<UUID> = []
+  /// Guidance for the current launch, put in front of the next message written to it.
+  @ObservationIgnored private var instructions: [SlipstreamInstruction] = []
   @ObservationIgnored private var followers: [Int: Task<Void, Never>] = [:]
   @ObservationIgnored private var titleRefresh: Task<Void, Never>?
   @ObservationIgnored private var starting: [Task<Bool, Never>] = []
@@ -86,6 +102,8 @@ final class ChatTabModel: ViewModel, Identifiable {
   let thinkingText = "Thinking"
   let closeAccessibilityLabel = "Close chat"
   let copyAccessibilityLabel = "Copy reply"
+  let attachmentAlertTitle = "Couldn't open the file"
+  let attachmentAlertDismissText = "OK"
 
   var pickerText: String {
     Self.pickerText(model: record.model, effort: record.effort)
@@ -121,6 +139,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .gap:
       return Self.gapText
     }
+  }
+
+  func attachment(for item: TranscriptItem) -> AttachmentMarker.Parsed? {
+    guard case .userMessage = item.kind else { return nil }
+    return AttachmentMarker.parse(rowText(for: item))
   }
 
   func relayLabel(for item: TranscriptItem) -> String? {
@@ -174,24 +197,33 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   enum MarkdownBlock: Equatable {
     case prose(AttributedString)
+    case heading(level: Int, text: AttributedString)
+    case list([MarkdownListItem])
+    case quote(AttributedString)
+    case rule
     case code(String)
   }
 
-  /// Fenced code blocks come out whole; the prose between them gets inline markdown only.
+  struct MarkdownListItem: Equatable {
+    let marker: String
+    let depth: Int
+    let text: AttributedString
+  }
+
+  /// Fenced code blocks come out whole; the prose between them is split into headings, lists,
+  /// quotes, rules and paragraphs, each with inline markdown.
   static func markdownBlocks(_ text: String) -> [MarkdownBlock] {
     var blocks: [MarkdownBlock] = []
     var lines: [Substring] = []
     var isCode = false
+    var open: [(indent: Int, number: Int?)] = []
     func flush() {
       defer { lines = [] }
-      let joined = lines.joined(separator: "\n")
       if isCode {
-        blocks.append(.code(joined))
-        return
+        blocks.append(.code(lines.joined(separator: "\n")))
+      } else {
+        blocks.append(contentsOf: proseBlocks(lines, open: &open))
       }
-      let prose = joined.trimmingCharacters(in: .newlines)
-      guard !prose.isEmpty else { return }
-      blocks.append(.prose(inlineMarkdown(prose)))
     }
     // A fence closes only on a bare run of at least as many backticks as opened it.
     var fence = 0
@@ -200,6 +232,8 @@ final class ChatTabModel: ViewModel, Identifiable {
       let ticks = trimmed.prefix { $0 == "`" }.count
       if !isCode, ticks >= 3, !trimmed.dropFirst(ticks).contains("`") {
         flush()
+        let indent = line.prefix { $0 == " " || $0 == "\t" }.count
+        while let last = open.last, last.indent >= indent { open.removeLast() }
         isCode = true
         fence = ticks
       } else if isCode, ticks >= fence, ticks == trimmed.count {
@@ -211,6 +245,111 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     if isCode || !lines.isEmpty { flush() }
     return blocks
+  }
+
+  private static func proseBlocks(
+    _ lines: [Substring], open: inout [(indent: Int, number: Int?)]
+  ) -> [MarkdownBlock] {
+    var blocks: [MarkdownBlock] = []
+    var paragraph: [Substring] = []
+    var quote: [Substring] = []
+    var items: [(number: Int?, indent: Int, lines: [Substring], continuation: Bool)] = []
+    var afterBlank = false
+    func closeParagraphAndQuote() {
+      if !paragraph.isEmpty { blocks.append(.prose(inlineMarkdown(paragraph.joined(separator: "\n")))) }
+      if !quote.isEmpty { blocks.append(.quote(inlineMarkdown(quote.joined(separator: "\n")))) }
+      paragraph = []
+      quote = []
+    }
+    func closeAll(keepList: Bool = false) {
+      defer { if !keepList { open = [] } }
+      closeParagraphAndQuote()
+      guard !items.isEmpty else { return }
+      // Ordered items count up from the first sibling's number, whatever the source says.
+      var listItems: [MarkdownListItem] = []
+      for item in items {
+        var sibling: (indent: Int, number: Int?)?
+        while let last = open.last, last.indent >= item.indent { sibling = open.removeLast() }
+        let number = item.continuation
+          ? sibling?.number
+          : item.number.map { start in sibling?.number.map { $0 + 1 } ?? start }
+        listItems.append(
+          MarkdownListItem(
+            marker: item.continuation ? "" : number.map { "\($0)." } ?? "•", depth: open.count,
+            text: inlineMarkdown(item.lines.joined(separator: "\n"))))
+        open.append((item.indent, number))
+      }
+      blocks.append(.list(listItems))
+      items = []
+    }
+    for line in lines {
+      let trimmed = line.drop { $0 == " " || $0 == "\t" }
+      let indent = line.count - trimmed.count
+      defer { afterBlank = trimmed.isEmpty }
+      if trimmed.isEmpty {
+        closeParagraphAndQuote()
+      } else if items.isEmpty, open.isEmpty,
+        indent >= 4 || line.prefix(indent).contains("\t")
+      {
+        if !quote.isEmpty { closeAll() }
+        paragraph.append(line)
+      } else if isRule(trimmed) {
+        closeAll()
+        blocks.append(.rule)
+      } else if case let (level, title)? = heading(trimmed) {
+        closeAll()
+        blocks.append(.heading(level: level, text: inlineMarkdown(String(title))))
+      } else if case let (number, rest)? = listItem(trimmed) {
+        closeParagraphAndQuote()
+        items.append((number, indent, [rest], false))
+      } else if trimmed.first == ">" {
+        if !quote.isEmpty { quote.append(trimmed.dropFirst().drop { $0 == " " }) } else {
+          closeAll()
+          quote = [trimmed.dropFirst().drop { $0 == " " }]
+        }
+      } else if let owner = afterBlank
+        ? items.lastIndex(where: { $0.indent < indent }) : items.indices.last
+      {
+        if owner == items.count - 1 {
+          items[owner].lines.append(contentsOf: afterBlank ? ["", trimmed] : [trimmed])
+        } else {
+          items.append((items[owner].number, items[owner].indent, [trimmed], true))
+        }
+      } else {
+        if !items.isEmpty || !quote.isEmpty { closeAll() }
+        open = []
+        paragraph.append(line)
+      }
+    }
+    closeAll(keepList: true)
+    return blocks
+  }
+
+  /// Three or more of the same `-`, `*` or `_`, optionally spaced.
+  private static func isRule(_ line: Substring) -> Bool {
+    let marks = line.filter { $0 != " " && $0 != "\t" }
+    guard let mark = marks.first, "-*_".contains(mark) else { return false }
+    return marks.count >= 3 && marks.allSatisfy { $0 == mark }
+  }
+
+  private static func heading(_ line: Substring) -> (Int, Substring)? {
+    let level = line.prefix { $0 == "#" }.count
+    let rest = line.dropFirst(level)
+    guard (1...6).contains(level), rest.isEmpty || rest.first == " " else { return nil }
+    return (level, rest.drop { $0 == " " })
+  }
+
+  /// A bullet item has no number.
+  private static func listItem(_ line: Substring) -> (Int?, Substring)? {
+    if let bullet = line.first, "-*+".contains(bullet), line.dropFirst().first == " " {
+      return (nil, line.dropFirst(2))
+    }
+    let digits = line.prefix { ("0"..."9").contains($0) }
+    let rest = line.dropFirst(digits.count)
+    guard (1...9).contains(digits.count), let delimiter = rest.first, ".)".contains(delimiter),
+      rest.dropFirst().first == " "
+    else { return nil }
+    return (Int(digits), rest.dropFirst(2))
   }
 
   func rowMarkdown(for item: TranscriptItem) -> AttributedString {
@@ -241,16 +380,9 @@ final class ChatTabModel: ViewModel, Identifiable {
       return
     }
     guard let handle, activeTurn?.id == turn else { return }
-    let itemID = uuid().uuidString
-    let launch = handleGeneration
-    let isQueued = hasUnreadInput
-    projection.userSent(text, id: itemID)
-    if isQueued { queuedSends += 1 }
     do {
-      try await handle.write(ClaudeInvocation.userMessage(text))
+      try await writeUserMessage(text, to: handle)
     } catch {
-      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
-      projection.removeUserMessage(id: itemID)
       guard activeTurn?.id == turn else { return }
       // An echo means the process is already working on a message it read for this turn.
       if activeTurn?.isEchoed == false { activeTurn = nil }
@@ -283,15 +415,46 @@ final class ChatTabModel: ViewModel, Identifiable {
     let itemID = message.relayID.uuidString
     projection.userSent(message.text, id: itemID, relay: RelayMark(label: message.label, delivery: .waiting))
     unreadRelays[launch, default: []].append(message.relayID)
+    let sentInstructions = takeInstructions(for: message.text)
     do {
-      try await handle.write(ClaudeInvocation.userMessage(message.text, uuid: message.relayID))
+      try await handle.write(
+        ClaudeInvocation.userMessage(
+          SlipstreamInstruction.prefixed(message.text, with: sentInstructions), uuid: message.relayID))
     } catch {
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
       // Already echoed or reported as unread, so it is no longer this call's to fail.
       guard unreadRelays[launch]?.contains(message.relayID) == true else { return }
       unreadRelays[launch]?.removeAll { $0 == message.relayID }
       projection.markRelay(id: itemID, delivery: .notDelivered)
       if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
       throw RelayNotWritten()
+    }
+    if let startedTurn, activeTurn?.id == startedTurn {
+      $record.withLock { $0.isWaiting = false }
+    }
+    messageReachedProcess()
+  }
+
+  /// Writes like `send()` but also mid-turn, and never reads or clears the draft. Throws when
+  /// nothing reached the process.
+  func enqueueUserMessage(_ text: String) async throws {
+    if activeTurn == nil { await awaitRetired() }
+    guard !isClosed, !Task.isCancelled else { throw MessageNotWritten() }
+    let startedTurn = activeTurn == nil ? beginTurn() : nil
+    if handle == nil, startedTurn != nil {
+      _ = await start()
+    } else if handle == nil {
+      for task in starting { _ = await task.value }
+    }
+    guard let handle, !isClosed, !Task.isCancelled else {
+      if let startedTurn, activeTurn?.id == startedTurn { activeTurn = nil }
+      throw MessageNotWritten()
+    }
+    do {
+      try await writeUserMessage(text, to: handle, isMidTurn: startedTurn == nil)
+    } catch {
+      if let startedTurn, activeTurn?.id == startedTurn, activeTurn?.isEchoed == false { activeTurn = nil }
+      throw error
     }
     if let startedTurn, activeTurn?.id == startedTurn {
       $record.withLock { $0.isWaiting = false }
@@ -354,6 +517,19 @@ final class ChatTabModel: ViewModel, Identifiable {
     pasteboard.copy(projection.replyText(endingAt: footer.id))
   }
 
+  func attachmentTapped(_ item: TranscriptItem) {
+    guard let parsed = attachment(for: item) else { return }
+    do {
+      try attachments.open(URL(fileURLWithPath: parsed.path))
+    } catch {
+      attachmentAlert = error.localizedDescription
+    }
+  }
+
+  func attachmentAlertDismissed() {
+    attachmentAlert = nil
+  }
+
   func clockTicked() {
     guard isWorking else { return }
     now = date.now
@@ -362,12 +538,20 @@ final class ChatTabModel: ViewModel, Identifiable {
   /// A running Claude doesn't load the hook and answer tool a link installs, so a process that
   /// predates the link is dropped once idle. The next send resumes in a fresh one.
   func streamLinked() {
+    linkedSinceLaunch = true
     guard handle != nil || !starting.isEmpty else { return }
     if isWorking || hasUnreadInput {
       reloadWhenIdle = true
     } else {
       retireProcess()
     }
+  }
+
+  /// A capture read shows this chat linked, perhaps from outside the app or after a read that
+  /// lagged the link; a process launched before it knew is handled as if just linked.
+  func linkSeen() {
+    guard !launchedLinked, handle != nil || !starting.isEmpty else { return }
+    streamLinked()
   }
 
   /// Shuts down for good: a send still waiting on an earlier shutdown launches nothing.
@@ -409,7 +593,31 @@ final class ChatTabModel: ViewModel, Identifiable {
   private static let sendFailedText = "Couldn't send your message to Claude"
   private static let turnFailedText = "Claude couldn't finish this turn"
   private static let crashedText = "Claude stopped unexpectedly"
+  private static let unreadEnqueueText = "Claude stopped before reading the enqueued message"
   private static let gapText = "Part of this conversation couldn't be shown"
+
+  /// Projects the message and writes it, taking the row back out when the write fails. A
+  /// mid-turn message carries its id, so its own echo marks it read.
+  private func writeUserMessage(_ text: String, to handle: AgentProcessHandle, isMidTurn: Bool = false) async throws {
+    let id = uuid()
+    let launch = handleGeneration
+    let isQueued = !isMidTurn && hasUnreadInput
+    projection.userSent(text, id: id.uuidString)
+    if isQueued { queuedSends += 1 }
+    if isMidTurn { unreadEnqueues.insert(id) }
+    let sentInstructions = takeInstructions(for: text)
+    do {
+      try await handle.write(
+        ClaudeInvocation.userMessage(
+          SlipstreamInstruction.prefixed(text, with: sentInstructions), uuid: isMidTurn ? id : nil))
+    } catch {
+      if launch == handleGeneration, !sentInstructions.isEmpty { instructions = sentInstructions }
+      if isQueued, launch == handleGeneration { queuedSends = max(0, queuedSends - 1) }
+      if launch == handleGeneration { unreadEnqueues.remove(id) }
+      projection.removeUserMessage(id: id.uuidString)
+      throw error
+    }
+  }
 
   /// Tracked, so a shutdown can wait for a launch that is still on its way. The generation is
   /// taken before the task is scheduled, so a shutdown in between still invalidates it.
@@ -434,6 +642,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         environment: environment.variables,
         directory: record.folder
       )
+      let wasLinkedAtLaunch = linkedSinceLaunch || isStreamLinked()
       let handle: AgentProcessHandle
       do {
         handle = try await agentProcess.launch(launch)
@@ -448,6 +657,11 @@ final class ChatTabModel: ViewModel, Identifiable {
       handleGeneration = generation
       echoes = []
       queuedSends = 0
+      unreadEnqueues = []
+      launchedLinked = wasLinkedAtLaunch
+      let linkedDuringLaunch = linkedSinceLaunch || isStreamLinked()
+      linkedSinceLaunch = false
+      instructions = Self.instructions(session: session, lookup: lookup, isLinked: launchedLinked)
       // Not cancelled on retire: a retired launch still resolves its relays as it winds down.
       followers[generation] = Task { [weak self] in
         for await event in handle.events {
@@ -455,6 +669,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         }
         self?.followers[generation] = nil
       }
+      if linkedDuringLaunch, !launchedLinked { streamLinked() }
       return true
     } catch {
       if generation == self.generation { errorText = error.message }
@@ -520,6 +735,24 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
+  /// A slash command only runs when it leads the message, so the guidance waits for the next one.
+  private func takeInstructions(for text: String) -> [SlipstreamInstruction] {
+    guard !text.hasPrefix("/") else { return [] }
+    defer { instructions = [] }
+    return instructions
+  }
+
+  /// A new chat is told it isn't linked yet; a linked one learns its tools once.
+  private static func instructions(
+    session: ClaudeSessionStart, lookup: TranscriptLookup, isLinked: Bool
+  ) -> [SlipstreamInstruction] {
+    let lines = if case .found(let lines) = lookup { lines } else { [AgentLine]() }
+    var instructions: [SlipstreamInstruction] = []
+    if case .new = session { instructions.append(.start) }
+    if isLinked, !SlipstreamInstruction.linked.wasSent(in: lines) { instructions.append(.linked) }
+    return instructions
+  }
+
   private func readTranscript() async throws(Failure) -> (AgentEnvironment, TranscriptLookup) {
     let environment: AgentEnvironment
     do {
@@ -567,6 +800,10 @@ final class ChatTabModel: ViewModel, Identifiable {
       projection.markRelay(id: relayID.uuidString, delivery: .notDelivered)
       onRelayDelivery(.exitedUnread(relayID: relayID))
     }
+    if launch == handleGeneration, !unreadEnqueues.isEmpty {
+      unreadEnqueues.removeAll()
+      errorText = Self.unreadEnqueueText
+    }
   }
 
   private func outputArrived() {
@@ -588,7 +825,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .echo(let uuid):
       guard echoes.insert(uuid).inserted else { return }
       messageReachedProcess()
-      if !isPickup { queuedSends = max(0, queuedSends - 1) }
+      let isEnqueued = UUID(uuidString: uuid).map { unreadEnqueues.remove($0) != nil } ?? false
+      if !isPickup && !isEnqueued { queuedSends = max(0, queuedSends - 1) }
       // A message queued behind a finished or stopped turn starts a turn of its own.
       if activeTurn == nil { beginTurn() } else { activeTurn?.isEchoed = true }
     default:
@@ -634,10 +872,11 @@ final class ChatTabModel: ViewModel, Identifiable {
     titleRefresh = Task { [weak self] in await self?.refreshTitle(generation: generation) }
   }
 
-  /// A process that predates a link stays up until it has read every relay sent to it, and
-  /// every send queued behind one.
+  /// A process that predates a link stays up until it has read every relay sent to it, every
+  /// send queued behind one, and every message enqueued mid-turn.
   private var hasUnreadInput: Bool {
-    handle != nil && (queuedSends > 0 || !(unreadRelays[handleGeneration] ?? []).isEmpty)
+    handle != nil
+      && (queuedSends > 0 || !unreadEnqueues.isEmpty || !(unreadRelays[handleGeneration] ?? []).isEmpty)
   }
 
   private func duration(of turn: ActiveTurn) -> Duration {
@@ -712,3 +951,5 @@ enum RelayDelivery: Equatable, Sendable {
 }
 
 struct RelayNotWritten: Error {}
+
+struct MessageNotWritten: Error {}

@@ -10,6 +10,8 @@ struct WorkspaceClient: Sendable {
   var chooseFolder: @MainActor @Sendable (_ message: String, _ prompt: String) async -> URL?
   /// Returns why the command failed, or nil once the workspace is archived.
   var archive: @Sendable (_ workspace: URL, _ store: String) async -> String?
+  /// The main checkout of the git repository holding `folder`, or nil when it isn't in one.
+  var repository: @Sendable (_ folder: URL) async -> URL?
 }
 
 extension WorkspaceClient {
@@ -21,12 +23,28 @@ extension WorkspaceClient {
       .appending(path: "slipstream/workspaces").resolvingSymlinksInPath()
   }
 
+  /// Resolves a worktree to its main checkout the way `slipstream workspace create` does.
+  static func repository(of folder: URL) async -> URL? {
+    let arguments = [
+      "-C", folder.path, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir",
+    ]
+    guard
+      let (output, status) = try? await runInBackground(
+        "/usr/bin/git", arguments, environment: ProcessInfo.processInfo.environment),
+      status == 0
+    else { return nil }
+    let lines = output.split(whereSeparator: \.isNewline).map(String.init)
+    guard lines.count == 3 else { return nil }
+    let (top, gitDir, commonDir) = (lines[0], lines[1], lines[2])
+    return gitDir == commonDir ? URL(filePath: top) : URL(filePath: commonDir).deletingLastPathComponent()
+  }
+
   static func failureText(output: String, status: Int32) -> String? {
     guard status != 0 else { return nil }
     let tail = output.split(whereSeparator: \.isNewline)
       .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
       .suffix(failureLineLimit)
-    return tail.isEmpty ? "slipstream exited with status \(status)." : tail.joined(separator: "\n")
+    return (tail + ["slipstream exited with status \(status)."]).joined(separator: "\n")
   }
 }
 
@@ -49,7 +67,19 @@ extension WorkspaceClient: DependencyKey {
         panel.prompt = prompt
         return panel.runModal() == .OK ? panel.url : nil
       },
-      archive: { workspace, store in await runSlipstream(["workspace", "archive", workspace.path, "--store", store]) }
+      archive: { workspace, store in
+        let environment: [String: String]
+        let shim: String
+        do {
+          environment = try await AgentEnvironmentClient.loginEnvironment()
+          shim = try RuntimeInstallClient.installedShim()
+        } catch {
+          return error.localizedDescription
+        }
+        return await runShim(
+          shim, ["workspace", "archive", workspace.path, "--store", store], environment: environment)
+      },
+      repository: { await repository(of: $0) }
     )
   }
 
@@ -61,50 +91,38 @@ extension WorkspaceClient: DependencyKey {
           conductor: URL(filePath: "/tmp/conductor-test/workspaces"))
       },
       chooseFolder: unimplemented("WorkspaceClient.chooseFolder", placeholder: nil),
-      archive: unimplemented("WorkspaceClient.archive", placeholder: nil)
+      archive: unimplemented("WorkspaceClient.archive", placeholder: nil),
+      repository: unimplemented("WorkspaceClient.repository", placeholder: nil)
     )
   }
 
   private static let outputLimit = 65_536
 
-  private static func runSlipstream(_ arguments: [String]) async -> String? {
-    let variables: [String: String]
+  static func runShim(_ shim: String, _ arguments: [String], environment: [String: String]) async -> String? {
     do {
-      variables = try await AgentEnvironmentClient.loginEnvironment()
-    } catch {
-      return error.localizedDescription
-    }
-    guard let slipstream = slipstreamExecutable(in: variables) else { return slipstreamNotFoundText }
-    do {
-      let (output, status) = try await runInBackground(slipstream, arguments, environment: variables)
+      let (output, status) = try await runInBackground(shim, arguments, environment: environment)
       return failureText(output: output, status: status)
     } catch {
-      return "Couldn't run slipstream: \(error.localizedDescription)"
+      return "Couldn't run \(shim): \(error.localizedDescription)"
     }
-  }
-
-  static let slipstreamNotFoundText = "Couldn't find slipstream. Install it with `npm i -g @playola-radio/slipstream`."
-
-  static func slipstreamExecutable(in variables: [String: String]) -> String? {
-    (variables["PATH"] ?? "").split(separator: ":").map { "\($0)/slipstream" }
-      .first(where: FileManager.default.isExecutableFile(atPath:))
   }
 
   static func runInBackground(
-    _ executable: String, _ arguments: [String], environment: [String: String]
+    _ executable: String, _ arguments: [String], environment: [String: String], keepsAllOutput: Bool = false
   ) async throws -> (output: String, status: Int32) {
     try await withCheckedThrowingContinuation { continuation in
       DispatchQueue.global().async {
-        continuation.resume(with: Result { try run(executable, arguments, environment: environment) })
+        continuation.resume(
+          with: Result { try run(executable, arguments, environment: environment, keepsAllOutput: keepsAllOutput) })
       }
     }
   }
 
   /// Runs a command to completion with stdout and stderr merged, keeping the last
-  /// `outputLimit` bytes. Stops reading once it has exited and its output is drained, so a
+  /// `outputLimit` bytes unless `keepsAllOutput`. Stops reading once it has exited and its output is drained, so a
   /// background job started by a setup script can't hold the pipe open.
   static func run(
-    _ executable: String, _ arguments: [String], environment: [String: String]
+    _ executable: String, _ arguments: [String], environment: [String: String], keepsAllOutput: Bool = false
   ) throws -> (output: String, status: Int32) {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: executable)
@@ -130,7 +148,7 @@ extension WorkspaceClient: DependencyKey {
         if count < 0 && errno == EINTR { continue }
         if count <= 0 { break }
         output.append(contentsOf: buffer[..<count])
-        if output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
+        if !keepsAllOutput, output.count > outputLimit { output.removeFirst(output.count - outputLimit) }
         if hasExited {
           outputAfterExit += count
           if outputAfterExit >= outputLimit { break }

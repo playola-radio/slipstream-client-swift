@@ -1,6 +1,11 @@
 import Dependencies
 import SwiftUI
 
+enum QuitOutcome: Equatable {
+  case quit
+  case updateRelaunches
+}
+
 @MainActor
 @Observable
 final class UpdaterModel: ViewModel {
@@ -12,4 +17,5 @@ final class UpdaterModel: ViewModel {
 
   func appLaunched() { updater.start() }
   func checkForUpdatesTapped() { updater.checkForUpdates() }
+  func quitRequested() -> QuitOutcome { updater.installPendingUpdateAndRelaunch() ? .updateRelaunches : .quit }
 }

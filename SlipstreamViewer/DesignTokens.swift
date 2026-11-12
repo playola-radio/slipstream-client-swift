@@ -160,6 +160,10 @@ enum DesignTokens {
     let weight: CGFloat
     let codeLigatures: Bool
 
+    var bold: FontToken {
+      FontToken(family: family, size: size, weight: 600, codeLigatures: codeLigatures)
+    }
+
     func font(scale: CGFloat) -> Font {
       nsFont(scale: scale).map(Font.init) ?? .system(size: size * scale)
     }
@@ -569,6 +573,139 @@ enum DesignTokens {
     }
   }
 
+  enum PRStatusBar {
+    static let height: CGFloat = 40
+    static let gap: CGFloat = 10
+    static let horizontalPadding: CGFloat = 16
+    static let stroke = Color(hex: 0x2A3640)
+    static let detailColor = Color(hex: 0x8B9AA6)
+
+    static func fill(_ tone: PRStatusTone) -> Color {
+      tone == .merged ? Color(hex: 0x1A1724) : Color(hex: 0x191F27)
+    }
+
+    enum Chip {
+      static let height: CGFloat = 22
+      static let cornerRadius: CGFloat = 4
+      static let gap: CGFloat = 5
+      static let horizontalPadding: CGFloat = 7
+      static let font = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+      static let arrowSize: CGFloat = 11
+
+      static func stroke(_ tone: PRStatusTone) -> Color {
+        tone == .merged ? Color(hex: 0x4B3A70) : Color(hex: 0x2A3640)
+      }
+
+      static func color(_ tone: PRStatusTone) -> Color {
+        tone == .merged ? Color(hex: 0xBC8CFF) : Color(hex: 0x8B9AA6)
+      }
+
+      static func arrow(_ tone: PRStatusTone) -> Icons.Icon {
+        Icons.Icon(assetName: "ArrowUpRight", size: arrowSize, color: color(tone))
+      }
+    }
+
+    enum Status {
+      static let gap: CGFloat = 6
+      static let iconSize: CGFloat = 13
+      static let labelFont = variableFont(family: geistFamily, size: 12.5, weight: 500)
+      static let detailFont = variableFont(family: geistFamily, size: 12.5, weight: 400)
+
+      static func color(_ tone: PRStatusTone) -> Color {
+        switch tone {
+        case .neutral: Color(hex: 0xE6EDF3)
+        case .muted: Color(hex: 0x8B9AA6)
+        case .success: Color(hex: 0x7EE787)
+        case .warning: Color(hex: 0xE4C282)
+        case .danger: Color(hex: 0xF0A4AB)
+        case .merged: Color(hex: 0xBC8CFF)
+        }
+      }
+
+      static func icon(named assetName: String, tone: PRStatusTone) -> Icons.Icon {
+        Icons.Icon(assetName: assetName, size: iconSize, color: color(tone))
+      }
+    }
+
+    enum Button {
+      struct Appearance {
+        let fill: Color
+        let stroke: Color?
+        let foreground: Color
+        let shortcut: Color
+
+        func icon(named assetName: String) -> Icons.Icon {
+          Icons.Icon(assetName: assetName, size: iconSize, color: foreground)
+        }
+      }
+
+      static let height: CGFloat = 24
+      static let cornerRadius: CGFloat = 5
+      static let horizontalPadding: CGFloat = 9
+      static let gap: CGFloat = 6
+      static let iconSize: CGFloat = 13
+      static let labelFont = variableFont(family: geistFamily, size: 12, weight: 500)
+      static let shortcutFont = variableFont(family: geistFamily, size: 11.5, weight: 400)
+      static let continueIconName = "GitBranchPlus"
+      static let archiveIconName = "Archive"
+      static let detailsIconName = "ChevronDown"
+
+      static func opacity(isEnabled: Bool) -> Double { isEnabled ? 1 : 0.5 }
+
+      static func appearance(_ button: PRBarButton) -> Appearance {
+        switch button {
+        case .createPR, .commitAndPush:
+          Appearance(
+            fill: Color(hex: 0x2B3540), stroke: nil, foreground: Color(hex: 0xE6EDF3), shortcut: Color(hex: 0x8B9AA6))
+        case .resolveConflicts:
+          Appearance(
+            fill: Color(hex: 0x3A3020), stroke: nil, foreground: Color(hex: 0xE4C282), shortcut: Color(hex: 0xE4C282))
+        case .fixErrors:
+          Appearance(
+            fill: Color(hex: 0x3A2226), stroke: nil, foreground: Color(hex: 0xF0A4AB), shortcut: Color(hex: 0xC98A90))
+        case .merge:
+          Appearance(
+            fill: Color(hex: 0x1E3A2A), stroke: Color(hex: 0x2F6B45), foreground: Color(hex: 0x8FE3A5),
+            shortcut: Color(hex: 0x6FB585))
+        }
+      }
+
+      static let continueAppearance = Appearance(
+        fill: Color(hex: 0x1E1A2B), stroke: Color(hex: 0x5B4690), foreground: Color(hex: 0xBC8CFF),
+        shortcut: Color(hex: 0xBC8CFF))
+      static let archiveAppearance = Appearance(
+        fill: Color(hex: 0x7C4FD6), stroke: nil, foreground: Color(hex: 0xFFFFFF), shortcut: Color(hex: 0xFFFFFF))
+      static let detailsAppearance = Appearance(
+        fill: Color(hex: 0x191F27), stroke: Color(hex: 0x2A3640), foreground: Color(hex: 0xB7C3CD),
+        shortcut: Color(hex: 0xB7C3CD))
+    }
+
+    enum Details {
+      static let width: CGFloat = 560
+      static let fill = Color(hex: 0x1C232B)
+      static let padding: CGFloat = 12
+      static let gap: CGFloat = 10
+      static let headerGap: CGFloat = 8
+      static let commandFont = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+      static let commandColor = Color(hex: 0x8B9AA6)
+      static let outputFont = variableFont(family: geistMonoFamily, size: 11.5, weight: 400)
+      static let outputColor = Color(hex: 0xE6EDF3)
+      static let outputLineSpacing: CGFloat = 3
+      static let outputMaxHeight: CGFloat = 320
+
+      enum Copy {
+        static let height: CGFloat = 22
+        static let cornerRadius: CGFloat = 4
+        static let gap: CGFloat = 5
+        static let horizontalPadding: CGFloat = 7
+        static let stroke = Color(hex: 0x2F3B47)
+        static let font = variableFont(family: geistFamily, size: 11.5, weight: 400)
+        static let color = Color(hex: 0xB7C3CD)
+        static let icon = Icons.Icon(assetName: "Copy", size: 12, color: color)
+      }
+    }
+  }
+
   enum FileViewer {
     static let fill = Color(hex: 0x11171D)
     static let padding: CGFloat = 12
@@ -897,6 +1034,68 @@ enum DesignTokens {
     static let gap: CGFloat = 8
   }
 
+  enum RecorderMessage {
+    static let width: CGFloat = 600
+    static let gap: CGFloat = 12
+    static let headlineGap: CGFloat = 8
+    static let headlineFont: FontToken = variableFont(family: geistFamily, size: 14, weight: 600)
+    static let headlineColor = Color(hex: 0xE6EDF3)
+    static let headlineLineSpacing: CGFloat = 14 * (1.4 - 1)
+    static let dockFill = Color(hex: 0x191F27)
+    static let dockGap: CGFloat = 10
+    static let dockFont: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let dockEvidenceMaxHeight: CGFloat = 320
+    static let linkColor = Color(hex: 0x82AAC5)
+    static let blockFill = Color(hex: 0x0F1318)
+    static let blockStroke = Color(hex: 0x2A3640)
+    static let blockRadius: CGFloat = 6
+    static let sourceFont: FontToken = variableFont(family: geistMonoFamily, size: 10, weight: 400)
+    static let sourceColor = Color(hex: 0x7D98AD)
+    static let sourceVerticalPadding: CGFloat = 7
+    static let sourceHorizontalPadding: CGFloat = 10
+    static let copyGap: CGFloat = 5
+    static let copyFont: FontToken = variableFont(family: geistFamily, size: 11, weight: 400)
+    static let copyIcon = Icons.Icon(assetName: "Copy", size: 12, color: linkColor)
+    static let bodyFont: FontToken = variableFont(family: geistMonoFamily, size: 10.5, weight: 400)
+    static let bodyColor = Color(hex: 0xC9D6E0)
+    static let bodyLineSpacing: CGFloat = 10.5 * (1.55 - 1)
+    static let bodyPadding: CGFloat = 10
+    static let buttonGap: CGFloat = 8
+    static let buttonFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 500)
+    static let buttonText = Color(hex: 0xE6EDF3)
+    static let primaryButtonFill = Color(hex: 0x2F3A45)
+    static let secondaryButtonStroke = Color(hex: 0x3E5260)
+    static let buttonRadius: CGFloat = 6
+    static let buttonVerticalPadding: CGFloat = 6
+    static let buttonHorizontalPadding: CGFloat = 12
+
+    static func color(_ tone: SlipstreamViewer.RecorderMessage.Tone) -> Color {
+      switch tone {
+      case .neutral: Color(hex: 0x8B9AA6)
+      case .warning: Color(hex: 0xFF9F0A)
+      case .error: Color(hex: 0xFF6B6B)
+      }
+    }
+
+    static func headlineIcon(_ message: SlipstreamViewer.RecorderMessage) -> Icons.Icon {
+      let color = message.tone == .warning ? Color(hex: 0xF0A070) : color(message.tone)
+      return Icons.Icon(assetName: assetName(message.icon), size: 16, color: color)
+    }
+
+    static func footerIcon(_ message: SlipstreamViewer.RecorderMessage) -> Icons.Icon {
+      Icons.Icon(assetName: assetName(message.icon), size: 13, color: color(message.tone))
+    }
+
+    private static func assetName(_ icon: SlipstreamViewer.RecorderMessage.Icon) -> String {
+      switch icon {
+      case .starting: "LoaderCircle"
+      case .restarting: "RefreshCw"
+      case .warning: "CircleAlert"
+      case .failure: "OctagonX"
+      }
+    }
+  }
+
   enum CaptureStrip {
     static let fill = Color(hex: 0x1B222A)
     static let stroke = Color(hex: 0x314351)
@@ -1009,6 +1208,19 @@ enum DesignTokens {
       static let maxWidth: CGFloat = 520
     }
 
+    enum Attachment {
+      static let height: CGFloat = 26
+      static let fill = Color(hex: 0x1A2129)
+      static let radius: CGFloat = 5
+      static let stroke = Color(hex: 0x33404C)
+      static let strokeWidth: CGFloat = 1
+      static let gap: CGFloat = 6
+      static let horizontalPadding: CGFloat = 9
+      static let icon = Icons.Icon(assetName: "FileText", size: 13, color: Color(hex: 0x8B9AA6))
+      static let nameFont: FontToken = variableFont(family: geistFamily, size: 12.5, weight: 400)
+      static let nameColor = Color(hex: 0xB7C3CD)
+    }
+
     enum Relay {
       static let gap: CGFloat = 8
       static let tagGap: CGFloat = 6
@@ -1044,15 +1256,60 @@ enum DesignTokens {
       static let inlineCodeFont: FontToken = variableFont(family: geistMonoFamily, size: 12, weight: 400)
       static let inlineCodeColor = secondary
 
-      /// Inline `code` runs take the code font and colour; the rest keeps the view's font.
-      static func styled(_ text: AttributedString, scale: CGFloat) -> AttributedString {
+      /// Inline `code` runs take the code font and colour and bold runs the bold weight of `base`;
+      /// the rest keeps the view's font. A variable font ignores the bold intent on its own.
+      static func styled(_ text: AttributedString, base: FontToken, scale: CGFloat) -> AttributedString {
         var text = text
-        for run in text.runs where run.inlinePresentationIntent?.contains(.code) == true {
-          text[run.range].font = inlineCodeFont.font(scale: scale)
-          text[run.range].foregroundColor = inlineCodeColor
+        for run in text.runs {
+          guard let intent = run.inlinePresentationIntent else { continue }
+          if intent.contains(.code) {
+            text[run.range].font = inlineCodeFont.font(scale: scale)
+            text[run.range].foregroundColor = inlineCodeColor
+          } else if intent.contains(.stronglyEmphasized) {
+            text[run.range].font = base.bold.font(scale: scale)
+          }
         }
         return text
       }
+    }
+
+    /// Not drawn in the mockups; sized against the 14pt paragraph.
+    enum Heading {
+      static let color = primary
+
+      static func font(level: Int) -> FontToken {
+        let size: CGFloat = switch level {
+        case 1: 20
+        case 2: 17
+        case 3: 15
+        default: 14
+        }
+        return variableFont(family: geistFamily, size: size, weight: 600)
+      }
+    }
+
+    /// Not drawn in the mockups.
+    enum List {
+      static let itemGap: CGFloat = 6
+      static let markerGap: CGFloat = 8
+      static let markerMinWidth: CGFloat = 14
+      static let markerColor = secondary
+
+      static func indent(depth: Int) -> CGFloat { CGFloat(depth) * 20 }
+    }
+
+    /// Not drawn in the mockups.
+    enum Quote {
+      static let color = secondary
+      static let barColor = stroke
+      static let barWidth: CGFloat = 3
+      static let leadingPadding: CGFloat = 14
+    }
+
+    /// Not drawn in the mockups.
+    enum Rule {
+      static let color = stroke
+      static let height: CGFloat = 1
     }
 
     /// Not drawn in the mockups; sized to sit with the tool targets.

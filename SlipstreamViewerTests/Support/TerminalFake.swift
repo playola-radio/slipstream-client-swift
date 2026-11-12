@@ -31,7 +31,6 @@ final class TerminalFake: Sendable {
     var logs: [UUID: [UInt8]] = [:]
     var missingFolders: Set<String> = []
     var environmentError: TerminalLaunchError?
-    var isSlipstreamMissing = false
     var launchError: TerminalLaunchError?
     var launches: [TerminalLaunch] = []
     var continuations: [AsyncStream<TerminalEvent>.Continuation] = []
@@ -65,7 +64,6 @@ final class TerminalFake: Sendable {
   func setLog(_ tab: UUID, _ text: String) { state.withLock { $0.logs[tab] = Array(text.utf8) } }
   func setMissing(_ folder: String) { state.withLock { _ = $0.missingFolders.insert(folder) } }
   func setEnvironmentError(_ error: TerminalLaunchError?) { state.withLock { $0.environmentError = error } }
-  func setSlipstreamMissing() { state.withLock { $0.isSlipstreamMissing = true } }
   func setLaunchError(_ error: TerminalLaunchError?) { state.withLock { $0.launchError = error } }
   /// Whether the shell of that launch (the most recent unless named) runs a foreground program.
   func setBusy(_ isBusy: Bool, launch: Int? = nil) {
@@ -99,9 +97,7 @@ final class TerminalFake: Sendable {
       environment: {
         await self.wait(.environment)
         if let error = self.state.withLock({ $0.environmentError }) { throw error }
-        var environment = Self.environment
-        if self.state.withLock({ $0.isSlipstreamMissing }) { environment.slipstream = nil }
-        return environment
+        return Self.environment
       },
       folderExists: { folder in self.state.withLock { !$0.missingFolders.contains(folder) } },
       launch: { launch in

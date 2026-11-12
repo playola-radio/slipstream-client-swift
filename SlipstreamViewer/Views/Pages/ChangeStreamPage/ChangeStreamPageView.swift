@@ -8,11 +8,12 @@ struct ChangeStreamPageView: View {
   private let bottomID = "feed-bottom"
 
   init(
-    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel,
+    chat: ChatPageModel, instantAsk: InstantAskModel, terminals: TerminalPageModel, recorder: RecorderModel,
     functionChangesDemo: FunctionChangesFixtureModel? = nil
   ) {
     _model = State(initialValue: ChangeStreamPageModel(
-      chat: chat, instantAsk: instantAsk, terminals: terminals, isFunctionDemoVisible: functionChangesDemo != nil))
+      chat: chat, instantAsk: instantAsk, terminals: terminals, recorder: recorder,
+      isFunctionDemoVisible: functionChangesDemo != nil))
     _functionChangesDemo = State(initialValue: functionChangesDemo)
   }
 
@@ -178,6 +179,7 @@ struct ChangeStreamPageView: View {
 
   private var rightPane: some View {
     VStack(spacing: 0) {
+      PRStatusBarView(model: model.prStatusBar)
       rightPaneStrip
       if model.isStreamShown {
         feedPane
@@ -254,7 +256,11 @@ struct ChangeStreamPageView: View {
       if model.isCaptureStripShown {
         captureStrip
       }
-      if let emptyStateText = model.emptyStateText {
+      if model.isRecorderMessageFull, let message = model.recorderMessage {
+        recorderMessage(message, isDocked: false)
+          .padding(DesignTokens.Footer.horizontalPadding)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if let emptyStateText = model.emptyStateText {
         Text(emptyStateText)
           .font(DesignTokens.Fonts.liveStatus)
           .foregroundStyle(DesignTokens.Colors.paneSubtitle)
@@ -262,10 +268,22 @@ struct ChangeStreamPageView: View {
       } else {
         feed
       }
+      if model.isRecorderDockShown, let message = model.recorderMessage {
+        recorderMessage(message, isDocked: true)
+      }
       if model.isFooterShown {
         footer
       }
     }
+  }
+
+  private func recorderMessage(_ message: RecorderMessage, isDocked: Bool) -> some View {
+    RecorderMessageView(
+      message: message,
+      isDocked: isDocked,
+      actionTapped: { action in Task { await model.recorderActionTapped(action) } },
+      copyTapped: { model.recorderCopyTapped() }
+    )
   }
 
   @ViewBuilder
@@ -429,7 +447,7 @@ struct ChangeStreamPageView: View {
 
   private var footer: some View {
     HStack(spacing: DesignTokens.Footer.gap) {
-      IconView(icon: DesignTokens.Icons.activity)
+      IconView(icon: model.footerIcon)
       Text(model.footerText)
         .font(DesignTokens.Fonts.liveStatus)
         .foregroundStyle(model.footerColor)

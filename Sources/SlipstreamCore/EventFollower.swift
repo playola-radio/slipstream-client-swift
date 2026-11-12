@@ -136,7 +136,7 @@ public struct EventFollower<C: Clock<Duration>>: Sendable {
         resetBudget()
       }
       return .retry
-    } catch DaemonHTTPError.status(let code, let durableSeq) {
+    } catch DaemonHTTPError.status(let code, let durableSeq, _) {
       switch code {
       case 409: return .exit(.cursorAhead(durableSeq: durableSeq))
       case 410: return .exit(.sessionRemoved)

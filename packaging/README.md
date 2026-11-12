@@ -16,19 +16,26 @@ The app embeds the Slipstream daemon and an arm64 Node at
 `Contents/Resources/SlipstreamRuntime/` (`bin/node`, `app/`), so one Sparkle update moves
 the app and the recorder together. `build-app.sh` runs `build-runtime.sh`, which:
 
-- fetches the daemon at `DAEMON_COMMIT` from `runtime.env` and runs
-  `npm ci && npm run build:payload` there (so the build needs Node 24 and npm on PATH);
+- asks npm for the newest `@playola-radio/slipstream` (`latest_daemon.rb`), fetches the
+  daemon at the commit npm says it was published from (its `gitHead`), runs
+  `npm ci && npm run build:payload` there (so the build needs Ruby, Node 24 and npm on
+  PATH), and refuses a payload whose version isn't the one npm named;
 - downloads Node `NODE_VERSION`, refuses it unless its sha256 is `NODE_SHA256`, and copies
   only `bin/node`.
 
 `sign-app.sh` signs `bin/node` with `node.entitlements` (JIT only) and every other Mach-O in
 the payload (native addons such as `watcher.node`) with no entitlements, before the app.
 
-To ship a new daemon, set `DAEMON_COMMIT` to its merge commit on the daemon's `develop`
-(never a branch tip). To move Node, set `NODE_VERSION` and copy the
-`node-v<version>-darwin-arm64.tar.xz` line's hash from
-`https://nodejs.org/dist/v<version>/SHASUMS256.txt` into `NODE_SHA256`. App and daemon
-versions are independent.
+Every release bundles whatever daemon is newest on npm when its build starts; nothing in
+this repo pins it. The app never takes over a recorder newer than its own, so a bundle
+behind npm would leave the app without its `slipstream` command. The release log's
+"Building the daemon payload for …" line names the version and commit it shipped. A
+re-run of a failed release picks up any daemon published since. Publishing a daemon does
+not release the app by itself: the next app release carries it.
+
+To move Node, set `NODE_VERSION` and copy the `node-v<version>-darwin-arm64.tar.xz` line's
+hash from `https://nodejs.org/dist/v<version>/SHASUMS256.txt` into `NODE_SHA256`. App and
+daemon versions are independent.
 
 ## Download links
 
@@ -131,6 +138,38 @@ xcrun stapler validate /tmp/Slipstream.dmg
 
 Then install from the DMG on a Mac without the dev tools, launch it, and confirm an
 earlier release offers the update through **Check for Updates…**.
+
+## Bundled recorder release gate
+
+Before merging a change to how the app runs its recorder, run this on a clean, offline Apple
+Silicon Mac, VM or test user with no Node, no nvm and no `~/.slipstream`. Never on a Mac whose
+recorder you rely on. Record each line's result in the pull request.
+
+1. First launch → the recorder is running. `slipstream status` works from a new terminal
+   through `~/.local/bin`.
+2. Quit the app → the recorder keeps running (`launchctl print gui/$(id -u)/radio.playola.slipstream`
+   shows the pid).
+3. Reboot → the recorder runs before the app is opened.
+4. Move or delete `Slipstream.app` → recording continues (the recorder runs from Application
+   Support). This is supported.
+5. Turn Slipstream off in Login Items, then quit and relaunch → "won't start", with
+   `service install`'s full launchctl output as the evidence.
+6. Install on quit: install vN, publish vN+1 to a test appcast, quit → the app relaunches on
+   vN+1 and the recorder switches (restarting → running). An MCP call from a running agent
+   still succeeds.
+7. Migration on a copy of a real setup (an npm recorder under `radio.playola.slipstream`):
+   the LaunchAgent plist now points into Application Support, and hooks and connector configs
+   point at the shims, with backups present.
+8. Native module: a capture records a file change (proves `watcher.node` loads from the
+   copied runtime).
+9. Each recorder state in `design/features/bundled-daemon/screens.md`, checked against its
+   SwiftUI preview in `RecorderMessageView.swift`.
+10. Two app builds that bundle the same recorder version, launched alternately → when their
+    daemon build ids differ, the newer app build keeps the recorder and the older one shows
+    "another recorder"; when the daemon build is identical, both show running. Nothing restarts
+    in either case.
+
+Lines 6 and 7 may use a Debug-signed build against a disposable store (`SLIPSTREAM_STORE`).
 
 ## Invariants
 
