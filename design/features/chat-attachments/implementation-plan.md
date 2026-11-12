@@ -151,20 +151,20 @@
     - the editable-only inputs added in Task 5, defaulted here.
   - `DesignTokens.Chat.Attachment`: `imageIcon` (an `Icons.Icon`, like `icon`, from `y7HVvN`), `divider` colour, `maxNameWidth`.
 
-- [ ] **Step 1: Rewrite the tests at 3151-3178:**
+- [x] **Step 1: Rewrite the tests at 3151-3178:**
   - `markerRendersAsAttachment` → `oldEndMarkerSegments`: `attachmentSegments(for: markedRow())` equals `[.text("Create a PR "), .attachment(name: "PR instructions.md", path: "/tmp/x/PR instructions.md")]`.
   - `plainOrReplyRowHasNoAttachmentSegments`: a user row with no marker, and a reply row with one, both give `nil`.
   - `attachmentTapOpensFile` / `attachmentTapMissingFileShowsAlert` now call `attachmentTapped(path: "/tmp/x/PR instructions.md")`, with the same expectations.
-- [ ] **Step 2:** Run `ChatPageTests`. Expect a FAIL.
-- [ ] **Step 3: Implement the model members.** Remove `parse`/`Parsed`. Build `TokenTextView`:
+- [x] **Step 2:** Run `ChatPageTests`. Expect a FAIL.
+- [x] **Step 3: Implement the model members.** Remove `parse`/`Parsed`. Build `TokenTextView`:
   - Storage is built from segments. Each `.attachment` becomes one character holding a `TokenAttachment: NSTextAttachment` subclass that stores its `Segment`; storage turns back into segments by reading `.attachment` attributes.
   - One `NSTextAttachmentCell` subclass draws the token: kind icon (`imageIcon` when `segment.isImage`, else `icon`) | divider | name. The name middle-truncates at `maxNameWidth`; the tooltip is the path; the accessibility label is the name.
   - Copy (and, in Task 5, cut and drag) writes `AttachmentMarker.text(selected segments)` as plain text, because the attachment subclass doesn't survive the rich-text pasteboard.
   - Read-only mode: not editable, selectable, no scroller, sized to its text (`intrinsicContentSize` from the layout manager's used rect at the proposed width).
   - Clicking a token calls `onTokenTap(path)`.
   - In `userBubble`, replace the `attachment`/`attachmentChip` branch with `if let segments = tab.attachmentSegments(for: item)` → `TokenTextView(segments:isEditable: false, onTokenTap: tab.attachmentTapped(path:))`; otherwise today's `bubbleText`.
-- [ ] **Step 4:** Run `ChatPageTests` and `swift test --filter AttachmentMarkerTests`. Expect a PASS.
-- [ ] **Step 5:** Commit `Show attachments as inline tokens in sent messages`.
+- [x] **Step 4:** Run `ChatPageTests` and `swift test --filter AttachmentMarkerTests`. Expect a PASS.
+- [x] **Step 5:** Commit `Show attachments as inline tokens in sent messages`.
 
 ### Task 5: The token message box (drop, paste, errors)
 

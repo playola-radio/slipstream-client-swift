@@ -3207,7 +3207,7 @@ struct ChatPageTests {
   }
 }
 
-// MARK: - Queued messages and attachment chips
+// MARK: - Queued messages and attachment tokens
 
 extension ChatPageTests {
   func idleTab(draft: String = "half typed") throws -> ChatTabModel {
@@ -3305,20 +3305,25 @@ extension ChatPageTests {
     TranscriptItem(id: "u", kind: .userMessage(text))
   }
 
-  @Test func markerRendersAsAttachment() throws {
+  @Test func oldEndMarkerSegments() throws {
     let tab = try idleTab()
 
     expectNoDifference(
-      tab.attachment(for: markedRow()),
-      AttachmentMarker.Parsed(body: "Create a PR", name: "PR instructions.md", path: "/tmp/x/PR instructions.md"))
-    #expect(tab.attachment(for: markedRow("Create a PR")) == nil)
-    #expect(tab.attachment(for: TranscriptItem(id: "r", kind: .reply(Self.marked))) == nil)
+      tab.attachmentSegments(for: markedRow()),
+      [.text("Create a PR "), .attachment(name: "PR instructions.md", path: "/tmp/x/PR instructions.md")])
+  }
+
+  @Test func plainOrReplyRowHasNoAttachmentSegments() throws {
+    let tab = try idleTab()
+
+    #expect(tab.attachmentSegments(for: markedRow("Create a PR")) == nil)
+    #expect(tab.attachmentSegments(for: TranscriptItem(id: "r", kind: .reply(Self.marked))) == nil)
   }
 
   @Test func attachmentTapOpensFile() throws {
     let tab = try idleTab()
 
-    tab.attachmentTapped(markedRow())
+    tab.attachmentTapped(path: "/tmp/x/PR instructions.md")
 
     expectNoDifference(opened.value, [URL(fileURLWithPath: "/tmp/x/PR instructions.md")])
     #expect(tab.attachmentAlert == nil)
@@ -3328,7 +3333,7 @@ extension ChatPageTests {
     let tab = try idleTab()
     openError.setValue(AttachmentError.missing("/tmp/x/PR instructions.md"))
 
-    tab.attachmentTapped(markedRow())
+    tab.attachmentTapped(path: "/tmp/x/PR instructions.md")
 
     #expect(tab.attachmentAlert?.contains("/tmp/x/PR instructions.md") == true)
     tab.attachmentAlertDismissed()

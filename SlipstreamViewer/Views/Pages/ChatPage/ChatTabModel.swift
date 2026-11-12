@@ -150,9 +150,12 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
   }
 
-  func attachment(for item: TranscriptItem) -> AttachmentMarker.Parsed? {
+  /// `nil` keeps the bubble's plain text: the row isn't a user message or carries no marker.
+  func attachmentSegments(for item: TranscriptItem) -> [AttachmentMarker.Segment]? {
     guard case .userMessage = item.kind else { return nil }
-    return AttachmentMarker.parse(rowText(for: item))
+    let segments = AttachmentMarker.segments(rowText(for: item))
+    let hasAttachment = segments.contains { if case .attachment = $0 { true } else { false } }
+    return hasAttachment ? segments : nil
   }
 
   func relayLabel(for item: TranscriptItem) -> String? {
@@ -526,10 +529,9 @@ final class ChatTabModel: ViewModel, Identifiable {
     pasteboard.copy(projection.replyText(endingAt: footer.id))
   }
 
-  func attachmentTapped(_ item: TranscriptItem) {
-    guard let parsed = attachment(for: item) else { return }
+  func attachmentTapped(path: String) {
     do {
-      try attachments.open(URL(fileURLWithPath: parsed.path))
+      try attachments.open(URL(fileURLWithPath: path))
     } catch {
       attachmentAlert = error.localizedDescription
     }
