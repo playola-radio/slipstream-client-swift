@@ -22,6 +22,9 @@ struct ChangeStreamPageView: View {
         resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
         rightPane
           .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
+          .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("question-workspace")).minX } action: {
+            model.rightPaneMeasured(minX: $0)
+          }
           .transition(.move(edge: .trailing))
       }
     }
@@ -485,16 +488,18 @@ struct ChangeStreamPageView: View {
     if #available(macOS 26, *) {
       ToolbarSpacer(.flexible)
     }
-    if model.isOpenInShown {
-      ToolbarItem(placement: .principal) {
-        OpenInButton(model: model.openIn)
-          .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.prStatusBar.openInMeasured(width: $0) }
-      }
-      .withoutGlass()
-    }
-    if model.prStatusBar.isShown {
+    if model.isOpenInShown || model.prStatusBar.isShown {
       ToolbarItem {
-        PRStatusBarView(model: model.prStatusBar)
+        HStack(spacing: 0) {
+          if model.isOpenInShown {
+            OpenInButton(model: model.openIn)
+              .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.prStatusBar.openInMeasured(width: $0) }
+            Color.clear.frame(width: model.openInTrailingGap, height: 0)
+          }
+          if model.prStatusBar.isShown {
+            PRStatusBarView(model: model.prStatusBar)
+          }
+        }
       }
       .withoutGlass()
     }

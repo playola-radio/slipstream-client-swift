@@ -726,8 +726,11 @@ enum DesignTokens {
 
     static let fill = Sidebar.fill
     static let toggleSize: CGFloat = 15
-    /// Kept clear beside the PR status: the right-panel toggle, toolbar item spacing and the window inset.
-    static let trailingChromeWidth: CGFloat = 72
+    /// From the PR status's right edge to the window's: the right-panel toggle, toolbar item spacing and the
+    /// window inset. Measured on macOS 26.
+    static let trailingChromeWidth: CGFloat = 52
+    /// Between Open In and the right panel's divider or the PR status, whichever is further left.
+    static let openInMargin: CGFloat = 12
     static let toggleColor = secondary
 
     enum Breadcrumb {

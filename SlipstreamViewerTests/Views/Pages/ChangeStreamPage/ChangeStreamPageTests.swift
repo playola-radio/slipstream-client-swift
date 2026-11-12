@@ -4358,6 +4358,18 @@ extension ChangeStreamPageTests {
     #expect(model.prStatusBar.layout == .full)
   }
 
+  @Test func openInFollowsTheRightPaneDivider() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1400, height: 900))
+    model.prStatusBar.openInMeasured(width: 60)
+    model.rightPaneMeasured(minX: 900)
+    expectNoDifference(model.openInTrailingGap, model.prStatusBar.openInTrailingGap(dividerInset: 500))
+
+    model.rightPaneToggleTapped()
+
+    expectNoDifference(model.openInTrailingGap, model.prStatusBar.openInTrailingGap(dividerInset: 0))
+  }
+
   @Test func archiveFromBarUsesArchiveConfirmation() async throws {
     listWorkspace()
     let model = makeModel(workspace: workspaceClient())

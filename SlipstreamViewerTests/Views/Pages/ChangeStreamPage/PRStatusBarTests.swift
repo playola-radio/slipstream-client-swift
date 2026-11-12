@@ -242,6 +242,23 @@ struct LayoutCase: Sendable, CustomTestStringConvertible {
   ]
 }
 
+struct OpenInGapCase: Sendable, CustomTestStringConvertible {
+  var testDescription: String
+  var dividerInset: CGFloat
+  var expected: CGFloat
+
+  static let margin = DesignTokens.WindowHeader.openInMargin
+  static let chrome = DesignTokens.WindowHeader.trailingChromeWidth
+
+  /// Room 700 picks the full layout, 400 wide.
+  static let all: [OpenInGapCase] = [
+    OpenInGapCase(testDescription: "beside the divider", dividerInset: 600, expected: 600 + margin - chrome - 400),
+    OpenInGapCase(testDescription: "PR status past the divider", dividerInset: 300, expected: margin),
+    OpenInGapCase(testDescription: "right panel hidden", dividerInset: 0, expected: margin),
+    OpenInGapCase(testDescription: "divider past the centre", dividerInset: 1200, expected: 700 + margin - 400),
+  ]
+}
+
 struct DisplayCase: Sendable, CustomTestStringConvertible {
   var testDescription: String
   var script: @Sendable (RepoCommandFake) -> Void
@@ -762,7 +779,7 @@ struct PRStatusBarTests {
 
   /// The window width that leaves `room` for the PR section beside a centred Open In.
   static func windowWidth(room: CGFloat, openIn: CGFloat) -> CGFloat {
-    2 * (room + DesignTokens.WindowHeader.trailingChromeWidth) + openIn
+    2 * (room + DesignTokens.WindowHeader.trailingChromeWidth + DesignTokens.WindowHeader.openInMargin) + openIn
   }
 
   @Test(arguments: LayoutCase.all)
@@ -797,6 +814,31 @@ struct PRStatusBarTests {
     model.openInMeasured(width: 62)
 
     expectNoDifference(model.layout, .withoutDetail)
+  }
+
+  func measureToolbar(_ model: PRStatusBarModel, room: CGFloat) {
+    model.windowResized(width: Self.windowWidth(room: room, openIn: 60))
+    model.openInMeasured(width: 60)
+    model.layoutMeasured(.full, width: 400)
+    model.layoutMeasured(.withoutDetail, width: 300)
+    model.layoutMeasured(.iconsOnly, width: 120)
+  }
+
+  @Test(arguments: OpenInGapCase.all)
+  func openInEndsJustLeftOfTheDividerOrThePRStatus(_ gapCase: OpenInGapCase) {
+    let model = makeModel()
+    measureToolbar(model, room: 700)
+
+    expectNoDifference(model.openInTrailingGap(dividerInset: gapCase.dividerInset), gapCase.expected)
+  }
+
+  @Test func openInIgnoresTheHiddenPRStatus() {
+    let model = makeModel(folder: nil)
+    measureToolbar(model, room: 700)
+
+    expectNoDifference(
+      model.openInTrailingGap(dividerInset: 600),
+      600 + DesignTokens.WindowHeader.openInMargin - DesignTokens.WindowHeader.trailingChromeWidth)
   }
 
   @Test func layoutHidesTheDetailFirstThenButtonTitles() async {

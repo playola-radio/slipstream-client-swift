@@ -28,10 +28,10 @@ struct PRStatusBarView: View {
     .background { probes }
   }
 
-  /// Hidden, inert copies of the wider layouts, measured so the model can pick the one that fits.
+  /// Hidden, inert copies of every layout, measured so the model can pick the one that fits.
   private var probes: some View {
     ZStack {
-      ForEach(PRStatusBarModel.measuredLayouts, id: \.self) { layout in
+      ForEach(PRStatusBarModel.Layout.allCases, id: \.self) { layout in
         probe(layout)
           .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.layoutMeasured(layout, width: $0) }
       }

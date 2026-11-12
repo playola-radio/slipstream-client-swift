@@ -97,9 +97,6 @@ final class PRStatusBarModel: ViewModel {
     var isButtonTitleShown: Bool { self != .iconsOnly }
   }
 
-  /// The view measures hidden copies of these; icon-only is the fallback and needs no measuring.
-  static let measuredLayouts: [Layout] = [.full, .withoutDetail]
-
   private struct FailedAction {
     var folder: String
     var failure: PRBarFailure
@@ -181,10 +178,20 @@ final class PRStatusBarModel: ViewModel {
     return status != .nothingToSubmit
   }
 
-  /// The widest layout that fits beside Open In, which is centred on the whole window.
+  /// The widest layout that fits; Open In and the section stay within the right half, plus half of Open In.
   var layout: Layout {
-    let room = (windowWidth - openInWidth) / 2 - DesignTokens.WindowHeader.trailingChromeWidth
-    return Self.measuredLayouts.first { layoutWidths[$0].map { $0 <= room } ?? false } ?? .iconsOnly
+    Layout.allCases.first { layoutWidths[$0].map { $0 <= room } ?? false } ?? .iconsOnly
+  }
+
+  /// The space between Open In and this section, so Open In ends a margin left of the right panel's divider,
+  /// or of this section when that reaches further left. `dividerInset` is the divider's distance from the
+  /// window's right edge, 0 when the right panel is hidden.
+  func openInTrailingGap(dividerInset: CGFloat) -> CGFloat {
+    let header = DesignTokens.WindowHeader.self
+    let sectionWidth = isShown ? layoutWidths[layout] ?? 0 : 0
+    let besideDivider = dividerInset + header.openInMargin - header.trailingChromeWidth - sectionWidth
+    let widest = room + header.openInMargin - sectionWidth
+    return max(header.openInMargin, min(besideDivider, widest))
   }
 
   var statusIconName: String? { appearance.iconName }
@@ -328,6 +335,11 @@ final class PRStatusBarModel: ViewModel {
   }
 
   // MARK: - Private Helpers
+
+  private var room: CGFloat {
+    let header = DesignTokens.WindowHeader.self
+    return (windowWidth - openInWidth) / 2 - header.trailingChromeWidth - header.openInMargin
+  }
 
   private var appearance: (label: String, detail: String?, iconName: String?, tone: PRStatusTone) {
     if let failure { return (failure.title, nil, "CircleAlert", .danger) }
