@@ -475,7 +475,7 @@ final class PRStatusBarModel: ViewModel {
     throws(PRBarFailure) -> String
   {
     do {
-      let file = try attachments.write(name, contents)
+      let file = try attachments.write(name, Data(contents.utf8))
       return "\(message) \(AttachmentMarker.format(name: name, path: file.path))"
     } catch {
       throw PRBarFailure(title: title, details: "Folder: \(folder)\nCouldn't write \(name): \(error)")

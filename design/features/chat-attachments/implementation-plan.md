@@ -75,19 +75,19 @@
   - `AttachmentError.folder(String)`, with the message `"\(path) is a folder; only files can be attached"`
   - `testValue` stays `unimplemented` for each closure.
 
-- [ ] **Step 1: Write failing tests** in `AttachmentClientTests`, using real temp folders as the existing tests do:
+- [x] **Step 1: Write failing tests** in `AttachmentClientTests`, using real temp folders as the existing tests do:
   - `writeCreatesFileUnderAFreshFolder`: now passes `Data("Do the thing".utf8)`, with the same assertions.
   - `copyKeepsTheNameUnderAFreshFolder`: the copy's bytes equal the source's, the name equals the source's last path component, and the parent is a UUID folder under `base`.
   - `copyReplacesMarkerBreakingCharacters`: a source named `"a⟦b⟧\nc.txt"` yields a copy named `"a_b__c.txt"`.
   - `copyRefusesAFolder`: throws `AttachmentError.folder(source.path)`, and `base` has no children afterwards.
   - `copyOfMissingFileCleansUp`: throws, and `base` has no children afterwards.
-- [ ] **Step 2:** Run `-only-testing:SlipstreamViewerTests/AttachmentClientTests`. Expect a FAIL (no compile).
-- [ ] **Step 3: Implement.**
+- [x] **Step 2:** Run `-only-testing:SlipstreamViewerTests/AttachmentClientTests`. Expect a FAIL (no compile).
+- [x] **Step 3: Implement.**
   - `copy` checks `isDirectoryKey` (true for packages too) before creating the UUID folder, then copies with `FileManager.copyItem`, which clones on APFS. On any thrown error, remove the UUID folder and rethrow. The live closure is a `nonisolated` async function (it must not inherit `@MainActor`).
   - In `PRStatusBarModel.attach`, pass `Data(contents.utf8)`. Nothing else in the PR bar changes.
   - Update the `PRStatusBarTests` stub to decode `String(decoding: data, as: UTF8.self)` into `written`.
-- [ ] **Step 4:** Run the `AttachmentClientTests` and `PRStatusBarTests` suites. Expect a PASS.
-- [ ] **Step 5:** Commit `Copy dropped files into the attachments folder`.
+- [x] **Step 4:** Run the `AttachmentClientTests` and `PRStatusBarTests` suites. Expect a PASS.
+- [x] **Step 5:** Commit `Copy dropped files into the attachments folder`.
 
 ### Task 3: Attaching into the draft (model)
 

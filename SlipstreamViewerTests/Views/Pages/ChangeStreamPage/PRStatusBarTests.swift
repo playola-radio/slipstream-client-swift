@@ -454,9 +454,9 @@ struct PRStatusBarTests {
       $0.timeZone = TimeZone(identifier: "UTC")!
       $0.repoCommand = repo.client
       $0.pasteboard = PasteboardClient(copy: { [copied] text in copied.withValue { $0.append(text) } })
-      $0.attachments.write = { [written, writeError] name, contents in
+      $0.attachments.write = { [written, writeError] name, data in
         if let error = writeError.value { throw error }
-        written.withValue { $0[name] = contents }
+        written.withValue { $0[name] = String(decoding: data, as: UTF8.self) }
         return URL(fileURLWithPath: "/attachments/U/\(name)")
       }
     } operation: {
