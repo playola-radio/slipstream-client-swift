@@ -2416,15 +2416,64 @@ extension ChangeStreamPageTests {
     expectNoDifference(requests.value, ["00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001"])
   }
 
-  @Test func aQuestionAlreadySentToTheAgentKeepsWaitingAfterARestart() async throws {
+  @Test func aQuestionAlreadySentToTheAgentIsNotConfirmedAfterARestartUntilItIsAnswered() async throws {
     let model = await connectedModel()
     defer { model.viewDisappeared() }
     await send(
       Fixture.edited(1),
       Fixture.questionQueued(2, id: "q1"),
-      Fixture.questionDispatchAttempted(3, id: "q1", queuedSeq: 2),
-      Fixture.sessionResumed(4))
-    expectNoDifference(try bar(model, "q1").status, .waiting)
+      Fixture.questionDispatchAttempted(3, id: "q1", queuedSeq: 2))
+    let reply = try open(model, "q1")
+    await send(Fixture.sessionResumed(4))
+    expectNoDifference(try bar(model, "q1").status, .unconfirmed)
+    expectNoDifference(try bar(model, "q1").statusText, "Not confirmed")
+    #expect(!reply.isFollowUpDisabled)
+    await send(Fixture.questionAnswered(5, id: "q1"))
+    expectNoDifference(try bar(model, "q1").status, .newReply)
+  }
+
+  @Test func anEarlierUnconfirmedFollowUpStillShowsAfterALaterOneIsAnswered() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionAnswered(3, id: "q1"),
+      Fixture.questionQueued(4, id: "q2", replyTo: "q1"),
+      Fixture.questionQueued(5, id: "q3", replyTo: "q1"),
+      Fixture.questionDispatchAttempted(6, id: "q2", queuedSeq: 4),
+      Fixture.questionDispatchAttempted(7, id: "q3", queuedSeq: 5),
+      Fixture.sessionResumed(8),
+      Fixture.questionAnswered(9, id: "q3"))
+    let reply = try open(model, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.answerDisplayed(Fixture.seq(9))
+    expectNoDifference(try bar(model, "q1").status, .unconfirmed)
+  }
+
+  @Test func anUncertainQuestionThatARestartLeftUnconfirmedIsAskedAgainWithAFreshRequest() async {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    let requests = LockIsolated<[String]>([])
+    let composer = withDependencies {
+      $0.uuid = .incrementing
+      $0.questionClient.send = { request in
+        requests.withValue { $0.append(request.requestID) }
+        if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
+        return try AskAgentPageTests.ack(request)
+      }
+    } operation: { AskAgentPageTests.composer(sessionID: Fixture.session) }
+    model.askAgent = composer
+    composer.draftChanged("Why?")
+    await model.askQuestionTapped(composer)
+    await send(
+      Fixture.questionQueued(1, id: "q1", requestID: requests.value[0]),
+      Fixture.questionDispatchAttempted(2, id: "q1", queuedSeq: 1),
+      Fixture.sessionResumed(3),
+      Fixture.agentConnection(4, state: "connected"))
+    composer.isErrorPresented = false
+    await model.askQuestionTapped(composer)
+    expectNoDifference(requests.value, ["00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001"])
   }
 
   @Test func unlinkEventAddsNoFeedRow() async {

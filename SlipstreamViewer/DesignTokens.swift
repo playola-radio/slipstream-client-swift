@@ -403,7 +403,7 @@ enum DesignTokens {
 
     static func accent(_ status: QuestionBarStatus) -> Color {
       switch status {
-      case .waiting, .notDelivered: Color(hex: 0xD8BE89)
+      case .waiting, .notDelivered, .unconfirmed: Color(hex: 0xD8BE89)
       case .working: Color(hex: 0xE4C282)
       case .done: Color(hex: 0x8DD9B1)
       case .newReply, .answered: Color(hex: 0xC6E7FF)
