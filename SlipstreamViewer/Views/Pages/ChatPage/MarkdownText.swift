@@ -44,10 +44,10 @@ struct MarkdownText: View {
           Rectangle()
             .fill(DesignTokens.Chat.Rule.color)
             .frame(height: DesignTokens.Chat.Rule.height)
-        case .code(let code):
+        case .code(let code, let runs):
           CappedHeight(maxHeight: DesignTokens.Chat.CodeBlock.maxHeight) {
             ScrollView([.horizontal, .vertical]) {
-              Text(code)
+              Text(DesignTokens.Syntax.styled(code, runs: runs))
                 .font(DesignTokens.Chat.CodeBlock.font)
                 .foregroundStyle(DesignTokens.Chat.CodeBlock.color)
                 .padding(DesignTokens.Chat.CodeBlock.padding)

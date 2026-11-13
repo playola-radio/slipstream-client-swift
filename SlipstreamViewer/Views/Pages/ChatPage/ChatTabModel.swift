@@ -216,7 +216,8 @@ final class ChatTabModel: ViewModel, Identifiable {
     case list([MarkdownListItem])
     case quote(AttributedString)
     case rule
-    case code(String)
+    /// `runs` are UTF-16 offsets into the whole block.
+    case code(String, runs: [SyntaxRun] = [])
     case table(MarkdownTable)
   }
 
@@ -254,11 +255,13 @@ final class ChatTabModel: ViewModel, Identifiable {
     var blocks: [MarkdownBlock] = []
     var lines: [Substring] = []
     var isCode = false
+    var fenceInfo = ""
     var open: [(indent: Int, number: Int?)] = []
     func flush() {
       defer { lines = [] }
       if isCode {
-        blocks.append(.code(lines.joined(separator: "\n")))
+        let code = lines.joined(separator: "\n")
+        blocks.append(.code(code, runs: codeRuns(code, lines: lines, fenceInfo: fenceInfo)))
       } else {
         blocks.append(contentsOf: proseBlocks(lines, open: &open))
       }
@@ -274,6 +277,7 @@ final class ChatTabModel: ViewModel, Identifiable {
         while let last = open.last, last.indent >= indent { open.removeLast() }
         isCode = true
         fence = ticks
+        fenceInfo = String(trimmed.dropFirst(ticks))
       } else if isCode, ticks >= fence, ticks == trimmed.count {
         flush()
         isCode = false
@@ -283,6 +287,19 @@ final class ChatTabModel: ViewModel, Identifiable {
     }
     if isCode || !lines.isEmpty { flush() }
     return blocks
+  }
+
+  private static func codeRuns(_ code: String, lines: [Substring], fenceInfo: String) -> [SyntaxRun] {
+    guard let language = SyntaxLanguage(fenceInfo: fenceInfo) else { return [] }
+    var runs: [SyntaxRun] = []
+    var lineStart = 0
+    for (line, lineRuns) in zip(lines, SyntaxLexer.lines(code, language: language)) {
+      runs += lineRuns.map {
+        SyntaxRun(range: ($0.range.lowerBound + lineStart)..<($0.range.upperBound + lineStart), kind: $0.kind)
+      }
+      lineStart += line.utf16.count + 1
+    }
+    return runs
   }
 
   private static func proseBlocks(
