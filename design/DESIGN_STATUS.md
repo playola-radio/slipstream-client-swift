@@ -60,3 +60,14 @@ Zone `dcPGn` ("Zone · Commit chapters"). Spec: `features/commit-chapters/spec.m
 |---|---|---|---|
 | Chapter heading / open chapter heading / stream marker (components) | `gPla3`, `VSPW0`, `HG5yk` | Component | Used by every frame below |
 | Change stream · chapters, just committed, no commits yet, branch moves, chapters unavailable | `A3nxO`, `EiNBf`, `NhNk1`, `ybVL3`, `epuHV` | Approved 2026-11-11 | `exports/change-stream--*.png`; `ybVL3` is rev 2 |
+
+## Syntax highlighting
+
+Zone `CLeqn` ("Zone · Syntax highlighting"). Spec: `features/syntax-highlighting/spec.md`.
+
+| Frame | Node ID | Status | Notes |
+|---|---|---|---|
+| A · Colour every line | `dVYbc` | Chosen 2026-11-12 | Direction A |
+| B · Dim context lines / C · Colour only changed lines | `IJC5d`, `dRte1` | Rejected | Not pursued |
+| Change card · highlighted, unsupported language, Ask selection | `O5yb0`, `I8nfWI`, `hwIGn` | Approved 2026-11-12 | `exports/change-card--*.png` |
+| Chat code block · tagged fence, untagged fence | `KaEDj`, `iO7Nd` | Approved 2026-11-12 | `exports/chat-code-block--*.png` |
