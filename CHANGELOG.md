@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.25] - 2026-11-13
+
+- Code in change-stream cards and in chat replies is now coloured by syntax for Swift,
+  TypeScript/JavaScript, JSON, YAML, shell, Markdown, Python, CSS and HTML. Changed text
+  keeps its blue marks and stays easy to read.
+
 ## [0.4.24] - 2026-11-13
 
 - New workspace on a repo in the sidebar works again after one of its workspaces was archived.
