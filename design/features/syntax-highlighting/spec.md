@@ -112,6 +112,7 @@ by the simplicity gate there.
 | 2026-11-12 | Language list approved, adding CSS and HTML (SQL not included) | Scope item 5 |
 | 2026-11-12 | **Chat reply code block** states approved: Tagged fence, Untagged or unknown fence. Common tag aliases (`typescript`/`ts`, `py`/`python`, `yml`/`yaml`, `bash`/`sh`/`zsh`) count as supported. Brian: "approved" | Nodes `KaEDj`, `iO7Nd` |
 | 2026-11-12 | Inside a change tint, every token lifts toward white to ≥4.5:1 (R1). Brian: "looks good". Applied to `O5yb0` and `hwIGn` and re-exported. | Palette table, scope 3 |
+| 2026-11-12 | **Implementation plan** approved, including the simplicity-gate dispositions S1–S11. Brian: "yes" | [implementation-plan.md](./implementation-plan.md) at `8e2e092` |
 
 ## Design deliverables
 
