@@ -146,7 +146,9 @@ module ReleaseNotes
     boundary = section_end(lines, heading)
     existing = parse_notes(lines[(heading + 1)...boundary].join, "CHANGELOG.md", heading + 2)
     notes.each_key { |section| existing[section].concat(notes[section]) }
-    released(lines, start, boundary, lines[heading].strip, existing)
+    folded = released(lines, start, boundary, lines[heading].strip, existing)
+    extract(folded, version) # what publishing reads, so a bad section fails before notes are deleted
+    folded
   end
 
   # Rewrites the changelog from [Unreleased] up to lines[resume] as an empty

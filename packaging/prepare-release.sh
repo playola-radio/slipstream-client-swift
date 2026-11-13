@@ -64,8 +64,7 @@ case "$status" in
       echo "releasing $tag as it is"
       publish
     fi
-    git add CHANGELOG.md changelog.d
-    git commit --quiet -m "chore: add waiting release notes to $version"
+    git commit --quiet -m "chore: add waiting release notes to $version" -- CHANGELOG.md changelog.d
     echo "releasing $tag with the notes merged since its bump"
     push_and_publish "the notes added to $version"
     ;;

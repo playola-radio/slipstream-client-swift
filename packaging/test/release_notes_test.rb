@@ -434,21 +434,15 @@ class ReleaseNotesTest < Minitest::Test
     assert_match(/1\.9\.0 is not the newest release/, error.message)
   end
 
-  def test_fold_cli_moves_fragments_into_the_release_and_deletes_only_them
-    Dir.mktmpdir do |directory|
-      changelog = File.join(directory, "CHANGELOG.md")
-      fragments = File.join(directory, "changelog.d")
-      FileUtils.mkdir_p(fragments)
-      File.write(changelog, ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"))
-      File.write(File.join(fragments, "README.md"), "# Not a note\n")
-      File.write(File.join(fragments, "later.md"), "### Changes\n\n- Later.\n")
+  def test_fold_rejects_a_release_listed_twice
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+    changelog += "\n## [2.1.0] - 2026-10-02\n\n- Duplicate.\n"
 
-      _stdout, stderr, status = run_cli("fold", changelog, fragments, "2.1.0")
-
-      assert status.success?, stderr
-      assert_equal "- Work in progress.\n- Later.", ReleaseNotes.extract(File.read(changelog), "2.1.0")
-      assert_equal ["README.md"], Dir.children(fragments)
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.fold(changelog, "2.1.0", "changelog.d/a.md" => "### Changes\n\n- Later.\n")
     end
+
+    assert_match(/more than once/, error.message)
   end
 
   def test_bump_restores_a_clean_tree_after_the_commit_fails
