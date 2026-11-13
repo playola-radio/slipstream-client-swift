@@ -20,13 +20,15 @@ struct ChangeStreamPageView: View {
         .frame(maxWidth: model.detailPaneMaxWidth)
       if model.isRightPaneShown {
         resizeHandle(dragged: model.chatEdgeDragged, doubleClicked: model.chatEdgeDoubleClicked)
-        rightPane
-          .frame(minWidth: DesignTokens.FeedPane.width, maxWidth: .infinity)
-          .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("question-workspace")).minX } action: {
-            model.rightPaneMeasured(minX: $0)
-          }
-          .transition(.move(edge: .trailing))
       }
+      rightPane
+        .frame(width: model.rightPaneContentWidth)
+        .frame(minWidth: model.rightPaneMinWidth, maxWidth: model.rightPaneMaxWidth, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("question-workspace")).minX } action: {
+          model.rightPaneMeasured(minX: $0)
+        }
+        .allowsHitTesting(model.isRightPaneShown)
+        .accessibilityHidden(!model.isRightPaneShown)
     }
     .clipped()
     .frame(
@@ -174,10 +176,14 @@ struct ChangeStreamPageView: View {
   private var rightPane: some View {
     VStack(spacing: 0) {
       rightPaneStrip
-      if model.isStreamShown {
+      ZStack {
         feedPane
-      } else {
-        TerminalPageView(model: model.terminals)
+          .opacity(model.feedOpacity)
+          .allowsHitTesting(model.isFeedInteractive)
+          .accessibilityHidden(!model.isFeedInteractive)
+        if model.isTerminalsShown {
+          TerminalPageView(model: model.terminals)
+        }
       }
     }
     .background(DesignTokens.FeedPane.fill)

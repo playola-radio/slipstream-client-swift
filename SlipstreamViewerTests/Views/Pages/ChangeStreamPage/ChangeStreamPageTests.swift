@@ -1822,15 +1822,31 @@ struct ChangeStreamPageTests {
     #expect(model.openIndicatorText(for: try #require(fileRow(model, 1))) == nil)
   }
 
-  @Test func switchingBackToTheStreamReturnsToTheLatestChange() async {
+  @Test func switchingBackToTheStreamKeepsTheScrollPosition() async {
     let model = await connectedModel()
-    model.rightPaneSelected(.terminals)
-    #expect(!model.isStreamShown)
     model.scrollPhaseChanged(.interacting)
     model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
+    model.rightPaneSelected(.terminals)
+    #expect(!model.isStreamShown)
     model.rightPaneSelected(.stream)
     #expect(model.isStreamShown)
-    #expect(model.follow == .following)
+    expectNoDifference(model.follow, .paused(newCount: 0))
+  }
+
+  @Test func feedPresentationFollowsTheSelectedRightPane() {
+    let model = makeModel()
+    expectNoDifference(model.feedOpacity, 1)
+    #expect(model.isFeedInteractive)
+
+    model.rightPaneSelected(.terminals)
+
+    expectNoDifference(model.feedOpacity, 0)
+    #expect(!model.isFeedInteractive)
+
+    model.rightPaneToggleTapped()
+
+    expectNoDifference(model.feedOpacity, 0)
+    #expect(!model.isFeedInteractive)
   }
 
   @Test func switchingPanesKeepsWatching() async {
@@ -6024,15 +6040,40 @@ extension ChangeStreamPageTests {
     #expect(model.reply == nil)
   }
 
-  @Test func showingTheRightPanelReturnsToTheLatestChange() async {
+  @Test func showingTheRightPanelKeepsTheScrollPosition() async {
     let model = await connectedModel()
-    model.rightPaneToggleTapped()
     model.scrollPhaseChanged(.interacting)
     model.scrollGeometryChanged(contentHeight: 2000, visibleMaxY: 1500)
+    model.rightPaneToggleTapped()
 
     model.rightPaneToggleTapped()
 
-    #expect(model.follow == .following)
+    expectNoDifference(model.follow, .paused(newCount: 0))
+  }
+
+  @Test func hiddenRightPanelKeepsTheWidthItHadWhenShown() {
+    let model = makeModel()
+    model.viewportChanged(CGSize(width: 1800, height: 900))
+    expectNoDifference(model.rightPaneContentWidth, nil)
+    expectNoDifference(model.rightPaneMinWidth, 680)
+    expectNoDifference(model.rightPaneMaxWidth, .infinity)
+
+    model.rightPaneToggleTapped()
+
+    expectNoDifference(model.rightPaneContentWidth, 820)
+    expectNoDifference(model.rightPaneMinWidth, 0)
+    expectNoDifference(model.rightPaneMaxWidth, 0)
+  }
+
+  @Test func hidingTheRightPanelTakesTheTerminalsOutOfTheWindow() {
+    let model = makeModel()
+    model.rightPaneSelected(.terminals)
+    #expect(model.isTerminalsShown)
+
+    model.rightPaneToggleTapped()
+
+    #expect(!model.isTerminalsShown)
+    #expect(model.isSelected(.terminals))
   }
 
   @Test func commandWClosesChatWhileTheRightPanelIsHidden() async throws {
