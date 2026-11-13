@@ -18,22 +18,47 @@ public enum SyntaxLexer {
   /// Lexes the whole source in one pass and returns the runs for each line of
   /// `ChangedLines.split(source)`, without a trailing `\r`, so index `n - 1` is line `n`.
   /// Whitespace between tokens is uncovered; a token that spans lines gets one run per line.
-  public static func lines(_ source: String, language: SyntaxLanguage) -> [[SyntaxRun]] {
-    let lines = ChangedLines.split(source).map(units)
+  public static func lines(
+    _ source: String, language: SyntaxLanguage, maximumRuns: Int? = nil
+  ) -> [[SyntaxRun]] {
+    let lines = ChangedLines.split(source)
     switch language {
     case .swift, .typescript, .json, .python, .shell, .css:
       var scanner = CodeScanner(language: language)
-      return lines.map { scanner.scan($0) }
+      return scan(lines, maximumRuns: maximumRuns, scanner: &scanner) { scanner, line in
+        scanner.scan(units(line))
+      }
     case .yaml:
       var scanner = YAMLScanner()
-      return lines.map { scanner.scan($0) }
+      return scan(lines, maximumRuns: maximumRuns, scanner: &scanner) { scanner, line in
+        scanner.scan(units(line))
+      }
     case .markdown:
       var scanner = MarkdownScanner()
-      return lines.map { scanner.scan($0) }
+      return scan(lines, maximumRuns: maximumRuns, scanner: &scanner) { scanner, line in
+        scanner.scan(units(line))
+      }
     case .html:
       var scanner = HTMLScanner()
-      return lines.map { scanner.scan($0) }
+      return scan(lines, maximumRuns: maximumRuns, scanner: &scanner) { scanner, line in
+        scanner.scan(units(line))
+      }
     }
+  }
+
+  private static func scan<Scanner>(
+    _ lines: [Substring], maximumRuns: Int?, scanner: inout Scanner,
+    _ scanLine: (inout Scanner, Substring) -> [SyntaxRun]
+  ) -> [[SyntaxRun]] {
+    var result: [[SyntaxRun]] = []
+    var runCount = 0
+    for line in lines {
+      let lineRuns = scanLine(&scanner, line)
+      result.append(lineRuns)
+      runCount += lineRuns.count
+      if let maximumRuns, runCount > maximumRuns { return result }
+    }
+    return result
   }
 
   private static func units(_ line: Substring) -> [UInt16] {

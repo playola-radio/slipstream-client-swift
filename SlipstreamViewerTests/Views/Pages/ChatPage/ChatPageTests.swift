@@ -1735,6 +1735,15 @@ struct ChatPageTests {
       [.code("let a"), .code("let b")])
   }
 
+  @Test func codeBlocksOverTheRunBudgetStayFlat() {
+    let code = Array(repeating: "let a = 1", count: DesignTokens.Syntax.maximumRuns / 4 + 1)
+      .joined(separator: "\n")
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```swift\n\(code)\n```"),
+      [.code(code)])
+  }
+
   @Test func unclosedFenceIsHighlighted() {
     expectNoDifference(
       ChatTabModel.markdownBlocks("```py\nx = None"),

@@ -100,6 +100,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
   @ObservationIgnored private var attachmentGeneration = 0
+  @ObservationIgnored private var markdownBlocksByText: [String: [MarkdownBlock]] = [:]
 
   // MARK: - Display Text
 
@@ -151,6 +152,14 @@ final class ChatTabModel: ViewModel, Identifiable {
     case .gap:
       return Self.gapText
     }
+  }
+
+  func markdownBlocks(for item: TranscriptItem) -> [MarkdownBlock] {
+    let text = rowText(for: item)
+    if let blocks = markdownBlocksByText[text] { return blocks }
+    let blocks = Self.markdownBlocks(text)
+    markdownBlocksByText[text] = blocks
+    return blocks
   }
 
   /// `nil` keeps the bubble's plain text: the row isn't a user message or carries no marker.
@@ -293,7 +302,10 @@ final class ChatTabModel: ViewModel, Identifiable {
     guard let language = SyntaxLanguage(fenceInfo: fenceInfo) else { return [] }
     var runs: [SyntaxRun] = []
     var lineStart = 0
-    for (line, lineRuns) in zip(lines, SyntaxLexer.lines(code, language: language)) {
+    for (line, lineRuns) in zip(
+      lines, SyntaxLexer.lines(code, language: language, maximumRuns: DesignTokens.Syntax.maximumRuns)
+    ) {
+      guard runs.count + lineRuns.count <= DesignTokens.Syntax.maximumRuns else { return [] }
       runs += lineRuns.map {
         SyntaxRun(range: ($0.range.lowerBound + lineStart)..<($0.range.upperBound + lineStart), kind: $0.kind)
       }
