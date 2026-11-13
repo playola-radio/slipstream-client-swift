@@ -18,7 +18,7 @@ struct WorkspaceNamingModelTests {
   let suggestionFake = WorkspaceNameSuggestionFake()
   let agent = AgentFake()
   let refreshes = LockIsolated(0)
-  let clearFailures = LockIsolated<[String]>([])
+  let writeFailures = LockIsolated<[[String]]>([])
   let copied = LockIsolated<[String]>([])
 
   func makeModel() -> WorkspaceNamingModel {
@@ -30,9 +30,13 @@ struct WorkspaceNamingModelTests {
     } operation: {
       let model = WorkspaceNamingModel()
       model.onWriteFinished = { [refreshes] in refreshes.withValue { $0 += 1 } }
-      model.onClearFailed = { [clearFailures] detail in clearFailures.withValue { $0.append(detail) } }
+      model.onWriteFailed = { [writeFailures] title, detail in writeFailures.withValue { $0.append([title, detail]) } }
       return model
     }
+  }
+
+  static func listed(userName: String?) -> SessionOption {
+    SessionOption(id: session, label: session, naming: SessionNaming(agentName: "Agent's name", userName: userName))
   }
 
   @Test func opensWithCurrentName() {
@@ -99,24 +103,17 @@ struct WorkspaceNamingModelTests {
     expectNoDifference(nameFake.calls, [.init(sessionID: Self.session, name: "Sidebar polling backoff")])
   }
 
-  @Test func savingDisablesFieldAndCancel() async {
+  @Test func renameClosesAndShowsTheNameBeforeTheDaemonAnswers() async {
     let model = makeModel()
-    model.renameTapped(sessionID: Self.session, currentName: "Sidebar polling backoff")
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("  Sidebar polling backoff ")
     nameFake.hold()
 
     let save = Task { await model.renameConfirmed() }
     await Task.megaYield()
 
-    expectNoDifference(
-      [model.isSaving, model.isMutationInFlight, model.isRenameEnabled, model.isFieldDisabled, model.isPrimaryDimmed],
-      [true, true, false, true, false])
-    expectNoDifference(model.primaryButtonTitle, "Saving…")
-    model.cancelTapped()
-    model.isDialogPresented = false
-    model.draftChanged("Something else")
-    expectNoDifference(
-      model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "Sidebar polling backoff", phase: .saving))
-
+    expectNoDifference(model.dialog, nil)
+    expectNoDifference(model.userName(Self.listed(userName: "Old name")), "Sidebar polling backoff")
     nameFake.release()
     await save.value
   }
@@ -129,7 +126,117 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(model.dialog, nil)
     expectNoDifference(refreshes.value, 1)
-    #expect(!model.isMutationInFlight)
+  }
+
+  @Test func theNewNameStaysUntilTheDaemonListsIt() async {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("New name")
+    await model.renameConfirmed()
+
+    model.sessionsListed([Self.listed(userName: "Old name")])
+    expectNoDifference(model.userName(Self.listed(userName: "Old name")), "New name")
+
+    model.sessionsListed([Self.listed(userName: "New name")])
+    expectNoDifference(model.pendingNames, [:])
+  }
+
+  @Test func aListingWhileTheRenameIsOnItsWayKeepsTheNewName() async {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("New name")
+    nameFake.hold()
+    let save = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+
+    model.sessionsListed([Self.listed(userName: "New name")])
+
+    expectNoDifference(model.pendingNames, [Self.session: .init(userName: "New name")])
+    nameFake.release()
+    await save.value
+  }
+
+  @Test func failedRenamePutsTheOldNameBackAndReopensWithTheDraftAndError() async {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("New name ")
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+    nameFake.hold()
+    let save = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    expectNoDifference(model.userName(Self.listed(userName: "Old name")), "New name")
+
+    nameFake.release()
+    await save.value
+
+    expectNoDifference(model.userName(Self.listed(userName: "Old name")), "Old name")
+    expectNoDifference(
+      model.dialog,
+      WorkspaceNamingModel.Dialog(
+        id: Self.session, draft: "New name ",
+        phase: .saveFailed(headline: "Slipstream refused the rename.", detail: "STORAGE_UNAVAILABLE: store lock lost")))
+    expectNoDifference(refreshes.value, 1)
+  }
+
+  @Test func failedRenameWhileAnotherDialogIsOpenShowsTheErrorInstead() async {
+    let model = makeModel()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+    nameFake.hold()
+    let save = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    model.renameTapped(sessionID: Self.otherSession, currentName: "Other")
+
+    nameFake.release()
+    await save.value
+
+    expectNoDifference(
+      model.dialog, WorkspaceNamingModel.Dialog(id: Self.otherSession, draft: "Other", phase: .editing))
+    expectNoDifference(writeFailures.value, [["Couldn't rename the workspace", "STORAGE_UNAVAILABLE: store lock lost"]])
+  }
+
+  @Test func aSecondRenameWaitsForTheFirstAndWins() async {
+    let model = makeModel()
+    nameFake.hold()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("First")
+    let first = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    model.renameTapped(sessionID: Self.session, currentName: "First")
+    model.draftChanged("Second")
+    let second = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    expectNoDifference(nameFake.calls, [.init(sessionID: Self.session, name: "First")])
+
+    nameFake.release()
+    await first.value
+    await second.value
+
+    expectNoDifference(
+      nameFake.calls, [.init(sessionID: Self.session, name: "First"), .init(sessionID: Self.session, name: "Second")])
+    expectNoDifference(model.userName(Self.listed(userName: "Old name")), "Second")
+  }
+
+  @Test func anEarlierRenamesFailureLeavesTheLaterNameAlone() async {
+    let model = makeModel()
+    nameFake.setFailure(.unavailable)
+    nameFake.hold()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("First")
+    let first = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    model.renameTapped(sessionID: Self.session, currentName: "First")
+    model.draftChanged("Second")
+    let second = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+
+    nameFake.release()
+    await first.value
+    await second.value
+
+    expectNoDifference(model.userName(Self.listed(userName: "Old name")), "Second")
+    expectNoDifference(model.dialog, nil)
+    expectNoDifference(writeFailures.value, [])
   }
 
   @Test func outcomeUnknownShowsSaveFailedAndRefreshes() async {
@@ -273,28 +380,30 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(nameFake.calls, [.init(sessionID: Self.session, name: nil)])
     expectNoDifference(refreshes.value, 1)
-    expectNoDifference(clearFailures.value, [])
+    expectNoDifference(writeFailures.value, [])
   }
 
-  @Test func clearBlocksSubsequentRename() async {
+  @Test func useAgentNameShowsTheAgentsNameBeforeTheDaemonAnswers() async {
     let model = makeModel()
     nameFake.hold()
+
     let clear = Task { await model.useAgentNameTapped(sessionID: Self.session) }
     await Task.megaYield()
 
-    #expect(model.isMutationInFlight)
-    model.renameTapped(sessionID: Self.otherSession, currentName: "Other")
-    await model.renameConfirmed()
-    await model.useAgentNameTapped(sessionID: Self.otherSession)
-    expectNoDifference(nameFake.calls, [.init(sessionID: Self.session, name: nil)])
-
+    expectNoDifference(model.userName(Self.listed(userName: "My name")), nil)
     nameFake.release()
     await clear.value
-    model.renameTapped(sessionID: Self.otherSession, currentName: "Other")
-    await model.renameConfirmed()
+  }
 
+  @Test func failedUseAgentNamePutsTheNameBackAndShowsTheError() async {
+    let model = makeModel()
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+
+    await model.useAgentNameTapped(sessionID: Self.session)
+
+    expectNoDifference(model.userName(Self.listed(userName: "My name")), "My name")
     expectNoDifference(
-      nameFake.calls, [.init(sessionID: Self.session, name: nil), .init(sessionID: Self.otherSession, name: "Other")])
+      writeFailures.value, [["Couldn't switch back to the agent's name", "STORAGE_UNAVAILABLE: store lock lost"]])
   }
 
   @Test func firstMessageStoresTheSuggestedNameAsTheAgentsNameAndRefreshes() async {
@@ -307,7 +416,7 @@ struct WorkspaceNamingModelTests {
     expectNoDifference(
       nameFake.calls, [.init(sessionID: Self.session, name: "Sidebar Polling Backoff", isAgentName: true)])
     expectNoDifference(refreshes.value, 1)
-    expectNoDifference(clearFailures.value, [])
+    expectNoDifference(writeFailures.value, [])
   }
 
   @Test func eachSessionIsSuggestedForOnlyOnce() async {
@@ -346,7 +455,7 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(nameFake.calls, [])
     expectNoDifference(refreshes.value, 0)
-    expectNoDifference(clearFailures.value, [])
+    expectNoDifference(writeFailures.value, [])
   }
 
   @Test func failedSuggestionIsNotRetriedOnTheNextMessage() async {
@@ -385,7 +494,7 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(nameFake.calls.count, 1)
     expectNoDifference(refreshes.value, 1)
-    expectNoDifference(clearFailures.value, [])
+    expectNoDifference(writeFailures.value, [])
     expectNoDifference(model.dialog, nil)
   }
 
@@ -400,7 +509,7 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(
       model.dialog, WorkspaceNamingModel.Dialog(id: Self.session, draft: "My own name", phase: .editing))
-    expectNoDifference([model.isMutationInFlight, model.isRenameEnabled], [false, true])
+    #expect(model.isRenameEnabled)
 
     nameFake.release()
     await Task.megaYield()
@@ -419,6 +528,38 @@ struct WorkspaceNamingModelTests {
 
     expectNoDifference(nameFake.calls, [])
     expectNoDifference(refreshes.value, 0)
+  }
+
+  @Test func quitWaitsForAQueuedRename() async {
+    let model = makeModel()
+    nameFake.hold()
+    model.renameTapped(sessionID: Self.session, currentName: "Old name")
+    model.draftChanged("First name")
+    let first = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    model.renameTapped(sessionID: Self.session, currentName: "First name")
+    model.draftChanged("Second name")
+    let second = Task { await model.renameConfirmed() }
+    await Task.megaYield()
+    let didQuit = LockIsolated(false)
+    let quit = Task {
+      await model.quitConfirmed()
+      didQuit.setValue(true)
+    }
+    await Task.megaYield()
+
+    #expect(!didQuit.value)
+    nameFake.release()
+    await quit.value
+    await first.value
+    await second.value
+
+    expectNoDifference(
+      nameFake.calls,
+      [
+        .init(sessionID: Self.session, name: "First name"),
+        .init(sessionID: Self.session, name: "Second name"),
+      ])
   }
 
   @Test func nothingIsSuggestedAfterQuit() async {

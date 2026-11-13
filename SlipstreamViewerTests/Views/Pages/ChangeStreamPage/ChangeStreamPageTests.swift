@@ -748,7 +748,7 @@ struct ChangeStreamPageTests {
     expectNoDifference(copied.value, ["STORAGE_UNAVAILABLE: store lock lost"])
   }
 
-  @Test func namingMenuActionsAreDisabledWhileAMutationRuns() async {
+  func namedSessionModel() async -> ChangeStreamPageModel {
     fake.setSessions(
       [
         SessionSummary(
@@ -758,13 +758,64 @@ struct ChangeStreamPageTests {
       starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
     let model = makeModel()
     await model.viewAppeared()
+    return model
+  }
+
+  @Test func renamingShowsTheNewNameInTheRowBeforeTheDaemonAnswers() async throws {
+    let model = await namedSessionModel()
+    defer { model.viewDisappeared() }
+    model.sessionSelected(Fixture.session)
+    model.renameMenuTapped(model.sessions[0])
+    model.naming.draftChanged("New name")
+    nameFake.hold()
+
+    let save = Task { await model.naming.renameConfirmed() }
+    await Task.megaYield()
+
+    expectNoDifference([model.rowName(model.sessions[0]), model.breadcrumbWorkspaceText], ["New name", "New name"])
+    expectNoDifference(
+      [model.isRenameEnabled(model.sessions[0]), model.isUseAgentNameEnabled(model.sessions[0])], [true, true])
+    fake.setSessions(
+      [
+        SessionSummary(
+          id: Fixture.session, durableSeq: .zero, removed: false,
+          naming: SessionNaming(agentName: "Agent's name", userName: "New name"))
+      ],
+      starts: [Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0)])
+    nameFake.release()
+    await save.value
+
+    expectNoDifference(model.rowName(model.sessions[0]), "New name")
+    expectNoDifference(model.naming.pendingNames, [:])
+  }
+
+  @Test func refusedRenamePutsTheOldNameBackAndReopensTheDialog() async throws {
+    let model = await namedSessionModel()
+    defer { model.viewDisappeared() }
+    model.renameMenuTapped(model.sessions[0])
+    model.naming.draftChanged("New name")
+    nameFake.setFailure(.rejected(code: "STORAGE_UNAVAILABLE", message: "store lock lost"))
+
+    await model.naming.renameConfirmed()
+
+    expectNoDifference(model.rowName(model.sessions[0]), "My name")
+    expectNoDifference(
+      model.naming.dialog,
+      WorkspaceNamingModel.Dialog(
+        id: Fixture.session, draft: "New name",
+        phase: .saveFailed(headline: "Slipstream refused the rename.", detail: "STORAGE_UNAVAILABLE: store lock lost")))
+  }
+
+  @Test func useAgentNameShowsTheAgentsNameBeforeTheDaemonAnswers() async throws {
+    let model = await namedSessionModel()
+    defer { model.viewDisappeared() }
     nameFake.hold()
 
     let clear = Task { await model.useAgentNameMenuTapped(model.sessions[0]) }
     await Task.megaYield()
 
-    expectNoDifference(
-      [model.isRenameEnabled(model.sessions[0]), model.isUseAgentNameEnabled(model.sessions[0])], [false, false])
+    expectNoDifference(model.rowName(model.sessions[0]), "Agent's name")
+    #expect(!model.isUseAgentNameEnabled(model.sessions[0]))
     nameFake.release()
     await clear.value
   }
@@ -5513,7 +5564,98 @@ extension ChangeStreamPageTests {
     #expect(model.selectedSession?.id == Fixture.session)
   }
 
-  @Test func switchingRowsDuringARefusedArchiveKeepsTheNewRow() async throws {
+  /// Rows: workspace-10 (b2) and workspace-2 (d3) under Alpha, then workspace-1 (e1) under zeta.
+  func threeWorkspacesModel(
+    selecting id: String, archive: @escaping @Sendable (URL, String) async -> String?
+  ) async throws -> ChangeStreamPageModel {
+    listWorkspacesInIDOrder(Self.threeWorkspaces)
+    let model = makeModel(workspace: workspaceClient(archive: archive))
+    await model.viewAppeared()
+    await Task.megaYield()
+    model.sessionSelected(id)
+    await Task.megaYield()
+    model.archiveTapped(try #require(model.selectedSession))
+    return model
+  }
+
+  @Test func archivingHidesTheRowAndSelectsTheOneBelowBeforeTheDaemonAnswers() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = try await threeWorkspacesModel(selecting: "b2", archive: { _, _ in
+      for await _ in gate { break }
+      return nil
+    })
+    defer { model.viewDisappeared() }
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["Alpha", "workspace-2"], ["zeta", "workspace-1"]])
+    #expect(model.selectedSession?.id == "d3")
+    #expect(model.chat.folder == "/work/slipstream/workspaces/Alpha/workspace-2")
+
+    await model.reloadShortcutPressed()
+    expectNoDifference(Self.names(model.sidebarGroups), [["Alpha", "workspace-2"], ["zeta", "workspace-1"]])
+    release.yield()
+    await archiving.value
+  }
+
+  @Test func archivingTheLastRowSelectsTheOneAbove() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = try await threeWorkspacesModel(selecting: "e1", archive: { _, _ in
+      for await _ in gate { break }
+      return nil
+    })
+    defer { model.viewDisappeared() }
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    #expect(model.selectedSession?.id == "d3")
+    release.yield()
+    await archiving.value
+  }
+
+  @Test func refusedArchivePutsTheRowBackSelectedAndShowsTheWholeError() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let failure = "slipstream: the workspace has uncommitted or untracked changes.\n M Sources/App.swift\n?? notes.txt"
+    let model = try await threeWorkspacesModel(selecting: "d3", archive: { _, _ in
+      for await _ in gate { break }
+      return failure
+    })
+    defer { model.viewDisappeared() }
+    let rows = Self.names(model.sidebarGroups)
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    #expect(model.selectedSession?.id == "e1")
+    release.yield()
+    await archiving.value
+
+    expectNoDifference(Self.names(model.sidebarGroups), rows)
+    #expect(model.selectedSession?.id == "d3")
+    #expect(model.chat.folder == "/work/slipstream/workspaces/Alpha/workspace-2")
+    #expect(model.workspaceFailureText == failure)
+  }
+
+  @Test func pickingARowDuringARefusedArchiveKeepsIt() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = try await threeWorkspacesModel(selecting: "b2", archive: { _, _ in
+      for await _ in gate { break }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    model.sessionSelected("e1")
+    release.yield()
+    await archiving.value
+
+    #expect(model.selectedSession?.id == "e1")
+    #expect(model.chat.folder == "/work/slipstream/workspaces/zeta/workspace-1")
+  }
+
+  @Test func clickingTheRowAnArchiveMovedToKeepsItWhenTheArchiveIsRefused() async throws {
     let (gate, release) = AsyncStream<Void>.makeStream()
     let model = await twoWorkspacesModel(archive: { _, _ in
       for await _ in gate { break }
@@ -5530,6 +5672,75 @@ extension ChangeStreamPageTests {
 
     #expect(model.selectedSession?.id == Fixture.otherSession)
     #expect(model.chat.folder == Self.secondWorkspaceRoot)
+  }
+
+  @Test func refusedArchiveOfAReopenedFolderKeepsItsNewDraftAndStartsItsTerminals() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await workspaceModel(archive: { _, _ in
+      for await _ in gate { break }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+    model.chat.selectedTab?.draft = "old"
+    model.archiveTapped(try #require(model.selectedSession))
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    await model.recording.recordTapped(folder: Self.workspaceRoot)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    model.chat.selectedTab?.draft = "new"
+    release.yield()
+    await archiving.value
+
+    expectNoDifference(model.chat.selectedTab?.draft, "new")
+    expectNoDifference(model.terminals.shownTabs.map(\.title), ["Terminal 1"])
+  }
+
+  @Test func refusedArchiveOfAReopenedFolderRestoresItsSavedDraft() async throws {
+    let (gate, release) = AsyncStream<Void>.makeStream()
+    let model = await workspaceModel(archive: { _, _ in
+      for await _ in gate { break }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+    model.chat.selectedTab?.draft = "saved"
+    model.archiveTapped(try #require(model.selectedSession))
+    let archiving = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+
+    await model.recording.recordTapped(folder: Self.workspaceRoot)
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    release.yield()
+    await archiving.value
+
+    expectNoDifference(model.chat.selectedTab?.draft, "saved")
+  }
+
+  @Test func anEarlierArchivesRefusalDoesNotShowTheRowALaterArchiveHid() async throws {
+    let gates = LockIsolated<[CheckedContinuation<Void, Never>]>([])
+    let model = try await threeWorkspacesModel(selecting: "d3", archive: { _, _ in
+      await withCheckedContinuation { continuation in gates.withValue { $0.append(continuation) } }
+      return "refused"
+    })
+    defer { model.viewDisappeared() }
+
+    let first = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    await model.recording.recordTapped(folder: "/work/slipstream/workspaces/Alpha/workspace-2")
+    await Task.megaYield()
+    #expect(Self.names(model.sidebarGroups).joined().contains("workspace-2"))
+    model.archiveTapped(try #require(model.sessions[id: "d3"]))
+    let second = Task { await model.archiveConfirmed() }
+    await Task.megaYield()
+    gates.value[0].resume()
+    await first.value
+
+    expectNoDifference(Self.names(model.sidebarGroups), [["Alpha", "workspace-10"], ["zeta", "workspace-1"]])
+    #expect(model.selectedSession?.id == "e1")
+    gates.value[1].resume()
+    await second.value
   }
 
   @Test func switchingRowsWhileAnArchiveCleansUpKeepsTheNewRow() async throws {
@@ -5755,6 +5966,7 @@ extension ChangeStreamPageTests {
 
     model.archiveTapped(try #require(model.selectedSession))
     await model.archiveConfirmed()
+    await Task.megaYield()
 
     #expect(model.terminals.folder == Self.workspaceRoot)
     expectNoDifference(model.terminals.shownTabs.map(\.title), ["Terminal 1"])

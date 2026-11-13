@@ -39,7 +39,6 @@ struct RenameWorkspaceSheetView: View {
     .padding(DesignTokens.RenameDialog.padding)
     .frame(width: DesignTokens.RenameDialog.width)
     .background(DesignTokens.RenameDialog.fill)
-    .interactiveDismissDisabled(model.isSaving)
     .onExitCommand { model.cancelTapped() }
     .onAppear {
       isFieldFocused = true
@@ -114,14 +113,12 @@ struct RenameWorkspaceSheetView: View {
         .keyboardShortcut(.defaultAction)
       } else {
         Button { model.cancelTapped() } label: {
-          buttonLabel(model.cancelButtonTitle, colors: DesignTokens.RenameDialog.cancelButton(isDimmed: model.isSaving))
+          buttonLabel(model.cancelButtonTitle, colors: DesignTokens.RenameDialog.cancelButton)
         }
         .buttonStyle(.plain)
-        .disabled(model.isSaving)
         Button { Task { await model.renameConfirmed() } } label: {
           buttonLabel(
-            model.primaryButtonTitle, colors: DesignTokens.RenameDialog.primaryButton(isDimmed: model.isPrimaryDimmed),
-            isSpinnerShown: model.isSaving)
+            model.primaryButtonTitle, colors: DesignTokens.RenameDialog.primaryButton(isDimmed: model.isPrimaryDimmed))
         }
         .buttonStyle(.plain)
         .disabled(!model.isRenameEnabled)
@@ -130,20 +127,13 @@ struct RenameWorkspaceSheetView: View {
     }
   }
 
-  private func buttonLabel(
-    _ title: String, colors: DesignTokens.RenameDialog.ButtonColors, isSpinnerShown: Bool = false
-  ) -> some View {
-    HStack(spacing: DesignTokens.RenameDialog.buttonContentGap) {
-      if isSpinnerShown {
-        SpinnerView(spinner: DesignTokens.RenameDialog.savingSpinner)
-      }
-      Text(title)
-        .font(DesignTokens.RenameDialog.buttonFont)
-        .foregroundStyle(colors.text)
-    }
-    .padding(.horizontal, DesignTokens.RenameDialog.buttonHorizontalPadding)
-    .frame(height: DesignTokens.RenameDialog.buttonHeight)
-    .background(colors.fill, in: RoundedRectangle(cornerRadius: DesignTokens.RenameDialog.buttonRadius))
-    .contentShape(Rectangle())
+  private func buttonLabel(_ title: String, colors: DesignTokens.RenameDialog.ButtonColors) -> some View {
+    Text(title)
+      .font(DesignTokens.RenameDialog.buttonFont)
+      .foregroundStyle(colors.text)
+      .padding(.horizontal, DesignTokens.RenameDialog.buttonHorizontalPadding)
+      .frame(height: DesignTokens.RenameDialog.buttonHeight)
+      .background(colors.fill, in: RoundedRectangle(cornerRadius: DesignTokens.RenameDialog.buttonRadius))
+      .contentShape(Rectangle())
   }
 }

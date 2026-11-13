@@ -994,7 +994,6 @@ enum DesignTokens {
     static let buttonHeight: CGFloat = 32
     static let buttonHorizontalPadding: CGFloat = 14
     static let buttonRadius: CGFloat = 6
-    static let buttonContentGap: CGFloat = 6
     static let buttonFont = variableFont(family: geistFamily, size: 13, weight: 500)
 
     struct ButtonColors {
@@ -1004,15 +1003,11 @@ enum DesignTokens {
 
     private static let dimmedButton = ButtonColors(fill: Color(hex: 0x26303A), text: Color(hex: 0x56646F))
 
-    static func cancelButton(isDimmed: Bool) -> ButtonColors {
-      isDimmed ? dimmedButton : ButtonColors(fill: .clear, text: Color(hex: 0xC9D6DF))
-    }
+    static let cancelButton = ButtonColors(fill: .clear, text: Color(hex: 0xC9D6DF))
 
     static func primaryButton(isDimmed: Bool) -> ButtonColors {
       isDimmed ? dimmedButton : ButtonColors(fill: Color(hex: 0x6CB6FF), text: Color(hex: 0x0E1318))
     }
-
-    static let savingSpinner = Chat.Spinner(size: 13, lineWidth: 1.5, color: Color(hex: 0x0E1318))
   }
 
   enum TaskHeading {

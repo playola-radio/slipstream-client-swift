@@ -63,8 +63,8 @@ final class ChangeStreamPageModel: ViewModel {
       guard let self, isShown else { return }
       await reloadSessions()
     }
-    naming.onClearFailed = { [weak self] detail in
-      self?.workspaceFailed(title: "Couldn't switch back to the agent's name", text: detail, detail: detail)
+    naming.onWriteFailed = { [weak self] title, detail in
+      self?.workspaceFailed(title: title, text: detail, detail: detail)
     }
   }
 
@@ -103,7 +103,8 @@ final class ChangeStreamPageModel: ViewModel {
   private(set) var sidebarGroups: [SidebarGroup] = []
   /// Workspace folders whose main checkout was already looked up this run, found or not.
   @ObservationIgnored private var lookedUpRepositoryFolders: Set<String> = []
-  private var archivingFolder: String?
+  /// Folders hidden while their archive runs, each with the archive that hid it.
+  private var archivingFolders: [String: Int] = [:] { didSet { sidebarInputsChanged() } }
   private var hoveredRowID: String?
   private var hoveredGroupID: SidebarGroup.ID?
   private var focusedRowID: String?
@@ -194,6 +195,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var fileHeaderHeight: CGFloat = 0
   @ObservationIgnored private var chatWorkspace: ChatWorkspace?
   @ObservationIgnored private var creationCount = 0
+  @ObservationIgnored private var archiveCount = 0
 
   // MARK: - Display Text
 
@@ -413,7 +415,9 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func rowName(_ session: SessionOption) -> String {
-    SidebarGroup.rowName(session)
+    var shown = session
+    shown.naming?.userName = naming.userName(session)
+    return SidebarGroup.rowName(shown)
   }
 
   func renameDisabledReason(_ session: SessionOption) -> String? {
@@ -427,11 +431,11 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func isRenameEnabled(_ session: SessionOption) -> Bool {
-    renameDisabledReason(session) == nil && !naming.isMutationInFlight
+    renameDisabledReason(session) == nil
   }
 
   func isUseAgentNameEnabled(_ session: SessionOption) -> Bool {
-    session.naming?.userName != nil && !naming.isMutationInFlight
+    naming.userName(session) != nil
   }
 
   func isSelected(_ session: SessionOption) -> Bool {
@@ -835,7 +839,10 @@ final class ChangeStreamPageModel: ViewModel {
       creatingWorkspaceSelected(creation)
       return
     }
-    guard archivingFolder == nil || sessions[id: id]?.root != archivingFolder, select(id) else { return }
+    guard select(id) else {
+      if id == selectedSession?.id { userSessionSelectionGeneration += 1 }
+      return
+    }
     userSessionSelectionGeneration += 1
     pendingPreferredRoot = nil
     Task { [weak self] in
@@ -936,28 +943,42 @@ final class ChangeStreamPageModel: ViewModel {
     isArchiveConfirmationPresented = true
   }
 
-  /// Stops the workspace's chats first, hiding them if it is selected: the command removes
-  /// the folder they run in. Its conversations come back if the command refuses.
+  /// Hides the workspace's rows and moves the selection off them at once, then stops its chats
+  /// and terminals, since the command removes the folder they run in. If the command refuses,
+  /// the rows, the selection and the conversations come back, unless the folder was opened or
+  /// archived again meanwhile.
   func archiveConfirmed() async {
-    guard !isWorkspaceBusy, let target = archiveTarget, let folder = target.root else { return }
-    isWorkspaceBusy = true
-    archivingFolder = folder
-    defer {
-      isWorkspaceBusy = false
-      archivingFolder = nil
+    guard !isWorkspaceBusy, let target = archiveTarget, let folder = target.root, archivingFolders[folder] == nil
+    else { return }
+    archiveCount += 1
+    let archive = archiveCount
+    let selectedID = selectedFolder == folder ? selectedSession?.id : nil
+    let neighbourID = neighbourRowID(of: folder)
+    archivingFolders[folder] = archive
+    if selectedID != nil {
+      userSessionSelectionGeneration += 1
+      pendingPreferredRoot = nil
+      if neighbourID.map(selectRow) != true {
+        chat.workspaceChanged(folder: nil, emptyText: nil)
+        deselect()
+        await terminals.workspaceChanged(folder: nil)
+      }
     }
-    if selectedFolder == folder {
-      chat.workspaceChanged(folder: nil, emptyText: nil)
-      await terminals.workspaceChanged(folder: nil)
-    }
+    let selectionGeneration = userSessionSelectionGeneration
     let drafts = await chat.stopTabs(in: folder)
     await terminals.stopTabs(in: folder)
     if let failure = await workspace.archive(URL(filePath: folder), daemon.storeID) {
-      let isStillSelected = selectedFolder == folder
-      if isStillSelected { chat.workspaceChanged(folder: folder, emptyText: nil) }
-      chat.restoreTabs(in: folder, drafts: drafts)
-      terminals.restoreTabs(in: folder)
-      if isStillSelected { await terminals.workspaceChanged(folder: folder) }
+      let isCurrent = archivingFolders[folder] == archive
+      if isCurrent { archivingFolders[folder] = nil }
+      if archivingFolders[folder] == nil {
+        chat.restoreTabs(in: folder, drafts: drafts)
+        terminals.restoreTabs(in: folder)
+      }
+      if isCurrent, let selectedID, userSessionSelectionGeneration == selectionGeneration {
+        _ = select(selectedID)
+      } else if selectedFolder == folder {
+        await terminals.workspaceChanged(folder: folder)
+      }
       workspaceFailed(title: "Couldn't archive the workspace", text: failure)
       return
     }
@@ -967,6 +988,7 @@ final class ChangeStreamPageModel: ViewModel {
     dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id) + [target.id])
     if selectedFolder == folder { deselect() }
     await loadSessions()
+    if archivingFolders[folder] == archive { archivingFolders[folder] = nil }
   }
 
   func viewDisappeared() {
@@ -1192,7 +1214,7 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   private func select(_ id: String) -> Bool {
-    guard let session = sessions[id: id], session.id != selectedSession?.id else { return false }
+    guard let session = sessions[id: id], session.id != selectedSession?.id, !isArchiving(session) else { return false }
     selectedCreationID = nil
     show(session)
     return true
@@ -1314,9 +1336,18 @@ final class ChangeStreamPageModel: ViewModel {
     }
   }
 
+  /// Selects a sidebar row, including one for a workspace still being created.
+  private func selectRow(_ id: String) -> Bool {
+    if let creation = creatingWorkspaces.first(where: { $0.row.id == id }) {
+      creatingWorkspaceSelected(creation)
+      return true
+    }
+    return select(id)
+  }
+
   private func isRestorable(_ id: String) -> Bool {
     guard let session = sessions[id: id], !dismissedSessionIDs.contains(id) else { return false }
-    return session.root != archivingFolder && isListed(session)
+    return isListed(session)
   }
 
   private var selectedCreation: CreatingWorkspace? {
@@ -1390,6 +1421,7 @@ final class ChangeStreamPageModel: ViewModel {
       )
       Self.appendCaptureOnly(snapshot, roots: captureReply.roots, to: &next)
       sessions = next
+      naming.sessionsListed(next)
       sessionsError = nil
       hasLoadedSessions = true
       awaitsFreshSnapshot = false
@@ -1793,6 +1825,7 @@ final class ChangeStreamPageModel: ViewModel {
   /// selected. A row waits for its folder, so it never shows under its id. One row per folder, so a
   /// recreated folder's old capture is hidden. Unknown capture state hides nothing else.
   private func isListed(_ session: SessionOption) -> Bool {
+    if isArchiving(session) { return false }
     if session.id == selectedSession?.id { return true }
     guard isArchivable(session) || isOpened(session) else { return false }
     let status = captureStatus(of: session)
@@ -1828,9 +1861,22 @@ final class ChangeStreamPageModel: ViewModel {
     folderOpened(folder)
   }
 
+  /// Opening a folder again shows it even while an earlier archive of it runs.
   private func folderOpened(_ folder: String) {
     $openedFolders.withLock { _ = $0.insert(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
+    archivingFolders[folder] = nil
     sidebarInputsChanged()
+  }
+
+  private func isArchiving(_ session: SessionOption) -> Bool {
+    session.root.map { archivingFolders[$0] != nil } ?? false
+  }
+
+  /// The row below the folder's rows in the sidebar, else the one above.
+  private func neighbourRowID(of folder: String) -> String? {
+    let rows = sidebarGroups.flatMap(\.rows)
+    guard let index = rows.firstIndex(where: { $0.root == folder }) else { return nil }
+    return (rows[index...].first { $0.root != folder } ?? rows[..<index].last { $0.root != folder })?.id
   }
 
   private func deselect() {
