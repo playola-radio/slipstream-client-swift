@@ -1075,6 +1075,10 @@ enum DesignTokens {
   }
 
   enum Syntax {
+    /// Above this many runs, styling costs more than a frame on the main actor (a minified
+    /// file's single line can hold hundreds of thousands), so the text stays flat.
+    static let maximumRuns = 4_000
+
     /// Colours each lexed run, lifting the units inside a change tint. Text outside every run
     /// keeps the view's flat colour.
     static func styled(
@@ -1083,6 +1087,7 @@ enum DesignTokens {
       tintedRanges: [Range<Int>] = []
     ) -> AttributedString {
       var styled = AttributedString(text)
+      guard runs.count <= maximumRuns else { return styled }
       for run in runs {
         paint(&styled, text, run.range, color(run.kind, isTinted: false))
         for tinted in tintedRanges where tinted.overlaps(run.range) {

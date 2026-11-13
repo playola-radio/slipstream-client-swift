@@ -47,6 +47,14 @@ struct SyntaxStylingTests {
     )
   }
 
+  @Test func tooManyRunsLeavesTextUnstyled() {
+    let count = DesignTokens.Syntax.maximumRuns + 1
+    let text = String(repeating: "a ", count: count)
+    let runs = (0..<count).map { SyntaxRun(range: ($0 * 2)..<($0 * 2 + 1), kind: .keyword) }
+
+    expectNoDifference(DesignTokens.Syntax.styled(text, runs: runs), AttributedString(text))
+  }
+
   private struct Coloured: Equatable {
     var text: String
     var colour: Color?

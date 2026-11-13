@@ -79,7 +79,7 @@ private struct CodeScanner {
   var dot: (end: Int, before: Previous)?
   /// A shell heredoc opened on this line; its body starts on the next line.
   var pendingHeredoc: Heredoc?
-  /// `((` arithmetic open on this line, where `<<` is a shift rather than a heredoc.
+  /// `((` arithmetic still open, where `<<` is a shift rather than a heredoc.
   var openArithmetic = 0
 
   init(language: SyntaxLanguage) {
@@ -91,7 +91,6 @@ private struct CodeScanner {
     self.line = line
     runs = []
     dot = nil
-    openArithmetic = 0
     var index = 0
     switch state {
     case .code: break
@@ -289,7 +288,10 @@ private struct CodeScanner {
     let quote = wordStart < line.count ? line[wordStart] : 0
     let isQuoted = quote == .ascii("'") || quote == .ascii("\"")
     let nameStart = isQuoted ? wordStart + 1 : wordStart
-    let nameEnd = identifierEnd(from: nameStart)
+    let nameEnd =
+      line[nameStart...].firstIndex {
+        isQuoted ? $0 == quote : $0.isWhitespace || Self.shellWordBreaks.contains($0)
+      } ?? line.count
     guard nameEnd > nameStart, !line[nameStart].isDigit, !isQuoted || (nameEnd < line.count && line[nameEnd] == quote) else {
       return nil
     }
@@ -423,6 +425,7 @@ private struct CodeScanner {
   }
 
   private static let brackets = Set("()[]{},;".utf16)
+  private static let shellWordBreaks = Set(";|&<>()\"'".utf16)
   private static let closers = Set(")]}".utf16)
   private static let nonOperators = Set("._\"'`#@$".utf16)
   private static let constants: Set = ["true", "false", "nil", "null", "undefined", "None", "True", "False"]

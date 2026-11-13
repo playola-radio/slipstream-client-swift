@@ -1,18 +1,18 @@
 /// YAML, one line at a time. A `|` or `>` block scalar carries across lines: every line
-/// indented past its key is string.
+/// indented past its key, or past its `-` when it has no key, is string.
 struct YAMLScanner {
-  private var blockScalarKeyColumn: Int?
+  private var blockScalarParentColumn: Int?
 
   mutating func scan(_ line: [UInt16]) -> [SyntaxRun] {
     var runs: [SyntaxRun] = []
     let indent = line.prefix(while: \.isWhitespace).count
-    if let keyColumn = blockScalarKeyColumn {
+    if let parentColumn = blockScalarParentColumn {
       if indent == line.count { return runs }
-      if indent > keyColumn {
+      if indent > parentColumn {
         runs.add(0..<line.count, .string)
         return runs
       }
-      blockScalarKeyColumn = nil
+      blockScalarParentColumn = nil
     }
     var index = indent
     if index == 0, line.matches("---".utf16, at: 0) || line.matches("...".utf16, at: 0),
@@ -21,14 +21,16 @@ struct YAMLScanner {
       runs.add(0..<3, .punctuation)
       index = line.skippingWhitespace(from: 3)
     }
+    var parentColumn = indent
     while index < line.count, line[index] == .ascii("-"),
       index + 1 == line.count || line[index + 1].isWhitespace
     {
       runs.add(index..<(index + 1), .punctuation)
+      parentColumn = index
       index = line.skippingWhitespace(from: index + 1)
     }
-    let keyColumn = index
     if let colon = keyColon(in: line, from: index) {
+      parentColumn = index
       runs.add(index..<max(index, line.trimmingWhitespace(before: colon)), .type)
       runs.add(colon..<(colon + 1), .punctuation)
       index = line.skippingWhitespace(from: colon + 1)
@@ -42,7 +44,7 @@ struct YAMLScanner {
     if unit == .ascii("|") || unit == .ascii(">") {
       let end = line[index...].firstIndex(where: \.isWhitespace) ?? line.count
       runs.add(index..<end, .punctuation)
-      blockScalarKeyColumn = keyColumn
+      blockScalarParentColumn = parentColumn
       index = end
     } else if unit == .ascii("\"") || unit == .ascii("'") {
       let end = line.quoteEnd(from: index)

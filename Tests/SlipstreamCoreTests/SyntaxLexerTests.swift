@@ -253,6 +253,16 @@ struct SyntaxLexerTests {
     }
   }
 
+  @Test func shellArithmeticSpansLines() {
+    expectNoDifference(
+      tokens("v=$((1 +\n  2 << foo\n))\necho hi", .shell)[3], tokens("echo hi", .shell)[0])
+  }
+
+  @Test func shellHeredocWordKeepsItsPunctuation() {
+    let source = "cat <<END-OF-FILE\nbody\nEND-OF-FILE\necho hi"
+    expectNoDifference(tokens(source, .shell)[3], tokens("echo hi", .shell)[0])
+  }
+
   @Test func cssRules() {
     expectNoDifference(
       tokens("@media (max-width: 600px) { .card { color: #fff !important; } } /* c */", .css),
@@ -307,6 +317,13 @@ struct SyntaxLexerTests {
         [Token(":", .punctuation), Token("foo", .string)],
         [Token("-", .punctuation), Token(":", .punctuation), Token("bar", .string)],
       ]
+    )
+  }
+
+  @Test func yamlSequenceBlockScalarKeepsItsBody() {
+    expectNoDifference(
+      tokens("- |\n  key: value", .yaml),
+      [[Token("-", .punctuation), Token("|", .punctuation)], [Token("  key: value", .string)]]
     )
   }
 

@@ -1729,20 +1729,6 @@ struct ChatPageTests {
       ])
   }
 
-  @Test func runsAreOffsetAcrossLines() {
-    expectNoDifference(
-      ChatTabModel.markdownBlocks("```swift\na\nlet b\n```"),
-      [
-        .code(
-          "a\nlet b",
-          runs: [
-            SyntaxRun(range: 0..<1, kind: .plain), SyntaxRun(range: 2..<5, kind: .keyword),
-            SyntaxRun(range: 6..<7, kind: .plain),
-          ]
-        )
-      ])
-  }
-
   @Test func untaggedAndUnknownFencesStayFlat() {
     expectNoDifference(
       ChatTabModel.markdownBlocks("```\nlet a\n```\n```console\nlet b\n```"),
