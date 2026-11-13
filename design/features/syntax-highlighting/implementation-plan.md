@@ -131,7 +131,7 @@ Lexical rules (spec, scope 7; when unsure, `.plain`):
 
 Rules (one language per source; embedded languages use the host rules). Anything not named here is `.plain` or `.punctuation`:
 - **Python.** `#` comments. `'…'`, `"…"` and triple-quoted strings, which can span lines; prefixes `f r b rb` are part of the string. `@decorator` → `.keyword`.
-- **Shell.** `#` comments, except inside a word such as `a#b`. `'…'` and `"…"` strings. `$VAR`, `${…}` and `$1` → `.type`. Keywords: `if then else elif fi for while until do done case esac function in return export local select`. A heredoc body after `<<WORD` or `<<'WORD'` is `.string` through the first original body line that exactly equals `WORD`; after `<<-WORD` or `<<-'WORD'`, leading tabs may be removed before requiring that exact match, but spaces never count as removable indentation. Perform delimiter matching before expanding tabs for display, then map the highlighted runs to display offsets; the matching terminator line is also `.string`.
+- **Shell.** `#` comments, except inside a word such as `a#b`. `'…'` and `"…"` strings. `$VAR`, `${…}` and `$1` → `.type`. Keywords: `if then else elif fi for while until do done case esac function in return export local select`. A heredoc body after `<<WORD` or `<<'WORD'` is `.string` through the first line exactly equal to `WORD`. After `<<-WORD` or `<<-'WORD'`, leading whitespace is trimmed before that match. Cards lex tab-expanded text (S5), so a space-indented terminator also ends a `<<-` heredoc; the shell wouldn't accept it, but the only cost is colour. The terminator line is also `.string`.
 - **CSS.** `/* */` comments. `@media`-style at-rules and `!important` → `.keyword`. An identifier before `:` → `.type`. Numbers with units and `#hex` colours → `.number`. Strings → `.string`. Selectors are plain.
 - **YAML.** `#` comments, when at line start or after whitespace. A key before `: ` or a line-ending `:` → `.type`. Quoted and plain scalar values → `.string`. Numbers, `true false null ~` → `.number`. `- : --- ...` → `.punctuation`. After `|` or `>`, the more-indented lines that follow are `.string`.
 - **Markdown.** A heading line (`#` to `######` then a space) → `.keyword` in full. A code span, or the content of a fenced block inside the file → `.string`. Everything else → `.plain`.
@@ -257,7 +257,7 @@ Codex (`gpt-6-astra`) and a Claude Opus reviewer, run in parallel and read-only 
 | S2 | A universal `Rules` value can't serve heredocs, YAML, Markdown and HTML | both | Adopted: one shared scanner plus three markup scanners |
 | S3 | Drop `String` raw values and `CaseIterable`; `Equatable` only where compared | both | Adopted |
 | S4 | Merge the card helper into `highlightedLines` and the three card tests into one | both | Adopted (Task 5) |
-| S5 | Lex tab-expanded text and delete the tab offset mapping | Opus | Adopted; the heredoc end line is matched after trimming whitespace |
+| S5 | Lex tab-expanded text and delete the tab offset mapping | Opus | Adopted. `<<WORD` needs an exact terminator line; `<<-WORD` trims leading whitespace, so it can't tell tabs from spaces (colour-only edge case) |
 | S6 | Implicit-member rule is Swift-only and defined negatively (`f(...args)` broke it) | Opus | Adopted; added `Type.Member` → number to match the approved mockup |
 | S7 | One alias table; drop `mts cts jsonc pyi python3 shell`, which are outside scope 5 | Opus | Adopted |
 | S8 | `runs` defaults to `[]`; delete the duplicate tagged-fence test; `color` is private | Opus | Adopted |
