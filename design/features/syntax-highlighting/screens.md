@@ -21,12 +21,13 @@ Pen file: `design/slipstream.pen`, zone "Zone · Syntax highlighting" (`CLeqn`).
   - Source lines are coloured by token kind instead of flat `#BDCDDF`.
   - The change marker, run tint and removal tick are unchanged. The tint draws behind the text and the tick in front of it, as today.
   - Inside a change tint, every token lifts toward white to at least 4.5:1 so changed words stay readable.
+  - Lines inside an Ask selection use the same lifted colours across the whole line.
 
 | State | When it shows | Node | Mockup |
 |---|---|---|---|
 | Highlighted | File extension is a supported language | `O5yb0` | ![Change card — highlighted](exports/change-card--highlighted.png) |
 | Unsupported language | File extension isn't supported, drawn flat as today | `I8nfWI` | ![Change card — unsupported language](exports/change-card--unsupported-language.png) |
-| Ask selection | User has selected lines to ask about | `hwIGn` | ![Change card — Ask selection](exports/change-card--ask-selection.png) |
+| Ask selection | User has selected lines to ask about; selected lines use the lifted colours | `hwIGn` | ![Change card — Ask selection](exports/change-card--ask-selection.png) |
 
 ## Chat reply code block
 

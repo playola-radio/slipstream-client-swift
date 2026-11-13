@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. One PR, so `superpowers:executing-plans` is enough; `orchestrate-feature` isn't needed.
 
-**Goal:** Colour change-stream card source lines and chat fenced code blocks by token kind with one muted palette, leaving the blue change marks, copy and Ask selection exactly as they are.
+**Goal:** Colour change-stream card source lines and chat fenced code blocks by token kind with one muted palette, leaving the blue change marks and copy exactly as they are. Lines inside an Ask selection use the lifted colours.
 
 **Architecture:** A pure, in-house lexer in `SlipstreamCore` turns a whole source text plus a `SyntaxLanguage` into per-line `SyntaxRun`s (UTF-16 ranges and a `SyntaxKind`). A card lexes the whole captured after-file, with tabs already expanded to the displayed 4 spaces, in `CardContentLoader` (off the main actor, cached with the card content), so each `CodeLine` gets runs in display offsets with no remapping. A chat block lexes its own text when `markdownBlocks` builds it. Views turn runs into an `AttributedString` through `DesignTokens.Syntax.styled`, the same pattern as `DesignTokens.Chat.Paragraph.styled`. Each card line stays one `Text`, so `ChangedTextRenderer` is untouched.
 
@@ -29,7 +29,7 @@
   | `.number` (number, constant, enum case) | `#E5B98C` | `#F0D7BD` |
   | `.type` | `#8ECDC2` | `#BFE3DC` |
   | `.function` | `#E2D29A` | `#E8DBAE` |
-  | `.comment` | `#7D93A5` | `#D5DCE2` |
+  | `.comment` | `#8399AB` | `#D5DCE2` |
   | `.punctuation` | `#8DA2B4` | `#D5DDE3` |
   | `.plain` | `#C9D6E3` | `#D1DCE7` |
 
@@ -165,7 +165,7 @@ Rules (one language per source; embedded languages use the host rules). Anything
 - [ ] **Step 1: Write the failing tests:**
   - `noRunsLeavesTextUnstyled`: `styled("a b", runs: [])` equals `AttributedString("a b")`.
   - `runsColourTheirRanges`: for `"let x"` with `[0..<3 .keyword, 4..<5 .plain]`, the `foregroundColor` runs are `#C3A6E6` over `let`, nil over the space, and `#C9D6E3` over `x`.
-  - `tintLiftsOnlyTheTintedUnits`: for `"// note"` with `[0..<7 .comment]` and `tintedRanges: [3..<7]`, `0..<3` is `#7D93A5` and `3..<7` is `#D5DCE2`.
+  - `tintLiftsOnlyTheTintedUnits`: for `"// note"` with `[0..<7 .comment]` and `tintedRanges: [3..<7]`, `0..<3` is `#8399AB` and `3..<7` is `#D5DCE2`.
   - `rangesAreUTF16`: for `"\"👍\" x"` with `[0..<4 .string, 5..<6 .plain]`, the emoji string is fully `#A9CF9B`.
 - [ ] **Step 2:** Run the app tests with `-only-testing:SlipstreamViewerTests/SyntaxStylingTests`. Expected: they fail to compile.
 - [ ] **Step 3:** Implement `Syntax.styled` and its private `color`. Convert UTF-16 offsets with `String.Index(utf16Offset:in:)`, then `AttributedString.Index`.
@@ -180,21 +180,23 @@ Rules (one language per source; embedded languages use the host rules). Anything
   - `fetch` passes `SyntaxLanguage(path: row.path)`.
   - `content(_:fallbackReason:before:after:isBeforeVerifiable:language:)` gains `language: SyntaxLanguage? = nil`. When it is non-nil, it lexes `after` once with every tab replaced by `tabWidth` spaces, so the runs are already in display offsets.
   - `codeLine` takes the line's runs (index `number - 1`) and stores them unchanged.
-- Modify: `SlipstreamViewer/Views/Pages/ChangeStreamPage/ChangeStreamPageView.swift:787`. Use `Text(DesignTokens.Syntax.styled(line.text, runs: line.syntaxRuns, tintedRanges: line.changedRanges))`, keeping `.foregroundStyle(DesignTokens.Colors.sourceLine)`, `.lineLimit(1)`, `.textRenderer(ChangedTextRenderer(line: line))` and the accessibility label.
+- Modify: `SlipstreamViewer/Views/Pages/ChangeStreamPage/ChangeStreamPageModel.swift`. Add `func sourceText(_ line: CodeLine, row: FileChangeRow, block: CodeBlock) -> AttributedString` under View Helpers, next to `highlightRect`. It returns `DesignTokens.Syntax.styled(line.text, runs: line.syntaxRuns, tintedRanges:)`. The tinted ranges are the whole line (`[0..<line.text.utf16.count]`) when the line is inside the Ask selection: the same session, row and block guard as `highlightRect`, and `line.id` within `context.lineStart...context.lineEnd`. Otherwise they are `line.changedRanges`. On the selection fill (`#315D7A`) the base colours fall to 2.2–3.3:1 and the lifted ones reach 5.1:1 (Brian, 2026-11-12).
+- Modify: `SlipstreamViewer/Views/Pages/ChangeStreamPage/ChangeStreamPageView.swift:787`. Use `Text(model.sourceText(line, row: row, block: block))`, keeping `.foregroundStyle(DesignTokens.Colors.sourceLine)`, `.lineLimit(1)`, `.textRenderer(ChangedTextRenderer(line: line))` and the accessibility label.
 - Modify: `SlipstreamViewerTests/Views/Pages/ChangeStreamPage/ChangeStreamPageTests.swift`:
   - `highlightedLines(before:after:clips:)` (line 1300) gains `path: String = "notes.txt"` and loads `Fixture.edited(1, path)`.
   - Existing tests that load a card through the fake with the default `src/user.ts` path and compare exact `CodeLine` values (around lines 1289, 1366, 1390, 1488, 1519, 1544, 1580) pass `Fixture.edited(1, "src/user.txt")`, so their expectations stay syntax-free and unchanged. Tests that call `CardContentLoader.content` directly already get `language: nil`.
 
 **Interfaces:**
 - Consumes: `SyntaxLanguage(path:)`, `SyntaxLexer.lines` and `DesignTokens.Syntax.styled` (Tasks 1, 2 and 4).
-- Produces: `CodeLine.syntaxRuns`, in display UTF-16 offsets.
+- Produces: `CodeLine.syntaxRuns`, in display UTF-16 offsets, and `ChangeStreamPageModel.sourceText(_:row:block:)`.
 
 - [ ] **Step 1: Write the failing tests**, using `highlightedLines(..., path:)`:
   - `tabsShiftSyntaxRunsAndChangeMarksTogether`: the fixture of `tabsShiftHighlightsToTheDisplayedColumns` (before `"\tx\t= 1\n"`, after `"\tx\t= 2\n"`) on path `"a.swift"` gives `text == "    x    = 2"`, `sourceText == "\tx\t= 2"`, `changedRanges == [11..<12]` and `syntaxRuns == [4..<5 plain, 9..<10 punctuation, 11..<12 number]`.
   - `unsupportedFileHasNoSyntaxRuns`: path `"infra/nginx.conf"` gives `syntaxRuns == []` on every line.
+  - `askSelectionLiftsEveryTokenOnSelectedLines`: on path `"a.ts"`, select line 2 of a three-line card with `sourceDragged`. In `sourceText`, line 2's `foregroundColor` runs use only the lifted column, while lines 1 and 3 use the base column. After `sourceDragEnded` and a cleared selection, line 2 uses the base column again.
   - `snippetInsideABlockCommentIsColouredAsComment`: path `"a.ts"`. After-file line 1 is `/*`, lines 2–4 are comment text, line 5 is `*/` and line 6 is `let y = 2`. A clip shows lines 3–6. Lines 3–5 are entirely `.comment`, and on line 6 `let` is `.keyword`.
 - [ ] **Step 2:** Run with `-only-testing:SlipstreamViewerTests/ChangeStreamPageTests`. Expected: the new tests FAIL.
-- [ ] **Step 3:** Implement the loader changes and the view line. Lexing happens inside the existing `@concurrent load`, and the result is cached in `cardContents` with the rest of the content, so there are no new caches or generation checks.
+- [ ] **Step 3:** Implement the loader changes, `sourceText` and the view line. Lexing happens inside the existing `@concurrent load`, and the result is cached in `cardContents` with the rest of the content, so there are no new caches or generation checks.
 - [ ] **Step 4:** Run the full `ChangeStreamPageTests`, `ChangedTextMarksTests` and `SourceSelectionTests` (`AskAgentPage/`), per the touched-area regression rule. Expected: PASS.
 - [ ] **Step 5:** Commit `feat: colour change-stream card source lines`.
 
@@ -242,7 +244,7 @@ Rules (one language per source; embedded languages use the host rules). Anything
 - [ ] **Step 2:** Run the full CI command (`swift test`, then `xcodegen generate` and the `xcodebuild test` line from `.github/workflows/swift-test.yml`). Expected: everything passes with no warnings.
 - [ ] **Step 3: Visual check against `screens.md`.** Use a disposable daemon (`SLIPSTREAM_STORE` plus `npm run qa:daemon` in the daemon repo, never `~/.slipstream`). Edit a `.ts` file, a `.conf` file and a file with tabs and an emoji, and ask an agent for a `swift` fence and an untagged fence. Compare against the five PNGs, and confirm that:
   - the marker, tint and tick are unchanged, and tinted words use the lifted colours;
-  - Ask selection still selects lines;
+  - Ask selection still selects lines, and the selected lines use the lifted colours;
   - long lines still truncate, and chat code scrolls horizontally;
   - Copy on a reply gives the original text.
 - [ ] **Step 4:** Commit `docs: release note for syntax highlighting`.
@@ -264,6 +266,8 @@ Codex (`gpt-6-astra`) and a Claude Opus reviewer, run in parallel and read-only 
 | S9 | Chat lexes on every redraw because `markdownBlocks` runs in `body` | both | Accepted with rationale: it matches today's Markdown parsing, blocks are small and the lexer is linear. Spec R5 corrected. |
 | S10 | Trim unrequired rules: Markdown markers and links, CSS selectors, YAML anchors and tags, JSON keys as type | Opus | Adopted; none appear in the approved screens |
 | S11 | Existing card tests with exact `CodeLine` values would pick up runs | Opus | Adopted: those loads use a `.txt` path (Task 5) |
+
+After the plan was approved, CodeRabbit flagged two contrast failures on the PR. Brian chose both fixes (2026-11-12): the comment base moves from `#7D93A5` (4.42:1) to `#8399AB` (4.77:1), and lines inside an Ask selection use the lifted colours (`sourceText`, Task 5).
 
 ## Unresolved questions
 

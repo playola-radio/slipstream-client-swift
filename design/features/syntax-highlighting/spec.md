@@ -43,13 +43,15 @@ goal). It must not drown out the blue "this changed" marks, which are what the s
    | number, constant, enum case | `#E5B98C` | `#F0D7BD` |
    | type | `#8ECDC2` | `#BFE3DC` |
    | function call or declaration | `#E2D29A` | `#E8DBAE` |
-   | comment | `#7D93A5` | `#D5DCE2` |
+   | comment | `#8399AB` | `#D5DCE2` |
    | punctuation and operators | `#8DA2B4` | `#D5DDE3` |
    | plain identifier | `#C9D6E3` | `#D1DCE7` |
 
    Inside the 50% change tint (composited `#34658A`), every token uses its lifted colour, which is
    the base colour mixed toward white until it reaches 4.5:1 (finding R1). A token that is partly
-   inside a tint is lifted only for the tinted characters.
+   inside a tint is lifted only for the tinted characters. Lines inside an Ask selection (fill
+   `#315D7A`) use the lifted colours across the whole line, because the base colours drop to
+   2.2–3.3:1 there; lifted, they reach 5.1:1.
 
 4. **Falling back.** These are drawn flat, exactly as today:
    - a card whose file extension isn't supported, in `#BDCDDF`;
@@ -83,7 +85,6 @@ goal). It must not drown out the blue "this changed" marks, which are what the s
 - Themes, a palette setting, and light mode.
 - Semantic or LSP highlighting. Lexical colouring only.
 - Changing the change marks themselves (marker, tint, tick).
-- Colouring the Ask selection differently. The selection draws over coloured text as it does today.
 
 ## Open questions
 
@@ -113,6 +114,8 @@ by the simplicity gate there.
 | 2026-11-12 | **Chat reply code block** states approved: Tagged fence, Untagged or unknown fence. Common tag aliases (`typescript`/`ts`, `py`/`python`, `yml`/`yaml`, `bash`/`sh`/`zsh`) count as supported. Brian: "approved" | Nodes `KaEDj`, `iO7Nd` |
 | 2026-11-12 | Inside a change tint, every token lifts toward white to ≥4.5:1 (R1). Brian: "looks good". Applied to `O5yb0` and `hwIGn` and re-exported. | Palette table, scope 3 |
 | 2026-11-12 | **Implementation plan** approved, including the simplicity-gate dispositions S1–S11. Brian: "yes" | [implementation-plan.md](./implementation-plan.md) at `8e2e092` |
+| 2026-11-12 | Comment base lightened from `#7D93A5` to `#8399AB` (4.77:1 on the card, 4.79:1 in chat), after a CodeRabbit contrast finding. Brian chose "Lighten to #8399AB" | Palette table, scope 3; node `jn5Jy` |
+| 2026-11-12 | Lines inside an Ask selection use the lifted colours, after a CodeRabbit contrast finding. This reverses the earlier non-goal of leaving the selection's colours alone. Brian chose "Use the lifted colours" | Scope 3; `hwIGn` selection rows |
 
 ## Design deliverables
 
