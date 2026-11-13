@@ -1071,6 +1071,10 @@ enum DesignTokens {
     static let changedTextTint = Color(hex: 0x4B9CDA).opacity(0.5)
     static let removalTick = Color(hex: 0x4B9CDA)
     static let removalTickWidth: CGFloat = 2
+
+    static func chevron(isExpanded: Bool) -> Icons.Icon {
+      Icons.Icon(assetName: isExpanded ? "ChevronDown" : "ChevronRight", size: 12, color: Colors.eventTime)
+    }
   }
 
   enum Footer {

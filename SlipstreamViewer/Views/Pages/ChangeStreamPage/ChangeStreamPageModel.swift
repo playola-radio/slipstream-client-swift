@@ -153,8 +153,10 @@ final class ChangeStreamPageModel: ViewModel {
   var newestFileID: Seq?
   var follow: FollowState = .following
   var scrollToLatestRequest = 0
+  var feedScrollPosition = ScrollPosition()
   private(set) var historyRolledBack = false
   private(set) var cardContents: [Seq: CardContent] = [:]
+  private(set) var collapsedFileIDs: Set<Seq> = []
   private(set) var rightPane: RightPane = .stream
   private var resizeStartWidth: CGFloat?
   private(set) var isFunctionDemoVisible: Bool
@@ -189,6 +191,7 @@ final class ChangeStreamPageModel: ViewModel {
   @ObservationIgnored private var bindingMovedWhileAwaitingSnapshot = false
   @ObservationIgnored private var isUserScrolling = false
   @ObservationIgnored private var lastVisibleMaxY: Double?
+  @ObservationIgnored private var feedOffsetY: Double = 0
   @ObservationIgnored private var barFrames: [String: CGRect] = [:]
   @ObservationIgnored private var cardFrames: [Seq: (row: FileChangeRow, section: FeedSection, frame: CGRect)] = [:]
   @ObservationIgnored private var taskHeadingHeight: CGFloat = 0
@@ -776,6 +779,18 @@ final class ChangeStreamPageModel: ViewModel {
     cardContents[row.id] ?? .loading
   }
 
+  func isCollapsed(_ row: FileChangeRow) -> Bool {
+    collapsedFileIDs.contains(row.id)
+  }
+
+  func collapseChevron(for row: FileChangeRow) -> DesignTokens.Icons.Icon {
+    DesignTokens.Card.chevron(isExpanded: !isCollapsed(row))
+  }
+
+  func collapseAccessibilityText(for row: FileChangeRow) -> String {
+    "\(isCollapsed(row) ? "Expand" : "Collapse") \(row.path)"
+  }
+
   func openIndicatorText(for row: FileChangeRow) -> String? {
     !isFunctionDemoVisible && row.id == newestFileID ? "OPEN →" : nil
   }
@@ -1135,6 +1150,8 @@ final class ChangeStreamPageModel: ViewModel {
     isUserScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
   }
 
+  func feedScrolled(offsetY: Double) { feedOffsetY = offsetY }
+
   func scrollGeometryChanged(contentHeight: Double, visibleMaxY: Double) {
     defer { lastVisibleMaxY = visibleMaxY }
     guard isUserScrolling, visibleMaxY != lastVisibleMaxY else { return }
@@ -1152,6 +1169,14 @@ final class ChangeStreamPageModel: ViewModel {
 
   func cardRetryTapped(_ row: FileChangeRow) async {
     await loadCardContent(row)
+  }
+
+  func fileHeaderTapped(_ row: FileChangeRow) {
+    guard collapsedFileIDs.remove(row.id) == nil else { return }
+    collapsedFileIDs.insert(row.id)
+    let headerOffset = fileHeaderOffset(for: row)
+    guard headerOffset > 0 else { return }
+    feedScrollPosition.scrollTo(point: CGPoint(x: 0, y: feedOffsetY - headerOffset))
   }
 
   func cardDisappeared(_ row: FileChangeRow) {
@@ -2144,6 +2169,7 @@ final class ChangeStreamPageModel: ViewModel {
     sections = []
     newestFileID = nil
     cardContents = [:]
+    collapsedFileIDs = []
     cardContentOrder = []
     cardLoadGenerations = [:]
     cardFrames = [:]

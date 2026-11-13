@@ -1814,6 +1814,67 @@ struct ChangeStreamPageTests {
     #expect(model.openIndicatorText(for: try #require(fileRow(model, 2))) == "OPEN →")
   }
 
+  @Test func tappingAFileHeaderCollapsesAndExpandsItsCard() async throws {
+    let model = await connectedModel()
+    await send(Fixture.edited(1))
+    let row = try #require(fileRow(model, 1))
+    model.fileHeaderTapped(row)
+    #expect(model.isCollapsed(row))
+    model.fileHeaderTapped(row)
+    #expect(!model.isCollapsed(row))
+  }
+
+  @Test func collapsingACardLeavesAnotherChangeToTheSameFileOpen() async throws {
+    let model = await connectedModel()
+    await send(Fixture.edited(1, "package.json"), Fixture.edited(2, "package.json"))
+    model.fileHeaderTapped(try #require(fileRow(model, 2)))
+    #expect(!model.isCollapsed(try #require(fileRow(model, 1))))
+  }
+
+  @Test func aNewCardArrivesExpanded() async throws {
+    let model = await connectedModel()
+    await send(Fixture.edited(1, "package.json"))
+    model.fileHeaderTapped(try #require(fileRow(model, 1)))
+    await send(Fixture.edited(2, "package.json"))
+    #expect(!model.isCollapsed(try #require(fileRow(model, 2))))
+  }
+
+  @Test func fileHeaderChevronAndLabelFollowTheCollapse() async throws {
+    let model = await connectedModel()
+    await send(Fixture.edited(1, "package.json"))
+    let row = try #require(fileRow(model, 1))
+    expectNoDifference(model.collapseChevron(for: row).assetName, "ChevronDown")
+    expectNoDifference(model.collapseAccessibilityText(for: row), "Collapse package.json")
+    model.fileHeaderTapped(row)
+    expectNoDifference(model.collapseChevron(for: row).assetName, "ChevronRight")
+    expectNoDifference(model.collapseAccessibilityText(for: row), "Expand package.json")
+  }
+
+  @Test func switchingSessionsForgetsCollapsedCards() async throws {
+    fake.setSessions(
+      [
+        SessionSummary(id: Fixture.session, durableSeq: .zero, removed: false),
+        SessionSummary(id: Fixture.otherSession, durableSeq: .zero, removed: false),
+      ],
+      starts: [
+        Fixture.session: SessionStarted(root: "/tmp/project", startedAtMs: 0),
+        Fixture.otherSession: SessionStarted(root: "/tmp/other", startedAtMs: 0),
+      ])
+    let model = makeModel()
+    defer { model.viewDisappeared() }
+    await model.viewAppeared()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    await send(Fixture.edited(1))
+    model.fileHeaderTapped(try #require(fileRow(model, 1)))
+    model.sessionSelected(Fixture.otherSession)
+    await Task.megaYield()
+    model.sessionSelected(Fixture.session)
+    await Task.megaYield()
+    await send(Fixture.edited(1))
+    #expect(!model.isCollapsed(try #require(fileRow(model, 1))))
+  }
+
   @Test func fixturePaneDoesNotMarkAnUnrelatedFeedCardOpen() async throws {
     let model = makeModel(isFunctionDemoVisible: true)
     await model.viewAppeared()
@@ -1912,6 +1973,32 @@ struct ChangeStreamPageTests {
     #expect(model.fileHeaderOffset(for: row) == 0)
     model.cardMoved(row, in: section, frame: CGRect(x: 0, y: -60, width: 400, height: 300))
     #expect(model.fileHeaderOffset(for: row) == 100)
+  }
+
+  @Test func collapsingACardWithAStuckFileNameKeepsTheNameWhereItWas() async throws {
+    let model = await connectedModel()
+    await send(Fixture.taskStarted(1, "Convert isActive"), Fixture.edited(2))
+    let section = try #require(model.sections.first)
+    let row = try #require(fileRow(model, 2))
+    model.taskHeadingMeasured(height: 40)
+    model.fileHeaderMeasured(height: 30)
+    model.feedScrolled(offsetY: 500)
+    model.cardMoved(row, in: section, frame: CGRect(x: 0, y: -60, width: 400, height: 300))
+    model.fileHeaderTapped(row)
+    expectNoDifference(model.feedScrollPosition.point, CGPoint(x: 0, y: 400))
+  }
+
+  @Test func collapsingACardWhoseFileNameIsNotStuckLeavesTheScrollAlone() async throws {
+    let model = await connectedModel()
+    await send(Fixture.taskStarted(1, "Convert isActive"), Fixture.edited(2))
+    let section = try #require(model.sections.first)
+    let row = try #require(fileRow(model, 2))
+    model.taskHeadingMeasured(height: 40)
+    model.fileHeaderMeasured(height: 30)
+    model.feedScrolled(offsetY: 500)
+    model.cardMoved(row, in: section, frame: CGRect(x: 0, y: 100, width: 400, height: 300))
+    model.fileHeaderTapped(row)
+    #expect(model.feedScrollPosition.point == nil)
   }
 
   @Test func aFileNameRecalculatesWhenItsCardMovesBeforeItsHeightsAreMeasured() async throws {
@@ -2211,6 +2298,29 @@ extension ChangeStreamPageTests {
     #expect(model.sourceSelection != nil)
     model.sourceBlockMoved(row: row, block: blocks[0], frame: CGRect(x: 30, y: -100, width: 620, height: 66))
     #expect(!model.showsSelectionConnector)
+  }
+
+  @Test func collapsingTheSelectedCardHidesTheSelectionUntilItExpands() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "one\ntwo\nthree\n")
+    fake.setClips(ClipsResponse(status: .ready, clips: [Clip(after: ClipSide(
+      span: ClipSpan(lineStart: 1, lineEnd: 3, truncated: false), method: .changedRange))]), for: Fixture.seq(1))
+    await send(Fixture.fileChanged(1, "source.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing code"); return }
+    let frame = CGRect(x: 30, y: 30, width: 620, height: 66)
+    model.viewportChanged(CGSize(width: 1100, height: 800))
+    model.feedViewportChanged(CGRect(x: 0, y: 52, width: 680, height: 710))
+    model.sourceDragged(row: row, block: blocks[0], startY: 0, endY: 60, frame: frame)
+    model.fileHeaderTapped(row)
+    model.sourceBlockDisappeared(row: row, block: blocks[0])
+    #expect(!model.showsSelectionConnector)
+    #expect(model.sourceSelection != nil)
+    model.fileHeaderTapped(row)
+    model.sourceBlockMoved(row: row, block: blocks[0], frame: frame)
+    #expect(model.showsSelectionConnector)
   }
 
   // MARK: - Question bars

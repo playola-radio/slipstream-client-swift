@@ -391,7 +391,11 @@ struct ChangeStreamPageView: View {
       .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("question-workspace")) } action: {
         model.feedViewportChanged($0)
       }
+      .scrollPosition($model.feedScrollPosition)
       .onScrollPhaseChange { _, phase in model.scrollPhaseChanged(phase) }
+      .onScrollGeometryChange(for: Double.self) { $0.contentOffset.y } action: { _, offsetY in
+        model.feedScrolled(offsetY: offsetY)
+      }
       .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
         ScrollMetrics(contentHeight: geometry.contentSize.height, visibleMaxY: geometry.visibleRect.maxY)
       } action: { _, metrics in
@@ -701,12 +705,14 @@ private struct FileCardView: View {
       .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.fileHeaderMeasured(height: $0) }
       .offset(y: headerOffset)
       .zIndex(1)
-      contentView
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, DesignTokens.Card.codeTopPadding)
-        .padding(.horizontal, DesignTokens.Card.codeSidePadding)
-        .padding(.bottom, DesignTokens.Card.codeBottomPadding)
-        .background(DesignTokens.Card.codeFill(emphasis))
+      if !model.isCollapsed(row) {
+        contentView
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.top, DesignTokens.Card.codeTopPadding)
+          .padding(.horizontal, DesignTokens.Card.codeSidePadding)
+          .padding(.bottom, DesignTokens.Card.codeBottomPadding)
+          .background(DesignTokens.Card.codeFill(emphasis))
+      }
     }
     .background(DesignTokens.Card.fill)
     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Card.radius))
@@ -717,7 +723,14 @@ private struct FileCardView: View {
   }
 
   private var header: some View {
+    Button { model.fileHeaderTapped(row) } label: { headerLabel }
+      .buttonStyle(.plain)
+      .accessibilityLabel(model.collapseAccessibilityText(for: row))
+  }
+
+  private var headerLabel: some View {
     HStack(spacing: DesignTokens.Card.headerGap) {
+      IconView(icon: model.collapseChevron(for: row))
       IconView(icon: DesignTokens.Icons.fileText)
       Text(row.path)
         .font(DesignTokens.Fonts.filePath)
@@ -737,6 +750,7 @@ private struct FileCardView: View {
     .padding(.vertical, DesignTokens.Card.headerVerticalPadding)
     .padding(.horizontal, DesignTokens.Card.headerHorizontalPadding)
     .background(DesignTokens.Card.headerFill(emphasis))
+    .contentShape(Rectangle())
   }
 
   @ViewBuilder
