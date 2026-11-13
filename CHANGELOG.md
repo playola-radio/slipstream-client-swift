@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.21] - 2026-11-13
+
+- Archiving a workspace removes its row from the sidebar right away, and renaming one
+  shows the new name right away, instead of waiting for Slipstream to finish. If
+  Slipstream refuses, the row or old name comes back with the full error.
+
 ## [0.4.20] - 2026-11-12
 
 - When a question about a chat comes back without a usable answer, the error now says how
