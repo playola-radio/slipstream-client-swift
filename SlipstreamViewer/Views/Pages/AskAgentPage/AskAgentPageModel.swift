@@ -238,7 +238,7 @@ final class AskAgentPageModel: ViewModel {
   func questionsUpdated(_ threads: IdentifiedArrayOf<QuestionThread>) {
     guard let request,
       threads.contains(where: { thread in
-        thread.turns.contains { $0.requestID == request.requestID && $0.status == .notDelivered }
+        thread.turns.contains { $0.requestID == request.requestID && $0.needsAskingAgain }
       })
     else { return }
     self.request = nil

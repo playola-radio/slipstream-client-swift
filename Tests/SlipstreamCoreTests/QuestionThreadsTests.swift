@@ -354,15 +354,24 @@ struct QuestionThreadsTests {
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.notDelivered])
   }
 
-  @Test func aQuestionDispatchedBeforeTheResumeKeepsWaitingAndCanStillBeAnswered() {
+  @Test func aQuestionDispatchedBeforeTheResumeIsUnconfirmedAndCanStillBeAnswered() {
     var threads = QuestionThreads([
       QuestionFixture.queued(1, id: "q1"),
       QuestionFixture.attempted(2, id: "q1"),
       QuestionFixture.resumed(3),
     ])
-    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.waiting])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.unconfirmed])
     threads.apply(QuestionFixture.answered(5, id: "q1"))
     expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.answered])
+  }
+
+  @Test func aQuestionDispatchedAfterTheResumeKeepsWaiting() {
+    let threads = QuestionThreads([
+      QuestionFixture.resumed(1),
+      QuestionFixture.queued(2, id: "q1"),
+      QuestionFixture.attempted(3, id: "q1"),
+    ])
+    expectNoDifference(threads.threads[id: "q1"]?.turns.map(\.status), [.waiting])
   }
 
   @Test func answeredTurnsStayAnsweredAcrossAResume() {
@@ -449,7 +458,7 @@ extension QuestionThreadsTests {
     expectNoDifference(QuestionThreads(events + [QuestionFixture.unlinked(6)]), QuestionThreads(events))
   }
 
-  @Test func unlinkLeavesQuestionsFromBeforeTheLatestResumeWaiting() {
+  @Test func unlinkLeavesQuestionsFromBeforeTheLatestResumeAlone() {
     let threads = QuestionThreads([
       QuestionFixture.queued(1, id: "q1"),
       QuestionFixture.attempted(2, id: "q1"),
@@ -457,7 +466,7 @@ extension QuestionThreadsTests {
       QuestionFixture.queued(4, id: "q2"),
       QuestionFixture.unlinked(5),
     ])
-    expectNoDifference(threads.threads.map { $0.turns.map(\.status) }, [[.waiting], [.resending]])
+    expectNoDifference(threads.threads.map { $0.turns.map(\.status) }, [[.unconfirmed], [.resending]])
   }
 
   @Test(arguments: ["detached", "archived"])

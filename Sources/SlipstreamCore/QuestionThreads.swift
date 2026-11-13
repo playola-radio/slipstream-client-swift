@@ -118,6 +118,8 @@ public struct QuestionTurn: Equatable, Sendable {
     case answered
     case notDelivered
     case resending
+    /// Dispatched before recording restarted and not answered since, so it may never have reached the agent.
+    case unconfirmed
   }
 
   public let questionID: String
@@ -127,11 +129,12 @@ public struct QuestionTurn: Equatable, Sendable {
   public var answer: QuestionAnswer?
   public var isDropped: Bool
   public var isMoved: Bool
+  public var isUnconfirmed: Bool
   public var relays: [QuestionRelay]
 
   public init(
     questionID: String, requestID: String, text: String, queuedAtMs: Int64, answer: QuestionAnswer? = nil,
-    isDropped: Bool = false, isMoved: Bool = false, relays: [QuestionRelay] = []
+    isDropped: Bool = false, isMoved: Bool = false, isUnconfirmed: Bool = false, relays: [QuestionRelay] = []
   ) {
     self.questionID = questionID
     self.requestID = requestID
@@ -140,14 +143,19 @@ public struct QuestionTurn: Equatable, Sendable {
     self.answer = answer
     self.isDropped = isDropped
     self.isMoved = isMoved
+    self.isUnconfirmed = isUnconfirmed
     self.relays = relays
   }
 
   public var status: Status {
     if answer != nil { return .answered }
     if isDropped { return .notDelivered }
+    if isUnconfirmed { return .unconfirmed }
     return isMoved ? .resending : .waiting
   }
+
+  /// Re-sending its request would only return this same question, so asking again needs a fresh one.
+  public var needsAskingAgain: Bool { [.notDelivered, .unconfirmed].contains(status) }
 }
 
 public enum QuestionThreadLink: Equatable, Sendable {
@@ -251,6 +259,11 @@ public struct QuestionThreads: Equatable, Sendable {
     case .sessionResumed:
       for questionID in undispatchedQuestionIDs {
         updateTurn(questionID) { $0.isDropped = true }
+      }
+      for thread in threads {
+        for turn in thread.turns where turn.answer == nil && !turn.isDropped {
+          updateTurn(turn.questionID) { $0.isUnconfirmed = true }
+        }
       }
       undispatchedQuestionIDs.removeAll()
       queuedSinceResumeIDs.removeAll()
