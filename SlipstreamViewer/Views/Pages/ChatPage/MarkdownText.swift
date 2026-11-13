@@ -2,14 +2,14 @@ import SwiftUI
 
 /// A reply: headings, lists, quotes, tables and paragraphs with inline markdown, and fenced code in Geist Mono.
 struct MarkdownText: View {
-  let text: String
+  let blocks: [ChatTabModel.MarkdownBlock]
   let codeCopyAccessibilityLabel: String
   let codeCopyTapped: (String) -> Void
   @Environment(\.fontScale) private var fontScale
 
   var body: some View {
     VStack(alignment: .leading, spacing: DesignTokens.Chat.Transcript.gap) {
-      ForEach(Array(ChatTabModel.markdownBlocks(text).enumerated()), id: \.offset) { _, block in
+      ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
         switch block {
         case .prose(let prose):
           paragraph(prose)
@@ -44,10 +44,10 @@ struct MarkdownText: View {
           Rectangle()
             .fill(DesignTokens.Chat.Rule.color)
             .frame(height: DesignTokens.Chat.Rule.height)
-        case .code(let code):
+        case .code(let code, let runs):
           CappedHeight(maxHeight: DesignTokens.Chat.CodeBlock.maxHeight) {
             ScrollView([.horizontal, .vertical]) {
-              Text(code)
+              Text(DesignTokens.Syntax.styled(code, runs: runs))
                 .font(DesignTokens.Chat.CodeBlock.font)
                 .foregroundStyle(DesignTokens.Chat.CodeBlock.color)
                 .padding(DesignTokens.Chat.CodeBlock.padding)

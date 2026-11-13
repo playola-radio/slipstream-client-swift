@@ -322,7 +322,7 @@ private struct TranscriptView: View {
       .frame(maxWidth: .infinity, alignment: .trailing)
     case .reply:
       MarkdownText(
-        text: tab.rowText(for: item),
+        blocks: tab.markdownBlocks(for: item),
         codeCopyAccessibilityLabel: tab.codeCopyAccessibilityLabel,
         codeCopyTapped: { tab.codeCopyTapped($0) })
     case .thinking:

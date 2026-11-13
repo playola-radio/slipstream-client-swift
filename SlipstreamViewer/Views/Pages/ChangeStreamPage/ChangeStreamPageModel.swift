@@ -639,6 +639,19 @@ final class ChangeStreamPageModel: ViewModel {
     return selection.rect(in: CGRect(x: 0, y: 0, width: width, height: 0), lineHeight: sourceLineHeight)
   }
 
+  func sourceText(_ line: CodeLine, row: FileChangeRow, block: CodeBlock) -> AttributedString {
+    let isSelected =
+      if let selection = sourceSelection, selection.sessionID == selectedSession?.id,
+        selection.rowID == row.id, selection.blockID == block.id
+      {
+        (selection.context.lineStart...selection.context.lineEnd).contains(line.id)
+      } else {
+        false
+      }
+    let tintedRanges = isSelected ? [0..<line.text.utf16.count] : line.changedRanges
+    return DesignTokens.Syntax.styled(line.text, runs: line.syntaxRuns, tintedRanges: tintedRanges)
+  }
+
   func feedViewportChanged(_ frame: CGRect) { feedViewport = frame }
   func viewportChanged(_ size: CGSize) {
     viewport = CGRect(origin: .zero, size: size)

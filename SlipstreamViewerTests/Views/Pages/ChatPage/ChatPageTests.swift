@@ -1621,6 +1621,17 @@ struct ChatPageTests {
     expectNoDifference([running, edited, reply].map(tab.isRunning), [true, false, false])
   }
 
+  @Test func markdownBlocksReplaceCachedReplyWhenItsTextChanges() throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let old = TranscriptItem(id: "reply", kind: .reply("Old reply"))
+    let new = TranscriptItem(id: "reply", kind: .reply("New reply"))
+
+    expectNoDifference(tab.markdownBlocks(for: old), ChatTabModel.markdownBlocks("Old reply"))
+    expectNoDifference(tab.markdownBlocks(for: new), ChatTabModel.markdownBlocks("New reply"))
+  }
+
   @Test func copyCopiesTheTurnsReply() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
@@ -1652,7 +1663,7 @@ struct ChatPageTests {
       """
     let blocks = ChatTabModel.markdownBlocks(reply)
     let codeBlocks: [String] = blocks.compactMap { block -> String? in
-      guard case let .code(code) = block else { return nil }
+      guard case let .code(code, _) = block else { return nil }
       return code
     }
     let secondCode = try #require(codeBlocks.dropFirst().first)
@@ -1680,7 +1691,15 @@ struct ChatPageTests {
       ChatTabModel.markdownBlocks(text),
       [
         .prose(try AttributedString(markdown: "Run **this**:", options: options)),
-        .code("let a = 1\n\nlet b = 2"),
+        .code(
+          "let a = 1\n\nlet b = 2",
+          runs: [
+            SyntaxRun(range: 0..<3, kind: .keyword), SyntaxRun(range: 4..<5, kind: .plain),
+            SyntaxRun(range: 6..<7, kind: .punctuation), SyntaxRun(range: 8..<9, kind: .number),
+            SyntaxRun(range: 11..<14, kind: .keyword), SyntaxRun(range: 15..<16, kind: .plain),
+            SyntaxRun(range: 17..<18, kind: .punctuation), SyntaxRun(range: 19..<20, kind: .number),
+          ]
+        ),
         .prose(try AttributedString(markdown: "Then `check`.", options: options)),
         .code("unclosed"),
       ])
@@ -1710,8 +1729,43 @@ struct ChatPageTests {
     expectNoDifference(
       ChatTabModel.markdownBlocks(text),
       [
-        .code("```swift\nlet a = 1\n```"),
+        .code(
+          "```swift\nlet a = 1\n```",
+          runs: [
+            SyntaxRun(range: 0..<8, kind: .plain), SyntaxRun(range: 9..<18, kind: .string),
+            SyntaxRun(range: 19..<22, kind: .plain),
+          ]
+        ),
         .code("`tick` stays"),
+      ])
+  }
+
+  @Test func untaggedAndUnknownFencesStayFlat() {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```\nlet a\n```\n```console\nlet b\n```"),
+      [.code("let a"), .code("let b")])
+  }
+
+  @Test func codeBlocksOverTheRunBudgetStayFlat() {
+    let code = Array(repeating: "let a = 1", count: DesignTokens.Syntax.maximumRuns / 4 + 1)
+      .joined(separator: "\n")
+
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```swift\n\(code)\n```"),
+      [.code(code)])
+  }
+
+  @Test func unclosedFenceIsHighlighted() {
+    expectNoDifference(
+      ChatTabModel.markdownBlocks("```py\nx = None"),
+      [
+        .code(
+          "x = None",
+          runs: [
+            SyntaxRun(range: 0..<1, kind: .plain), SyntaxRun(range: 2..<3, kind: .punctuation),
+            SyntaxRun(range: 4..<8, kind: .number),
+          ]
+        )
       ])
   }
 

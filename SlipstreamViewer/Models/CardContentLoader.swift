@@ -54,12 +54,13 @@ enum CardContentLoader {
     let isBeforeVerifiable = before != nil || row.before == .absent
     return content(
       response.clips, fallbackReason: response.fallbackReason, before: before, after: after,
-      isBeforeVerifiable: isBeforeVerifiable
+      isBeforeVerifiable: isBeforeVerifiable, language: SyntaxLanguage(path: row.path)
     )
   }
 
   static func content(
-    _ clips: [Clip], fallbackReason: String?, before: String?, after: String, isBeforeVerifiable: Bool = true
+    _ clips: [Clip], fallbackReason: String?, before: String?, after: String, isBeforeVerifiable: Bool = true,
+    language: SyntaxLanguage? = nil
   ) -> CardContent {
     let shown = clips.filter { $0.after.span != nil }
     guard !shown.isEmpty else {
@@ -71,12 +72,15 @@ enum CardContentLoader {
     }
     let spans = merged(shown.compactMap(\.after.span))
     let comparison = ChangedLines.compare(before: before, after: after, spans: spans)
+    let syntaxRuns = language.map {
+      SyntaxLexer.lines(after.replacingOccurrences(of: "\t", with: String(repeating: " ", count: tabWidth)), language: $0)
+    } ?? []
     let blocks = spans.enumerated().map { index, span in
       CodeBlock(
         id: index,
         separatorText: index == 0 ? nil : "···",
         lines: comparison.clipLines(lineStart: span.lineStart, lineEnd: span.lineEnd).map {
-          codeLine($0, isVerified: isBeforeVerifiable)
+          codeLine($0, isVerified: isBeforeVerifiable, syntaxRuns: syntaxRuns.indices.contains($0.number - 1) ? syntaxRuns[$0.number - 1] : [])
         },
         truncationText: span.truncated ? "… truncated" : nil
       )
@@ -88,11 +92,11 @@ enum CardContentLoader {
 
   private static let removalAnnouncement = ", removed text, "
 
-  private static func codeLine(_ line: ClipLine, isVerified: Bool) -> CodeLine {
+  private static func codeLine(_ line: ClipLine, isVerified: Bool, syntaxRuns: [SyntaxRun]) -> CodeLine {
     var codeLine = CodeLine(
       id: line.number, number: String(line.number),
       text: line.text.replacingOccurrences(of: "\t", with: String(repeating: " ", count: tabWidth)),
-      sourceText: line.text, isChanged: line.isChanged, isVerified: isVerified
+      sourceText: line.text, isChanged: line.isChanged, isVerified: isVerified, syntaxRuns: syntaxRuns
     )
     guard let changedText = line.changedText else { return codeLine }
     var displayOffsets = [0]
