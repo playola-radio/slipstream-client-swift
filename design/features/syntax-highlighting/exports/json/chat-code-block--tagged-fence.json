@@ -1,0 +1,862 @@
+{
+  "type": "frame",
+  "id": "KaEDj",
+  "name": "Transcript \u00b7 tagged",
+  "width": "fill_container",
+  "fill": "#12171D",
+  "cornerRadius": 8,
+  "stroke": "#2A3640",
+  "strokeWidth": 1,
+  "layout": "vertical",
+  "gap": 12,
+  "padding": 20,
+  "children": [
+    {
+      "type": "text",
+      "id": "C8Vbg",
+      "name": "Paragraph",
+      "fill": "#E6EDF3",
+      "textGrowth": "fixed-width",
+      "width": "fill_container",
+      "content": "The access check now compares against the enum instead of a boolean:",
+      "lineHeight": 1.5,
+      "fontFamily": "Geist",
+      "fontSize": 13,
+      "fontWeight": "normal"
+    },
+    {
+      "type": "frame",
+      "id": "SLa3b",
+      "name": "Code block",
+      "width": "fill_container",
+      "fill": "#232C36",
+      "cornerRadius": 6,
+      "layout": "vertical",
+      "gap": 3,
+      "padding": 12,
+      "children": [
+        {
+          "type": "frame",
+          "id": "OPdwD",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "W9xYv",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "enum",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "NW0zr",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "h4U8in",
+              "name": "type",
+              "fill": "#8ECDC2",
+              "content": "ActivityState",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "v2XJq",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ":",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "g7kNX",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "EATek",
+              "name": "type",
+              "fill": "#8ECDC2",
+              "content": "String",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "BMkfH",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "Tlgy6",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "{",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "C94DT",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "xeWUi",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": "  ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "IcAxZ",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "case",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "rlykL",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "mLFK8",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "active",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "W3bWhc",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ",",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "l7NXrf",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "CMBk3",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "inactive",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "I5wgy",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ",",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "abWfj",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "BVJKW",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "suspended",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "EWqb8",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "O3Grog",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "}",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "cnbUg",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "qZIns",
+              "name": "Empty",
+              "width": 1,
+              "height": 16
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hDkhS",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "oHtaG",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "func",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "zi7ag",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "rwVFb",
+              "name": "fn",
+              "fill": "#E2D29A",
+              "content": "isAllowed",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "kDG8M",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "(",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "uEqgZ",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "_",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "makff",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "AWloU",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "user",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "pJFfW",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ":",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "Y3esy",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "x6ezw",
+              "name": "type",
+              "fill": "#8ECDC2",
+              "content": "User",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "uTsRb",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ")",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "U14dmt",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "hBx6V",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "->",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "w7I9Dg",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "h5nsp9",
+              "name": "type",
+              "fill": "#8ECDC2",
+              "content": "Bool",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "M55gK",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "kJw8M",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "{",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "xQERt",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "TdrEb",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": "  ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "jn5Jy",
+              "name": "com",
+              "fill": "#7D93A5",
+              "content": "// Suspended users never pass.",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Qzz60",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "R0hIm",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": "  ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "t7nioH",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "guard",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "m4C5i",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "E9uQ3",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "user",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "z3Rviu",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ".",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "yCecb",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "isActive",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "QiPuq",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "U2WD4",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "!",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "EwFiT",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "=",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "U58i8y",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "FMDkA",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ".",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "BDt7G",
+              "name": "num",
+              "fill": "#E5B98C",
+              "content": "suspended",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "cIkrG",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "FNvP1",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "else",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "cBzbs",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "x62Gn5",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "{",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "opFxu",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "R5U4oQ",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "return",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "JoMEU",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "KOpMx",
+              "name": "num",
+              "fill": "#E5B98C",
+              "content": "false",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "fBIKf",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "f0LQII",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "}",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "XJq7g",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "n4JJg",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": "  ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "lzYpG",
+              "name": "kw",
+              "fill": "#C3A6E6",
+              "content": "return",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "n35jAX",
+              "name": "ws",
+              "fill": "#C9D6E3",
+              "content": " ",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "uDTbt",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "user",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "lJj5h",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ".",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "pzncf",
+              "name": "plain",
+              "fill": "#C9D6E3",
+              "content": "roles",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "JLpg1",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ".",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "WzYIY",
+              "name": "fn",
+              "fill": "#E2D29A",
+              "content": "contains",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "q0c0ZQ",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "(",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "YsJhK",
+              "name": "str",
+              "fill": "#A9CF9B",
+              "content": "\"member\"",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "c65sK",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": ")",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "vRrEk",
+          "name": "Code line",
+          "height": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "D3XUbp",
+              "name": "punc",
+              "fill": "#8DA2B4",
+              "content": "}",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "ZAeHe",
+      "name": "Paragraph",
+      "fill": "#E6EDF3",
+      "textGrowth": "fixed-width",
+      "width": "fill_container",
+      "content": "Suspended accounts are rejected before the role check runs.",
+      "lineHeight": 1.5,
+      "fontFamily": "Geist",
+      "fontSize": 13,
+      "fontWeight": "normal"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "type": "frame",
+  "id": "iO7Nd",
+  "name": "Transcript \u00b7 untagged",
+  "width": "fill_container",
+  "fill": "#12171D",
+  "layout": "vertical",
+  "gap": 12,
+  "padding": 20,
+  "children": [
+    {
+      "type": "text",
+      "id": "n79bA1",
+      "name": "Paragraph",
+      "fill": "#E6EDF3",
+      "textGrowth": "fixed-width",
+      "width": "fill_container",
+      "content": "Here is the test run after the change:",
+      "lineHeight": 1.5,
+      "fontFamily": "Geist",
+      "fontSize": 13,
+      "fontWeight": "normal"
+    },
+    {
+      "type": "frame",
+      "id": "R9jnh",
+      "name": "Code block",
+      "width": "fill_container",
+      "fill": "#232C36",
+      "cornerRadius": 6,
+      "layout": "vertical",
+      "gap": 3,
+      "padding": 12,
+      "children": [
+        {
+          "type": "text",
+          "id": "MRKCm",
+          "name": "Code line",
+          "fill": "#E6EDF3",
+          "content": "$ npm test -- create-user",
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "T9ZcM",
+          "name": "Code line",
+          "fill": "#E6EDF3",
+          "content": "PASS  src/api/create-user.test.ts",
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "u5Dfw5",
+          "name": "Code line",
+          "fill": "#E6EDF3",
+          "content": "  \u2713 new accounts start inactive (4 ms)",
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "TKuGx",
+          "name": "Code line",
+          "fill": "#E6EDF3",
+          "content": "  \u2713 trims the name (1 ms)",
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "sF4MG",
+          "name": "Code line",
+          "fill": "#E6EDF3",
+          "content": "Tests: 12 passed, 12 total",
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "DpLy2",
+      "name": "Paragraph",
+      "fill": "#E6EDF3",
+      "textGrowth": "fixed-width",
+      "width": "fill_container",
+      "content": "All twelve tests pass, including the new inactive-account check.",
+      "lineHeight": 1.5,
+      "fontFamily": "Geist",
+      "fontSize": 13,
+      "fontWeight": "normal"
+    }
+  ]
+}
