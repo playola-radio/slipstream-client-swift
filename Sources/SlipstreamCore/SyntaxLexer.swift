@@ -21,11 +21,18 @@ public enum SyntaxLexer {
   public static func lines(_ source: String, language: SyntaxLanguage) -> [[SyntaxRun]] {
     let lines = ChangedLines.split(source).map(units)
     switch language {
-    case .swift, .typescript, .json:
+    case .swift, .typescript, .json, .python, .shell, .css:
       var scanner = CodeScanner(language: language)
       return lines.map { scanner.scan($0) }
-    case .yaml, .shell, .markdown, .python, .css, .html:
-      return lines.map { _ in [] }
+    case .yaml:
+      var scanner = YAMLScanner()
+      return lines.map { scanner.scan($0) }
+    case .markdown:
+      var scanner = MarkdownScanner()
+      return lines.map { scanner.scan($0) }
+    case .html:
+      var scanner = HTMLScanner()
+      return lines.map { scanner.scan($0) }
     }
   }
 
@@ -36,19 +43,26 @@ public enum SyntaxLexer {
   }
 }
 
-/// The scanner for C-like languages. It keeps the state a line can end in (inside a block
-/// comment or a multi-line string), so each line is lexed once, in order.
+/// The scanner for code: Swift, TypeScript, JSON, Python, shell and CSS. It keeps the state a
+/// line can end in (inside a block comment, a multi-line string or a heredoc), so each line is
+/// lexed once, in order.
 private struct CodeScanner {
   enum State {
     case code
     case blockComment(depth: Int)
     case string(Delimiter)
+    case heredoc(Heredoc)
   }
 
   struct Delimiter {
     var close: [UInt16]
     var escapes: Bool
     var spansLines: Bool
+  }
+
+  struct Heredoc {
+    var word: [UInt16]
+    var trimsIndent: Bool
   }
 
   /// What the last token was, for the guesses that depend on it: `Type.member` and Swift's
@@ -63,6 +77,8 @@ private struct CodeScanner {
   var runs: [SyntaxRun] = []
   /// A lone `.` just emitted on this line: where it ends, and what came before it.
   var dot: (end: Int, before: Previous)?
+  /// A shell heredoc opened on this line; its body starts on the next line.
+  var pendingHeredoc: Heredoc?
 
   init(language: SyntaxLanguage) {
     self.language = language
@@ -78,12 +94,21 @@ private struct CodeScanner {
     case .code: break
     case .blockComment(let depth): index = blockComment(from: 0, start: 0, depth: depth)
     case .string(let delimiter): index = string(delimiter, from: 0, start: 0)
+    case .heredoc(let heredoc):
+      emit(0..<line.count, .string)
+      let body = heredoc.trimsIndent ? line.drop(while: \.isWhitespace) : line[...]
+      if body.elementsEqual(heredoc.word) { state = .code }
+      return runs
     }
     while index < line.count {
       index = token(at: index)
     }
     if case .string(let delimiter) = state, !delimiter.spansLines {
       state = .code
+    }
+    if let heredoc = pendingHeredoc, case .code = state {
+      state = .heredoc(heredoc)
+      pendingHeredoc = nil
     }
     return runs
   }
@@ -101,17 +126,19 @@ private struct CodeScanner {
     if let (delimiter, contentStart) = stringOpening(at: index) {
       return string(delimiter, from: contentStart, start: index)
     }
-    if let end = prefixedKeyword(at: index) {
-      emit(index..<end, .keyword)
-      return end
-    }
+    if let end = languageToken(at: index) { return end }
     if unit.isDigit { return number(at: index) }
     if isIdentifierStart(unit) { return identifier(at: index) }
     return punctuation(at: index)
   }
 
   private func startsComment(at index: Int) -> Bool {
-    has("//", at: index) || has("/*", at: index)
+    switch language {
+    case .python: line[index] == .ascii("#")
+    case .shell: line[index] == .ascii("#") && (index == 0 || line[index - 1].isWhitespace)
+    case .css: has("/*", at: index)
+    default: has("//", at: index) || has("/*", at: index)
+    }
   }
 
   private mutating func blockComment(from index: Int, start: Int, depth: Int) -> Int {
@@ -153,10 +180,21 @@ private struct CodeScanner {
       let unit = line[index]
       guard unit == .ascii("\"") || unit == .ascii("'") || unit == .ascii("`") else { return nil }
       return (Delimiter(close: [unit], escapes: true, spansLines: unit == .ascii("`")), index + 1)
-    case .json:
-      guard line[index] == .ascii("\"") else { return nil }
-      return (Delimiter(close: [.ascii("\"")], escapes: true, spansLines: false), index + 1)
-    default:
+    case .python:
+      var quote = index
+      while quote < line.count, quote - index < 2, Self.pythonPrefixes.contains(line[quote]) { quote += 1 }
+      guard quote < line.count, line[quote] == .ascii("\"") || line[quote] == .ascii("'") else { return nil }
+      let triple = Array(repeating: line[quote], count: 3)
+      if has(triple, at: quote) {
+        return (Delimiter(close: triple, escapes: true, spansLines: true), quote + 3)
+      }
+      return (Delimiter(close: [line[quote]], escapes: true, spansLines: false), quote + 1)
+    case .json, .shell, .css:
+      let unit = line[index]
+      guard unit == .ascii("\"") || (unit == .ascii("'") && language != .json) else { return nil }
+      let escapes = !(language == .shell && unit == .ascii("'"))
+      return (Delimiter(close: [unit], escapes: escapes, spansLines: false), index + 1)
+    case .yaml, .markdown, .html:
       return nil
     }
   }
@@ -191,12 +229,70 @@ private struct CodeScanner {
     return line.count
   }
 
-  /// Swift's `@attribute` and `#directive`.
-  private func prefixedKeyword(at index: Int) -> Int? {
-    guard language == .swift, line[index] == .ascii("@") || line[index] == .ascii("#"),
-      index + 1 < line.count, isIdentifierStart(line[index + 1])
-    else { return nil }
-    return identifierEnd(from: index + 1)
+  /// Tokens only one language has: Swift's `@attribute` and `#directive`, Python's
+  /// `@decorator`, CSS's `@media`, `!important` and `#hex`, and shell variables and heredocs.
+  private mutating func languageToken(at index: Int) -> Int? {
+    let unit = line[index]
+    let isPrefixedKeyword =
+      switch language {
+      case .swift: unit == .ascii("@") || unit == .ascii("#")
+      case .python: unit == .ascii("@")
+      case .css: unit == .ascii("@") || unit == .ascii("!")
+      default: false
+      }
+    if isPrefixedKeyword, index + 1 < line.count, isIdentifierStart(line[index + 1]) {
+      let end = identifierEnd(from: index + 1)
+      emit(index..<end, .keyword)
+      return end
+    }
+    if language == .css, unit == .ascii("#") {
+      let end = identifierEnd(from: index + 1)
+      guard end > index + 1, line[(index + 1)..<end].allSatisfy(\.isHexDigit) else { return nil }
+      emit(index..<end, .number)
+      return end
+    }
+    if language == .shell, unit == .ascii("$") { return variable(at: index) }
+    if language == .shell, has("<<", at: index), !has("<<<", at: index) { return heredoc(at: index) }
+    return nil
+  }
+
+  /// `$NAME`, `${…}`, `$1` and `$@`-style specials.
+  private mutating func variable(at index: Int) -> Int? {
+    guard index + 1 < line.count else { return nil }
+    let next = line[index + 1]
+    let end: Int
+    if next == .ascii("{") {
+      end = line[index...].firstIndex(of: .ascii("}")).map { $0 + 1 } ?? line.count
+    } else if isIdentifierStart(next) {
+      end = identifierEnd(from: index + 1)
+    } else if next.isDigit || Self.shellSpecials.contains(next) {
+      end = index + 2
+    } else {
+      return nil
+    }
+    emit(index..<end, .type)
+    return end
+  }
+
+  /// `<<WORD`, `<<'WORD'` or `<<-WORD`. The body is a string through the line equal to `WORD`.
+  private mutating func heredoc(at index: Int) -> Int? {
+    var operatorEnd = index + 2
+    let trimsIndent = operatorEnd < line.count && line[operatorEnd] == .ascii("-")
+    if trimsIndent { operatorEnd += 1 }
+    var wordStart = operatorEnd
+    while wordStart < line.count, line[wordStart].isWhitespace { wordStart += 1 }
+    let quote = wordStart < line.count ? line[wordStart] : 0
+    let isQuoted = quote == .ascii("'") || quote == .ascii("\"")
+    let nameStart = isQuoted ? wordStart + 1 : wordStart
+    let nameEnd = identifierEnd(from: nameStart)
+    guard nameEnd > nameStart, !isQuoted || (nameEnd < line.count && line[nameEnd] == quote) else {
+      return nil
+    }
+    let end = isQuoted ? nameEnd + 1 : nameEnd
+    emit(index..<operatorEnd, .punctuation)
+    emit(wordStart..<end, .string)
+    pendingHeredoc = Heredoc(word: Array(line[nameStart..<nameEnd]), trimsIndent: trimsIndent)
+    return end
   }
 
   private mutating func number(at index: Int) -> Int {
@@ -224,7 +320,9 @@ private struct CodeScanner {
     let text = String(decoding: line[index..<end], as: UTF16.self)
     let isCall = nextNonWhitespace(from: end) == .ascii("(")
     let kind: SyntaxKind
-    if let afterDot = dot.flatMap({ $0.end == index ? $0.before : nil }) {
+    if language == .css {
+      kind = nextNonWhitespace(from: end) == .ascii(":") ? .type : isCall ? .function : .plain
+    } else if let afterDot = dot.flatMap({ $0.end == index ? $0.before : nil }) {
       if afterDot == .typeName, !isCall {
         kind = .number
       } else if language == .swift, afterDot == .other {
@@ -284,16 +382,11 @@ private struct CodeScanner {
   }
 
   private func has(_ text: String, at index: Int) -> Bool {
-    has(text.utf16, at: index)
+    line.matches(text.utf16, at: index)
   }
 
-  private func has(_ units: some Collection<UInt16>, at index: Int) -> Bool {
-    var offset = index
-    for unit in units {
-      guard offset < line.count, line[offset] == unit else { return false }
-      offset += 1
-    }
-    return true
+  private func has(_ units: [UInt16], at index: Int) -> Bool {
+    line.matches(units, at: index)
   }
 
   private func isIdentifierStart(_ unit: UInt16) -> Bool {
@@ -303,7 +396,11 @@ private struct CodeScanner {
 
   private func identifierEnd(from index: Int) -> Int {
     var end = index
-    while end < line.count, isIdentifierStart(line[end]) || line[end].isDigit { end += 1 }
+    while end < line.count,
+      isIdentifierStart(line[end]) || line[end].isDigit || (language == .css && line[end] == .ascii("-"))
+    {
+      end += 1
+    }
     return end
   }
 
@@ -321,6 +418,8 @@ private struct CodeScanner {
   private static let nonOperators = Set("._\"'`#@$".utf16)
   private static let constants: Set = ["true", "false", "nil", "null", "undefined", "None", "True", "False"]
   private static let valueKeywords: Set = ["self", "Self", "super", "this"]
+  private static let pythonPrefixes = Set("rRbBfFuU".utf16)
+  private static let shellSpecials = Set("@*#?$!-".utf16)
   private static let keywords: [SyntaxLanguage: Set<String>] = [
     .swift: [
       "actor", "any", "as", "associatedtype", "async", "await", "break", "case", "catch", "class",
@@ -340,17 +439,38 @@ private struct CodeScanner {
       "protected", "public", "readonly", "return", "satisfies", "static", "super", "switch",
       "this", "throw", "try", "typeof", "var", "void", "while", "with", "yield",
     ],
+    .python: [
+      "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif",
+      "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda",
+      "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield",
+    ],
+    .shell: [
+      "if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done", "case", "esac",
+      "function", "in", "return", "export", "local", "select",
+    ],
   ]
 }
 
 extension UInt16 {
-  fileprivate static func ascii(_ scalar: Unicode.Scalar) -> UInt16 { UInt16(scalar.value) }
+  static func ascii(_ scalar: Unicode.Scalar) -> UInt16 { UInt16(scalar.value) }
 
-  fileprivate var isWhitespace: Bool {
+  var isWhitespace: Bool {
     self == .ascii(" ") || self == .ascii("\t") || self == 0x0B || self == 0x0C
   }
-  fileprivate var isDigit: Bool { (0x30...0x39).contains(self) }
-  fileprivate var isUppercase: Bool { (0x41...0x5A).contains(self) }
-  fileprivate var isASCIILetter: Bool { isUppercase || (0x61...0x7A).contains(self) }
-  fileprivate var isASCIIAlphanumeric: Bool { isASCIILetter || isDigit }
+  var isDigit: Bool { (0x30...0x39).contains(self) }
+  var isUppercase: Bool { (0x41...0x5A).contains(self) }
+  var isASCIILetter: Bool { isUppercase || (0x61...0x7A).contains(self) }
+  var isASCIIAlphanumeric: Bool { isASCIILetter || isDigit }
+  var isHexDigit: Bool { isDigit || (0x41...0x46).contains(self) || (0x61...0x66).contains(self) }
+}
+
+extension [UInt16] {
+  func matches(_ units: some Collection<UInt16>, at index: Int) -> Bool {
+    var offset = index
+    for unit in units {
+      guard offset < count, self[offset] == unit else { return false }
+      offset += 1
+    }
+    return true
+  }
 }

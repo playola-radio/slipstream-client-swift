@@ -173,6 +173,180 @@ struct SyntaxLexerTests {
     )
   }
 
+  @Test func pythonTripleQuotedAndDecorator() {
+    let source = """
+      @dataclass
+      def load(path):
+          \"\"\"Load it.
+          More.
+          \"\"\"
+          return None
+      x = f"hi {y}"  # note
+      """
+    expectNoDifference(
+      tokens(source, .python),
+      [
+        [Token("@dataclass", .keyword)],
+        [
+          Token("def", .keyword), Token("load", .function), Token("(", .punctuation),
+          Token("path", .plain), Token(")", .punctuation), Token(":", .punctuation),
+        ],
+        [Token("\"\"\"Load it.", .string)],
+        [Token("    More.", .string)],
+        [Token("    \"\"\"", .string)],
+        [Token("return", .keyword), Token("None", .number)],
+        [
+          Token("x", .plain), Token("=", .punctuation), Token("f\"hi {y}\"", .string),
+          Token("# note", .comment),
+        ],
+      ]
+    )
+  }
+
+  @Test func shellVariablesAndHeredoc() {
+    let source = """
+      echo "$HOME" ${PATH} $1 # note
+      a#b
+      deploy() {
+      if x; then
+      cat <<EOF
+      hi $x
+      EOF
+      ls
+      """
+    expectNoDifference(
+      tokens(source, .shell),
+      [
+        [
+          Token("echo", .plain), Token("\"$HOME\"", .string), Token("${PATH}", .type),
+          Token("$1", .type), Token("# note", .comment),
+        ],
+        [Token("a", .plain), Token("#", .punctuation), Token("b", .plain)],
+        [
+          Token("deploy", .function), Token("(", .punctuation), Token(")", .punctuation),
+          Token("{", .punctuation),
+        ],
+        [Token("if", .keyword), Token("x", .plain), Token(";", .punctuation), Token("then", .keyword)],
+        [Token("cat", .plain), Token("<<", .punctuation), Token("EOF", .string)],
+        [Token("hi $x", .string)],
+        [Token("EOF", .string)],
+        [Token("ls", .plain)],
+      ]
+    )
+  }
+
+  @Test func shellIndentedHeredocTrimsLeadingWhitespace() {
+    expectNoDifference(
+      tokens("cat <<-'END'\n\tx\n    END\nfi", .shell),
+      [
+        [Token("cat", .plain), Token("<<-", .punctuation), Token("'END'", .string)],
+        [Token("\tx", .string)],
+        [Token("    END", .string)],
+        [Token("fi", .keyword)],
+      ]
+    )
+  }
+
+  @Test func cssRules() {
+    expectNoDifference(
+      tokens("@media (max-width: 600px) { .card { color: #fff !important; } } /* c */", .css),
+      [
+        [
+          Token("@media", .keyword), Token("(", .punctuation), Token("max-width", .type),
+          Token(":", .punctuation), Token("600px", .number), Token(")", .punctuation),
+          Token("{", .punctuation), Token(".", .punctuation), Token("card", .plain),
+          Token("{", .punctuation), Token("color", .type), Token(":", .punctuation),
+          Token("#fff", .number), Token("!important", .keyword), Token(";", .punctuation),
+          Token("}", .punctuation), Token("}", .punctuation), Token("/* c */", .comment),
+        ]
+      ]
+    )
+  }
+
+  @Test func yamlKeysValuesAndBlockScalar() {
+    let source = """
+      ---
+      name: app # c
+      port: 8080
+      on: true
+      run: |
+        echo hi
+
+        echo bye
+      - "quoted: x"
+      """
+    expectNoDifference(
+      tokens(source, .yaml),
+      [
+        [Token("---", .punctuation)],
+        [
+          Token("name", .type), Token(":", .punctuation), Token("app", .string),
+          Token("# c", .comment),
+        ],
+        [Token("port", .type), Token(":", .punctuation), Token("8080", .number)],
+        [Token("on", .type), Token(":", .punctuation), Token("true", .number)],
+        [Token("run", .type), Token(":", .punctuation), Token("|", .punctuation)],
+        [Token("  echo hi", .string)],
+        [],
+        [Token("  echo bye", .string)],
+        [Token("-", .punctuation), Token("\"quoted: x\"", .string)],
+      ]
+    )
+  }
+
+  @Test func markdownHeadingsAndCode() {
+    let source = """
+      ## Setup
+      Run `npm i` then snake_case words
+      ```sh
+        npm test
+      ```
+      """
+    expectNoDifference(
+      tokens(source, .markdown),
+      [
+        [Token("## Setup", .keyword)],
+        [
+          Token("Run", .plain), Token("`npm i`", .string), Token("then", .plain),
+          Token("snake_case", .plain), Token("words", .plain),
+        ],
+        [Token("```sh", .plain)],
+        [Token("  npm test", .string)],
+        [Token("```", .plain)],
+      ]
+    )
+  }
+
+  @Test func htmlTagsAttributesAndComments() {
+    expectNoDifference(
+      tokens("<a href=\"/x\" class=y>Go &amp; see</a><!-- c\n-->", .html),
+      [
+        [
+          Token("<", .punctuation), Token("a", .keyword), Token("href", .type),
+          Token("=", .punctuation), Token("\"/x\"", .string), Token("class", .type),
+          Token("=", .punctuation), Token("y", .string), Token(">", .punctuation),
+          Token("Go", .plain), Token("&amp;", .number), Token("see", .plain),
+          Token("</", .punctuation), Token("a", .keyword), Token(">", .punctuation),
+          Token("<!-- c", .comment),
+        ],
+        [Token("-->", .comment)],
+      ]
+    )
+  }
+
+  @Test func htmlTagSpansLines() {
+    expectNoDifference(
+      tokens("<div\n  id=\"x\">", .html),
+      [
+        [Token("<", .punctuation), Token("div", .keyword)],
+        [
+          Token("id", .type), Token("=", .punctuation), Token("\"x\"", .string),
+          Token(">", .punctuation),
+        ],
+      ]
+    )
+  }
+
   @Test func rangesAreUTF16AndIgnoreCarriageReturns() {
     expectNoDifference(
       SyntaxLexer.lines("let a = \"👩‍👩‍👧\"\r\nlet b = 1\r\n", language: .swift),
@@ -206,6 +380,14 @@ struct SyntaxLexerTests {
     expectNoDifference(
       tokens("x /* open\nlet y\n", .typescript),
       [[Token("x", .plain), Token("/* open", .comment)], [Token("let y", .comment)]]
+    )
+    expectNoDifference(
+      tokens("cat <<EOF\nhi\n", .shell),
+      [[Token("cat", .plain), Token("<<", .punctuation), Token("EOF", .string)], [Token("hi", .string)]]
+    )
+    expectNoDifference(
+      tokens("<!-- open\n<a>", .html),
+      [[Token("<!-- open", .comment)], [Token("<a>", .comment)]]
     )
   }
 
