@@ -22,6 +22,14 @@ struct LogFilesClientTests {
     expectNoDifference(try logFiles.tail(.app), "one\ntwo\n")
   }
 
+  @Test func aLogExactlyTheBudgetIsCopiedWhole() throws {
+    let logFiles = try client(tailBytes: 8)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    try "one\ntwo\n".write(to: log, atomically: true, encoding: .utf8)
+
+    expectNoDifference(try logFiles.tail(.app), "one\ntwo\n")
+  }
+
   @Test func aLongLogStartsOnTheFirstWholeLineInsideTheBudget() throws {
     let logFiles = try client(tailBytes: 12)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -45,6 +53,15 @@ struct LogFilesClientTests {
     try "new\n".write(to: log, atomically: true, encoding: .utf8)
 
     expectNoDifference(try logFiles.tail(.app), "old two\nnew\n")
+  }
+
+  @Test func aRotatedAndNewLogThatFillTheBudgetExactlyAreCopiedWhole() throws {
+    let logFiles = try client(tailBytes: 8)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    try "old\n".write(to: rotated, atomically: true, encoding: .utf8)
+    try "new\n".write(to: log, atomically: true, encoding: .utf8)
+
+    expectNoDifference(try logFiles.tail(.app), "old\nnew\n")
   }
 
   @Test func aRotatedLogWithNoNewFileYetIsStillCopied() throws {

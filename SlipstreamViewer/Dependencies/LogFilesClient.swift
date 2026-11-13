@@ -37,30 +37,32 @@ extension LogFilesClient: DependencyKey {
     Self(tail: { file in
       let url = url(file)
       var data = Data()
+      var truncated = false
       var failure: (any Error)?
       do {
-        data = try lastBytes(of: url, upTo: tailBytes)
+        (data, truncated) = try lastBytes(of: url, upTo: tailBytes)
       } catch {
         failure = error
       }
       if data.count < tailBytes,
         let older = try? lastBytes(of: url.appendingPathExtension("1"), upTo: tailBytes - UInt64(data.count))
       {
-        data = older + data
+        data = older.data + data
+        truncated = older.truncated
         failure = nil
       }
       if let failure { throw failure }
-      return String(decoding: data.count < tailBytes ? data : wholeLines(data), as: UTF8.self)
+      return String(decoding: truncated ? wholeLines(data) : data, as: UTF8.self)
     })
   }
 
-  private static func lastBytes(of url: URL, upTo budget: UInt64) throws -> Data {
+  private static func lastBytes(of url: URL, upTo budget: UInt64) throws -> (data: Data, truncated: Bool) {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     let end = try handle.seekToEnd()
     let start = end > budget ? end - budget : 0
     try handle.seek(toOffset: start)
-    return try handle.read(upToCount: Int(end - start)) ?? Data()
+    return (try handle.read(upToCount: Int(end - start)) ?? Data(), start > 0)
   }
 
   /// Drops the partial first line, unless the whole budget is one line.
