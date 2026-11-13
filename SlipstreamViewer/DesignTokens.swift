@@ -1,4 +1,5 @@
 import AppKit
+import SlipstreamCore
 import SwiftUI
 
 enum CardEmphasis: Equatable, Sendable {
@@ -1071,6 +1072,51 @@ enum DesignTokens {
     static let changedTextTint = Color(hex: 0x4B9CDA).opacity(0.5)
     static let removalTick = Color(hex: 0x4B9CDA)
     static let removalTickWidth: CGFloat = 2
+  }
+
+  enum Syntax {
+    /// Colours each lexed run, lifting the units inside a change tint. Text outside every run
+    /// keeps the view's flat colour.
+    static func styled(
+      _ text: String,
+      runs: [SyntaxRun],
+      tintedRanges: [Range<Int>] = []
+    ) -> AttributedString {
+      var styled = AttributedString(text)
+      for run in runs {
+        paint(&styled, text, run.range, color(run.kind, isTinted: false))
+        for tinted in tintedRanges where tinted.overlaps(run.range) {
+          paint(&styled, text, run.range.clamped(to: tinted), color(run.kind, isTinted: true))
+        }
+      }
+      return styled
+    }
+
+    private static func paint(
+      _ styled: inout AttributedString,
+      _ text: String,
+      _ utf16Range: Range<Int>,
+      _ color: Color
+    ) {
+      let bounds = utf16Range.clamped(to: 0..<text.utf16.count)
+      let lower = String.Index(utf16Offset: bounds.lowerBound, in: text)
+      let upper = String.Index(utf16Offset: bounds.upperBound, in: text)
+      guard let range = Range(lower..<upper, in: styled) else { return }
+      styled[range].swiftUI.foregroundColor = color
+    }
+
+    private static func color(_ kind: SyntaxKind, isTinted: Bool) -> Color {
+      switch kind {
+      case .keyword: isTinted ? Color(hex: 0xE3D6F4) : Color(hex: 0xC3A6E6)
+      case .string: isTinted ? Color(hex: 0xCBE2C2) : Color(hex: 0xA9CF9B)
+      case .number: isTinted ? Color(hex: 0xF0D7BD) : Color(hex: 0xE5B98C)
+      case .type: isTinted ? Color(hex: 0xBFE3DC) : Color(hex: 0x8ECDC2)
+      case .function: isTinted ? Color(hex: 0xE8DBAE) : Color(hex: 0xE2D29A)
+      case .comment: isTinted ? Color(hex: 0xD5DCE2) : Color(hex: 0x8399AB)
+      case .punctuation: isTinted ? Color(hex: 0xD5DDE3) : Color(hex: 0x8DA2B4)
+      case .plain: isTinted ? Color(hex: 0xD1DCE7) : Color(hex: 0xC9D6E3)
+      }
+    }
   }
 
   enum Footer {
