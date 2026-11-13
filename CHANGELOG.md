@@ -10,6 +10,23 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.24] - 2026-11-13
+
+- New workspace on a repo in the sidebar works again after one of its workspaces was archived.
+  It starts from the repo's main checkout, and asks for a folder if none of the repo's folders
+  are left.
+- A question the agent was handed just before Slipstream restarted no longer shows
+  **Waiting** forever. It now shows **Not confirmed**, says it may not have reached
+  the agent, and lets you ask again. A late answer still shows up.
+
+## [0.4.23] - 2026-11-13
+
+- **Help → Copy Logs for Bug Report** copies the app's version and the end of the
+  app and Slipstream daemon logs, ready to paste into a bug report.
+- Pausing a workspace now tells the Slipstream daemon whether it came from Pause or
+  Remove from Sidebar, so its log shows who stopped a recording. The daemon's log
+  only shows this with an up-to-date Slipstream daemon.
+
 ## [0.4.22] - 2026-11-13
 
 - The Change stream stays where you left it when you switch to Terminals and back, or hide

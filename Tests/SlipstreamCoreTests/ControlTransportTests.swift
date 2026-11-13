@@ -230,7 +230,8 @@ extension ControlTransportTests {
   }
 
   static let recordLine = #"{ "v": 1, "verb": "attach", "mode": "watch-only", "worktree": "/Users/brian/conductor/workspaces/playola/farmerville" }"#
-  static let pauseLine = #"{ "v": 1, "verb": "detach", "target": "/Users/brian/conductor/workspaces/playola/farmerville" }"#
+  static let pauseLine =
+    #"{ "v": 1, "verb": "detach", "target": "/Users/brian/conductor/workspaces/playola/farmerville", "origin": "app:pause" }"#
 
   @Test func recordSendsWatchOnlyAttachAndIgnoresTheReply() async throws {
     try await exchange(
@@ -243,7 +244,7 @@ extension ControlTransportTests {
     try await exchange(
       reply: #"{"v":1,"ok":true,"session_id":"6f1c","state":"stopped","reason":"detached","already_stopped":true}"#,
       expecting: Self.pauseLine
-    ) { try await $0.pause(folder: Self.folder) }
+    ) { try await $0.pause(folder: Self.folder, origin: "app:pause") }
   }
 
   @Test func recordRefusalCarriesTheDaemonsCodeAndMessage() async throws {
@@ -264,7 +265,7 @@ extension ControlTransportTests {
       expecting: Self.pauseLine
     ) { transport in
       await #expect(throws: QuestionError.rejected(code: "TARGET_NOT_FOUND", message: "no capture")) {
-        try await transport.pause(folder: Self.folder)
+        try await transport.pause(folder: Self.folder, origin: "app:pause")
       }
     }
   }

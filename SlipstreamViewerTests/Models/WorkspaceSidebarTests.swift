@@ -22,7 +22,9 @@ struct WorkspaceSidebarTests {
       roots: Self.roots)
 
     expectNoDifference(Self.names(groups), [["playola", "workspace-9", "lisbon-v2"]])
-    expectNoDifference(groups.first?.newWorkspaceFolder, "/u/slipstream/workspaces/playola/workspace-9")
+    expectNoDifference(
+      groups.first?.newWorkspaceFolders,
+      ["/u/slipstream/workspaces/playola/workspace-9", "/u/conductor/workspaces/playola/lisbon-v2"])
   }
 
   @Test func aFolderOutsideTheRootsIsItsOwnGroup() {
@@ -71,7 +73,7 @@ struct WorkspaceSidebarTests {
     let groups = SidebarGroup.groups([SessionOption(id: "s1", label: "Today 10:02")], roots: Self.roots)
 
     expectNoDifference(Self.names(groups), [["Today 10:02", "Today 10:02"]])
-    #expect(groups.first?.newWorkspaceFolder == nil)
+    #expect(groups.first?.newWorkspaceFolders.isEmpty == true)
   }
 
   @Test func withoutRootsEverySessionIsItsOwnGroup() {
@@ -153,7 +155,8 @@ struct WorkspaceSidebarTests {
       repositories: ["alpha": "/code/alpha", "zeta": "/code/zeta"])
 
     expectNoDifference(Self.names(groups), [["alpha"], ["zeta", "w"]])
-    expectNoDifference(groups.map(\.newWorkspaceFolder), ["/code/alpha", "/u/slipstream/workspaces/zeta/w"])
+    expectNoDifference(
+      groups.map(\.newWorkspaceFolders), [["/code/alpha"], ["/code/zeta", "/u/slipstream/workspaces/zeta/w"]])
   }
 
   @Test func rememberedReposWaitForTheRoots() {

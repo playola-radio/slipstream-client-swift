@@ -18,11 +18,17 @@ struct RecordingControlsModelTests {
   let recordingFake = RecordingFake()
   let changes = LockIsolated<[String?]>([])
   let recorded = LockIsolated<[String]>([])
+  let logged = LockIsolated<[String]>([])
 
   func makeModel(choose: URL?...) -> RecordingControlsModel {
     let choices = LockIsolated(choose)
     return withDependencies {
       $0.recording = recordingFake.client
+      $0.appLog = AppLogClient(
+        write: { [logged] level, category, message in
+          logged.withValue { $0.append("\(level.rawValue) \(category): \(message)") }
+        },
+        drain: {})
       $0.workspace.chooseFolder = { message, prompt in
         expectNoDifference([message, prompt], ["Choose a folder to record", "Record"])
         return choices.withValue { $0.isEmpty ? nil : $0.removeFirst() }
@@ -84,7 +90,7 @@ struct RecordingControlsModelTests {
 
     switch action {
     case .record: await model.recordTapped(folder: Self.farmerville)
-    case .pause: await model.pauseTapped(folder: Self.farmerville)
+    case .pause: await model.pauseTapped(folder: Self.farmerville, origin: .pauseButton)
     }
 
     expectNoDifference(model.messages, [Self.farmerville: message])
@@ -99,7 +105,7 @@ struct RecordingControlsModelTests {
     await Task.yield()
     expectNoDifference(model.operations, [Self.farmerville: .recording])
 
-    await model.pauseTapped(folder: Self.farmerville)
+    await model.pauseTapped(folder: Self.farmerville, origin: .pauseButton)
     recordingFake.release()
     await first.value
 
@@ -123,9 +129,9 @@ struct RecordingControlsModelTests {
   @Test func pauseSuccessRefreshesWithoutLinking() async {
     let model = makeModel()
 
-    await model.pauseTapped(folder: Self.farmerville)
+    await model.pauseTapped(folder: Self.farmerville, origin: .pauseButton)
 
-    expectNoDifference(recordingFake.calls, [.pause(Self.farmerville)])
+    expectNoDifference(recordingFake.calls, [.pause(Self.farmerville, origin: .pauseButton)])
     expectNoDifference(changes.value, [nil])
     expectNoDifference(recorded.value, [])
   }
@@ -135,7 +141,7 @@ struct RecordingControlsModelTests {
     recordingFake.setFailures(.outcomeUnknown, .outcomeUnknown)
 
     await model.recordTapped(folder: Self.farmerville)
-    await model.pauseTapped(folder: Self.mbabane)
+    await model.pauseTapped(folder: Self.mbabane, origin: .pauseButton)
 
     expectNoDifference(
       model.messages,
@@ -151,7 +157,7 @@ struct RecordingControlsModelTests {
   @Test func aRefusedRecordSetsOnlyThatFoldersMessage() async {
     let model = makeModel()
     recordingFake.setFailures(.unavailable)
-    await model.pauseTapped(folder: Self.mbabane)
+    await model.pauseTapped(folder: Self.mbabane, origin: .pauseButton)
 
     recordingFake.setFailures(.rejected(code: "CAPTURE_LIMIT_REACHED", message: "full"))
     await model.recordTapped(folder: Self.farmerville)
@@ -241,8 +247,42 @@ struct RecordingControlsModelTests {
     recordingFake.setFailures(.unavailable)
     await model.recordFolderTapped()
 
-    await model.pauseTapped(folder: Self.farmerville)
+    await model.pauseTapped(folder: Self.farmerville, origin: .pauseButton)
 
     expectNoDifference(model.footerMessage, nil)
+  }
+
+  @Test func pauseLogsWhoAskedAndTheOutcome() async {
+    let model = makeModel()
+    recordingFake.setFailures(.rejected(code: "STORAGE_UNAVAILABLE", message: "the store is unavailable"))
+
+    await model.pauseTapped(folder: Self.farmerville, origin: .removeFromSidebar)
+    await model.pauseTapped(folder: Self.mbabane, origin: .pauseButton)
+
+    expectNoDifference(
+      logged.value,
+      [
+        "INFO daemon: pause of \(Self.farmerville) requested by app:remove-from-sidebar",
+        #"ERROR daemon: pause of \#(Self.farmerville) failed: rejected(code: "STORAGE_UNAVAILABLE", message: "the store is unavailable")"#,
+        "INFO daemon: pause of \(Self.mbabane) requested by app:pause",
+        "INFO daemon: paused \(Self.mbabane)",
+      ])
+  }
+
+  @Test func recordLogsTheRequestAndTheOutcome() async {
+    let model = makeModel()
+    recordingFake.setFailures(.unavailable)
+
+    await model.recordTapped(folder: Self.farmerville)
+    await model.recordTapped(folder: Self.farmerville)
+
+    expectNoDifference(
+      logged.value,
+      [
+        "INFO daemon: record of \(Self.farmerville) requested",
+        "ERROR daemon: record of \(Self.farmerville) failed: unavailable",
+        "INFO daemon: record of \(Self.farmerville) requested",
+        "INFO daemon: record of \(Self.farmerville) accepted",
+      ])
   }
 }

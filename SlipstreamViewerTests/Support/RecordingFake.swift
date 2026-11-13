@@ -9,7 +9,7 @@ import Synchronization
 final class RecordingFake: Sendable {
   enum Call: Equatable {
     case record(String)
-    case pause(String)
+    case pause(String, origin: PauseOrigin)
   }
 
   private struct State {
@@ -41,7 +41,7 @@ final class RecordingFake: Sendable {
   var client: RecordingClient {
     RecordingClient(
       record: { try await self.perform(.record($0)) },
-      pause: { try await self.perform(.pause($0)) }
+      pause: { try await self.perform(.pause($0, origin: $1)) }
     )
   }
 

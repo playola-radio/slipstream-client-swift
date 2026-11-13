@@ -886,7 +886,11 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func newWorkspaceTapped(in group: SidebarGroup) async {
-    guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
+    guard !isWorkspaceBusy else { return }
+    guard let folder = group.newWorkspaceFolders.first(where: terminalRuntime.folderExists) else {
+      await newWorkspaceTapped()
+      return
+    }
     await createWorkspace(in: URL(filePath: folder), group: group.repository)
   }
 
@@ -895,7 +899,7 @@ final class ChangeStreamPageModel: ViewModel {
     if isPaused(session) {
       await recording.recordTapped(folder: folder)
     } else {
-      await recording.pauseTapped(folder: folder)
+      await recording.pauseTapped(folder: folder, origin: .pauseButton)
     }
   }
 
@@ -947,7 +951,7 @@ final class ChangeStreamPageModel: ViewModel {
   func removeFromSidebarTapped(_ session: SessionOption) async {
     guard isRemoveFromSidebarAvailable(session), let folder = session.root else { return }
     if mayRecord(folder) {
-      guard await recording.pauseTapped(folder: folder) else { return }
+      guard await recording.pauseTapped(folder: folder, origin: .removeFromSidebar) else { return }
     }
     $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
     dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id))
@@ -2136,6 +2140,7 @@ final class ChangeStreamPageModel: ViewModel {
     if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
     if relays.contains(where: { $0 == .notDelivered || $0 == .deliveryUnknown }) { return .notDelivered }
     if !relays.isEmpty && relays.allSatisfy({ $0 == .done }) { return .done }
+    if thread.turns.contains(where: { $0.status == .unconfirmed }) { return .unconfirmed }
     return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }
 

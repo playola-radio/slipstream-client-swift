@@ -27,6 +27,8 @@ struct QuestionThreadPageTests {
     questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isDropped: true)
   static let resending = QuestionTurn(
     questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isMoved: true)
+  static let unconfirmed = QuestionTurn(
+    questionID: "q2", requestID: "r-q2", text: "And then?", queuedAtMs: Fixture.observedAtMs, isUnconfirmed: true)
 
   static func source(lines: ClosedRange<Int> = 7...9) -> QuestionSource {
     QuestionSource(
@@ -132,6 +134,14 @@ struct QuestionThreadPageTests {
     droppedAfterMove.isDropped = true
     let model = makeModel([Self.answered, droppedAfterMove])
     expectNoDifference(model.unansweredText(droppedAfterMove), "Not delivered — recording restarted. Ask again.")
+  }
+
+  @Test func anUnconfirmedTurnSaysItMayNotHaveArrivedAndCanBeAskedAgain() {
+    let model = makeModel([Self.answered, Self.unconfirmed])
+    expectNoDifference(
+      model.unansweredText(Self.unconfirmed),
+      "Recording restarted while this was on its way to the agent — it may not have arrived. Ask again.")
+    #expect(!model.isFollowUpDisabled)
   }
 
   @Test func resendingDisablesFollowUpsLikeWaiting() {
@@ -310,6 +320,24 @@ extension QuestionThreadPageTests {
     ])
     expectNoDifference(requests.value.map(\.replyToQuestionID), ["q1", "q2"])
     expectNoDifference(model.draft, "")
+  }
+
+  @Test func anUncertainReplyThatARestartLeftUnconfirmedIsAskedAgainWithAFreshRequest() async {
+    let requests = LockIsolated<[QuestionRequest]>([])
+    let model = makeModel([Self.answered]) { request in
+      requests.withValue { $0.append(request) }
+      if requests.value.count == 1 { throw QuestionError.outcomeUnknown }
+      return try AskAgentPageTests.ack(request)
+    }
+    model.draft = "And then?"
+    await model.sendReplyTapped()
+    model.threadUpdated(Self.thread([Self.answered, QuestionTurn(
+      questionID: "q2", requestID: requests.value[0].requestID, text: "And then?", queuedAtMs: 1, isUnconfirmed: true)]))
+    expectNoDifference(model.uncertaintyNotice, nil)
+    await model.sendReplyTapped()
+    expectNoDifference(requests.value.map(\.requestID), [
+      "00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001",
+    ])
   }
 
   @Test func anUncertainAskAgainOfANotDeliveredTurnReusesItsRequest() async {

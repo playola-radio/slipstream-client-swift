@@ -104,6 +104,7 @@ final class QuestionThreadPageModel: ViewModel {
   let closeText = "Close reply"
   let waitingText = "Waiting for the agent to answer…"
   let notDeliveredText = "Not delivered — recording restarted. Ask again."
+  let unconfirmedText = "Recording restarted while this was on its way to the agent — it may not have arrived. Ask again."
   let resendingText = "Re-sending to the newly connected chat — waiting for the agent to answer…"
   let followUpPlaceholder = "Ask a follow-up…"
   let sendText = "Send reply"
@@ -159,6 +160,7 @@ final class QuestionThreadPageModel: ViewModel {
   func unansweredText(_ turn: QuestionTurn) -> String {
     switch turn.status {
     case .notDelivered: notDeliveredText
+    case .unconfirmed: unconfirmedText
     case .resending: resendingText
     case .waiting, .answered: waitingText
     }
@@ -367,7 +369,7 @@ final class QuestionThreadPageModel: ViewModel {
 
   private var isRetainedRequestDropped: Bool {
     guard let request = replyDraft.request else { return false }
-    return thread.turns.contains { $0.requestID == request.requestID && $0.status == .notDelivered }
+    return thread.turns.contains { $0.requestID == request.requestID && $0.needsAskingAgain }
   }
 
   private func updateReplyDraft(_ body: (inout ReplyDraft) -> Void) {

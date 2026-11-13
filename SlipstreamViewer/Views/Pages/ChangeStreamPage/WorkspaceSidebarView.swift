@@ -56,7 +56,7 @@ struct WorkspaceSidebarView: View {
         .foregroundStyle(DesignTokens.Sidebar.groupNameColor)
         .lineLimit(1)
       Spacer()
-      if group.newWorkspaceFolder != nil {
+      if !group.newWorkspaceFolders.isEmpty {
         Button { Task { await model.newWorkspaceTapped(in: group) } } label: {
           IconView(icon: DesignTokens.Sidebar.newWorkspaceIcon)
             .padding(DesignTokens.Sidebar.iconButtonPadding)

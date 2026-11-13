@@ -14,7 +14,7 @@ struct QuestionThreadKey: Hashable, Sendable {
 }
 
 enum QuestionBarStatus: Equatable, Sendable {
-  case newReply, waiting, answered, notDelivered, working, done
+  case newReply, waiting, answered, notDelivered, unconfirmed, working, done
 }
 
 struct QuestionBar: Identifiable, Equatable, Sendable {
@@ -29,6 +29,7 @@ struct QuestionBar: Identifiable, Equatable, Sendable {
     case .waiting: "Waiting"
     case .answered: "Answered"
     case .notDelivered: "Not delivered"
+    case .unconfirmed: "Not confirmed"
     case .working: "Working"
     case .done: "Done"
     }
