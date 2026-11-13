@@ -100,7 +100,7 @@ final class ChatTabModel: ViewModel, Identifiable {
   @ObservationIgnored private var retiring: [Task<Void, Never>] = []
   @ObservationIgnored private var generation = 0
   @ObservationIgnored private var attachmentGeneration = 0
-  @ObservationIgnored private var markdownBlocksByText: [String: [MarkdownBlock]] = [:]
+  @ObservationIgnored private var markdownBlocksByItemID: [String: (text: String, blocks: [MarkdownBlock])] = [:]
 
   // MARK: - Display Text
 
@@ -156,9 +156,9 @@ final class ChatTabModel: ViewModel, Identifiable {
 
   func markdownBlocks(for item: TranscriptItem) -> [MarkdownBlock] {
     let text = rowText(for: item)
-    if let blocks = markdownBlocksByText[text] { return blocks }
+    if let cached = markdownBlocksByItemID[item.id], cached.text == text { return cached.blocks }
     let blocks = Self.markdownBlocks(text)
-    markdownBlocksByText[text] = blocks
+    markdownBlocksByItemID[item.id] = (text, blocks)
     return blocks
   }
 

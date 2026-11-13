@@ -1621,6 +1621,17 @@ struct ChatPageTests {
     expectNoDifference([running, edited, reply].map(tab.isRunning), [true, false, false])
   }
 
+  @Test func markdownBlocksReplaceCachedReplyWhenItsTextChanges() throws {
+    let model = makeModel()
+    model.workspaceChanged(folder: "/w", emptyText: nil)
+    let tab = try #require(model.selectedTab)
+    let old = TranscriptItem(id: "reply", kind: .reply("Old reply"))
+    let new = TranscriptItem(id: "reply", kind: .reply("New reply"))
+
+    expectNoDifference(tab.markdownBlocks(for: old), ChatTabModel.markdownBlocks("Old reply"))
+    expectNoDifference(tab.markdownBlocks(for: new), ChatTabModel.markdownBlocks("New reply"))
+  }
+
   @Test func copyCopiesTheTurnsReply() async throws {
     let model = makeModel(records: [record()])
     model.workspaceChanged(folder: "/w", emptyText: nil)
