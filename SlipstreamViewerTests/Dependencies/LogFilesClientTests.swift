@@ -38,6 +38,14 @@ struct LogFilesClientTests {
     expectNoDifference(try logFiles.tail(.app), "third\n")
   }
 
+  @Test func aLongLogKeepsTheFirstLineWhenTheBudgetStartsOnALineBoundary() throws {
+    let logFiles = try client(tailBytes: 10)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    try "one\ntwo\nthree\n".write(to: log, atomically: true, encoding: .utf8)
+
+    expectNoDifference(try logFiles.tail(.app), "two\nthree\n")
+  }
+
   @Test func aLineLongerThanTheBudgetKeepsItsEnd() throws {
     let logFiles = try client(tailBytes: 8)
     defer { try? FileManager.default.removeItem(at: folder) }

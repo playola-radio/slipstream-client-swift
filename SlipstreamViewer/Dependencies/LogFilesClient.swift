@@ -61,8 +61,15 @@ extension LogFilesClient: DependencyKey {
     defer { try? handle.close() }
     let end = try handle.seekToEnd()
     let start = end > budget ? end - budget : 0
+    let truncated: Bool
+    if start > 0 {
+      try handle.seek(toOffset: start - 1)
+      truncated = (try handle.read(upToCount: 1))?.first != UInt8(ascii: "\n")
+    } else {
+      truncated = false
+    }
     try handle.seek(toOffset: start)
-    return (try handle.read(upToCount: Int(end - start)) ?? Data(), start > 0)
+    return (try handle.read(upToCount: Int(end - start)) ?? Data(), truncated)
   }
 
   /// Drops the partial first line, unless the whole budget is one line.

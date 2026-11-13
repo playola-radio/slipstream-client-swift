@@ -127,7 +127,7 @@ final class RecordingControlsModel: ViewModel {
       }
       return Self.recordMessage(error, folder: key)
     }
-    appLog.info("daemon", "recording \(folder)")
+    appLog.info("daemon", "record of \(folder) accepted")
     await onChanged(preferring())
     onRecorded(key)
     return nil

@@ -282,7 +282,7 @@ struct RecordingControlsModelTests {
         "INFO daemon: record of \(Self.farmerville) requested",
         "ERROR daemon: record of \(Self.farmerville) failed: unavailable",
         "INFO daemon: record of \(Self.farmerville) requested",
-        "INFO daemon: recording \(Self.farmerville)",
+        "INFO daemon: record of \(Self.farmerville) accepted",
       ])
   }
 }
