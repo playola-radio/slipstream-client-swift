@@ -2365,6 +2365,25 @@ extension ChangeStreamPageTests {
     expectNoDifference(try bar(model, "q1").status, .newReply)
   }
 
+  @Test func anEarlierUnconfirmedFollowUpStillShowsAfterALaterOneIsAnswered() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    await send(
+      Fixture.edited(1),
+      Fixture.questionQueued(2, id: "q1"),
+      Fixture.questionAnswered(3, id: "q1"),
+      Fixture.questionQueued(4, id: "q2", replyTo: "q1"),
+      Fixture.questionQueued(5, id: "q3", replyTo: "q1"),
+      Fixture.questionDispatchAttempted(6, id: "q2", queuedSeq: 4),
+      Fixture.questionDispatchAttempted(7, id: "q3", queuedSeq: 5),
+      Fixture.sessionResumed(8),
+      Fixture.questionAnswered(9, id: "q3"))
+    let reply = try open(model, "q1")
+    reply.answerDisplayed(Fixture.seq(3))
+    reply.answerDisplayed(Fixture.seq(9))
+    expectNoDifference(try bar(model, "q1").status, .unconfirmed)
+  }
+
   @Test func anUncertainQuestionThatARestartLeftUnconfirmedIsAskedAgainWithAFreshRequest() async {
     let model = await connectedModel()
     defer { model.viewDisappeared() }

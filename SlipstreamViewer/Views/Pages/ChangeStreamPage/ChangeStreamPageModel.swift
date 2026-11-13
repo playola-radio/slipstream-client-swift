@@ -2070,11 +2070,8 @@ final class ChangeStreamPageModel: ViewModel {
     if thread.turns.contains(where: { $0.status == .waiting || $0.status == .resending }) { return .waiting }
     if relays.contains(where: { $0 == .notDelivered || $0 == .deliveryUnknown }) { return .notDelivered }
     if !relays.isEmpty && relays.allSatisfy({ $0 == .done }) { return .done }
-    switch thread.turns.last?.status {
-    case .notDelivered?: return .notDelivered
-    case .unconfirmed?: return .unconfirmed
-    default: return .answered
-    }
+    if thread.turns.contains(where: { $0.status == .unconfirmed }) { return .unconfirmed }
+    return thread.turns.last?.status == .notDelivered ? .notDelivered : .answered
   }
 
   private func resetFeed() {
