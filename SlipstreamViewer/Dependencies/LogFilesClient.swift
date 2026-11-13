@@ -23,24 +23,51 @@ extension LogFilesClient {
 
 extension LogFilesClient: DependencyKey {
   static var liveValue: Self {
-    Self(tail: { file in
-      let url =
-        switch file {
-        case .app: AppLogFile.shared.url
-        case .daemon: RecorderServiceClient.logFile
-        }
-      let handle = try FileHandle(forReadingFrom: url)
-      defer { try? handle.close() }
-      let end = try handle.seekToEnd()
-      guard end > tailBytes else {
-        try handle.seek(toOffset: 0)
-        return String(decoding: try handle.readToEnd() ?? Data(), as: UTF8.self)
+    live { file in
+      switch file {
+      case .app: AppLogFile.shared.url
+      case .daemon: RecorderServiceClient.logFile
       }
-      try handle.seek(toOffset: end - tailBytes)
-      let data = try handle.readToEnd() ?? Data()
-      let wholeLines = data.firstIndex(of: UInt8(ascii: "\n")).map { data[($0 + 1)...] } ?? data
-      return String(decoding: wholeLines, as: UTF8.self)
+    }
+  }
+
+  /// Fills from the rotated `<name>.1` when the log is shorter than the budget, so a log that just
+  /// rotated still shows what led up to it.
+  static func live(url: @escaping @Sendable (LogFile) -> URL, tailBytes: UInt64 = tailBytes) -> Self {
+    Self(tail: { file in
+      let url = url(file)
+      var data = Data()
+      var failure: (any Error)?
+      do {
+        data = try lastBytes(of: url, upTo: tailBytes)
+      } catch {
+        failure = error
+      }
+      if data.count < tailBytes,
+        let older = try? lastBytes(of: url.appendingPathExtension("1"), upTo: tailBytes - UInt64(data.count))
+      {
+        data = older + data
+        failure = nil
+      }
+      if let failure { throw failure }
+      return String(decoding: data.count < tailBytes ? data : wholeLines(data), as: UTF8.self)
     })
+  }
+
+  private static func lastBytes(of url: URL, upTo budget: UInt64) throws -> Data {
+    let handle = try FileHandle(forReadingFrom: url)
+    defer { try? handle.close() }
+    let end = try handle.seekToEnd()
+    let start = end > budget ? end - budget : 0
+    try handle.seek(toOffset: start)
+    return try handle.read(upToCount: Int(end - start)) ?? Data()
+  }
+
+  /// Drops the partial first line, unless the whole budget is one line.
+  private static func wholeLines(_ data: Data) -> Data {
+    guard let newline = data.firstIndex(of: UInt8(ascii: "\n")), newline < data.index(before: data.endIndex)
+    else { return data }
+    return data[data.index(after: newline)...]
   }
 
   static var testValue: Self {
