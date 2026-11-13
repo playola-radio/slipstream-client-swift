@@ -873,7 +873,11 @@ final class ChangeStreamPageModel: ViewModel {
   }
 
   func newWorkspaceTapped(in group: SidebarGroup) async {
-    guard !isWorkspaceBusy, let folder = group.newWorkspaceFolder else { return }
+    guard !isWorkspaceBusy else { return }
+    guard let folder = group.newWorkspaceFolders.first(where: terminalRuntime.folderExists) else {
+      await newWorkspaceTapped()
+      return
+    }
     await createWorkspace(in: URL(filePath: folder), group: group.repository)
   }
 

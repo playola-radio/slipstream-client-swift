@@ -5453,6 +5453,64 @@ extension ChangeStreamPageTests {
     await creating.value
   }
 
+  nonisolated static let archivedWorkspaceRoot = "/work/slipstream/workspaces/r/workspace-9"
+
+  static func repoGroup(_ roots: [String], repositoryFolder: String? = nil) -> SidebarGroup {
+    SidebarGroup(
+      repository: "r", rows: roots.map { SessionOption(id: $0, label: $0, root: $0) },
+      repositoryFolder: repositoryFolder)
+  }
+
+  @Test func plusUsesTheRememberedCheckoutWhenAnArchivedWorkspaceIsFirst() async {
+    terminal.setMissing(Self.archivedWorkspaceRoot)
+    let model = makeModel(workspace: workspaceClient(choose: nil))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let group = Self.repoGroup([Self.archivedWorkspaceRoot, Self.workspaceRoot], repositoryFolder: "/code/r")
+    let creating = Task { await model.newWorkspaceTapped(in: group) }
+    await Task.megaYield()
+
+    expectNoDifference(
+      setupLaunch.map { terminal.launches[$0].arguments }, ["workspace", "create", "/code/r", "--store", "store-a"])
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
+  @Test func plusSkipsAGoneWorkspaceWithoutARememberedCheckout() async {
+    terminal.setMissing(Self.archivedWorkspaceRoot)
+    let model = makeModel(workspace: workspaceClient(choose: nil))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let group = Self.repoGroup([Self.archivedWorkspaceRoot, Self.workspaceRoot])
+    let creating = Task { await model.newWorkspaceTapped(in: group) }
+    await Task.megaYield()
+
+    expectNoDifference(
+      setupLaunch.map { terminal.launches[$0].arguments },
+      ["workspace", "create", Self.workspaceRoot, "--store", "store-a"])
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
+  @Test func plusAsksForAFolderWhenNoneOfTheGroupsFoldersExist() async {
+    terminal.setMissing(Self.archivedWorkspaceRoot)
+    terminal.setMissing("/code/r")
+    let model = makeModel(workspace: workspaceClient(choose: URL(filePath: "/work/b")))
+    await model.viewAppeared()
+    defer { model.viewDisappeared() }
+
+    let group = Self.repoGroup([Self.archivedWorkspaceRoot], repositoryFolder: "/code/r")
+    let creating = Task { await model.newWorkspaceTapped(in: group) }
+    await Task.megaYield()
+
+    expectNoDifference(
+      setupLaunch.map { terminal.launches[$0].arguments }, ["workspace", "create", "/work/b", "--store", "store-a"])
+    setupFinishes(.exited(1))
+    await creating.value
+  }
+
   @Test func aLiveWorkspaceRemembersItsRepoWhenAnArchivedWorkspaceSortsFirst() async {
     let archivedRoot = "/work/slipstream/workspaces/r/workspace-9"
     fake.setSessions(

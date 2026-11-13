@@ -47,7 +47,9 @@ struct SidebarGroup: Identifiable, Equatable, Sendable {
   var id: String { repository ?? rows[0].id }
   /// The group names a folder, so it never takes a workspace's name.
   var name: String { repository ?? Self.folderName(rows[0]) }
-  var newWorkspaceFolder: String? { rows.first?.root ?? repositoryFolder }
+  /// Where a new workspace can start, best first: the main checkout, then each row's folder. Any
+  /// of them may be gone (an archived workspace keeps its row), so the caller picks one that exists.
+  var newWorkspaceFolders: [String] { [repositoryFolder].compactMap { $0 } + rows.compactMap(\.root) }
 
   /// Repos A→Z, including remembered repos with no workspaces, then folders outside the
   /// workspace roots. A repo's rows come newest first, in reverse natural folder order
