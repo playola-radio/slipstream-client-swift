@@ -15,6 +15,8 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 - Code in change-stream cards and in chat replies is now coloured by syntax for Swift,
   TypeScript/JavaScript, JSON, YAML, shell, Markdown, Python, CSS and HTML. Changed text
   keeps its blue marks and stays easy to read.
+- Click a change's header in the change stream to fold it down to one line, and click again
+  to open it. Later changes to the same file stay open.
 
 ## [0.4.24] - 2026-11-13
 
