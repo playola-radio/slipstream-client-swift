@@ -20,6 +20,7 @@ module ReleaseNotes
       release_notes.rb notes <changelog> <fragments-dir>
       release_notes.rb pending <changelog> <fragments-dir>
       release_notes.rb promote <changelog> <fragments-dir> <version> <YYYY-MM-DD>
+      release_notes.rb fold <changelog> <fragments-dir> <version>
   TEXT
 
   def self.extract(changelog, version)
@@ -124,9 +125,36 @@ module ReleaseNotes
     raise Error, "there are no ### Changes notes to show in the update dialog" if notes[:changes].empty?
 
     start = lines.index { |line| UNRELEASED_HEADING.match?(line) }
-    rest = lines[section_end(lines, start)..].join
-    promoted = "## [Unreleased]\n\n#{UNRELEASED_COMMENT}\n\n## [#{version}] - #{date}\n\n#{render(notes)}\n"
-    lines[0...start].join + promoted + (rest.empty? ? "" : "\n#{rest}")
+    released(lines, start, section_end(lines, start), "## [#{version}] - #{date}", notes)
+  end
+
+  # Adds the notes under [Unreleased] and in changelog.d/ to the newest release, one that
+  # hasn't shipped yet, leaving [Unreleased] with only a pointer to changelog.d/.
+  def self.fold(changelog, version, fragments = {})
+    raise Error, "version must be semantic version X.Y.Z" unless VERSION.match?(version)
+
+    notes = collect(changelog, fragments)
+    return changelog if notes.values.all?(&:empty?)
+
+    lines = changelog.lines
+    start = lines.index { |line| UNRELEASED_HEADING.match?(line) }
+    heading = section_end(lines, start)
+    unless RELEASE_HEADING.match(lines[heading].to_s)&.[](1) == version
+      raise Error, "release #{version} is not the newest release in the changelog"
+    end
+
+    boundary = section_end(lines, heading)
+    existing = parse_notes(lines[(heading + 1)...boundary].join, "CHANGELOG.md", heading + 2)
+    notes.each_key { |section| existing[section].concat(notes[section]) }
+    released(lines, start, boundary, lines[heading].strip, existing)
+  end
+
+  # Rewrites the changelog from [Unreleased] up to lines[resume] as an empty
+  # [Unreleased] followed by `heading` and its notes.
+  def self.released(lines, start, resume, heading, notes)
+    rest = lines[resume..].join
+    section = "## [Unreleased]\n\n#{UNRELEASED_COMMENT}\n\n#{heading}\n\n#{render(notes)}\n"
+    lines[0...start].join + section + (rest.empty? ? "" : "\n#{rest}")
   end
 
   def self.section_end(lines, start)
@@ -180,6 +208,13 @@ module ReleaseNotes
       changelog_path, fragments_dir, version, date = arguments
       fragments = read_fragments(fragments_dir)
       File.write(changelog_path, promote(File.read(changelog_path), version, date, fragments))
+      File.delete(*fragments.keys)
+    when "fold"
+      raise Error, USAGE unless arguments.length == 3
+
+      changelog_path, fragments_dir, version = arguments
+      fragments = read_fragments(fragments_dir)
+      File.write(changelog_path, fold(File.read(changelog_path), version, fragments))
       File.delete(*fragments.keys)
     else
       raise Error, USAGE

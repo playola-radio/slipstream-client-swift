@@ -2,8 +2,9 @@ name: release
 
 # Every merge to develop publishes, while Slipstream's only user is its developer:
 # packaging/prepare-release.sh bumps the patch version when changelog.d/ has notes, or
-# publishes a version that isn't released yet as it is. Only the newest merge's run
-# releases, so its workflow and tests always match the code they ship.
+# publishes a version that isn't released yet, with any notes waiting added to it.
+# Only the newest merge's run releases, so its workflow and tests always match the code
+# they ship.
 on:
   push:
     branches: [develop]

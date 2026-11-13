@@ -386,6 +386,71 @@ class ReleaseNotesTest < Minitest::Test
     end
   end
 
+  def test_fold_adds_waiting_notes_to_the_newest_release
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    folded = ReleaseNotes.fold(
+      changelog, "2.1.0", "changelog.d/a.md" => "### Changes\n\n- Later.\n\n### Ops\n\n- Add the secret.\n"
+    )
+
+    assert_equal <<~MARKDOWN, folded
+      # Changelog
+
+      ## [Unreleased]
+
+      #{ReleaseNotes::UNRELEASED_COMMENT}
+
+      ## [2.1.0] - 2026-10-01
+
+      - Work in progress.
+      - Later.
+
+      ### Ops
+
+      - Add the secret.
+
+      ## [2.0.0] - 2026-09-08
+
+      - Save and reopen `.pie` projects.
+      - Review suggestions before export.
+
+      ## [1.9.0] - 2026-08-01
+
+      - Older work.
+    MARKDOWN
+  end
+
+  def test_fold_changes_nothing_when_no_notes_wait
+    changelog = ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01")
+
+    assert_equal changelog, ReleaseNotes.fold(changelog, "2.1.0")
+  end
+
+  def test_fold_rejects_a_release_that_is_not_the_newest
+    error = assert_raises(ReleaseNotes::Error) do
+      ReleaseNotes.fold(CHANGELOG, "1.9.0")
+    end
+
+    assert_match(/1\.9\.0 is not the newest release/, error.message)
+  end
+
+  def test_fold_cli_moves_fragments_into_the_release_and_deletes_only_them
+    Dir.mktmpdir do |directory|
+      changelog = File.join(directory, "CHANGELOG.md")
+      fragments = File.join(directory, "changelog.d")
+      FileUtils.mkdir_p(fragments)
+      File.write(changelog, ReleaseNotes.promote(CHANGELOG, "2.1.0", "2026-10-01"))
+      File.write(File.join(fragments, "README.md"), "# Not a note\n")
+      File.write(File.join(fragments, "later.md"), "### Changes\n\n- Later.\n")
+
+      _stdout, stderr, status = run_cli("fold", changelog, fragments, "2.1.0")
+
+      assert status.success?, stderr
+      assert_equal "- Work in progress.\n- Later.", ReleaseNotes.extract(File.read(changelog), "2.1.0")
+      assert_equal ["README.md"], Dir.children(fragments)
+    end
+  end
+
   def test_bump_restores_a_clean_tree_after_the_commit_fails
     Dir.mktmpdir do |directory|
       %w[.gitignore project.yml].each do |path|
