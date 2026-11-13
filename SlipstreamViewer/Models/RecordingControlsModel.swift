@@ -19,6 +19,7 @@ struct RecordingMessage: Equatable {
 final class RecordingControlsModel: ViewModel {
   // MARK: - Dependencies
 
+  @ObservationIgnored @Dependency(\.appLog) var appLog
   @ObservationIgnored @Dependency(\.recording) var recording
   @ObservationIgnored @Dependency(\.workspace) var workspace
 
@@ -53,17 +54,20 @@ final class RecordingControlsModel: ViewModel {
 
   /// Returns whether the folder is confirmed not recording: paused, or with no recording to pause.
   @discardableResult
-  func pauseTapped(folder: String) async -> Bool {
+  func pauseTapped(folder: String, origin: PauseOrigin) async -> Bool {
     guard let key = begin(.pausing, folder: folder) else { return false }
     defer { operations[key] = nil }
+    appLog.info("daemon", "pause of \(folder) requested by \(origin.rawValue)")
     do {
-      try await recording.pause(folder)
+      try await recording.pause(folder, origin)
     } catch {
+      appLog.error("daemon", "pause of \(folder) failed: \(error)")
       messages[key] = Self.pauseMessage(error)
       if Self.refreshesAfterPause(error) { await onChanged(nil) }
       if case .rejected(code: "TARGET_NOT_FOUND", _) = error as? QuestionError { return true }
       return false
     }
+    appLog.info("daemon", "paused \(folder)")
     await onChanged(nil)
     return true
   }
@@ -112,15 +116,18 @@ final class RecordingControlsModel: ViewModel {
   private func record(
     _ folder: String, key: String, preferring: @MainActor () -> String? = { nil }
   ) async -> RecordingMessage? {
+    appLog.info("daemon", "record of \(folder) requested")
     do {
       try await recording.record(folder)
     } catch {
+      appLog.error("daemon", "record of \(folder) failed: \(error)")
       if error as? QuestionError == .outcomeUnknown {
         onRecordOutcomeUnknown(key)
         await onChanged(preferring())
       }
       return Self.recordMessage(error, folder: key)
     }
+    appLog.info("daemon", "record of \(folder) accepted")
     await onChanged(preferring())
     onRecorded(key)
     return nil

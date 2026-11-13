@@ -9,6 +9,7 @@ struct SlipstreamViewerApp: App {
   @State private var instantAsk: InstantAskModel
   @State private var terminals: TerminalPageModel
   @State private var updater = UpdaterModel()
+  @State private var bugReport = BugReportModel(version: Self.version)
   @State private var recorder: RecorderModel
   /// Built once here: building it in the page view would rerun on every redraw and point the shared
   /// models' callbacks at a copy SwiftUI throws away.
@@ -68,21 +69,25 @@ struct SlipstreamViewerApp: App {
       ReloadCommands()
       PaneCommands()
       FontSizeCommands(model: fontSize)
+      BugReportCommands(model: bugReport)
     }
   }
 
   private static let windowID = "main"
 
+  /// The app's version and build, for example `0.4.20 (24)`.
+  private static var version: String {
+    let info = Bundle.main.infoDictionary
+    return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
+  }
+
   private static func logLaunch() {
     @Dependency(\.appLog) var appLog
     @Dependency(\.daemon) var daemon
-    let info = Bundle.main.infoDictionary
-    let version = info?["CFBundleShortVersionString"] as? String ?? "?"
-    let build = info?["CFBundleVersion"] as? String ?? "?"
     let storeOverride = ProcessInfo.processInfo.environment["SLIPSTREAM_STORE"] != nil ? " (SLIPSTREAM_STORE override)" : ""
     appLog.info(
       "app",
-      "launched Slipstream \(version) (\(build)) pid \(ProcessInfo.processInfo.processIdentifier) store \(daemon.storeID)\(storeOverride)")
+      "launched Slipstream \(version) pid \(ProcessInfo.processInfo.processIdentifier) store \(daemon.storeID)\(storeOverride)")
   }
 
   private static func functionChangesDemo() -> FunctionChangesFixtureModel? {
