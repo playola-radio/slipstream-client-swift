@@ -247,6 +247,12 @@ struct SyntaxLexerTests {
     )
   }
 
+  @Test func shellLeftShiftIsNotAHeredoc() {
+    for source in ["echo $((1 << 2))\necho hi", "(( x << y ))\necho hi"] {
+      expectNoDifference(tokens(source, .shell)[1], tokens("echo hi", .shell)[0])
+    }
+  }
+
   @Test func cssRules() {
     expectNoDifference(
       tokens("@media (max-width: 600px) { .card { color: #fff !important; } } /* c */", .css),
@@ -290,6 +296,16 @@ struct SyntaxLexerTests {
         [],
         [Token("  echo bye", .string)],
         [Token("-", .punctuation), Token("\"quoted: x\"", .string)],
+      ]
+    )
+  }
+
+  @Test func yamlEmptyKeyIsJustItsColon() {
+    expectNoDifference(
+      tokens("  : foo\n- : bar", .yaml),
+      [
+        [Token(":", .punctuation), Token("foo", .string)],
+        [Token("-", .punctuation), Token(":", .punctuation), Token("bar", .string)],
       ]
     )
   }
@@ -417,5 +433,27 @@ struct SyntaxLexerTests {
     #expect(SyntaxLexer.lines(source, language: .typescript).count == 1_048_576 / line.utf8.count)
     let minified = String(repeating: "a=b(\"c\")+1;", count: 1_048_576 / 11)
     #expect(SyntaxLexer.lines(minified, language: .typescript).count == 1)
+    let hashes = String(repeating: "#", count: 1_048_576)
+    #expect(SyntaxLexer.lines(hashes, language: .swift).count == 1)
+    let ticks = (1...1_400).map { String(repeating: "`", count: $0) }.joined(separator: " ")
+    #expect(SyntaxLexer.lines(ticks, language: .markdown).count == 1)
+  }
+
+  @Test func shortInputsGiveOrderedRunsInsideTheLine() {
+    let alphabet = [" ", "a", "1", ":", "-", "#", "\"", "'", "`", "<", ">", "&", ";", "=", "/", "*", "\\", "$", "(", "\n"]
+    var inputs = [""]
+    for _ in 1...3 { inputs = inputs.flatMap { prefix in alphabet.map { prefix + $0 } } }
+    let languages: [SyntaxLanguage] = [.swift, .typescript, .json, .yaml, .shell, .markdown, .python, .css, .html]
+    for language in languages {
+      for input in inputs {
+        for (units, runs) in zip(displayLines(input), SyntaxLexer.lines(input, language: language)) {
+          var end = 0
+          for run in runs {
+            #expect(run.range.lowerBound >= end && run.range.upperBound <= units.count, "\(language) \(input.debugDescription)")
+            end = run.range.upperBound
+          }
+        }
+      }
+    }
   }
 }

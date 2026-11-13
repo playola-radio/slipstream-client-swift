@@ -79,6 +79,8 @@ private struct CodeScanner {
   var dot: (end: Int, before: Previous)?
   /// A shell heredoc opened on this line; its body starts on the next line.
   var pendingHeredoc: Heredoc?
+  /// `((` arithmetic open on this line, where `<<` is a shift rather than a heredoc.
+  var openArithmetic = 0
 
   init(language: SyntaxLanguage) {
     self.language = language
@@ -89,6 +91,7 @@ private struct CodeScanner {
     self.line = line
     runs = []
     dot = nil
+    openArithmetic = 0
     var index = 0
     switch state {
     case .code: break
@@ -252,7 +255,9 @@ private struct CodeScanner {
       return end
     }
     if language == .shell, unit == .ascii("$") { return variable(at: index) }
-    if language == .shell, has("<<", at: index), !has("<<<", at: index) { return heredoc(at: index) }
+    if language == .shell, has("<<", at: index), !has("<<<", at: index), openArithmetic == 0 {
+      return heredoc(at: index)
+    }
     return nil
   }
 
@@ -285,7 +290,7 @@ private struct CodeScanner {
     let isQuoted = quote == .ascii("'") || quote == .ascii("\"")
     let nameStart = isQuoted ? wordStart + 1 : wordStart
     let nameEnd = identifierEnd(from: nameStart)
-    guard nameEnd > nameStart, !isQuoted || (nameEnd < line.count && line[nameEnd] == quote) else {
+    guard nameEnd > nameStart, !line[nameStart].isDigit, !isQuoted || (nameEnd < line.count && line[nameEnd] == quote) else {
       return nil
     }
     let end = isQuoted ? nameEnd + 1 : nameEnd
@@ -354,9 +359,13 @@ private struct CodeScanner {
       if end == index + 1 { dot = (end, before) }
       return end
     }
-    if !Self.brackets.contains(unit) {
+    if unit == .ascii("#") {
+      while end + 1 < line.count, line[end] == .ascii("#"), line[end + 1] == .ascii("#") { end += 1 }
+    } else if !Self.brackets.contains(unit) {
       while end < line.count, isOperator(line[end]), !startsComment(at: end) { end += 1 }
     }
+    if language == .shell, has("((", at: index) { openArithmetic += 1 }
+    if language == .shell, has("))", at: index), openArithmetic > 0 { openArithmetic -= 1 }
     emit(index..<end, .punctuation)
     let isPostfix =
       end == index + 1 && (unit == .ascii("?") || unit == .ascii("!")) && index > 0

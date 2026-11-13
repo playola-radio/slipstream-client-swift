@@ -29,7 +29,7 @@ struct YAMLScanner {
     }
     let keyColumn = index
     if let colon = keyColon(in: line, from: index) {
-      runs.add(index..<line.trimmingWhitespace(before: colon), .type)
+      runs.add(index..<max(index, line.trimmingWhitespace(before: colon)), .type)
       runs.add(colon..<(colon + 1), .punctuation)
       index = line.skippingWhitespace(from: colon + 1)
     }
@@ -124,16 +124,18 @@ struct MarkdownScanner {
       runs.add(start..<end, .keyword)
       return runs
     }
+    var tickRuns = TickRuns(line, from: start)
     var index = start
     while index < line.count {
+      let ticks = line[index...].prefix { $0 == .ascii("`") }.count
       if line[index].isWhitespace {
         index += 1
-      } else if line[index] == .ascii("`"), let spanEnd = codeSpanEnd(in: line, from: index) {
+      } else if ticks > 0, let spanEnd = tickRuns.end(ofRunWithLength: ticks, after: index) {
         runs.add(index..<spanEnd, .string)
         index = spanEnd
       } else {
         let wordEnd =
-          line[(index + 1)...].firstIndex { $0.isWhitespace || $0 == .ascii("`") } ?? line.count
+          line[(index + max(ticks, 1))...].firstIndex { $0.isWhitespace || $0 == .ascii("`") } ?? line.count
         runs.add(index..<wordEnd, .plain)
         index = wordEnd
       }
@@ -141,20 +143,30 @@ struct MarkdownScanner {
     return runs
   }
 
-  /// The end of a code span opened at `index`: the next run of exactly as many backticks.
-  private func codeSpanEnd(in line: [UInt16], from index: Int) -> Int? {
-    let ticks = line[index...].prefix { $0 == .ascii("`") }.count
-    var search = index + ticks
-    while search < line.count {
-      guard line[search] == .ascii("`") else {
-        search += 1
-        continue
+  /// A line's backtick runs grouped by length, so finding the run that closes a code span is
+  /// a lookup rather than a scan.
+  private struct TickRuns {
+    private var starts: [Int: [Int]] = [:]
+    private var cursors: [Int: Int] = [:]
+
+    init(_ line: [UInt16], from start: Int) {
+      var index = start
+      while index < line.count {
+        let length = line[index...].prefix { $0 == .ascii("`") }.count
+        if length > 0 { starts[length, default: []].append(index) }
+        index += max(length, 1)
       }
-      let closing = line[search...].prefix { $0 == .ascii("`") }.count
-      if closing == ticks { return search + closing }
-      search += closing
     }
-    return nil
+
+    /// The end of the first run of exactly `length` backticks that starts after `index`.
+    /// `index` never decreases between calls.
+    mutating func end(ofRunWithLength length: Int, after index: Int) -> Int? {
+      guard let starts = starts[length] else { return nil }
+      var cursor = cursors[length, default: 0]
+      while cursor < starts.count, starts[cursor] <= index { cursor += 1 }
+      cursors[length] = cursor
+      return cursor < starts.count ? starts[cursor] + length : nil
+    }
   }
 }
 
