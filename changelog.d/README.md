@@ -4,8 +4,8 @@ A pull request with a change someone using the app would notice adds one new fil
 instead of editing `CHANGELOG.md`, so pull requests never conflict over release notes.
 When the current version is tagged, merging a `### Changes` note to `develop` makes CI bump the
 patch version, move every pending note into `CHANGELOG.md` under that version, and delete the
-files. `### Ops`-only notes wait for Changes notes. An untagged version publishes as is; notes
-merged after that bump wait for a later release.
+files. `### Ops`-only notes wait for Changes notes. An untagged version publishes without a new
+bump, and notes merged after its bump are added to it.
 
 Name the file after the change, in kebab case, for example `changelog.d/pause-recording.md`:
 

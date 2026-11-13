@@ -63,9 +63,11 @@ Otherwise:
   `## [<version>] - <today>` in `CHANGELOG.md`, deletes the `changelog.d/` files it moved,
   and raises the integer `CURRENT_PROJECT_VERSION` (the `sparkle:version`, which must
   only ever go up). `### Ops`-only notes wait for a release with changes.
-- **The version is not tagged yet:** it releases the merge as it is, without bumping
-  again. That covers a version prepared by hand and a release that failed. Notes merged
-  after that bump stay in `changelog.d/` and wait for a later release that promotes them.
+- **The version is not tagged yet:** it releases it without bumping again. That covers a
+  version prepared by hand, a release that failed, and a bump overtaken by a newer merge.
+  Notes merged after that bump are added to the version's section in `CHANGELOG.md` and
+  their `changelog.d/` files deleted, in a commit pushed to `develop`, so they ship with
+  the code they describe.
 - **Otherwise** it publishes nothing.
 
 The workflow then runs both test jobs on the commit it chose, builds, signs, notarizes,

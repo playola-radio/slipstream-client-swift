@@ -68,12 +68,22 @@ class PrepareReleaseTest < Minitest::Test
   end
 
   def test_publishes_an_unreleased_version_as_it_is
-    add_note("later.md", "### Changes\n\n- Later.\n")
-
     outputs, = prepare
 
     assert_equal({ "release" => "true", "sha" => head(@work) }, outputs)
     assert_match(/MARKETING_VERSION: "0\.4\.0"/, File.read(File.join(@work, "project.yml")))
+  end
+
+  def test_adds_notes_merged_after_the_bump_to_the_unreleased_version
+    add_note("later.md", "### Changes\n\n- Later.\n")
+
+    outputs, = prepare
+
+    assert_equal({ "release" => "true", "sha" => git(@origin, "rev-parse", "develop").strip }, outputs)
+    assert_equal outputs["sha"], head(@work)
+    assert_match(/MARKETING_VERSION: "0\.4\.0"/, File.read(File.join(@work, "project.yml")))
+    assert_match(/## \[0\.4\.0\] - 2026-11-10\n\n- Earlier work\.\n- Later\.\n/, File.read(File.join(@work, "CHANGELOG.md")))
+    assert_equal ["README.md"], Dir.children(File.join(@work, "changelog.d"))
   end
 
   def test_leaves_the_release_to_a_newer_merge
