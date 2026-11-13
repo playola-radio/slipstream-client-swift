@@ -40,12 +40,12 @@ final class AppLogFile: Sendable {
   )
 
   #if DEBUG
-    private static let fileName = "app-debug.log"
+    static let fileName = "app-debug.log"
   #else
-    private static let fileName = "app.log"
+    static let fileName = "app.log"
   #endif
 
-  private let url: URL
+  let url: URL
   private let maxBytes: UInt64
   private let queue = DispatchQueue(label: "com.playola.SlipstreamViewer.AppLog")
   private let logger = Logger(subsystem: "com.playola.SlipstreamViewer", category: "AppLog")
