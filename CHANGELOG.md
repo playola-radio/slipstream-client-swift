@@ -10,6 +10,11 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.22] - 2026-11-13
+
+- The Change stream stays where you left it when you switch to Terminals and back, or hide
+  and show the right panel, instead of reloading the whole history and jumping to the bottom.
+
 ## [0.4.21] - 2026-11-13
 
 - Archiving a workspace removes its row from the sidebar right away, and renaming one
