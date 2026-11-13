@@ -861,7 +861,7 @@ final class ChangeStreamPageModel: ViewModel {
     if isPaused(session) {
       await recording.recordTapped(folder: folder)
     } else {
-      await recording.pauseTapped(folder: folder)
+      await recording.pauseTapped(folder: folder, origin: .pauseButton)
     }
   }
 
@@ -913,7 +913,7 @@ final class ChangeStreamPageModel: ViewModel {
   func removeFromSidebarTapped(_ session: SessionOption) async {
     guard isRemoveFromSidebarAvailable(session), let folder = session.root else { return }
     if mayRecord(folder) {
-      guard await recording.pauseTapped(folder: folder) else { return }
+      guard await recording.pauseTapped(folder: folder, origin: .removeFromSidebar) else { return }
     }
     $openedFolders.withLock { _ = $0.remove(OpenedFolder(storeID: daemon.storeID, folder: folder)) }
     dismissedSessionIDs.formUnion(sessions.filter { $0.root == folder }.map(\.id))

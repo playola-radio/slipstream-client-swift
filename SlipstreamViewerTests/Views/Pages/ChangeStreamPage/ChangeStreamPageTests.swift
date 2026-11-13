@@ -3113,7 +3113,7 @@ extension ChangeStreamPageTests {
     let row = try #require(model.sessions[id: "new"])
     await model.rowActionTapped(row)
 
-    expectNoDifference(recordingFake.calls, [.pause("/tmp/slipstream-test/workspaces/r/farmerville")])
+    expectNoDifference(recordingFake.calls, [.pause("/tmp/slipstream-test/workspaces/r/farmerville", origin: .pauseButton)])
   }
 
   @Test func aRecreatedFolderThatIsRetryingShowsItsRetryingCaptureWithPause() async throws {
@@ -6536,7 +6536,7 @@ extension ChangeStreamPageTests {
     await model.rowActionTapped(try #require(model.sessions[id: "plain"]))
     expectNoDifference(sidebarRowIDs(model), ["managed", "plain"])
     expectNoDifference(
-      recordingFake.calls, [.record(Self.plainFolder), .pause(Self.plainFolder), .record(Self.plainFolder)])
+      recordingFake.calls, [.record(Self.plainFolder), .pause(Self.plainFolder, origin: .pauseButton), .record(Self.plainFolder)])
   }
 
   @Test func selectingAConductorCaptureWithoutRecordingItDoesNotListIt() async {
@@ -6599,7 +6599,7 @@ extension ChangeStreamPageTests {
     listManagedAndPlain(.stopped, reason: "detached")
     await model.removeFromSidebarTapped(try #require(model.sessions[id: "plain"]))
 
-    expectNoDifference(recordingFake.calls, [.record(Self.plainFolder), .pause(Self.plainFolder)])
+    expectNoDifference(recordingFake.calls, [.record(Self.plainFolder), .pause(Self.plainFolder, origin: .removeFromSidebar)])
     expectNoDifference(sidebarRowIDs(model), ["managed"])
     expectNoDifference(storedOpenedFolders, [])
   }
@@ -6617,7 +6617,7 @@ extension ChangeStreamPageTests {
 
     await model.removeFromSidebarTapped(try #require(model.selectedSession))
 
-    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder)])
+    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder, origin: .removeFromSidebar)])
   }
 
   @Test func removeFromSidebarDoesNotPauseAPausedFolder() async throws {
@@ -6701,7 +6701,7 @@ extension ChangeStreamPageTests {
 
     await model.removeFromSidebarTapped(try #require(model.sessions[id: "plain"]))
 
-    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder)])
+    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder, origin: .removeFromSidebar)])
   }
 
   @Test func removeFromSidebarPausesAFolderWhoseCaptureStateIsUnknown() async throws {
@@ -6716,7 +6716,7 @@ extension ChangeStreamPageTests {
 
     await model.removeFromSidebarTapped(try #require(model.sessions[id: "plain"]))
 
-    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder)])
+    expectNoDifference(recordingFake.calls, [.pause(Self.plainFolder, origin: .removeFromSidebar)])
   }
 
   @Test func removeFromSidebarIsNotOfferedWhileTheFolderIsBeingRecorded() async throws {

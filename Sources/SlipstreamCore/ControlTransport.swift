@@ -34,8 +34,9 @@ public struct ControlTransport: Sendable {
     try await send(ControlLine.encode(RecordRequest(worktree: folder))) { try ControlReply.check($0) }
   }
 
-  public func pause(folder: String) async throws {
-    try await send(ControlLine.encode(PauseRequest(target: folder))) { try ControlReply.check($0) }
+  /// `origin` names what asked, so the daemon's log can say who paused the capture.
+  public func pause(folder: String, origin: String) async throws {
+    try await send(ControlLine.encode(PauseRequest(target: folder, origin: origin))) { try ControlReply.check($0) }
   }
 
   public func renameSession(sessionID: String, name: String?) async throws {
@@ -191,6 +192,7 @@ private struct PauseRequest: Encodable {
   let v = 1
   let verb = "detach"
   let target: String
+  let origin: String
 }
 
 private struct RenameSessionRequest: Encodable {
