@@ -1326,7 +1326,7 @@ struct ChangeStreamPageTests {
     fake.setBlob(Fixture.shaA, "a\nfunction f() {\n  return 1\n}\nz\n")
     fake.setBlob(Fixture.shaB, "a\nfunction f() {\n  return 2\n}\nz\n")
     let content = await loadedContent(
-      Fixture.edited(1),
+      Fixture.edited(1, "src/user.txt"),
       clips: ClipsResponse(status: .ready, clips: [functionClip(2, 4)])
     )
     expectNoDifference(
@@ -1348,10 +1348,10 @@ struct ChangeStreamPageTests {
     )
   }
 
-  func highlightedLines(before: String, after: String, clips: [Clip]) async -> [CodeLine] {
+  func highlightedLines(before: String, after: String, clips: [Clip], path: String = "notes.txt") async -> [CodeLine] {
     fake.setBlob(Fixture.shaA, before)
     fake.setBlob(Fixture.shaB, after)
-    let content = await loadedContent(Fixture.edited(1), clips: ClipsResponse(status: .ready, clips: clips))
+    let content = await loadedContent(Fixture.edited(1, path), clips: ClipsResponse(status: .ready, clips: clips))
     guard case .code(let blocks) = content else {
       Issue.record("Expected code, got \(content)")
       return []
@@ -1377,6 +1377,87 @@ struct ChangeStreamPageTests {
     expectNoDifference(
       lines,
       [CodeLine(id: 1, number: "1", text: "    x    = 2", sourceText: "\tx\t= 2", isChanged: true, changedRanges: [11..<12])]
+    )
+  }
+
+  @Test func tabsShiftSyntaxRunsAndChangeMarksTogether() async {
+    let lines = await highlightedLines(
+      before: "\tx\t= 1\n", after: "\tx\t= 2\n", clips: [functionClip(1, 1)], path: "a.swift"
+    )
+    expectNoDifference(
+      lines,
+      [
+        CodeLine(
+          id: 1, number: "1", text: "    x    = 2", sourceText: "\tx\t= 2", isChanged: true, changedRanges: [11..<12],
+          syntaxRuns: [
+            SyntaxRun(range: 4..<5, kind: .plain), SyntaxRun(range: 9..<10, kind: .punctuation),
+            SyntaxRun(range: 11..<12, kind: .number),
+          ]
+        )
+      ]
+    )
+  }
+
+  @Test func unsupportedFileHasNoSyntaxRuns() async {
+    let lines = await highlightedLines(
+      before: "listen 80;\nroot /a;\n", after: "listen 81;\nroot /a;\n", clips: [functionClip(1, 2)],
+      path: "infra/nginx.conf"
+    )
+    expectNoDifference(lines.map(\.syntaxRuns), [[], []])
+  }
+
+  @Test func snippetInsideABlockCommentIsColouredAsComment() async {
+    let lines = await highlightedLines(
+      before: "/*\n one\n two\n three\n*/\nlet y = 1\n", after: "/*\n one\n two\n three\n*/\nlet y = 2\n",
+      clips: [functionClip(3, 6)], path: "a.ts"
+    )
+    expectNoDifference(
+      lines.map(\.syntaxRuns),
+      [
+        [SyntaxRun(range: 0..<4, kind: .comment)],
+        [SyntaxRun(range: 0..<6, kind: .comment)],
+        [SyntaxRun(range: 0..<2, kind: .comment)],
+        [
+          SyntaxRun(range: 0..<3, kind: .keyword), SyntaxRun(range: 4..<5, kind: .plain),
+          SyntaxRun(range: 6..<7, kind: .punctuation), SyntaxRun(range: 8..<9, kind: .number),
+        ],
+      ]
+    )
+  }
+
+  @Test func askSelectionLiftsEveryTokenOnSelectedLines() async throws {
+    let model = await connectedModel()
+    defer { model.viewDisappeared() }
+    fake.setBlob(Fixture.shaB, "let a = 1\nlet b = 2\nlet c = 3\n")
+    fake.setClips(
+      ClipsResponse(status: .ready, clips: [functionClip(1, 3)]), for: Fixture.seq(1)
+    )
+    await send(Fixture.fileChanged(1, "a.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)))
+    let row = try #require(fileRow(model, 1))
+    await model.cardAppeared(row)
+    guard case .code(let blocks) = model.content(for: row) else { Issue.record("Missing source"); return }
+    let block = blocks[0]
+    func lifted(_ line: CodeLine) -> AttributedString {
+      DesignTokens.Syntax.styled(line.text, runs: line.syntaxRuns, tintedRanges: [0..<line.text.utf16.count])
+    }
+    func base(_ line: CodeLine) -> AttributedString {
+      DesignTokens.Syntax.styled(line.text, runs: line.syntaxRuns, tintedRanges: line.changedRanges)
+    }
+    #expect(block.lines.allSatisfy { !$0.syntaxRuns.isEmpty })
+
+    model.sourceDragged(row: row, block: block, startY: 23, endY: 30, frame: CGRect(x: 20, y: 100, width: 600, height: 66))
+
+    expectNoDifference(
+      block.lines.map { model.sourceText($0, row: row, block: block) },
+      [base(block.lines[0]), lifted(block.lines[1]), base(block.lines[2])]
+    )
+
+    model.sourceDragEnded()
+    model.questionDismissed()
+
+    expectNoDifference(
+      block.lines.map { model.sourceText($0, row: row, block: block) },
+      block.lines.map(base)
     )
   }
 
@@ -1407,7 +1488,7 @@ struct ChangeStreamPageTests {
       after: ClipSide(span: ClipSpan(lineStart: 4, lineEnd: 4, truncated: true), method: .changedRange)
     )
     let content = await loadedContent(
-      Fixture.edited(1),
+      Fixture.edited(1, "src/user.txt"),
       clips: ClipsResponse(status: .fallback, fallbackReason: "no-enclosing-function", clips: [functionClip(1, 1), rangeClip])
     )
     expectNoDifference(
@@ -1427,7 +1508,7 @@ struct ChangeStreamPageTests {
       after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .changedRange)
     )
     let content = await loadedContent(
-      Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
+      Fixture.fileChanged(1, "new.txt", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
       clips: ClipsResponse(status: .ready, clips: [rangeClip, functionClip(1, 3)])
     )
     expectNoDifference(
@@ -1516,7 +1597,7 @@ struct ChangeStreamPageTests {
     let model = makeModel(daemon: daemon)
     await model.viewAppeared()
     await Task.megaYield()
-    daemon.send(Fixture.edited(1))
+    daemon.send(Fixture.edited(1, "src/user.txt"))
     await Task.megaYield()
     let row = try #require(fileRow(model, 1))
 
@@ -1557,7 +1638,7 @@ struct ChangeStreamPageTests {
       after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .wholeFile)
     )
     let content = await loadedContent(
-      Fixture.fileChanged(1, "new.ts", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
+      Fixture.fileChanged(1, "new.txt", before: Fixture.absent, after: Fixture.content(Fixture.shaB)),
       clips: ClipsResponse(status: .ready, clips: [wholeFile])
     )
     expectNoDifference(
@@ -1581,7 +1662,7 @@ struct ChangeStreamPageTests {
       after: ClipSide(span: ClipSpan(lineStart: 1, lineEnd: 2, truncated: false), method: .wholeFile)
     )
     let content = await loadedContent(
-      Fixture.fileChanged(1, "existing.ts", before: Fixture.unavailable("baseline-unknown"), after: Fixture.content(Fixture.shaB)),
+      Fixture.fileChanged(1, "existing.txt", before: Fixture.unavailable("baseline-unknown"), after: Fixture.content(Fixture.shaB)),
       clips: ClipsResponse(status: .ready, clips: [wholeFile])
     )
     expectNoDifference(
@@ -1617,7 +1698,7 @@ struct ChangeStreamPageTests {
   @Test func unavailableBeforeStillFetchesAfter() async {
     fake.setBlob(Fixture.shaB, "a\nfunction f() {\n  return 2\n}\nz\n")
     let content = await loadedContent(
-      Fixture.fileChanged(1, "new.ts", before: Fixture.unavailable("baseline-unknown"), after: Fixture.content(Fixture.shaB)),
+      Fixture.fileChanged(1, "new.txt", before: Fixture.unavailable("baseline-unknown"), after: Fixture.content(Fixture.shaB)),
       clips: ClipsResponse(status: .ready, clips: [functionClip(2, 4)])
     )
     expectNoDifference(

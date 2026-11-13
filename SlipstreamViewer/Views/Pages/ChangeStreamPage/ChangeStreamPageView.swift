@@ -790,7 +790,7 @@ private struct CodeBlockView: View {
             .font(DesignTokens.Fonts.lineNumber)
             .foregroundStyle(DesignTokens.Colors.lineNumber)
         } source: {
-          Text(line.text)
+          Text(model.sourceText(line, row: row, block: block))
             .font(DesignTokens.Fonts.sourceLine)
             .foregroundStyle(DesignTokens.Colors.sourceLine)
             .lineLimit(1)
