@@ -70,19 +70,6 @@ struct LoginEnvironmentCacheTests {
     expectNoDifference(shells.value, 2)
   }
 
-  @Test func failureIsNotCached() async throws {
-    let cache = cache(failing: [1])
-    let first = Task { try await cache.resolve() }
-    await clock.advance(by: .seconds(1))
-    await #expect(throws: AgentEnvironmentError.shellTimedOut) { try await first.value }
-
-    let second = Task { try await cache.resolve() }
-    await clock.advance(by: .seconds(1))
-
-    let retried = try await second.value
-    expectNoDifference(retried, ["SHELL_RUN": "2"])
-  }
-
   @Test func concurrentCallersShareAFailureAndTheNextCallRetries() async throws {
     let cache = cache(failing: [1])
     let first = Task { try await cache.resolve() }

@@ -31,8 +31,9 @@ struct RepoCommandClient: Sendable {
 
 extension RepoCommandClient {
   static func live(loginEnvironment: @escaping @Sendable () async throws -> [String: String]) -> Self {
-    Self(run: { arguments, folder, timeout in
-      let environment = (try? await loginEnvironment()) ?? ProcessInfo.processInfo.environment
+    let cache = AgentEnvironmentCache(load: loginEnvironment)
+    return Self(run: { arguments, folder, timeout in
+      let environment = (try? await cache.resolve()) ?? ProcessInfo.processInfo.environment
       return await withCheckedContinuation { continuation in
         DispatchQueue.global().async {
           continuation.resume(returning: runBlocking(arguments, folder, timeout, environment: environment))

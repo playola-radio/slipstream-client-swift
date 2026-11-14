@@ -22,7 +22,7 @@ extension AgentEnvironmentError {
     case .shellTimedOut:
       "Your login shell took longer than 10 seconds to start"
     case .shellEnvironmentUnreadable:
-      "Your login shell exited before printing its environment"
+      "Your login shell didn't print its environment"
     case .claudeNotFound:
       "Couldn't find claude on your login shell's PATH"
     case .tooOld(let found):
@@ -40,7 +40,7 @@ struct AgentEnvironmentClient: Sendable {
 extension AgentEnvironmentClient {
   static let minimumVersion = "2.1.293"
 
-  /// Nil when the marker is missing, which means the shell exited before printing its environment.
+  /// Nil when nothing follows the marker, which means the shell didn't print its environment.
   static func parseEnvironment(_ output: Data, marker: String) -> [String: String]? {
     let fields = output.split(separator: 0, omittingEmptySubsequences: false)
     guard let markerIndex = fields.firstIndex(of: Data(marker.utf8)) else { return nil }
@@ -50,7 +50,7 @@ extension AgentEnvironmentClient {
       guard let equals = entry.firstIndex(of: "="), equals != entry.startIndex else { continue }
       variables[String(entry[..<equals])] = String(entry[entry.index(after: equals)...])
     }
-    return variables
+    return variables.isEmpty ? nil : variables
   }
 
   static func isSupported(version: String) -> Bool {
