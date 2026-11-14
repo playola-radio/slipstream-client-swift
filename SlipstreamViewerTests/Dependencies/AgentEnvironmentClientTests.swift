@@ -25,8 +25,8 @@ struct AgentEnvironmentClientTests {
     )
   }
 
-  @Test func parseWithoutMarkerIsEmpty() {
-    expectNoDifference(AgentEnvironmentClient.parseEnvironment(Data("PATH=/a\0".utf8), marker: "M"), [:])
+  @Test func parseWithoutMarkerIsNil() {
+    expectNoDifference(AgentEnvironmentClient.parseEnvironment(Data("PATH=/a\0".utf8), marker: "M"), nil)
   }
 
   @Test func versionFloor() {

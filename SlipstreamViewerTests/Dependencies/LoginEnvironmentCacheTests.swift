@@ -83,6 +83,22 @@ struct LoginEnvironmentCacheTests {
     expectNoDifference(retried, ["SHELL_RUN": "2"])
   }
 
+  @Test func concurrentCallersShareAFailureAndTheNextCallRetries() async throws {
+    let cache = cache(failing: [1])
+    let first = Task { try await cache.resolve() }
+    let second = Task { try await cache.resolve() }
+    await Task.megaYield()
+    await clock.advance(by: .seconds(1))
+    await #expect(throws: AgentEnvironmentError.shellTimedOut) { try await first.value }
+    await #expect(throws: AgentEnvironmentError.shellTimedOut) { try await second.value }
+
+    let third = Task { try await cache.resolve() }
+    await clock.advance(by: .seconds(1))
+
+    let retried = try await third.value
+    expectNoDifference(retried, ["SHELL_RUN": "2"])
+  }
+
   @Test func failedRefreshKeepsTheCachedValue() async throws {
     let cache = cache(failing: [2])
     let first = Task { try await cache.resolve() }
@@ -95,5 +111,22 @@ struct LoginEnvironmentCacheTests {
 
     let kept = try await cache.resolve()
     expectNoDifference(kept, ["SHELL_RUN": "1"])
+  }
+
+  @Test func nextCallRefreshesAgainAfterAFailedRefresh() async throws {
+    let cache = cache(failing: [2])
+    let first = Task { try await cache.resolve() }
+    await clock.advance(by: .seconds(1))
+    _ = try await first.value
+    _ = try await cache.resolve()
+    await clock.advance(by: .seconds(1))
+    await Task.megaYield()
+
+    _ = try await cache.resolve()
+    await clock.advance(by: .seconds(1))
+    await Task.megaYield()
+
+    let refreshed = try await cache.resolve()
+    expectNoDifference(refreshed, ["SHELL_RUN": "3"])
   }
 }

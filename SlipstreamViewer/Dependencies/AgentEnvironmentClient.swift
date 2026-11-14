@@ -10,6 +10,7 @@ struct AgentEnvironment: Equatable, Sendable {
 
 enum AgentEnvironmentError: Error, Equatable {
   case shellTimedOut
+  case shellEnvironmentUnreadable
   case claudeNotFound
   case tooOld(found: String)
   case unreadableVersion
@@ -20,6 +21,8 @@ extension AgentEnvironmentError {
     switch self {
     case .shellTimedOut:
       "Your login shell took longer than 10 seconds to start"
+    case .shellEnvironmentUnreadable:
+      "Your login shell exited before printing its environment"
     case .claudeNotFound:
       "Couldn't find claude on your login shell's PATH"
     case .tooOld(let found):
@@ -37,9 +40,10 @@ struct AgentEnvironmentClient: Sendable {
 extension AgentEnvironmentClient {
   static let minimumVersion = "2.1.293"
 
-  static func parseEnvironment(_ output: Data, marker: String) -> [String: String] {
+  /// Nil when the marker is missing, which means the shell exited before printing its environment.
+  static func parseEnvironment(_ output: Data, marker: String) -> [String: String]? {
     let fields = output.split(separator: 0, omittingEmptySubsequences: false)
-    guard let markerIndex = fields.firstIndex(of: Data(marker.utf8)) else { return [:] }
+    guard let markerIndex = fields.firstIndex(of: Data(marker.utf8)) else { return nil }
     var variables: [String: String] = [:]
     for field in fields[(markerIndex + 1)...] {
       let entry = String(decoding: field, as: UTF8.self)
@@ -196,7 +200,9 @@ extension AgentEnvironmentClient: DependencyKey {
       let output = try await captureOutput(
         shell, ["-ilc", "printf '\\0\(marker)\\0'; env -0"], environment: nil)
     else { throw AgentEnvironmentError.shellTimedOut }
-    return parseEnvironment(output, marker: marker)
+    guard let variables = parseEnvironment(output, marker: marker)
+    else { throw AgentEnvironmentError.shellEnvironmentUnreadable }
+    return variables
   }
 
   /// Runs a command and returns its stdout, or nil if it doesn't finish within the timeout.
