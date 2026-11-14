@@ -10,6 +10,12 @@ Don't edit this file in a pull request; add a file to `changelog.d/` (see
 
 <!-- Don't add notes here: add a file to changelog.d/ (see changelog.d/README.md). -->
 
+## [0.4.26] - 2026-11-14
+
+- New workspaces, terminal tabs and agents start about a second faster. Slipstream now
+  remembers your shell setup instead of starting a login shell each time, and still picks up
+  edits to your shell profile shortly after you make them.
+
 ## [0.4.25] - 2026-11-13
 
 - Code in change-stream cards and in chat replies is now coloured by syntax for Swift,
