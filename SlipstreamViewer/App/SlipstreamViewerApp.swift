@@ -29,6 +29,7 @@ struct SlipstreamViewerApp: App {
     guard !isTesting else { return }
     IssueReporters.current += [AppLogIssueReporter()]
     Self.logLaunch()
+    Task { _ = try? await AgentEnvironmentClient.loginEnvironment() }
     let functionChangesDemo = Self.functionChangesDemo()
     _functionChangesDemo = State(initialValue: functionChangesDemo)
     _page = State(initialValue: ChangeStreamPageModel(
