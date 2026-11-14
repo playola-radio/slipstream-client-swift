@@ -101,6 +101,47 @@ actor AgentEnvironmentCache<Value: Sendable> {
   }
 }
 
+/// Keeps the last login environment that loaded. Callers get it immediately while one shell
+/// refreshes it in the background, so profile edits show up a call or two later. Until a load
+/// succeeds, callers share the one in flight; a failure is never kept.
+actor LoginEnvironmentCache {
+  private let load: @Sendable () async throws -> [String: String]
+  private var value: [String: String]?
+  private var loading: Task<[String: String], any Error>?
+
+  init(load: @escaping @Sendable () async throws -> [String: String]) {
+    self.load = load
+  }
+
+  func resolve() async throws -> [String: String] {
+    if let value {
+      if loading == nil { refreshInBackground() }
+      return value
+    }
+    let task = loading ?? startLoading()
+    let result = await task.result
+    finished(task, result)
+    return try result.get()
+  }
+
+  private func startLoading() -> Task<[String: String], any Error> {
+    let task = Task { try await load() }
+    loading = task
+    return task
+  }
+
+  private func refreshInBackground() {
+    let task = startLoading()
+    Task { finished(task, await task.result) }
+  }
+
+  private func finished(_ task: Task<[String: String], any Error>, _ result: Result<[String: String], any Error>) {
+    guard loading == task else { return }
+    loading = nil
+    if case .success(let loaded) = result { value = loaded }
+  }
+}
+
 extension AgentEnvironmentClient: DependencyKey {
   static var liveValue: Self {
     let cache = AgentEnvironmentCache(load: loadFromLoginShell)
@@ -137,7 +178,15 @@ extension AgentEnvironmentClient: DependencyKey {
     )
   }
 
+  /// The environment of the user's login shell. Starting the shell takes about a second, so this
+  /// answers from a cache that refreshes itself in the background.
   static func loginEnvironment() async throws -> [String: String] {
+    try await loginEnvironmentCache.resolve()
+  }
+
+  private static let loginEnvironmentCache = LoginEnvironmentCache(load: loadLoginEnvironment)
+
+  @Sendable private static func loadLoginEnvironment() async throws -> [String: String] {
     let shell = loginShell(
       environment: ProcessInfo.processInfo.environment,
       passwordDatabaseShell: passwordDatabaseShell()
